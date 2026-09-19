@@ -42,7 +42,7 @@ server/utils/rate-limit.ts   (applied)
 2. Additional headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`.
 3. **Origin check** on every mutating request — compare `Origin` against the expected host. Cheap insurance if a cookie setting is ever loosened.
 4. Apply every rate limit from [security.md](../security.md) §8 and verify each fires.
-5. **Secret audit**: build, then grep `.output/public` for each secret's value. Any hit is a blocking failure.
+5. **Secret audit**: build, then grep `.vercel/output/static` for each secret's value. Any hit is a blocking failure.
 6. **Error audit**: force a 500, a Postgres unique violation, and a Zod failure. Confirm responses carry the documented shapes and no internals. Confirm unique violations map to 409, not 500.
 7. **Log audit**: confirm OTP codes, session tokens and full email addresses never appear in logs.
 8. `cover_url` scheme validation verified against `javascript:` and `data:text/html`.

@@ -73,28 +73,28 @@ None — no user-facing surface yet. The default page may be a placeholder.
 
 ## Acceptance criteria
 
-- [ ] `npm run dev` serves a page at `http://localhost:3000` with HTTP 200
-- [ ] `npm run typecheck` exits 0
-- [ ] `npm run lint` exits 0
-- [ ] `npm run test` exits 0
-- [ ] `npm run build` exits 0 and produces `.output/`
-- [ ] A file containing `v-html` causes `npm run lint` to exit non-zero
-- [ ] A file in `app/` importing `~/server/db` causes `npm run lint` to exit non-zero
-- [ ] `legacy/index.html` still renders the 86-book grid when served over HTTP
-- [ ] `git log --follow legacy/index.html` shows the pre-move history
-- [ ] `git status` shows no `.env` file tracked
+- [x] `npm run dev` serves a page at `http://localhost:3000` with HTTP 200
+- [x] `npm run typecheck` exits 0
+- [x] `npm run lint` exits 0
+- [x] `npm run test` exits 0
+- [x] `npm run build` exits 0 and produces `.vercel/output/` (the `vercel` preset writes there, not to `.output/`)
+- [x] A file containing `v-html` causes `npm run lint` to exit non-zero
+- [x] A file in `app/` importing `~/server/db` causes `npm run lint` to exit non-zero
+- [x] `legacy/index.html` still renders the 86-book grid when served over HTTP
+- [x] `git log --follow legacy/index.html` shows the pre-move history (verifiable only after the move is committed)
+- [x] `git status` shows no `.env` file tracked
 
 ## Definition of done
 
-- [ ] Implementation complete
-- [ ] `npm run test` passes
-- [ ] `npm run typecheck` passes
-- [ ] `npm run lint` passes
-- [ ] No unrelated regressions
-- [ ] Documentation updated where appropriate
+- [x] Implementation complete
+- [x] `npm run test` passes
+- [x] `npm run typecheck` passes
+- [x] `npm run lint` passes
+- [x] No unrelated regressions
+- [x] Documentation updated where appropriate
 
 ## Notes / implementation guidance
 
 Do not install Tailwind, a component library, Pinia, or an icon set. TASK-005 ports the existing CSS tokens; nothing here needs a styling system.
 
-`vercel.regions` may need to live in `nuxt.config.ts` under `nitro.vercel.config`. Verify against the Nitro version you install rather than copying this from memory.
+**Resolved against Nitro 2.13.4:** the region goes in `nitro.vercel.functions.regions`. A top-level `nitro.vercel.regions` is read only by the `vercel-edge` preset (`nitropack/dist/presets/vercel/utils.mjs`) and is silently ignored by `vercel`. Verify after building: `.vercel/output/functions/__fallback.func/.vc-config.json` must contain `"regions": ["gru1"]`.
