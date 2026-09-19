@@ -6,6 +6,7 @@
   },
   "include": [
     "tests/**/*",
+    "scripts/**/*",
     "vitest.config.ts",
     "drizzle.config.ts"
   ]

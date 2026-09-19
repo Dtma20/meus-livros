@@ -1,18 +1,31 @@
-Ficção: Histórias inventadas.
-- Romance: Foco em relacionamentos e drama humano.
-- Fantasia: Elementos mágicos e mundos imaginários.
-- Ficção Científica: Baseada em ciência e tecnologia futuras/alternativas.
-- Suspense/Policial/Mistério: Intriga, investigação e tensão.
-- Terror/Horror: Medo e elementos sobrenaturais.
-- Aventura: Jornadas e perigos.
-- Distopia: Sociedades futuras opressivas.
+Ficção:
+- Ficção
+- Romance
+- Aventura
+- Fantasia
+- Ficção Científica
+- Novela
+- Suspense e Mistério
+- Distopia
+- Contos
+- Terror
+- Fábula
+- Comédia
 
-Não Ficção: Baseado em fatos e realidade.
-- Biografia/Autobiografia: Vida de pessoas.
-- Autoajuda/Desenvolvimento Pessoal: Orientação para a vida.
-- Técnico/Acadêmico: Conhecimento específico (ex: ciência, história).
-- Crônicas/Ensaios: Reflexões sobre o cotidiano ou temas específicos.
+Não Ficção:
+- Não Ficção
+- História
+- Biografia e Autobiografia
+- Política
+- Filosofia
+- Desenvolvimento Pessoal
+- Matemática
+- Ciência
+- Economia
+- Ensaios e Crônicas
+- Tecnologia
 
 Outros:
-- Poesia: Expressão de sentimentos, em verso.
-- Dramaturgia: Peças de teatro (atos, cenas, diálogos).
+- Graphic Novel
+- Dramaturgia
+- Poesia

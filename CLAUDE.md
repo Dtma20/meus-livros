@@ -121,7 +121,7 @@ legacy/       the pre-Nuxt site, runnable until parity
 
 ### API
 - Routes are thin: validate → authorize → call a service → shape the response.
-- **Only `server/services/**` may import the `db` handle.** ESLint enforces this.
+- **Only `server/services/**` may import the `db` handle.** ESLint enforces this. `scripts/**` is exempt: one-off migrations run from a laptop and need the schema, and nothing under `scripts/` is bundled into the app.
 - Zod-validate every body and query string. Client validation is a convenience; the server always revalidates.
 - Error shape: `{ error: 'codigo_snake_case', message: 'Mensagem em português.' }`.
 - **A private resource returns 404, never 403.** A 403 confirms it exists.
