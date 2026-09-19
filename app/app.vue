@@ -1,10 +1,19 @@
 <template>
-  <main>
-    <h1>Meus Livros</h1>
-    <p>Bem-vindo ao Meus Livros.</p>
-  </main>
+  <NuxtLayout>
+    <NuxtPage />
+  </NuxtLayout>
 </template>
 
 <script setup lang="ts">
-// Shell básico para TASK-001
+// Root application component
 </script>
+
+<style>
+body {
+  background-color: var(--bg-color);
+  color: #fff;
+  font-family: var(--font-sans);
+  margin: 0;
+  overflow-y: scroll;
+}
+</style>

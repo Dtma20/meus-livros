@@ -1,0 +1,134 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+const serverPath = path.resolve('.vercel/output/functions/__fallback.func/index.mjs')
+
+describe('Route integration HTTP tests', () => {
+  let child: ChildProcess
+  let baseUrl: string
+
+  beforeAll(async () => {
+    if (!fs.existsSync(serverPath)) {
+      const { loadNuxt, build } = await import('nuxt')
+      const nuxt = await loadNuxt({ dev: false, ready: true })
+      await build(nuxt)
+      await nuxt.close()
+    }
+
+    const env = { ...process.env }
+    delete env.NODE_OPTIONS
+    delete env.VITEST
+    delete env.VITEST_WORKER_ID
+
+    child = spawn('node', [path.resolve('tests/integration/server-runner.mjs')], {
+      env,
+      stdio: ['ignore', 'pipe', 'inherit']
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      child.stdout?.on('data', (data) => {
+        const str = data.toString()
+        const match = str.match(/PORT:(\d+)/)
+        if (match && match[1]) {
+          baseUrl = `http://127.0.0.1:${match[1]}`
+          resolve()
+        }
+      })
+      child.on('error', reject)
+    })
+  }, 120000)
+
+  afterAll(() => {
+    if (child) {
+      child.kill()
+    }
+  })
+
+  it('GET / returns 200 and renders default layout with footer attribution', async () => {
+    const res = await fetch(`${baseUrl}/`, { redirect: 'manual' })
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain('Início')
+    expect(html).toContain('Dados bibliográficos parcialmente do Open Library')
+    expect(html).toContain('Meus Livros')
+  })
+
+  it('GET /@diogo returns 200 and the page receives handle = "diogo"', async () => {
+    const res = await fetch(`${baseUrl}/@diogo`, { redirect: 'manual' })
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain('Perfil de @diogo')
+    expect(html).toContain('Handle: diogo')
+    expect(html).toContain('Dados bibliográficos parcialmente do Open Library')
+  })
+
+  it('GET /livro/x returns 200 and the page receives slug = "x"', async () => {
+    const res = await fetch(`${baseUrl}/livro/x`, { redirect: 'manual' })
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain('Livro: x')
+    expect(html).toContain('Slug: x')
+  })
+
+  it('GET /entrada/x returns 200 and the page receives id = "x"', async () => {
+    const res = await fetch(`${baseUrl}/entrada/x`, { redirect: 'manual' })
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain('Entrada: x')
+    expect(html).toContain('ID da entrada: x')
+  })
+
+  it('GET /entrar returns 200 and renders login stub', async () => {
+    const res = await fetch(`${baseUrl}/entrar`, { redirect: 'manual' })
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    expect(html).toContain('Entrar')
+  })
+
+  it('GET /app/novo unauthenticated returns a redirect to /entrar?next=/app/novo with status 302', async () => {
+    const res = await fetch(`${baseUrl}/app/novo`, { redirect: 'manual' })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('/entrar?next=/app/novo')
+  })
+
+  it('GET /app/bem-vindo unauthenticated returns a redirect to /entrar?next=/app/bem-vindo', async () => {
+    const res = await fetch(`${baseUrl}/app/bem-vindo`, { redirect: 'manual' })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('/entrar?next=/app/bem-vindo')
+  })
+
+  it('GET /app/perfil unauthenticated returns a redirect to /entrar?next=/app/perfil', async () => {
+    const res = await fetch(`${baseUrl}/app/perfil`, { redirect: 'manual' })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('/entrar?next=/app/perfil')
+  })
+
+  it('GET /app/entrada/x/editar unauthenticated returns a redirect to /entrar?next=/app/entrada/x/editar', async () => {
+    const res = await fetch(`${baseUrl}/app/entrada/x/editar`, { redirect: 'manual' })
+    expect(res.status).toBe(302)
+    expect(res.headers.get('location')).toBe('/entrar?next=/app/entrada/x/editar')
+  })
+
+  it('GET /rota-inexistente renders error.vue with pt-BR copy, status 404, and footer attribution', async () => {
+    const res = await fetch(`${baseUrl}/rota-inexistente`, {
+      headers: { accept: 'text/html' }
+    })
+    expect(res.status).toBe(404)
+    const html = await res.text()
+    expect(html).toContain('404')
+    expect(html).toContain('Página não encontrada')
+    expect(html).toContain('A página que você procura não existe ou foi removida.')
+    expect(html).toContain('Voltar ao início')
+    expect(html).toContain('Dados bibliográficos parcialmente do Open Library')
+    expect(html).not.toContain('stack')
+  })
+
+  it('/robots.txt contains Disallow: /app/', () => {
+    const robotsPath = path.resolve('public/robots.txt')
+    expect(fs.existsSync(robotsPath)).toBe(true)
+    const robotsContent = fs.readFileSync(robotsPath, 'utf8')
+    expect(robotsContent).toContain('Disallow: /app/')
+  })
+})
