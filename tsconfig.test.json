@@ -1,0 +1,12 @@
+{
+  "extends": "./.nuxt/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "tsBuildInfoFile": "./.nuxt/tsconfig.test.tsbuildinfo"
+  },
+  "include": [
+    "tests/**/*",
+    "vitest.config.ts",
+    "drizzle.config.ts"
+  ]
+}
