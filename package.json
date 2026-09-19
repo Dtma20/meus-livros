@@ -25,11 +25,13 @@
   "devDependencies": {
     "@nuxt/eslint": "^1.17.0",
     "@types/node": "^26.6.2",
+    "@vitejs/plugin-vue": "^6.0.9",
     "dotenv": "^18.0.1",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.21.0",
+    "happy-dom": "^20.14.5",
     "typescript": "^5.7.3",
-    "vitest": "^3.0.7",
+    "vitest": "^5.0.1",
     "vue-tsc": "^2.2.8"
   }
 }
