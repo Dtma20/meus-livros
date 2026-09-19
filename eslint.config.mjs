@@ -9,7 +9,7 @@ export default withNuxt(
   },
   {
     files: ['**/*.{js,mjs,ts,vue}'],
-    ignores: ['server/services/**', 'server/db/**'],
+    ignores: ['server/services/**', 'server/db/**', 'scripts/**'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
