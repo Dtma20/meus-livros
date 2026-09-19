@@ -5,6 +5,7 @@
     "tsBuildInfoFile": "./.nuxt/tsconfig.test.tsbuildinfo"
   },
   "include": [
+    ".nuxt/nuxt.d.ts",
     "tests/**/*",
     "vitest.config.ts",
     "drizzle.config.ts"
