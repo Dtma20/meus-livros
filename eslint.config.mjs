@@ -28,6 +28,8 @@ export default withNuxt(
               ],
               message:
                 'O handle de banco de dados só pode ser importado dentro de server/services/**',
+              // Types carry no runtime handle, and from TASK-003 onward the row types are
+              // inferred from the Drizzle schema and imported across every layer.
               allowTypeImports: true
             }
           ]

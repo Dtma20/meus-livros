@@ -1,5 +1,7 @@
 # TASK-005 — Port design tokens and base components
 
+> **Q5 settled (2026-09-19): dark only.** Port one set of tokens. No theme switch, no light-mode variables.
+
 ## Goal
 
 Extract the existing visual language from `legacy/index.html` and `legacy/styles.css` into Vue components and CSS tokens.

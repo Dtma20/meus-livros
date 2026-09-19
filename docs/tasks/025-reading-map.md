@@ -1,4 +1,6 @@
-# TASK-025 — Reading map *(should-have)*
+# TASK-025 — Reading map
+
+> **Q6 settled (2026-09-19): static SVG, not Google Charts.** It drops the last third-party CDN script, is SSR-safe and renders in the OG preview. Keeping GeoChart is not the fallback — if this task is cut, no map ships. *(should-have)*
 
 ## Goal
 

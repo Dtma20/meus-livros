@@ -1,0 +1,12 @@
+# Repo stores LF; check out LF everywhere so Windows stops rewriting line endings.
+* text=auto eol=lf
+
+# Never touch binaries.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ico binary

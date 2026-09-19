@@ -46,6 +46,7 @@ server/utils/rate-limit.ts   (applied)
 6. **Error audit**: force a 500, a Postgres unique violation, and a Zod failure. Confirm responses carry the documented shapes and no internals. Confirm unique violations map to 409, not 500.
 7. **Log audit**: confirm OTP codes, session tokens and full email addresses never appear in logs.
 8. `cover_url` scheme validation verified against `javascript:` and `data:text/html`.
+9. **Close the `v-html` gap.** `vue/no-v-html` only sees templates. Add a rule banning `innerHTML`, `outerHTML`, `insertAdjacentHTML` and `domProps.innerHTML` in `.ts`/`.vue` scripts, then verify it fires. CLAUDE.md bans HTML injection repository-wide; today only half of that is enforced.
 9. Confirm request bodies are capped at 64 KB.
 10. Re-run the four visibility tests from TASK-017 **against production**.
 

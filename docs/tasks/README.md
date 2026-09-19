@@ -2,7 +2,7 @@
 
 26 tasks. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
 
-**Read [../README.md](../README.md) first.** Do not start 001 before the two blocking questions in [../open-questions.md](../open-questions.md) are answered.
+**Read [../README.md](../README.md) first.** The two blocking questions in [../open-questions.md](../open-questions.md) were settled on 2026-09-19 — Q2 resolved, Q1's risk accepted with a mitigation due before [023](023-deploy-to-vercel.md). 001 is complete.
 
 ---
 

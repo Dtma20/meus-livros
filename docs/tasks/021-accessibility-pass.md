@@ -1,5 +1,7 @@
 # TASK-021 — Accessibility pass
 
+> Carried over from TASK-001 review: the document has no `lang`. Set `app.head.htmlAttrs.lang` to `pt-BR` in `nuxt.config.ts` — the whole UI is Portuguese and screen readers currently guess.
+
 ## Goal
 
 Make the app usable by keyboard and screen reader.

@@ -4,11 +4,13 @@ Unresolved decisions and unverified assumptions. Nothing important is hidden her
 
 **Blocking** = do not start implementation until answered.
 
+**As of 2026-09-19 nothing here blocks implementation.** Q2 is resolved, Q1's risk is explicitly accepted with a mitigation tied to [tasks/023](tasks/023-deploy-to-vercel.md), and Q3–Q6 are closed or harmless. Q1 remains listed as blocking because that is what it *was*; the decision to override it is recorded, not erased.
+
 ---
 
 ## Blocking
 
-### Q1 — Does the friend group actually want this?
+### Q1 — Does the friend group actually want this? [RISK ACCEPTED — 2026-09-19]
 
 **Why it matters.** The largest risk in the entire plan is not technical. Roughly four weeks of work is predicated on ~30 people wanting a reading app. If five of them log books and twenty-five do not, the product is empty and no feature fixes it — the feed has nothing in it, and the loop never closes.
 
@@ -20,6 +22,8 @@ Unresolved decisions and unverified assumptions. Nothing important is hidden her
 **Recommendation:** option 1, with option 2 as the fallback. If fewer than ~8 say yes, build the static site well and stop — a great personal reading diary is a legitimate destination, and the work is not wasted.
 
 **Consequence if skipped:** a ghost town, discovered after four weeks instead of after one afternoon.
+
+**Decision (2026-09-19):** the owner chose to proceed without the survey. Implementation continues; the risk is accepted, not resolved. Mitigation: ask the group — in the same message as Q3 — before [tasks/023](tasks/023-deploy-to-vercel.md) invites anyone in. Up to that point the work has standalone value as a personal reading diary, which is the documented fallback.
 
 ---
 
@@ -36,29 +40,35 @@ Unresolved decisions and unverified assumptions. Nothing important is hidden her
 
 ## Non-blocking — decide during implementation
 
-### Q3 — Does anyone in the group already use Skoob or Goodreads?
+### Q3 — Does anyone in the group already use Skoob or Goodreads? [PENDING — ask with Q1]
 
 **Why it matters.** Import is currently cut to post-MVP on the grounds that it is a week of work built on an unverified assumption. If several friends already have years of history elsewhere, import moves from "nice activation aid" to "the thing that makes the site feel alive in week one".
 
 **Recommendation:** ask in the same message as Q1. If three or more say yes, promote import ahead of the map and the recent-entries strip.
 
+**Status (2026-09-19):** unanswered, and it blocks nothing before launch. Import is post-MVP either way; the answer only reorders the backlog.
+
 ---
 
-### Q4 — Custom domain, or `.vercel.app`?
+### Q4 — Custom domain, or `.vercel.app`? [RESOLVED — 2026-09-19]
 
 **Why it matters.** The only line item in the entire plan that costs money (~R$40/year). It also affects how the link looks in a group chat, which is the distribution channel.
 
 **Recommendation:** launch on `.vercel.app`. Buy a domain if the thing survives a month. Vercel makes the switch trivial and preserves the deployment.
 
+**Decision (2026-09-19):** launch on `.vercel.app`. `BETTER_AUTH_URL` ([tasks/007](tasks/007-auth-email-otp.md)) and the production origin ([tasks/023](tasks/023-deploy-to-vercel.md)) use the Vercel domain. Revisit after a month of real use.
+
 ---
 
-### Q5 — Is a light theme wanted?
+### Q5 — Is a light theme wanted? [RESOLVED — 2026-09-19]
 
 The existing app is dark-only and that is a deliberate aesthetic. **Recommendation:** dark only. Revisit if anyone asks.
 
+**Decision (2026-09-19):** dark only. [tasks/005](tasks/005-port-design-tokens-and-components.md) ports one set of tokens and adds no theme switch. Nothing in the decision forecloses a light theme later — the tokens already live on `:root`.
+
 ---
 
-### Q6 — Keep the Google Charts GeoChart map, or replace it with a static SVG?
+### Q6 — Keep the Google Charts GeoChart map, or replace it with a static SVG? [RESOLVED — 2026-09-19]
 
 **Why it matters.** The map is the most distinctive screen in the existing app, and it is also the only piece of the frontend that is not SSR-safe: a third-party CDN script (`index.html:12`) driven by direct DOM manipulation (`index.html:336`).
 
@@ -67,6 +77,8 @@ The existing app is dark-only and that is a deliberate aesthetic. **Recommendati
 2. Replace with a static SVG world map coloured from the same data — no third party, SSR-safe, renders in the OG preview, and drops a CDN dependency. Maybe a day of work.
 
 **Recommendation:** option 2, but it is a "should have", so option 1 is acceptable if time is short.
+
+**Decision (2026-09-19):** option 2 — a static SVG. It drops the last third-party CDN script, is SSR-safe, and renders in the OG preview, which matters because WhatsApp is the distribution channel. [tasks/025](tasks/025-reading-map.md) stays optional; if it is cut, no map ships — option 1 is not the fallback.
 
 ---
 
