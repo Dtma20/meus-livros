@@ -2,7 +2,7 @@
 
 **What we're building:** a small social reading platform in Brazilian Portuguese — "Letterboxd for books" — for the owner's ~30-person university friend group. Read → log → rate/review → share to WhatsApp → someone else discovers → logs their own.
 
-**Status:** planning complete, implementation not started. The repository still contains only the original static site.
+**Status:** implementation under way. Eight of 26 tasks are merged — scaffold, database, schema, migration, design system, routing shell, catalog services and search. The database holds the 86 migrated books. Current state and what is still in flight: [agent-workflow.md](agent-workflow.md) §5.
 
 ---
 
@@ -21,6 +21,7 @@
 | Deploy, back up, or set env vars | [infrastructure.md](infrastructure.md) |
 | Know what we deliberately did *not* build | [architecture-review.md](architecture-review.md) |
 | Find an unresolved decision | [open-questions.md](open-questions.md) |
+| Delegate a task to an agent, or pick up where a session stopped | [agent-workflow.md](agent-workflow.md) |
 | **Start coding** | **[tasks/README.md](tasks/README.md)** |
 
 The product discovery that preceded all of this is in [product-discovery.md](product-discovery.md) and [feature-backlog.md](feature-backlog.md). Those are **historical context**. Where they disagree with the documents above, the documents above win — several of their recommendations were overturned by measurement (see [architecture-review.md](architecture-review.md) §"What the discovery got wrong").
