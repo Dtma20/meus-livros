@@ -42,4 +42,10 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-full: 9999px;
+
+  /* Focus & accessibility */
+  --focus-ring-color: var(--highlight);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --target-min-size: 44px;
 }

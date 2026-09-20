@@ -26,9 +26,10 @@
             placeholder="Ex: João Silva"
             class="form-input"
             :disabled="loading"
+            aria-describedby="display-name-hint"
             @input="onDisplayNameInput"
           >
-          <span class="field-hint">Como você quer ser chamado nas resenhas e no perfil.</span>
+          <span id="display-name-hint" class="field-hint">Como você quer ser chamado nas resenhas e no perfil.</span>
         </div>
 
         <!-- Handle -->
@@ -46,10 +47,12 @@
               placeholder="joao_silva"
               class="form-input handle-input"
               :disabled="loading"
+              :aria-invalid="errorMessage ? 'true' : undefined"
+              :aria-describedby="errorMessage ? 'handle-hint bem-vindo-error' : 'handle-hint'"
               @input="onHandleInput"
             >
           </div>
-          <span class="field-hint">Entre 3 e 20 caracteres: letras minúsculas, números e sublinhado (_).</span>
+          <span id="handle-hint" class="field-hint">Entre 3 e 20 caracteres: letras minúsculas, números e sublinhado (_).</span>
         </div>
 
         <!-- Live URL preview -->
@@ -59,7 +62,7 @@
         </div>
 
         <!-- Inline error message -->
-        <p v-if="errorMessage" class="error-message" role="alert">
+        <p v-if="errorMessage" id="bem-vindo-error" class="error-message" role="alert">
           {{ errorMessage }}
         </p>
 
@@ -305,12 +308,20 @@ async function handleSubmit() {
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
   width: 100%;
+  min-height: 44px;
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--highlight);
   box-shadow: 0 0 0 2px rgba(64, 188, 244, 0.2);
+}
+
+.form-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-color: var(--highlight);
+  box-shadow: none;
 }
 
 .form-input:disabled {
@@ -390,12 +401,20 @@ async function handleSubmit() {
   font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
   transition: background-color 0.2s, color 0.2s;
 }
 
 .suggestion-chip:hover {
   background-color: var(--highlight);
   color: #14181c;
+}
+
+.suggestion-chip:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .submit-btn {
@@ -407,6 +426,8 @@ async function handleSubmit() {
   font-size: var(--font-size-base);
   font-weight: bold;
   cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
   transition: opacity 0.2s, background-color 0.2s;
   margin-top: var(--space-2);
 }
@@ -415,8 +436,21 @@ async function handleSubmit() {
   opacity: 0.9;
 }
 
+.submit-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-input,
+  .submit-btn,
+  .suggestion-chip {
+    transition: none;
+  }
 }
 </style>

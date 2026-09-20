@@ -53,7 +53,7 @@
     <!-- Main Add Book Form -->
     <form class="add-book-form" novalidate @submit.prevent="handleSubmit(false)">
       <div class="form-header">
-        <h2 class="form-title">Cadastrar livro</h2>
+        <h1 class="form-title">Cadastrar livro</h1>
         <p class="form-copy">
           Não encontrou? Adicione o livro — leva menos de um minuto.
         </p>
@@ -125,9 +125,11 @@
             maxlength="300"
             required
             :disabled="submitting"
+            :aria-invalid="Boolean(errors.title)"
+            :aria-describedby="errors.title ? 'book-title-error' : undefined"
             @blur="validateField('title')"
           >
-          <span v-if="errors.title" class="field-error" role="alert">
+          <span v-if="errors.title" id="book-title-error" class="field-error" role="alert">
             {{ errors.title }}
           </span>
         </div>
@@ -137,7 +139,7 @@
           <label for="author-input" class="form-label">
             Autores <span class="required-indicator" aria-hidden="true">*</span>
           </label>
-          <p class="field-hint">
+          <p id="author-hint" class="field-hint">
             Pressione Enter ou clique em Adicionar para cada autor.
           </p>
 
@@ -175,6 +177,8 @@
                 placeholder="Nome do autor..."
                 autocomplete="off"
                 :disabled="submitting || authors.length >= 5"
+                :aria-invalid="Boolean(errors.authors)"
+                :aria-describedby="errors.authors ? 'author-error' : 'author-hint'"
                 @keydown="onAuthorKeydown"
                 @focus="onAuthorFocus"
                 @blur="onAuthorBlur"
@@ -211,7 +215,7 @@
             </button>
           </div>
 
-          <span v-if="errors.authors" class="field-error" role="alert">
+          <span v-if="errors.authors" id="author-error" class="field-error" role="alert">
             {{ errors.authors }}
           </span>
           <span v-else-if="authors.length >= 5" class="field-hint">
@@ -226,6 +230,7 @@
           type="button"
           class="disclosure-toggle"
           :aria-expanded="showMoreDetails"
+          aria-controls="more-details-content"
           @click="showMoreDetails = !showMoreDetails"
         >
           <span class="disclosure-icon" aria-hidden="true">
@@ -234,7 +239,7 @@
           <span>{{ showMoreDetails ? 'Ocultar detalhes da obra' : 'Adicionar detalhes (ano, idioma, gêneros, série)' }}</span>
         </button>
 
-        <div v-if="showMoreDetails" class="disclosure-content">
+        <div v-if="showMoreDetails" id="more-details-content" class="disclosure-content">
           <!-- First Published Year & Original Language -->
           <div class="form-row">
             <div class="form-group flex-1">
@@ -247,10 +252,12 @@
                 :class="{ 'has-error': errors.first_published_year }"
                 placeholder="ex: 1899 ou -500"
                 :disabled="submitting"
+                :aria-invalid="errors.first_published_year ? 'true' : undefined"
+                :aria-describedby="errors.first_published_year ? 'work-year-hint work-year-error' : 'work-year-hint'"
                 @blur="validateField('first_published_year')"
               >
-              <span class="field-hint">Aceita anos antes de Cristo com sinal negativo (ex: -500).</span>
-              <span v-if="errors.first_published_year" class="field-error" role="alert">
+              <span id="work-year-hint" class="field-hint">Aceita anos antes de Cristo com sinal negativo (ex: -500).</span>
+              <span v-if="errors.first_published_year" id="work-year-error" class="field-error" role="alert">
                 {{ errors.first_published_year }}
               </span>
             </div>
@@ -300,17 +307,19 @@
                 placeholder="ex: 1, 1-2, 0.1"
                 maxlength="20"
                 :disabled="submitting"
+                aria-describedby="series-number-hint"
               >
-              <span class="field-hint">Texto livre.</span>
+              <span id="series-number-hint" class="field-hint">Texto livre.</span>
             </div>
           </div>
 
           <!-- Genre Picker -->
           <div class="form-group">
-            <label class="form-label">Gêneros (até 4)</label>
+            <span id="genre-picker-label" class="form-label">Gêneros (até 4)</span>
             <GenrePicker
               v-model="genreIds"
               :disabled="submitting"
+              aria-labelledby="genre-picker-label"
             />
           </div>
         </div>
@@ -322,6 +331,7 @@
           type="button"
           class="disclosure-toggle"
           :aria-expanded="showEdition"
+          aria-controls="edition-details-content"
           @click="showEdition = !showEdition"
         >
           <span class="disclosure-icon" aria-hidden="true">
@@ -330,7 +340,7 @@
           <span>{{ showEdition ? 'Ocultar detalhes da edição' : 'Adicionar detalhes desta edição (ISBN, editora, páginas, capa)' }}</span>
         </button>
 
-        <div v-if="showEdition" class="disclosure-content">
+        <div v-if="showEdition" id="edition-details-content" class="disclosure-content">
           <!-- ISBN & Publisher -->
           <div class="form-row">
             <div class="form-group flex-1">
@@ -343,8 +353,9 @@
                 placeholder="ex: 9788535902778"
                 maxlength="40"
                 :disabled="submitting"
+                aria-describedby="edition-isbn-hint"
               >
-              <span class="field-hint">ISBN-13 ou ISBN-10 (normalizado automaticamente).</span>
+              <span id="edition-isbn-hint" class="field-hint">ISBN-13 ou ISBN-10 (normalizado automaticamente).</span>
             </div>
 
             <div class="form-group flex-1">
@@ -374,9 +385,11 @@
                 :class="{ 'has-error': errors.page_count }"
                 placeholder="ex: 256"
                 :disabled="submitting"
+                :aria-invalid="errors.page_count ? 'true' : undefined"
+                :aria-describedby="errors.page_count ? 'edition-pages-error' : undefined"
                 @blur="validateField('page_count')"
               >
-              <span v-if="errors.page_count" class="field-error" role="alert">
+              <span v-if="errors.page_count" id="edition-pages-error" class="field-error" role="alert">
                 {{ errors.page_count }}
               </span>
             </div>
@@ -391,9 +404,11 @@
                 :class="{ 'has-error': errors.published_year }"
                 placeholder="ex: 2019"
                 :disabled="submitting"
+                :aria-invalid="errors.published_year ? 'true' : undefined"
+                :aria-describedby="errors.published_year ? 'edition-year-error' : undefined"
                 @blur="validateField('published_year')"
               >
-              <span v-if="errors.published_year" class="field-error" role="alert">
+              <span v-if="errors.published_year" id="edition-year-error" class="field-error" role="alert">
                 {{ errors.published_year }}
               </span>
             </div>
@@ -411,10 +426,12 @@
               placeholder="https://exemplo.com/capa.jpg"
               maxlength="2000"
               :disabled="submitting"
+              :aria-invalid="errors.cover_url ? 'true' : undefined"
+              :aria-describedby="errors.cover_url ? 'cover-url-hint cover-url-error' : 'cover-url-hint'"
               @blur="validateField('cover_url')"
             >
-            <span class="field-hint">A URL precisa começar obrigatoriamente com https://.</span>
-            <span v-if="errors.cover_url" class="field-error" role="alert">
+            <span id="cover-url-hint" class="field-hint">A URL precisa começar obrigatoriamente com https://.</span>
+            <span v-if="errors.cover_url" id="cover-url-error" class="field-error" role="alert">
               {{ errors.cover_url }}
             </span>
           </div>
@@ -1357,6 +1374,12 @@ function handleCancel(): void {
   border-color: var(--highlight);
 }
 
+.form-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-color: var(--highlight);
+}
+
 .form-input.has-error {
   border-color: var(--danger);
 }
@@ -1418,6 +1441,11 @@ function handleCancel(): void {
 .author-tag-remove:hover {
   color: #fff;
   background-color: rgba(255, 255, 255, 0.2);
+}
+
+.author-tag-remove:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .author-input-row {
@@ -1493,6 +1521,12 @@ function handleCancel(): void {
   text-decoration: underline;
 }
 
+.disclosure-toggle:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
 .disclosure-icon {
   font-size: 16px;
   font-weight: bold;
@@ -1533,6 +1567,11 @@ function handleCancel(): void {
   touch-action: manipulation;
   border: none;
   box-sizing: border-box;
+}
+
+.btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .btn-primary {
@@ -1581,6 +1620,19 @@ function handleCancel(): void {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+  .btn,
+  .form-input,
+  .disclosure-toggle,
+  .author-tag-remove,
+  .author-suggestion-item {
+    transition: none;
   }
 }
 </style>

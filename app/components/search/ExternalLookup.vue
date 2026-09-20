@@ -75,7 +75,7 @@
               :title="book.title"
               :cover-url="book.cover_url"
               :ol-cover-id="book.ol_cover_id"
-              :alt="`Capa de ${book.title}`"
+              :alt="getAuthorsDisplay(book) ? `Capa de ${book.title}, de ${getAuthorsDisplay(book)}` : `Capa de ${book.title}`"
             />
           </div>
 
@@ -256,11 +256,17 @@ function clearResults(): void {
   font-size: var(--font-size-sm);
   width: 100%;
   box-sizing: border-box;
-  min-height: 40px;
+  min-height: 44px;
 }
 
 .lookup-input:focus {
   outline: none;
+  border-color: var(--highlight);
+}
+
+.lookup-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
   border-color: var(--highlight);
 }
 
@@ -277,10 +283,15 @@ function clearResults(): void {
 }
 
 .btn-lookup {
-  min-height: 40px;
+  min-height: 44px;
   white-space: nowrap;
   padding: 0 var(--space-4);
   font-size: var(--font-size-sm);
+}
+
+.btn-lookup:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .lookup-status {
@@ -329,7 +340,10 @@ function clearResults(): void {
   color: var(--text-color);
   font-size: var(--font-size-xs);
   cursor: pointer;
-  padding: 2px 6px;
+  padding: var(--space-1) var(--space-2);
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
   border-radius: var(--radius-sm);
   transition: color 0.15s;
 }
@@ -337,6 +351,11 @@ function clearResults(): void {
 .btn-close-results:hover {
   color: #fff;
   text-decoration: underline;
+}
+
+.btn-close-results:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .results-list {
@@ -423,10 +442,15 @@ function clearResults(): void {
 }
 
 .btn-select-result {
-  min-height: 36px;
+  min-height: 44px;
   padding: 0 var(--space-3);
   font-size: var(--font-size-xs);
   white-space: nowrap;
+}
+
+.btn-select-result:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .spinner {
@@ -442,6 +466,16 @@ function clearResults(): void {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+  .btn-close-results,
+  .result-item {
+    transition: none;
   }
 }
 </style>

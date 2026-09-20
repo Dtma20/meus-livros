@@ -101,6 +101,15 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
   color: var(--highlight);
   text-decoration: none;
   font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.back-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .back-link:hover {
