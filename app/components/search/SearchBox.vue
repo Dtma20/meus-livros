@@ -75,6 +75,21 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { SearchResult } from '../../../shared/schemas/search'
 
+const props = withDefaults(
+  defineProps<{
+    initialQuery?: string
+    navigateOnSelect?: boolean
+  }>(),
+  {
+    initialQuery: '',
+    navigateOnSelect: true,
+  },
+)
+
+const emit = defineEmits<{
+  (e: 'select', work: SearchResult): void
+}>()
+
 // ---------------------------------------------------------------------------
 // IDs — unique per instance so multiple SearchBoxes on the same page work.
 // useId() (not Math.random()) so server and client render the same value.
@@ -87,7 +102,7 @@ const itemId = (i: number) => `search-item-${uid}-${i}`
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
-const query = ref('')
+const query = ref(props.initialQuery || '')
 const results = ref<SearchResult[]>([])
 const loading = ref(false)
 const activeIndex = ref(-1)
@@ -234,7 +249,10 @@ function onBlur(): void {
 // Selection
 // ---------------------------------------------------------------------------
 function selectWork(work: SearchResult): void {
-  void navigateTo(`/livro/${work.slug}`)
+  emit('select', work)
+  if (props.navigateOnSelect) {
+    void navigateTo(`/livro/${work.slug}`)
+  }
 }
 
 function goToAdd(): void {

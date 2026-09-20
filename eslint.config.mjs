@@ -8,6 +8,28 @@ export default withNuxt(
     }
   },
   {
+    // `app/` is the client bundle. Nothing under `server/` belongs in it, not even
+    // a type: reaching across couples a page to a server module's internals, and
+    // the day someone drops the `type` keyword it stops being erased. The response
+    // contract both sides speak lives in `shared/`.
+    files: ['app/**/*.{js,mjs,ts,vue}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['~~/server/*', '@@/server/*', '**/server/*', '../../server/*', '../../../server/*', '../../../../server/*'],
+              message:
+                'Código em app/ não importa de server/. O contrato compartilhado vive em shared/.',
+              allowTypeImports: false,
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.{js,mjs,ts,vue}'],
     ignores: ['server/services/**', 'server/db/**', 'scripts/**'],
     rules: {

@@ -4,6 +4,12 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { getSessionUserByHeaders, handleAuthRequest } from '../../server/services/auth'
 import { setTransport } from '../../server/utils/email'
 
+/**
+ * Every test here makes several sequential round-trips to a remote Postgres, so
+ * the 5s default is not a meaningful budget - it measures Neon's latency on the
+ * night the suite happens to run, not the code. The explicit 20s timeouts are
+ * there so a slow link fails the run for a real reason or not at all.
+ */
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
 describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (better-auth + email OTP + allowlist)', () => {
@@ -163,7 +169,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     expect(sessionUser).not.toBeNull()
     expect(sessionUser?.email).toBe(allowedEmail)
     expect(sessionUser?.id).toBeTypeOf('string')
-  })
+  }, 20000)
 
   it('a non-allowlisted address gets an identical response and zero emails are sent', async () => {
     const req = new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
@@ -182,7 +188,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
 
     // Zero emails sent!
     expect(sentEmails.length).toBe(0)
-  })
+  }, 20000)
 
   it('timing between allowlisted and non-allowlisted paths does not differ by an order of magnitude', async () => {
     const timingAllowedEmail = `test-time-a-${testId}@example.com`
@@ -217,7 +223,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     // Ratio should not exceed 10x
     const ratio = Math.max(allowedDuration, blockedDuration) / Math.min(allowedDuration, blockedDuration)
     expect(ratio).toBeLessThan(10)
-  })
+  }, 20000)
 
   it('an incorrect code returns 400 with { error: "validacao" }', async () => {
     // Generate a fresh OTP
@@ -239,7 +245,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     expect(res.status).toBe(400)
     const body = await res.json()
     expect(body.error).toBe('validacao')
-  })
+  }, 20000)
 
   it('a code fails after 5 incorrect attempts', async () => {
     const freshEmail = `test-attempts-${testId}@example.com`
@@ -322,7 +328,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     expect(secondRes.status).toBe(400)
     const b = await secondRes.json()
     expect(b.error).toBe('validacao')
-  })
+  }, 20000)
 
   it('a code older than 10 minutes fails', async () => {
     const expireEmail = `test-expire-${testId}@example.com`
@@ -358,7 +364,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     expect(res.status).toBe(400)
     const b = await res.json()
     expect(b.error).toBe('validacao')
-  })
+  }, 20000)
 
   it('the 6th request in one hour for one email returns 429', async () => {
     const rateLimitEmail = `test-ratelimit-${testId}@example.com`
@@ -391,7 +397,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     expect(sixthRes.status).toBe(429)
     const b = await sixthRes.json()
     expect(b.error).toBe('muitas_tentativas')
-  })
+  }, 20000)
 
   it('deleting the session row logs the user out on the next request', async () => {
     const revokeEmail = `test-revoke-${testId}@example.com`
@@ -439,7 +445,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     // User is immediately logged out (sessions are database-backed and revocable)
     const userAfter = await getSessionUserByHeaders(headers)
     expect(userAfter).toBeNull()
-  })
+  }, 20000)
 
   it('unallowed auth routes return 404 and do not send emails', async () => {
     const unallowedRoutes = [
@@ -463,7 +469,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     }
 
     expect(sentEmails.length).toBe(0)
-  })
+  }, 20000)
 
   it('a verified identity with no users row is not a session: getSessionUser returns null', async () => {
     // The registration gate, from security.md: "no `users` row means every

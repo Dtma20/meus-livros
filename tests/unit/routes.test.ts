@@ -23,6 +23,12 @@ vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
   globalScope.defineNuxtRouteMiddleware = (fn: unknown) => fn
   globalScope.definePageMeta = () => {}
+  globalScope.useId = () => 'test-route-id'
+  globalScope.useAsyncData = (_key: string, _fn: unknown) => ({
+    data: { value: null },
+    pending: { value: false },
+    error: { value: null },
+  })
   globalScope.useState = (_key: string, init?: () => unknown) => ({
     value: init ? init() : null
   })
@@ -301,7 +307,9 @@ describe('Page stubs and route parameters', () => {
     await router.push('/app/entrada/99/editar')
     const wEdit = mount(EditEntryPage, {}, router)
     await nextTick()
-    expect(wEdit.text()).toContain('Editar entrada: 99')
+    // No longer a stub: TASK-013 turned this into the real edit page. With no
+    // log loaded it shows its title and the not-found state.
+    expect(wEdit.text()).toContain('Editar registro')
     wEdit.unmount()
   })
 })
