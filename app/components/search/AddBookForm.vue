@@ -319,7 +319,6 @@
             <GenrePicker
               v-model="genreIds"
               :disabled="submitting"
-              aria-labelledby="genre-picker-label"
             />
           </div>
         </div>

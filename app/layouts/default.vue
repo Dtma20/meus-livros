@@ -68,7 +68,7 @@
   top: -100px;
   left: var(--space-4);
   background-color: var(--highlight);
-  color: #14181c;
+  color: var(--bg-color);
   padding: var(--space-2) var(--space-4);
   font-weight: 700;
   font-size: var(--font-size-sm);
@@ -81,7 +81,7 @@
 .skip-link:focus,
 .skip-link:focus-visible {
   top: var(--space-4);
-  outline: 2px solid #fff;
+  outline: 2px solid var(--poster-border);
   outline-offset: 2px;
 }
 

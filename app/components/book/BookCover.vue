@@ -1,7 +1,7 @@
 <template>
   <img
     :src="currentSrc"
-    :alt="alt ?? ''"
+    :alt="alt"
     :loading="loading ?? 'lazy'"
     class="book-cover"
     @error="onError"
@@ -12,7 +12,7 @@
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
-  alt?: string
+  alt: string
   title?: string
   coverUrl?: string | null
   olCoverId?: number | string | null

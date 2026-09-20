@@ -49,7 +49,6 @@
           <RatingInput
             v-model="rating"
             :disabled="submitting || deleting"
-            aria-labelledby="log-rating-label"
           />
         </div>
 

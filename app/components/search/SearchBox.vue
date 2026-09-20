@@ -67,7 +67,6 @@
             type="button"
             class="empty-btn-primary"
             data-testid="search-add-manual"
-            @mousedown.prevent="goToAdd('manual')"
             @click="goToAdd('manual')"
           >
             Adicionar à mão
@@ -76,7 +75,6 @@
             type="button"
             class="empty-btn-secondary"
             data-testid="search-online-lookup"
-            @mousedown.prevent="goToAdd('online')"
             @click="goToAdd('online')"
           >
             Buscar online

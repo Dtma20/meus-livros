@@ -1,12 +1,25 @@
 // @vitest-environment happy-dom
+import http from 'node:http'
 import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import axe from 'axe-core'
 
+function httpGet(url: string): Promise<{ status: number, body: string }> {
+  return new Promise((resolve, reject) => {
+    http.get(url, (res) => {
+      let body = ''
+      res.setEncoding('utf8')
+      res.on('data', (chunk) => { body += chunk })
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body }))
+    }).on('error', reject)
+  })
+}
+
 describe('Automated accessibility (axe-core) tests on public routes', () => {
   let child: ChildProcess
   let baseUrl: string
+  let entryPath: string | null = null
 
   beforeAll(async () => {
     const env = { ...process.env }
@@ -30,6 +43,13 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
       })
       child.on('error', reject)
     })
+
+    const profileRes = await httpGet(`${baseUrl}/@dtma23`)
+    expect(profileRes.status).toBe(200)
+    const match = profileRes.body.match(/href="(\/entrada\/[^"]+)"/)
+    if (match && match[1]) {
+      entryPath = match[1]
+    }
   }, 120000)
 
   afterAll(() => {
@@ -39,14 +59,16 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
   })
 
   async function testRouteA11y(routePath: string) {
-    const res = await fetch(`${baseUrl}${routePath}`)
+    const res = await httpGet(`${baseUrl}${routePath}`)
     expect(res.status).toBe(200)
-    const html = await res.text()
+    const html = res.body
 
+    // Criterion 10: <html lang="pt-BR"> in SSR response
+    expect(html).toMatch(/<html[^>]*\blang="pt-BR"/i)
+
+    document.documentElement.removeAttribute('lang')
     document.documentElement.innerHTML = html
-
-    // Criterion 10: <html lang="pt-BR">
-    expect(document.documentElement.getAttribute('lang')).toBe('pt-BR')
+    document.documentElement.setAttribute('lang', 'pt-BR')
 
     // Criterion 2: Every <img> in rendered output has an alt attribute
     const images = Array.from(document.querySelectorAll('img'))
@@ -78,7 +100,12 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
     await testRouteA11y('/livro/1984')
   })
 
-  it('reports zero critical a11y violations on GET /entrada/:id (entry page)', async () => {
+  it('reports zero critical a11y violations on GET /entrada/:id (real entry page)', async () => {
+    expect(entryPath).toBeTruthy()
+    await testRouteA11y(entryPath!)
+  })
+
+  it('reports zero critical a11y violations on GET /entrada/nao-existe (empty state)', async () => {
     await testRouteA11y('/entrada/nao-existe')
   })
 })
