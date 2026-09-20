@@ -29,3 +29,22 @@ export const searchResponseSchema = z.object({
 
 export type SearchResult = z.infer<typeof searchResultSchema>
 export type SearchResponse = z.infer<typeof searchResponseSchema>
+
+/** One result item from external lookup (Open Library) */
+export const externalBookResultSchema = z.object({
+  ol_work_key: z.string(),
+  title: z.string(),
+  authors: z.array(z.string()),
+  first_publish_year: z.number().int().nullable(),
+  cover_url: z.string().nullable(),
+  ol_cover_id: z.number().int().nullable(),
+  language: z.string().nullable(),
+})
+
+export const externalSearchResponseSchema = z.object({
+  results: z.array(externalBookResultSchema),
+  indisponivel: z.boolean().optional(),
+})
+
+export type ExternalBookResult = z.infer<typeof externalBookResultSchema>
+export type ExternalSearchResponse = z.infer<typeof externalSearchResponseSchema>
