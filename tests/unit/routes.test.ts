@@ -279,8 +279,9 @@ describe('Page stubs and route parameters', () => {
     await nextTick()
 
     expect(router.currentRoute.value.params.id).toBe('42')
-    expect(wrapper.text()).toContain('Entrada: 42')
-    expect(wrapper.text()).toContain('ID da entrada: 42')
+    // No longer a stub: TASK-014 turned this into the real entry page. With no
+    // log loaded it shows the not-found state.
+    expect(wrapper.text()).toContain('Entrada não encontrada')
     wrapper.unmount()
   })
 

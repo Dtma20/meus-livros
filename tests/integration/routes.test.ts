@@ -103,12 +103,16 @@ describe('Route integration HTTP tests', () => {
     expect(await res.text()).toContain('1984')
   })
 
-  it('GET /entrada/x returns 200 and the page receives id = "x"', async () => {
-    const res = await fetch(`${baseUrl}/entrada/x`, { redirect: 'manual' })
+  it('GET /entrada/<id> returns 200 and renders the entry page (not the stub)', async () => {
+    // The stub is gone: this is now the real entry page. An anonymous request
+    // for a non-existent or private id shows the not-found empty state, but
+    // the route itself is server-rendered and returns 200.
+    const res = await fetch(`${baseUrl}/entrada/nao-existe`, { redirect: 'manual' })
     expect(res.status).toBe(200)
     const html = await res.text()
-    expect(html).toContain('Entrada: x')
-    expect(html).toContain('ID da entrada: x')
+    expect(html).toContain('Entrada não encontrada')
+    // Sanity: the old stub text is gone
+    expect(html).not.toContain('ID da entrada:')
   })
 
   it('GET /entrar returns 200 and renders login stub', async () => {
