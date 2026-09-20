@@ -13,7 +13,7 @@ Google OAuth cannot be used. Google returns `403 disallowed_useragent` for OAuth
 ### Included
 
 - better-auth with the email-OTP plugin
-- Resend for delivery
+- Gmail SMTP via `nodemailer` for delivery (the spec said Resend; see the note below)
 - `allowed_emails` gate
 - Sessions, rate limiting
 - `/entrar` page
@@ -45,7 +45,7 @@ server/utils/rate-limit.ts
 2. Configure the Drizzle adapter against the existing connection.
 3. OTP: 6 digits, 10-minute expiry, single use, max 5 verification attempts per code.
 4. **Allowlist check before sending.** If the address is not in `allowed_emails`, send nothing — but return the **same status, body and approximate timing** as a success. Whether an address is invited is not public information.
-5. Delivery via Resend. The email is pt-BR, plain, and contains only the code and its expiry.
+5. Delivery via Gmail SMTP (`nodemailer` + a Google app password). The email is pt-BR, plain, and contains only the code and its expiry. **Reversed from Resend during implementation** — Resend refuses to send from a domain it cannot verify by DNS, and the sender is an `@gmail.com` address. Reasoning in [architecture.md](../architecture.md) §3.5.
 6. Rate limiting in a Postgres table (no Redis): 5 requests per email per hour, 20 per IP per hour. Exceeding either returns `429` with `{ error: 'muitas_tentativas' }`.
 7. Session cookie: httpOnly, Secure, SameSite=Lax, 30-day rolling. **Database-backed**, not a stateless sealed cookie, so sessions can be revoked.
 8. `/entrar`: email field → code field, in one page, two steps. Keeps the email visible so the user knows where the code went. Offers "reenviar código" after 60 seconds.
@@ -76,7 +76,7 @@ server/utils/rate-limit.ts
 
 ## Testing requirements
 
-- Integration: an allowlisted address receives a code (Resend mocked) and can verify it.
+- Integration: an allowlisted address receives a code (the `nodemailer` transport mocked) and can verify it.
 - Integration: a non-allowlisted address gets the same HTTP response, and **no email is sent**.
 - Integration: a wrong code fails; six wrong codes kill the code.
 - Integration: a used code cannot be reused.
@@ -112,4 +112,4 @@ Insert your own email into `allowed_emails` by hand before testing; there is no 
 
 The WhatsApp WebView acceptance criterion is not optional and cannot be verified in a desktop browser. Test it on a real phone before calling this done — it is the specific failure mode that ruled out OAuth.
 
-Resend free allows 100 emails/day. Plenty, but do not put this in a test loop against the live API.
+A personal Gmail account allows 500 messages/day. Plenty, but never point a test loop at the live transport — `setTransport()` in `server/utils/email.ts` exists so tests inject a mock.

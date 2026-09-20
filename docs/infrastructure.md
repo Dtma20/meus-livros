@@ -180,7 +180,7 @@ Add Sentry when hand-reading logs stops working — that is a real signal, not a
 
 ## 9. Cost
 
-| Stage | Vercel | Neon | Resend | Domain | **Total** |
+| Stage | Vercel | Neon | Gmail SMTP | Domain | **Total** |
 |---|---|---|---|---|---|
 | Development | R$0 | R$0 | R$0 | — | **R$0** |
 | Launch (~30 users) | R$0 | R$0 | R$0 | R$0–40/yr | **R$0** |
