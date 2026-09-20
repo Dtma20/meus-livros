@@ -7,11 +7,13 @@
         title="Não encontramos essa página."
         action-label="Ir para o início"
         action-href="/"
+        heading-tag="h1"
       />
       <ErrorState
         v-else
         title="Algo deu errado. Tente de novo."
         action-label="Tentar de novo"
+        heading-tag="h1"
         @retry="handleRetry"
       />
     </div>

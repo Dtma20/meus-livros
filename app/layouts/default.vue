@@ -1,5 +1,9 @@
 <template>
   <div class="site-layout">
+    <a href="#conteudo-principal" class="skip-link">
+      Pular para o conteúdo
+    </a>
+
     <header class="site-header">
       <div class="header-inner">
         <NuxtLink to="/" class="site-title">
@@ -15,7 +19,7 @@
       </div>
     </header>
 
-    <main class="container">
+    <main id="conteudo-principal" class="container" tabindex="-1">
       <slot />
     </main>
 
@@ -59,6 +63,28 @@
   gap: var(--space-3);
 }
 
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--space-4);
+  background-color: var(--highlight);
+  color: var(--bg-color);
+  padding: var(--space-2) var(--space-4);
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  z-index: 1000;
+  transition: top 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: var(--space-4);
+  outline: 2px solid var(--poster-border);
+  outline-offset: 2px;
+}
+
 .site-title {
   font-size: var(--font-size-xl);
   font-weight: bold;
@@ -87,6 +113,9 @@
   color: var(--text-color);
   text-decoration: none;
   font-size: var(--font-size-sm);
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
   transition: color 0.2s;
 }
 
@@ -102,6 +131,10 @@
   flex: 1;
   width: 100%;
   box-sizing: border-box;
+}
+
+.container:focus {
+  outline: none;
 }
 
 .site-footer {

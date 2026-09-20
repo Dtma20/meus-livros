@@ -75,7 +75,7 @@
               aria-hidden="true"
             >
               <BookCover
-                :alt="`Capa de ${entry.work.title}`"
+                :alt="formatAuthors(entry.work.authors) ? `Capa de ${entry.work.title}, de ${formatAuthors(entry.work.authors)}` : `Capa de ${entry.work.title}`"
                 :title="entry.work.title"
                 :cover-url="entry.edition?.cover_url || entry.work.cover_url"
                 :ol-cover-id="entry.edition?.ol_cover_id"
@@ -191,6 +191,11 @@ if (pageData.value?.redirectTo) {
 const isAuthenticated = computed(() => Boolean(pageData.value?.authenticated))
 const entries = computed(() => pageData.value?.entries ?? [])
 const hasFeedError = computed(() => Boolean(pageData.value?.hasFeedError))
+
+function formatAuthors(authors?: { name: string }[]): string {
+  if (!authors || authors.length === 0) return ''
+  return authors.map((a) => a.name).join(', ')
+}
 
 // Dynamically set layout to app when member is authenticated
 setPageLayout(pageData.value?.authenticated ? 'app' : 'default')
@@ -311,6 +316,8 @@ useHead({
   cursor: pointer;
   transition: opacity 0.2s;
   white-space: nowrap;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .btn-primary:hover {
@@ -318,8 +325,8 @@ useHead({
 }
 
 .btn-primary:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .btn-lg {
@@ -478,6 +485,13 @@ useHead({
   font-weight: 600;
 }
 
+.feed-work-title:focus-visible,
+.feed-user-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
 .feed-user-link:hover {
   text-decoration: underline;
 }
@@ -515,6 +529,13 @@ useHead({
   .feed-cover-col {
     width: 60px;
     min-width: 60px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .feed-row {
+    transition: none;
   }
 }
 </style>

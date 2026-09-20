@@ -5,11 +5,15 @@
     </div>
     <slot name="icon" />
 
-    <h3 v-if="title || $slots.title" class="empty-title">
+    <component
+      :is="headingTag || 'h2'"
+      v-if="title || $slots.title"
+      class="empty-title"
+    >
       <slot name="title">
         {{ title }}
       </slot>
-    </h3>
+    </component>
 
     <p v-if="message" class="empty-message">
       {{ message }}
@@ -40,13 +44,24 @@
 </template>
 
 <script setup lang="ts">
-defineProps<{
-  title?: string
-  message?: string
-  icon?: string
-  actionLabel?: string
-  actionHref?: string
-}>()
+withDefaults(
+  defineProps<{
+    title?: string
+    message?: string
+    icon?: string
+    actionLabel?: string
+    actionHref?: string
+    headingTag?: 'h1' | 'h2' | 'h3' | 'h4'
+  }>(),
+  {
+    title: '',
+    message: '',
+    icon: '',
+    actionLabel: '',
+    actionHref: '',
+    headingTag: 'h2',
+  },
+)
 
 defineEmits<{
   (e: 'action'): void
@@ -104,6 +119,8 @@ defineEmits<{
   font-weight: bold;
   font-size: var(--font-size-sm, 0.875rem);
   padding: 8px 16px;
+  min-height: 44px;
+  box-sizing: border-box;
   border-radius: var(--radius-sm, 4px);
   border: none;
   cursor: pointer;
@@ -118,5 +135,11 @@ defineEmits<{
 .empty-btn:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-btn {
+    transition: none;
+  }
 }
 </style>

@@ -2,7 +2,7 @@
   <div class="log-form-wrap">
     <!-- Step 1: Book Selection (if creating and no work chosen yet) -->
     <div v-if="!selectedWork" class="book-selection-section">
-      <label class="form-label mb-2">Buscar livro</label>
+      <span class="form-label mb-2">Buscar livro</span>
       <p class="section-hint">
         Digite o título do livro ou nome do autor para selecionar do catálogo.
       </p>
@@ -18,7 +18,7 @@
       <div class="selected-book-banner">
         <div class="selected-book-cover">
           <BookCover
-            :alt="`Capa de ${selectedWork.title}`"
+            :alt="`Capa de ${selectedWork.title}, de ${formatAuthors(selectedWork.authors)}`"
             :title="selectedWork.title"
             :cover-url="selectedWork.cover_url"
           />
@@ -45,7 +45,7 @@
       <form class="log-form" @submit.prevent="handleSubmit">
         <!-- Rating -->
         <div class="form-group">
-          <label class="form-label">Sua avaliação</label>
+          <span id="log-rating-label" class="form-label">Sua avaliação</span>
           <RatingInput
             v-model="rating"
             :disabled="submitting || deleting"
@@ -62,8 +62,9 @@
               type="date"
               class="form-input"
               :disabled="submitting || deleting"
+              aria-describedby="log-finished-hint"
             >
-            <span class="field-hint">Preenchida com a data de hoje pelo seu navegador.</span>
+            <span id="log-finished-hint" class="field-hint">Preenchida com a data de hoje pelo seu navegador.</span>
           </div>
 
           <div class="form-group">
@@ -86,11 +87,13 @@
           <button
             type="button"
             class="toggle-link-btn"
+            :aria-expanded="showStartDate"
+            aria-controls="start-date-input-wrap"
             @click="showStartDate = !showStartDate"
           >
             {{ showStartDate ? '− Ocultar data de início' : '+ Adicionar data de início' }}
           </button>
-          <div v-if="showStartDate" class="start-date-input-wrap">
+          <div v-if="showStartDate" id="start-date-input-wrap" class="start-date-input-wrap">
             <label for="log-started-on" class="form-label">Data de início</label>
             <input
               id="log-started-on"
@@ -118,18 +121,20 @@
             placeholder="O que você achou do livro? Escreva suas impressões..."
             class="form-input form-textarea"
             :disabled="submitting || deleting"
+            aria-describedby="log-review-hint"
           />
-          <span class="field-hint">Texto puro. Quebras de linha são preservadas.</span>
+          <span id="log-review-hint" class="field-hint">Texto puro. Quebras de linha são preservadas.</span>
         </div>
 
         <!-- Format: Físico, Ebook, Áudio -->
         <div class="form-group">
-          <label class="form-label">Formato</label>
-          <div class="format-buttons" role="group" aria-label="Formato de leitura">
+          <span id="log-format-label" class="form-label">Formato</span>
+          <div class="format-buttons" role="group" aria-labelledby="log-format-label">
             <button
               type="button"
               class="format-btn"
               :class="{ 'is-selected': format === 'fisico' }"
+              :aria-pressed="format === 'fisico'"
               :disabled="submitting || deleting"
               @click="toggleFormat('fisico')"
             >
@@ -139,6 +144,7 @@
               type="button"
               class="format-btn"
               :class="{ 'is-selected': format === 'ebook' }"
+              :aria-pressed="format === 'ebook'"
               :disabled="submitting || deleting"
               @click="toggleFormat('ebook')"
             >
@@ -148,6 +154,7 @@
               type="button"
               class="format-btn"
               :class="{ 'is-selected': format === 'audio' }"
+              :aria-pressed="format === 'audio'"
               :disabled="submitting || deleting"
               @click="toggleFormat('audio')"
             >
@@ -161,12 +168,14 @@
           <button
             type="button"
             class="toggle-link-btn"
+            :aria-expanded="showEditionPicker"
+            aria-controls="edition-picker-panel"
             @click="toggleEditionPicker"
           >
             {{ showEditionPicker ? '− Fechar edição' : 'li outra edição?' }}
           </button>
 
-          <div v-if="showEditionPicker" class="edition-picker-panel">
+          <div v-if="showEditionPicker" id="edition-picker-panel" class="edition-picker-panel">
             <p v-if="loadingEditions" class="field-hint">Carregando edições…</p>
             <div v-else-if="editionsList.length > 0" class="edition-options">
               <label class="edition-option" :class="{ 'is-selected': editionId === null }">
@@ -248,7 +257,7 @@
         </fieldset>
 
         <!-- Error Message -->
-        <p v-if="errorMessage" class="error-message" role="alert">
+        <p v-if="errorMessage" id="log-form-error" class="error-message" role="alert">
           {{ errorMessage }}
         </p>
 
@@ -640,7 +649,10 @@ async function handleDelete(): Promise<void> {
   border: none;
   color: var(--highlight);
   font-size: var(--font-size-xs);
-  padding: 0;
+  padding: 4px 0;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
   margin-top: var(--space-1);
   cursor: pointer;
   text-align: left;
@@ -648,6 +660,11 @@ async function handleDelete(): Promise<void> {
 
 .change-book-btn:hover {
   text-decoration: underline;
+}
+
+.change-book-btn:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 .log-form {
@@ -712,11 +729,17 @@ async function handleDelete(): Promise<void> {
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
   width: 100%;
+  min-height: 44px;
 }
 
 .form-input:focus {
   border-color: var(--highlight);
   box-shadow: 0 0 0 2px rgba(64, 188, 244, 0.2);
+}
+
+.form-input:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 .form-select {
@@ -735,12 +758,20 @@ async function handleDelete(): Promise<void> {
   color: var(--highlight);
   font-size: var(--font-size-sm);
   cursor: pointer;
-  padding: 0;
+  padding: 4px 0;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
   text-align: left;
 }
 
 .toggle-link-btn:hover {
   text-decoration: underline;
+}
+
+.toggle-link-btn:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 .start-date-input-wrap {
@@ -764,6 +795,7 @@ async function handleDelete(): Promise<void> {
   padding: var(--space-3);
   font-size: var(--font-size-sm);
   font-weight: 500;
+  min-height: 44px;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -776,6 +808,11 @@ async function handleDelete(): Promise<void> {
   background-color: rgba(64, 188, 244, 0.15);
   border-color: var(--highlight);
   color: #fff;
+}
+
+.format-btn:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 .edition-picker-panel {
@@ -845,6 +882,8 @@ async function handleDelete(): Promise<void> {
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
   transition: border-color 0.2s, background-color 0.2s;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .radio-card.selected {
@@ -855,6 +894,11 @@ async function handleDelete(): Promise<void> {
 .radio-input {
   margin-top: 3px;
   accent-color: var(--highlight);
+}
+
+.radio-input:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 .radio-text {
@@ -890,7 +934,7 @@ async function handleDelete(): Promise<void> {
 
 .submit-btn {
   flex: 1;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -902,6 +946,8 @@ async function handleDelete(): Promise<void> {
   font-size: var(--font-size-base);
   font-weight: bold;
   cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
   transition: opacity 0.2s;
 }
 
@@ -914,6 +960,11 @@ async function handleDelete(): Promise<void> {
   cursor: not-allowed;
 }
 
+.submit-btn:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
 .delete-btn {
   background: transparent;
   color: var(--danger);
@@ -922,12 +973,19 @@ async function handleDelete(): Promise<void> {
   padding: var(--space-3) var(--space-4);
   font-size: var(--font-size-sm);
   font-weight: 600;
+  min-height: 44px;
+  box-sizing: border-box;
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .delete-btn:hover:not(:disabled) {
   background-color: rgba(239, 68, 68, 0.1);
+}
+
+.delete-btn:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
 }
 
 .spinner {
@@ -941,5 +999,18 @@ async function handleDelete(): Promise<void> {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.5s;
+  }
+  .submit-btn,
+  .delete-btn,
+  .format-btn,
+  .form-input,
+  .radio-card {
+    transition: none;
+  }
 }
 </style>

@@ -5,11 +5,14 @@
     </div>
     <slot name="icon" />
 
-    <h3 class="error-title">
+    <component
+      :is="headingTag || 'h2'"
+      class="error-title"
+    >
       <slot name="title">
         {{ title }}
       </slot>
-    </h3>
+    </component>
 
     <p v-if="message || $slots.default" class="error-message">
       <slot>
@@ -38,12 +41,14 @@ withDefaults(
     message?: string
     icon?: string
     actionLabel?: string
+    headingTag?: 'h1' | 'h2' | 'h3' | 'h4'
   }>(),
   {
     title: 'Algo deu errado. Tente de novo.',
     message: '',
     icon: '⚠️',
     actionLabel: 'Tentar de novo',
+    headingTag: 'h2',
   },
 )
 
@@ -103,6 +108,8 @@ defineEmits<{
   font-weight: 600;
   font-size: var(--font-size-sm, 0.875rem);
   padding: 8px 16px;
+  min-height: 44px;
+  box-sizing: border-box;
   border-radius: var(--radius-sm, 4px);
   border: 1px solid var(--text-color, #9ab);
   cursor: pointer;
@@ -118,5 +125,11 @@ defineEmits<{
 .error-btn:focus-visible {
   outline: 2px solid var(--highlight, #40bcf4);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .error-btn {
+    transition: none;
+  }
 }
 </style>

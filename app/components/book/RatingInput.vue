@@ -210,7 +210,8 @@ function onKeydown(e: KeyboardEvent): void {
 }
 
 .rating-input:focus-visible {
-  box-shadow: 0 0 0 2px var(--highlight);
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 .rating-input.is-disabled {
@@ -298,7 +299,8 @@ function onKeydown(e: KeyboardEvent): void {
   border-radius: var(--radius-sm);
   color: var(--text-color);
   font-size: var(--font-size-xs);
-  padding: 2px 6px;
+  padding: 4px 8px;
+  min-height: 28px;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -307,5 +309,17 @@ function onKeydown(e: KeyboardEvent): void {
   background: var(--input-bg);
   color: #fff;
   border-color: var(--text-color);
+}
+
+.clear-rating-btn:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rating-input,
+  .clear-rating-btn {
+    transition: none;
+  }
 }
 </style>

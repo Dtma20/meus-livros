@@ -24,6 +24,9 @@
   color: var(--text-color);
   text-decoration: none;
   font-size: var(--font-size-sm);
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
   transition: color 0.2s;
 }
 

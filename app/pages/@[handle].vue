@@ -7,6 +7,7 @@
     <div v-else-if="error || !profile" class="error-state">
       <EmptyState
         v-if="is404"
+        heading-tag="h1"
         icon="🔍"
         title="Perfil não encontrado"
         :message="`O perfil @${handle} não foi encontrado ou é privado.`"
@@ -15,6 +16,7 @@
       />
       <ErrorState
         v-else
+        heading-tag="h1"
         title="Algo deu errado. Tente de novo."
         action-label="Tentar de novo"
         @retry="refresh"

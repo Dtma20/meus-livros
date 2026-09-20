@@ -1,5 +1,5 @@
 <template>
-  <a :href="href || '#'" class="card">
+  <a :href="href || '#'" class="card" :aria-label="cardAriaLabel">
     <div class="poster">
       <BookCover
         :alt="altText"
@@ -41,6 +41,26 @@ const altText = computed(() => {
   }
   return 'Capa do livro'
 })
+
+const cardAriaLabel = computed(() => {
+  const title = props.title
+  const author = props.author
+  if (title && author) {
+    if (props.rating) {
+      const formatted = String(props.rating).replace('.', ',')
+      return `${title}, de ${author} (${formatted} de 5 estrelas)`
+    }
+    return `${title}, de ${author}`
+  }
+  if (title) {
+    if (props.rating) {
+      const formatted = String(props.rating).replace('.', ',')
+      return `${title} (${formatted} de 5 estrelas)`
+    }
+    return title
+  }
+  return 'Livro'
+})
 </script>
 
 <style scoped>
@@ -61,7 +81,17 @@ const altText = computed(() => {
 
 .card:focus-visible {
   outline: 2px solid var(--highlight, #40bcf4);
+  outline-offset: 4px;
   border-radius: var(--radius-sm, 4px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+  .card:hover {
+    transform: none;
+  }
 }
 
 .poster {

@@ -67,7 +67,7 @@
             type="button"
             class="empty-btn-primary"
             data-testid="search-add-manual"
-            @mousedown.prevent="goToAdd('manual')"
+            @click="goToAdd('manual')"
           >
             Adicionar à mão
           </button>
@@ -75,7 +75,7 @@
             type="button"
             class="empty-btn-secondary"
             data-testid="search-online-lookup"
-            @mousedown.prevent="goToAdd('online')"
+            @click="goToAdd('online')"
           >
             Buscar online
           </button>
@@ -254,6 +254,10 @@ function onFocus(): void {
 /** Small delay so mousedown on a result fires before the list disappears. */
 function onBlur(): void {
   setTimeout(() => {
+    const activeEl = typeof document !== 'undefined' ? document.activeElement : null
+    if (activeEl && listRef.value?.contains(activeEl)) {
+      return
+    }
     focused.value = false
     activeIndex.value = -1
   }, 150)
@@ -341,6 +345,11 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
 
 .search-input:focus {
   border-color: var(--highlight);
+}
+
+.search-input:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 /* Hide the native clear (×) button in WebKit */
@@ -486,5 +495,17 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
 .empty-btn-secondary:focus-visible {
   outline: 2px solid var(--highlight);
   outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .search-spinner {
+    animation-duration: 1.5s;
+  }
+  .search-input,
+  .search-result,
+  .empty-btn-primary,
+  .empty-btn-secondary {
+    transition: none;
+  }
 }
 </style>

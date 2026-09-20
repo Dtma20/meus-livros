@@ -23,10 +23,12 @@
             placeholder="seu-email@exemplo.com"
             class="form-input"
             :disabled="loading"
+            :aria-invalid="errorMessage ? 'true' : undefined"
+            :aria-describedby="errorMessage ? 'email-error' : undefined"
           >
         </div>
 
-        <p v-if="errorMessage" class="error-message" role="alert">
+        <p v-if="errorMessage" id="email-error" class="error-message" role="alert">
           {{ errorMessage }}
         </p>
 
@@ -63,10 +65,12 @@
             placeholder="000000"
             class="form-input otp-input"
             :disabled="loading"
+            :aria-invalid="errorMessage ? 'true' : undefined"
+            :aria-describedby="errorMessage ? 'otp-error' : undefined"
           >
         </div>
 
-        <p v-if="errorMessage" class="error-message" role="alert">
+        <p v-if="errorMessage" id="otp-error" class="error-message" role="alert">
           {{ errorMessage }}
         </p>
 
@@ -310,9 +314,13 @@ function changeEmail() {
   padding: var(--space-3) var(--space-4);
   transition: border-color 0.2s;
   outline: none;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
-.form-input:focus {
+.form-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
   border-color: var(--highlight);
 }
 
@@ -352,10 +360,19 @@ function changeEmail() {
   cursor: pointer;
   padding: var(--space-1) var(--space-2);
   text-decoration: underline;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .change-email-btn:hover:not(:disabled) {
   opacity: 0.8;
+}
+
+.change-email-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .error-message {
@@ -376,10 +393,17 @@ function changeEmail() {
   cursor: pointer;
   transition: opacity 0.2s;
   margin-top: var(--space-2);
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .submit-btn:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+.submit-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .submit-btn:disabled {
@@ -401,14 +425,31 @@ function changeEmail() {
   cursor: pointer;
   padding: var(--space-1) var(--space-2);
   transition: color 0.2s;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .resend-btn:hover:not(:disabled) {
   color: #fff;
 }
 
+.resend-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
 .resend-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-input,
+  .submit-btn,
+  .resend-btn {
+    transition: none;
+  }
 }
 </style>

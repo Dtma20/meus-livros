@@ -6,6 +6,7 @@
 
     <div v-else-if="error || !work" class="error-state">
       <EmptyState
+        heading-tag="h1"
         title="Livro não encontrado."
         action-label="Ir para o início"
         action-href="/"
@@ -19,7 +20,7 @@
             <BookCover
               :cover-url="work.cover_url"
               :title="work.title"
-              :alt="`Capa do livro ${work.title}`"
+              :alt="authorsString ? `Capa de ${work.title}, de ${authorsString}` : `Capa de ${work.title}`"
               loading="eager"
             />
           </div>
@@ -491,6 +492,12 @@ useHead({
   font-size: var(--font-size-sm);
 }
 
+.user-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
 .user-link:hover {
   text-decoration: underline;
 }
@@ -508,6 +515,12 @@ useHead({
   text-decoration: none;
   font-size: var(--font-size-xs);
   font-weight: 500;
+}
+
+.entry-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .entry-link:hover {

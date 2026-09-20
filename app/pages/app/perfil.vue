@@ -22,9 +22,10 @@
               disabled
               readonly
               class="form-input handle-input handle-disabled"
+              aria-describedby="profile-handle-hint"
             >
           </div>
-          <span class="field-hint immutable-hint">
+          <span id="profile-handle-hint" class="field-hint immutable-hint">
             O nome de usuário é definitivo e não pode ser alterado no MVP.
           </span>
         </div>
@@ -41,8 +42,9 @@
             placeholder="Seu nome"
             class="form-input"
             :disabled="loading"
+            aria-describedby="profile-name-hint"
           >
-          <span class="field-hint">Como seu nome aparecerá nas leituras e no perfil.</span>
+          <span id="profile-name-hint" class="field-hint">Como seu nome aparecerá nas leituras e no perfil.</span>
         </div>
 
         <!-- Bio -->
@@ -61,8 +63,9 @@
             placeholder="Conte um pouco sobre suas leituras e interesses..."
             class="form-input form-textarea"
             :disabled="loading"
+            aria-describedby="profile-bio-hint"
           />
-          <span class="field-hint">Apresentação curta no seu perfil público. Máximo 500 caracteres.</span>
+          <span id="profile-bio-hint" class="field-hint">Apresentação curta no seu perfil público. Máximo 500 caracteres.</span>
         </div>
 
         <!-- Profile Visibility -->
@@ -306,12 +309,20 @@ async function handleSave() {
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
   width: 100%;
+  min-height: 44px;
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--highlight);
   box-shadow: 0 0 0 2px rgba(64, 188, 244, 0.2);
+}
+
+.form-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-color: var(--highlight);
+  box-shadow: none;
 }
 
 .form-textarea {
@@ -367,7 +378,14 @@ async function handleSave() {
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
   cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
   transition: border-color 0.2s, background-color 0.2s;
+}
+
+.radio-card:has(.radio-input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .radio-card.selected {
@@ -378,6 +396,13 @@ async function handleSave() {
 .radio-input {
   margin-top: 3px;
   accent-color: var(--highlight);
+  width: 18px;
+  height: 18px;
+}
+
+.radio-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .radio-text {
@@ -419,6 +444,8 @@ async function handleSave() {
   font-size: var(--font-size-base);
   font-weight: bold;
   cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
   transition: opacity 0.2s;
   margin-top: var(--space-2);
 }
@@ -427,8 +454,21 @@ async function handleSave() {
   opacity: 0.9;
 }
 
+.submit-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-input,
+  .submit-btn,
+  .radio-card {
+    transition: none;
+  }
 }
 </style>

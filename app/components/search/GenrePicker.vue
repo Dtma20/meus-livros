@@ -11,7 +11,7 @@
 
     <div class="genre-groups">
       <div v-for="group in groups" :key="group.kind" class="genre-group">
-        <h4 class="genre-group-title">{{ group.title }}</h4>
+        <span class="genre-group-title">{{ group.title }}</span>
         <div class="genre-pills" role="group" :aria-label="group.title">
           <button
             v-for="genre in group.items"
@@ -186,6 +186,11 @@ const groups = computed<GenreGroup[]>(() => [
   color: #fff;
 }
 
+.genre-pill:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .genre-pill.is-selected {
   background-color: var(--star-color);
   border-color: var(--star-color);
@@ -205,5 +210,11 @@ const groups = computed<GenreGroup[]>(() => [
 
 .genre-pill-label {
   line-height: 1.2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .genre-pill {
+    transition: none;
+  }
 }
 </style>

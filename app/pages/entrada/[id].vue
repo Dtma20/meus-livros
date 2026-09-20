@@ -9,6 +9,7 @@
     <div v-else-if="hasError || !logData" class="entry-status-wrap" role="status">
       <EmptyState
         v-if="is404"
+        heading-tag="h1"
         title="Entrada não encontrada"
         message="Esta entrada não existe, foi removida ou é privada."
         action-label="Voltar para o início"
@@ -16,6 +17,7 @@
       />
       <ErrorState
         v-else
+        heading-tag="h1"
         title="Algo deu errado. Tente de novo."
         action-label="Tentar de novo"
         @retry="refresh"
@@ -45,7 +47,7 @@
       <div class="book-card-section">
         <div class="cover-container">
           <BookCover
-            :alt="`Capa de ${logData.work.title}`"
+            :alt="authorsText ? `Capa de ${logData.work.title}, de ${authorsText}` : `Capa de ${logData.work.title}`"
             :title="logData.work.title"
             :cover-url="logData.edition?.cover_url ?? logData.work.cover_url"
             :ol-cover-id="logData.edition?.ol_cover_id"
@@ -375,6 +377,12 @@ async function handleShare() {
   transition: opacity 0.2s;
 }
 
+.reader-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
 .reader-link:hover {
   opacity: 0.9;
 }
@@ -448,6 +456,12 @@ async function handleShare() {
   color: #fff;
   text-decoration: none;
   transition: color 0.2s;
+}
+
+.title-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .title-link:hover {
@@ -524,12 +538,19 @@ async function handleShare() {
   font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
+  min-height: 44px;
+  box-sizing: border-box;
   transition: background-color 0.2s, border-color 0.2s, color 0.2s;
 }
 
 .share-btn:hover {
   border-color: var(--highlight);
   color: var(--highlight);
+}
+
+.share-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .share-btn.is-copied {
@@ -551,11 +572,18 @@ async function handleShare() {
   font-size: var(--font-size-sm);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
+  min-height: 44px;
+  box-sizing: border-box;
   transition: color 0.2s;
 }
 
 .edit-btn:hover {
   color: #fff;
+}
+
+.edit-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .review-section {
@@ -604,7 +632,23 @@ async function handleShare() {
   transition: opacity 0.2s;
 }
 
+.footer-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
 .footer-link:hover {
   text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .share-btn,
+  .edit-btn,
+  .reader-link,
+  .title-link,
+  .footer-link {
+    transition: none;
+  }
 }
 </style>
