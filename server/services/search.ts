@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { db } from '../db'
+import { search_misses } from '../db/schema'
 
 /**
  * Maximum results returned by a single search call.
@@ -157,13 +158,24 @@ export async function searchWorks(query: string): Promise<SearchWork[]> {
 
 /**
  * Record a search that returned no results.
- * Fire-and-forget: errors are swallowed so they never block the response.
- * The `search_misses` instrumentation is completed in TASK-026.
+ * Fire-and-forget: errors are caught and logged so they never block or fail the response.
+ *
+ * Rules (TASK-026):
+ * - Store the query as typed, trimmed (raw text is the signal, including typos; do not normalise).
+ * - Queries shorter than 2 characters are ignored (empty by design, not by catalog absence).
+ * - Anonymous searches record user_id as null.
+ * - Errors are caught and logged, never throwing or rejecting.
  */
-export function recordSearchMiss(query: string, userId: string | null): void {
-  db.execute(sql`
-    INSERT INTO search_misses (query, user_id) VALUES (${query}, ${userId})
-  `).catch((err: unknown) => {
+export async function recordSearchMiss(query: string, userId: string | null = null): Promise<void> {
+  const term = query.trim()
+  if (term.length < 2) return
+
+  try {
+    await db.insert(search_misses).values({
+      query: term,
+      user_id: userId,
+    })
+  } catch (err: unknown) {
     console.error('[search] search_misses insert failed:', err)
-  })
+  }
 }

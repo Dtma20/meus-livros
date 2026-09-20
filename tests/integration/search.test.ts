@@ -131,7 +131,9 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
   afterAll(async () => {
     if (!userId) return
 
-    // Delete in dependency order: logs → works → authors → user
+    // Delete in dependency order: search_misses → logs → works → authors → user
+    await db.delete(schema.search_misses).where(sqlOp.like(schema.search_misses.query, `${MARKER}%`))
+    await db.delete(schema.search_misses).where(sqlOp.eq(schema.search_misses.user_id, userId))
     await db.delete(schema.reading_logs).where(sqlOp.eq(schema.reading_logs.user_id, userId))
     await db.delete(schema.works).where(sqlOp.eq(schema.works.created_by, userId))
     await db.delete(schema.authors).where(sqlOp.eq(schema.authors.created_by, userId))
@@ -276,4 +278,87 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
       }
     }
   }, 60_000)
+
+  // -------------------------------------------------------------------------
+  // TASK-026: search_misses instrumentation
+  // -------------------------------------------------------------------------
+
+  it('a zero-result search inserts exactly one row with the exact query text', async () => {
+    const missQuery = `${MARKER} Livro Inexistente 123`
+    await search.recordSearchMiss(missQuery, userId)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.eq(schema.search_misses.query, missQuery))
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.query).toBe(missQuery)
+    expect(rows[0]!.user_id).toBe(userId)
+    expect(rows[0]!.created_at).toBeInstanceOf(Date)
+  }, 20_000)
+
+  it('query text is stored trimmed but not normalised', async () => {
+    const untrimmedQuery = `  ${MARKER} Livro Com Espaços e Acentos (São Paulo)  `
+    const expectedQuery = `${MARKER} Livro Com Espaços e Acentos (São Paulo)`
+
+    await search.recordSearchMiss(untrimmedQuery, userId)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.eq(schema.search_misses.query, expectedQuery))
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.query).toBe(expectedQuery)
+  }, 20_000)
+
+  it('a search returning results creates no row', async () => {
+    const results = await search.searchWorks('dostoievski')
+    expect(results.length).toBeGreaterThan(0)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.eq(schema.search_misses.query, 'dostoievski'))
+
+    expect(rows).toHaveLength(0)
+  }, 20_000)
+
+  it('a 1-character query creates no row', async () => {
+    const singleChar = 'x'
+    await search.recordSearchMiss(singleChar, userId)
+    await search.recordSearchMiss('  y  ', userId)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.inArray(schema.search_misses.query, ['x', 'y']))
+
+    expect(rows).toHaveLength(0)
+  }, 20_000)
+
+  it('an anonymous search creates a row with user_id IS NULL', async () => {
+    const anonQuery = `${MARKER} anonymous book query`
+    await search.recordSearchMiss(anonQuery, null)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.eq(schema.search_misses.query, anonQuery))
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.query).toBe(anonQuery)
+    expect(rows[0]!.user_id).toBeNull()
+  }, 20_000)
+
+  it('a simulated insert failure does not affect or throw in recordSearchMiss', async () => {
+    // Calling with an invalid foreign key UUID simulates a DB failure;
+    // recordSearchMiss catches and logs it without throwing or rejecting.
+    const nonExistentUserId = '00000000-0000-0000-0000-000000000000'
+    await expect(
+      search.recordSearchMiss(`${MARKER} simulated failure`, nonExistentUserId),
+    ).resolves.not.toThrow()
+  }, 20_000)
 })
+

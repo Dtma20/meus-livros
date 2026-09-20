@@ -25,8 +25,14 @@ export default defineApiHandler(async (event) => {
 
   if (works.length === 0) {
     // Session is optional for search; userId may be null.
-    const user = await getSessionUser(event)
-    recordSearchMiss(q, user?.id ?? null)
+    // Telemetry is fire-and-forget: errors must never block or fail the search response.
+    try {
+      const user = await getSessionUser(event)
+      recordSearchMiss(q, user?.id ?? null)
+    } catch (err: unknown) {
+      console.error('[search] error determining user for search miss:', err)
+      recordSearchMiss(q, null)
+    }
   }
 
   return { works }
