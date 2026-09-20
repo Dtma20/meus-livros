@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { db } from '../db'
+import type { Viewer } from './visibility'
 import { search_misses } from '../db/schema'
 
 /**
@@ -40,10 +41,15 @@ export function escapeLikeWildcards(term: string): string {
  * Ranking (spec §4):
  *   1. Exact title match (f_unaccent(lower(title)) = f_unaccent(lower($1)))
  *   2. Title prefix match (search_text LIKE f_unaccent(lower($1)) || '%')
- *   3. log_count DESC
+ *   3. log_count DESC — **visible logs only**
+ *
+ * log_count counts only what the viewer may see. Counting every log would rank
+ * results by activity the viewer cannot look at, and it would say out loud that
+ * a private entry exists — the same leak the 404-instead-of-403 rule closes, by
+ * a different door.
  *   4. title ASC
  */
-export async function searchWorks(query: string): Promise<SearchWork[]> {
+export async function searchWorks(query: string, viewer: Viewer): Promise<SearchWork[]> {
   // The spec says: q shorter than 2 chars → return empty array, not an error.
   const term = query.trim()
   if (term.length < 2) return []
@@ -101,7 +107,12 @@ export async function searchWorks(query: string): Promise<SearchWork[]> {
         m.title_prefix_match,
         COUNT(DISTINCT rl.id)::int AS log_count
       FROM matched m
-      LEFT JOIN reading_logs rl ON rl.work_id = m.id
+      LEFT JOIN (reading_logs rl JOIN users ru ON ru.id = rl.user_id)
+        ON rl.work_id = m.id
+       AND (
+             (${viewer?.id ?? null}::uuid IS NOT NULL AND rl.user_id = ${viewer?.id ?? null}::uuid)
+             OR (rl.visibility = 'publico' AND ru.profile_visibility = 'publico')
+           )
       GROUP BY m.id, m.slug, m.title, m.first_published_year, m.exact_title_match, m.title_prefix_match
       ORDER BY
         m.exact_title_match DESC,

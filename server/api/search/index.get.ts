@@ -21,18 +21,16 @@ export default defineApiHandler(async (event) => {
     return { works: [] }
   }
 
-  const works = await searchWorks(q)
+  // Resolved once: the viewer decides which reading logs count toward a work's
+  // log_count, and it is also what the miss is attributed to.
+  const user = await getSessionUser(event)
+  const viewer = user ? { id: user.id } : null
+
+  const works = await searchWorks(q, viewer)
 
   if (works.length === 0) {
-    // Session is optional for search; userId may be null.
-    // Telemetry is fire-and-forget: errors must never block or fail the search response.
-    try {
-      const user = await getSessionUser(event)
-      recordSearchMiss(q, user?.id ?? null)
-    } catch (err: unknown) {
-      console.error('[search] error determining user for search miss:', err)
-      recordSearchMiss(q, null)
-    }
+    // Telemetry is fire-and-forget: it must never block or fail the search.
+    recordSearchMiss(q, viewer?.id ?? null)
   }
 
   return { works }

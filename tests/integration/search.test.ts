@@ -146,30 +146,30 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
   // -------------------------------------------------------------------------
 
   it('dostoievski (unaccented) returns the Dostoiévski work', async () => {
-    const works = await search.searchWorks('dostoievski')
+    const works = await search.searchWorks('dostoievski', null)
     const ids = works.map((w) => w.id)
     expect(ids).toContain(workDostoievskiId)
   })
 
   it('ficcao (unaccented) returns work with Ficção in the title', async () => {
-    const works = await search.searchWorks('ficcao')
+    const works = await search.searchWorks('ficcao', null)
     const ids = works.map((w) => w.id)
     expect(ids).toContain(workFiccaoId)
   })
 
   it('partial title retorno returns O Retorno do Rei', async () => {
-    const works = await search.searchWorks('retorno')
+    const works = await search.searchWorks('retorno', null)
     const ids = works.map((w) => w.id)
     expect(ids).toContain(workRetornoId)
   })
 
   it('author-only query (dostoievski) returns that author\'s works', async () => {
-    const works = await search.searchWorks('dostoievski')
+    const works = await search.searchWorks('dostoievski', null)
     expect(works.some((w) => w.id === workDostoievskiId)).toBe(true)
   })
 
   it('q of 1 char returns empty array, not an error', async () => {
-    const works = await search.searchWorks('j')
+    const works = await search.searchWorks('j', null)
     expect(works).toEqual([])
   })
 
@@ -178,7 +178,7 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     // The query wraps it as '%' || f_unaccent(lower('%')) || '%'
     // which matches nothing, so we expect zero or few results, certainly
     // not the full table.
-    const works = await search.searchWorks('%')
+    const works = await search.searchWorks('%', null)
     // At most 20 — this is the LIMIT. The test dataset has no works whose
     // search_text contains the literal '%', so we expect 0 results.
     expect(works.length).toBe(0)
@@ -188,22 +188,22 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     // Unescaped, `pop%lar` would match `Popular` via the % wildcard and
     // `pop_lar` via the _ wildcard. Escaped, both match nothing: no title
     // contains those literal strings.
-    const withPct = await search.searchWorks(`${MARKER} pop%lar`)
+    const withPct = await search.searchWorks(`${MARKER} pop%lar`, null)
     expect(withPct.map((w) => w.id)).not.toContain(workPopularId)
-    const withUnd = await search.searchWorks(`${MARKER} pop_lar`)
+    const withUnd = await search.searchWorks(`${MARKER} pop_lar`, null)
     expect(withUnd.map((w) => w.id)).not.toContain(workPopularId)
   })
 
   it('returns at most 20 results', async () => {
     // Use a term common to all our marker works.
-    const works = await search.searchWorks(MARKER.slice(0, 20))
+    const works = await search.searchWorks(MARKER.slice(0, 20), null)
     expect(works.length).toBeLessThanOrEqual(20)
   })
 
   it('a work with 5 logs ranks above an equally-matching work with 0', async () => {
     // Both "Popular" and "Unpopular" start with MARKER.
     // "Popular" has 5 logs; "Unpopular" has 0.
-    const works = await search.searchWorks(MARKER.slice(0, 20))
+    const works = await search.searchWorks(MARKER.slice(0, 20), null)
     const idxPopular = works.findIndex((w) => w.id === workPopularId)
     const idxUnpopular = works.findIndex((w) => w.id === workUnpopularId)
     expect(idxPopular).toBeGreaterThanOrEqual(0)
@@ -212,7 +212,7 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
   })
 
   it('each result carries the required shape', async () => {
-    const works = await search.searchWorks(MARKER.slice(0, 20))
+    const works = await search.searchWorks(MARKER.slice(0, 20), null)
     expect(works.length).toBeGreaterThan(0)
     const w = works[0]!
     expect(typeof w.id).toBe('string')
@@ -265,7 +265,7 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
 
     try {
       const baseline = await measure(() => db.execute(sqlOp.sql`select 1`))
-      const searched = await measure(() => search.searchWorks('perf'))
+      const searched = await measure(() => search.searchWorks('perf', null))
 
       const at95 = (samples: number[]) => samples[Math.ceil(SAMPLES * 0.95) - 1]!
       const queryCost = at95(searched) - at95(baseline)
@@ -314,7 +314,7 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
   }, 20_000)
 
   it('a search returning results creates no row', async () => {
-    const results = await search.searchWorks('dostoievski')
+    const results = await search.searchWorks('dostoievski', null)
     expect(results.length).toBeGreaterThan(0)
 
     const rows = await db

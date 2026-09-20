@@ -19,7 +19,16 @@ export default withNuxt(
         {
           patterns: [
             {
-              group: ['~~/server/*', '@@/server/*', '**/server/*', '../../server/*', '../../../server/*', '../../../../server/*'],
+              group: [
+                '~~/server/*',
+                '~/server/*',
+                '@@/server/*',
+                '@/server/*',
+                '**/server/*',
+                '../../server/*',
+                '../../../server/*',
+                '../../../../server/*',
+              ],
               message:
                 'Código em app/ não importa de server/. O contrato compartilhado vive em shared/.',
               allowTypeImports: false,
@@ -41,12 +50,20 @@ export default withNuxt(
               group: [
                 '~~/server/db',
                 '~~/server/db/index',
+                '~/server/db',
+                '~/server/db/index',
                 '@@/server/db',
                 '@@/server/db/index',
+                '@/server/db',
+                '@/server/db/index',
                 '**/server/db',
                 '**/server/db/index',
                 '../db',
-                '../db/index'
+                '../db/index',
+                '../../db',
+                '../../db/index',
+                '../../../db',
+                '../../../db/index',
               ],
               message:
                 'O handle de banco de dados só pode ser importado dentro de server/services/**',
