@@ -13,9 +13,20 @@ worktree + branch per task
   → agent writes code, commits once, never verifies
     → reviewer re-runs everything, independently
       → clean: merge into develop, delete worktree, next task in
-      → findings: one correction round, then re-review
-        → same finding survives two rounds: stop, ask the owner
+      → findings: a correction round, then re-review
+        → three failed attempts: the reviewer finishes it by hand
 ```
+
+**Three attempts is the ceiling**, counted per task — the first run plus each
+correction round. At three, stop delegating and write the corrections directly.
+Owner's rule, 2026-09-20. It replaces the older "same defect survives two rounds,
+ask the owner": a model that cannot converge on a task is not a question for the
+owner, it is work to be done. A fourth round costs a whole agent run to produce
+what the reviewer can write in minutes, and by then the reviewer has read the
+code closely enough to be faster than the prompt describing it.
+
+Still stop and ask when a finding genuinely needs the owner's judgement: cost, a
+scope change, or an external credential.
 
 Nothing is merged on the agent's word. **Every substantive finding so far came from the reviewer's own verification, not from reading an agent's report** — an agent reported a stale artifact hidden behind `?? server/`, another presented a phantom dependency as a virtue, a third reported a seed script that could not run at all.
 
