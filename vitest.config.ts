@@ -13,6 +13,9 @@ export default defineConfig({
   },
   test: {
     globals: true,
+    // Builds the bundle before any worker starts. Doing it from a test file's
+    // beforeAll rewrites .nuxt while other workers are resolving against it.
+    globalSetup: ['./tests/global-setup.ts'],
     // Node é o padrão: só os testes de componente pagam o custo do DOM,
     // via `// @vitest-environment happy-dom` no topo do arquivo.
     environment: 'node'

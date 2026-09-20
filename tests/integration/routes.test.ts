@@ -3,44 +3,12 @@ import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-const serverPath = path.resolve('.vercel/output/functions/__fallback.func/index.mjs')
-
-// Rebuild when the bundle is missing OR older than any source it is built from.
-// Checking only for existence serves a stale bundle, which reports the previous
-// commit's routes as if they were this one's.
-function newestSourceMtime(dir: string): number {
-  if (!fs.existsSync(dir)) return 0
-  let newest = 0
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name)
-    newest = Math.max(newest, entry.isDirectory() ? newestSourceMtime(full) : fs.statSync(full).mtimeMs)
-  }
-  return newest
-}
-
-function bundleIsStale(): boolean {
-  if (!fs.existsSync(serverPath)) return true
-  const built = fs.statSync(serverPath).mtimeMs
-  const sources = Math.max(
-    newestSourceMtime(path.resolve('app')),
-    newestSourceMtime(path.resolve('server')),
-    fs.existsSync(path.resolve('nuxt.config.ts')) ? fs.statSync(path.resolve('nuxt.config.ts')).mtimeMs : 0,
-  )
-  return sources > built
-}
-
 describe('Route integration HTTP tests', () => {
   let child: ChildProcess
   let baseUrl: string
 
   beforeAll(async () => {
-    if (bundleIsStale()) {
-      const { loadNuxt, build } = await import('nuxt')
-      const nuxt = await loadNuxt({ dev: false, ready: true })
-      await build(nuxt)
-      await nuxt.close()
-    }
-
+    // The bundle is built by tests/global-setup.ts, before any worker starts.
     const env = { ...process.env }
     delete env.NODE_OPTIONS
     delete env.VITEST
