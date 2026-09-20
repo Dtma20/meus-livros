@@ -101,11 +101,22 @@ export async function findDuplicateWork(
   title: string,
   authorSlugs: string[],
   conn: DbOrTx = db,
-): Promise<{ id: string, slug: string, title: string } | null> {
+): Promise<{ id: string, slug: string, title: string, cover_url?: string | null } | null> {
   if (authorSlugs.length === 0) return null
 
   const rows = await conn
-    .select({ id: works.id, slug: works.slug, title: works.title })
+    .select({
+      id: works.id,
+      slug: works.slug,
+      title: works.title,
+      cover_url: sql<string | null>`(
+        SELECT e.cover_url
+        FROM editions e
+        WHERE e.work_id = ${works.id} AND e.cover_url IS NOT NULL
+        ORDER BY e.created_at
+        LIMIT 1
+      )`,
+    })
     .from(works)
     .innerJoin(work_authors, eq(work_authors.work_id, works.id))
     .innerJoin(authors, eq(authors.id, work_authors.author_id))

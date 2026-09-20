@@ -257,8 +257,24 @@ function selectWork(work: SearchResult): void {
 
 function goToAdd(): void {
   const q = query.value.trim()
-  void navigateTo(q ? `/app/novo?q=${encodeURIComponent(q)}` : '/app/novo')
+  let currentPath = ''
+  try {
+    if (typeof useRoute === 'function') {
+      currentPath = useRoute().fullPath || ''
+    }
+  } catch {
+    // In unit test or environment without router context
+  }
+
+  const hasRet = currentPath && currentPath !== '/app/livro/novo' && !currentPath.startsWith('/app/livro/novo?')
+  const retParam = hasRet ? `&ret=${encodeURIComponent(currentPath)}` : ''
+  const dest = q
+    ? `/app/livro/novo?q=${encodeURIComponent(q)}${retParam}`
+    : `/app/livro/novo${retParam ? `?${retParam.slice(1)}` : ''}`
+
+  void navigateTo(dest)
 }
+
 </script>
 
 <style scoped>
