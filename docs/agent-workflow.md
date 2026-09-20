@@ -92,7 +92,7 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `019c62d`. Lint 0, typecheck 0, **127 tests passing**, `npm run build` clean.
+`develop` at `51407fc`. Lint 0, typecheck 0, **138 tests passing**, `npm run build` clean.
 
 | Merged | |
 |---|---|
@@ -105,12 +105,13 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 | 009 | Catalog services, ISBN normalisation, two POST endpoints |
 | 010 | Local search over the generated column |
 | 019 | The 86 books, 60 authors, 86 editions, 86 reading logs |
+| 007 | Email OTP sign-in, allowlist gate, Postgres rate limiting |
 
 ### Waiting
 
-- **`task/007-auth-email-otp`** — reviewed, **one correction round in flight**. The eighteen files were checkpointed at `4006c54`, `develop` merged on top at `bda61fd`, and the findings below sent back to an agent. Nothing merges until the round is re-reviewed.
+Nothing is in flight. **008 is next**, then **013**, the gate to the distribution path.
 
-Everything else is unstarted. **008 is next** once 007 lands, then **013**, the gate to the distribution path.
+**022 cannot be implemented as written.** The repository is public, and the task's own security section says a dump artifact inherits repository visibility. The dump carries every member's email address. Either the repository goes private or the backup workflow lives in a separate private one — that is an owner decision, and it comes before the first run, not after.
 
 ### Decisions taken during implementation
 
@@ -119,6 +120,9 @@ Everything else is unstarted. **008 is next** once 007 lands, then **013**, the 
 - **`tsx` added** so `scripts/**` can run at all. Node cannot resolve their extensionless TypeScript imports.
 - **`tsconfig.test.json` created** — `tests/`, `scripts/`, `vitest.config.ts` and `drizzle.config.ts` were in no tsconfig and were never typechecked.
 - **`createWork` gained `skipRateLimit` and `tx`**, so the 86-book migration exercises the production code path inside one transaction instead of a parallel one.
+- **`/api/auth/**` denies by default.** better-auth's email-OTP plugin registers four mail-sending routes; only `send-verification-otp` belongs to this product. Guarding that one and passing the rest through left `request-password-reset`, `forget-password/email-otp` and `request-email-change` reachable with no rate limit and no allowlist — unauthenticated, unbounded sending from the maintainer's Gmail. An explicit path allowlist now answers 404 to everything else. Adding three more exceptions would have been the wrong shape; the next plugin upgrade would reopen it.
+- **The OTP response does not wait on SMTP.** Awaiting the send made the allowlisted path visibly slower than the denied one, which is the enumeration oracle the identical-response rule exists to close. **This has a cost on Vercel** — see the owner's list.
+- **The session resolves to `users.id`, not the better-auth id.** `ba_user.id` is text, `users.id` is uuid, and the latter is what `works.created_by` references. Returning the better-auth id would have made every authenticated write fail on an invalid uuid. No `users` row now means `getSessionUser` returns null, which is the registration gate `security.md` already specified.
 
 ### Corrections to the planning documents, found in the real data
 
@@ -130,10 +134,12 @@ Everything else is unstarted. **008 is next** once 007 lands, then **013**, the 
 
 1. ~~`GMAIL_APP_PASSWORD` in `.env`~~ — **done.** A 16-character app password is in `.env`.
 2. ~~`pg_dump` is not on `PATH`~~ — **found, and it works.** `C:\Program Files\PostgreSQL\18\bin\pg_dump.exe`, version 18.4, dumps the Neon 17.11 server cleanly (a newer `pg_dump` against an older server is the supported direction). TASK-022 only needs that directory added to `PATH`, or the absolute path written into the backup script.
-3. TASK-023 needs a Vercel account and dashboard configuration. TASK-024 depends on 023. **Still the only hard block.**
+3. TASK-023 needs a Vercel account and dashboard configuration. TASK-024 depends on 023.
 4. Real email delivery beyond the owner's own address needs either a verified domain or acceptance that Gmail SMTP is the ceiling.
 5. The WhatsApp WebView acceptance criterion in TASK-007 needs a real Android phone. It cannot be verified here, and it is the criterion that ruled out OAuth.
+6. **TASK-022 vs. repository visibility.** `Dtma20/meus-livros` is public. A `pg_dump` artifact inherits that visibility and contains every member's email address. Make the repository private, or put the backup workflow in a separate private repository. Until this is decided, 022 should not run even once.
+7. **The OTP email is sent without awaiting it, and Vercel may not let it finish.** This is the deliberate trade against the enumeration-timing requirement: awaiting SMTP makes an invited address answer measurably slower than an uninvited one. On a long-lived server the send completes; on Vercel's serverless runtime, work started after the response is not guaranteed to run, and neither h3 1.15 nor Nitro's Vercel preset exposes `waitUntil` (it exists only in the Cloudflare presets). Three ways out, in increasing cost: accept the risk and watch for missing codes; await the send and accept the timing signal; or move OTP delivery to a route that is allowed to be slow. **Decide this before TASK-023, not after** — the symptom is a code that silently never arrives.
 
 ### Next
 
-Re-review `task/007` after the correction round. After 007 lands, 008 unblocks, then 013, which is the gate to everything on the distribution path.
+TASK-008, profile creation — it is what turns a verified identity into a `users` row, and without it nobody but the owner can do anything. Then 013.
