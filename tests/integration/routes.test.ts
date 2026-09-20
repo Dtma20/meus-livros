@@ -128,10 +128,11 @@ describe('Route integration HTTP tests', () => {
     })
     expect(res.status).toBe(404)
     const html = await res.text()
-    expect(html).toContain('404')
-    expect(html).toContain('Página não encontrada')
-    expect(html).toContain('A página que você procura não existe ou foi removida.')
-    expect(html).toContain('Voltar ao início')
+    // Copy comes from the TASK-020 state table. The status line matters as much
+    // as the words: the crawler that builds the WhatsApp preview reads it, and
+    // three public pages once answered 200 with an error box in the body.
+    expect(html).toContain('Não encontramos essa página.')
+    expect(html).toContain('Ir para o início')
     expect(html).toContain('Dados bibliográficos parcialmente do Open Library')
     expect(html).not.toContain('stack')
   })

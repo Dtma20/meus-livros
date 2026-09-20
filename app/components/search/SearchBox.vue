@@ -30,7 +30,7 @@
       :id="listId"
       ref="listRef"
       class="search-results"
-      role="listbox"
+      :role="results.length > 0 ? 'listbox' : undefined"
       :aria-label="resultsLabel"
     >
       <!-- Works found -->
@@ -60,12 +60,26 @@
       <li
         v-else-if="!loading && searched"
         class="search-empty"
-        role="option"
-        aria-selected="false"
-        @mousedown.prevent="goToAdd"
       >
-        <span class="empty-headline">Nenhum resultado para "{{ lastQuery }}"</span>
-        <span class="empty-action-hint">→ Cadastrar este livro</span>
+        <span class="empty-headline">Não encontramos esse livro.</span>
+        <div class="empty-actions">
+          <button
+            type="button"
+            class="empty-btn-primary"
+            data-testid="search-add-manual"
+            @mousedown.prevent="goToAdd('manual')"
+          >
+            Adicionar à mão
+          </button>
+          <button
+            type="button"
+            class="empty-btn-secondary"
+            data-testid="search-online-lookup"
+            @mousedown.prevent="goToAdd('online')"
+          >
+            Buscar online
+          </button>
+        </div>
       </li>
     </ul>
   </div>
@@ -214,7 +228,7 @@ function onKeydown(e: KeyboardEvent): void {
     if (activeIndex.value >= 0 && results.value[activeIndex.value]) {
       selectWork(results.value[activeIndex.value]!)
     } else if (results.value.length === 0 && searched.value) {
-      goToAdd()
+      goToAdd('manual')
     }
   } else if (e.key === 'Escape') {
     inputRef.value?.blur()
@@ -255,8 +269,9 @@ function selectWork(work: SearchResult): void {
   }
 }
 
-function goToAdd(): void {
+function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
   const q = query.value.trim()
+
   let currentPath = ''
   try {
     if (typeof useRoute === 'function') {
@@ -268,9 +283,10 @@ function goToAdd(): void {
 
   const hasRet = currentPath && currentPath !== '/app/livro/novo' && !currentPath.startsWith('/app/livro/novo?')
   const retParam = hasRet ? `&ret=${encodeURIComponent(currentPath)}` : ''
+  const onlineParam = mode === 'online' ? '&online=true' : ''
   const dest = q
-    ? `/app/livro/novo?q=${encodeURIComponent(q)}${retParam}`
-    : `/app/livro/novo${retParam ? `?${retParam.slice(1)}` : ''}`
+    ? `/app/livro/novo?q=${encodeURIComponent(q)}${onlineParam}${retParam}`
+    : `/app/livro/novo${onlineParam || retParam ? `?${(onlineParam + retParam).replace(/^&/, '')}` : ''}`
 
   void navigateTo(dest)
 }
@@ -406,14 +422,9 @@ function goToAdd(): void {
 .search-empty {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-3);
-  cursor: pointer;
-  transition: background 0.1s;
-}
-
-.search-empty:hover {
-  background: var(--input-bg);
+  gap: var(--space-2);
+  padding: var(--space-3);
+  cursor: default;
 }
 
 .empty-headline {
@@ -421,9 +432,59 @@ function goToAdd(): void {
   font-size: var(--font-size-sm);
 }
 
-.empty-action-hint {
+.empty-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.empty-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--highlight);
+  color: #000;
+  font-weight: 700;
+  font-size: var(--font-size-xs);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.empty-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.empty-btn-primary:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.empty-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
   color: var(--highlight);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--input-bg);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.empty-btn-secondary:hover {
+  border-color: var(--highlight);
+  background-color: var(--input-bg);
+}
+
+.empty-btn-secondary:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 1px;
 }
 </style>

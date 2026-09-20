@@ -108,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import BookCover from '../book/BookCover.vue'
 import type { ExternalBookResult, ExternalSearchResponse } from '../../../shared/schemas/search'
 
@@ -116,10 +116,12 @@ const props = withDefaults(
   defineProps<{
     query?: string
     disabled?: boolean
+    autoLookup?: boolean
   }>(),
   {
     query: '',
     disabled: false,
+    autoLookup: false,
   },
 )
 
@@ -133,6 +135,12 @@ const hasSearched = ref(false)
 const unavailable = ref(false)
 const customErrorMessage = ref('')
 const results = ref<ExternalBookResult[]>([])
+
+onMounted(() => {
+  if (props.autoLookup && searchTerm.value.trim().length >= 2) {
+    void performLookup()
+  }
+})
 
 // Sync searchTerm when props.query changes, provided the user hasn't typed an explicit query
 watch(

@@ -167,18 +167,18 @@ describe('Layout: app.vue', () => {
 })
 
 describe('Error page: error.vue', () => {
-  it('handles 404 with pt-BR copy and a link home', () => {
+  // Copy comes from the TASK-020 state table, which is the specification for
+  // every empty and error state. Asserting the literal strings is deliberate:
+  // it is what stops the copy drifting back to something a reader has to decode.
+  it('handles 404 with pt-BR copy and a way back home', () => {
     const wrapper = mount(ErrorPage, {
       error: { statusCode: 404 }
     })
-    expect(wrapper.text()).toContain('404')
-    expect(wrapper.text()).toContain('Página não encontrada')
-    expect(wrapper.text()).toContain('A página que você procura não existe ou foi removida.')
+    expect(wrapper.text()).toContain('Não encontramos essa página.')
 
-    const homeLink = wrapper.find('a.error-link')
-    expect(homeLink).not.toBeNull()
-    expect(homeLink?.getAttribute('href')).toBe('/')
-    expect(homeLink?.textContent?.trim()).toBe('Voltar ao início')
+    const action = wrapper.find('.empty-btn')
+    expect(action).not.toBeNull()
+    expect(action?.textContent?.trim()).toBe('Ir para o início')
     wrapper.unmount()
   })
 
@@ -191,15 +191,17 @@ describe('Error page: error.vue', () => {
         stack: 'Error: at Query.run (/server/db/secret.ts:12:34)'
       }
     })
-    expect(wrapper.text()).toContain('Erro')
-    expect(wrapper.text()).toContain('Ocorreu um erro no servidor')
-    expect(wrapper.text()).toContain('Não foi possível processar a requisição. Tente novamente mais tarde.')
+    expect(wrapper.text()).toContain('Algo deu errado. Tente de novo.')
+
+    // The point of this test. ErrorState renders fixed copy and never touches
+    // the error object, so neither the message nor the stack can reach a reader.
     expect(wrapper.text()).not.toContain('Sensitive database failure message')
     expect(wrapper.text()).not.toContain('/server/db/secret.ts')
+    expect(wrapper.text()).not.toContain('Internal Server Error')
 
-    const homeLink = wrapper.find('a.error-link')
-    expect(homeLink).not.toBeNull()
-    expect(homeLink?.getAttribute('href')).toBe('/')
+    const action = wrapper.find('.error-btn')
+    expect(action).not.toBeNull()
+    expect(action?.textContent?.trim()).toBe('Tentar de novo')
     wrapper.unmount()
   })
 })
