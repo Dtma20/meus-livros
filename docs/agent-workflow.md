@@ -92,7 +92,7 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `51407fc`. Lint 0, typecheck 0, **138 tests passing**, `npm run build` clean.
+`develop` at `ae2419a`. Lint 0, typecheck 0, **167 tests passing**, `npm run build` clean.
 
 | Merged | |
 |---|---|
@@ -106,10 +106,11 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 | 010 | Local search over the generated column |
 | 019 | The 86 books, 60 authors, 86 editions, 86 reading logs |
 | 007 | Email OTP sign-in, allowlist gate, Postgres rate limiting |
+| 008 | Profile creation, handle rules, the `/app/**` profile gate |
 
 ### Waiting
 
-Nothing is in flight. **008 is next**, then **013**, the gate to the distribution path.
+**013 is in flight** — log a book, the one content-generating feature in the MVP.
 
 **022 cannot be implemented as written.** The repository is public, and the task's own security section says a dump artifact inherits repository visibility. The dump carries every member's email address. Either the repository goes private or the backup workflow lives in a separate private one — that is an owner decision, and it comes before the first run, not after.
 

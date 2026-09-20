@@ -2,7 +2,7 @@
 
 > Mantenha este arquivo atualizado a cada merge. Ele entra no prompt de todo agente e é o que impede que reinventem o que já existe.
 
-Concluídas e em `develop`: 001 scaffold, 002 conexão Neon, 003 schema, 004 migração + seed, 005 tokens e componentes, 006 layouts e rotas, 007 autenticação por código de e-mail, 009 serviços de catálogo, 010 busca local, 019 migração dos 86 livros.
+Concluídas e em `develop`: 001 scaffold, 002 conexão Neon, 003 schema, 004 migração + seed, 005 tokens e componentes, 006 layouts e rotas, 007 autenticação por código de e-mail, 008 criação de perfil, 009 serviços de catálogo, 010 busca local, 019 migração dos 86 livros.
 
 ### Banco
 
@@ -20,6 +20,8 @@ Conteúdo atual: 26 gêneros, 86 obras, 60 autores, 86 edições, 86 registros d
 - Tipos inferidos em `server/db/types.ts` (`User`, `Work`, `NewWork`, ...). Nunca duplique tipo à mão.
 - **Só `server/services/**` pode importar o handle `db`.** ESLint barra em `app/` e `server/api/`. `scripts/**` é isento.
 - Sessão tem **um único ponto de costura**: `server/utils/session.ts`, com `getSessionUser(event)` e `requireSessionUser(event)`. Use-o. Não leia cookie direto em rota. O `id` que sai dali é o **uuid de `users.id`**, nunca o id do better-auth. **Sem linha em `users`, devolve `null`** — identidade verificada sem perfil lê como anônimo, e é a TASK-008 que cria o perfil.
+- Perfil: `server/services/users.ts` (`createUser`, `updateUserProfile`, `getUserById/ByEmail/ByHandle`, `getHandleSuggestions`). Rotas: `POST /api/users`, `GET /api/users/me`, `PATCH /api/users/me`. Handle é **imutável**. Reservados e formato em `shared/schemas/user.ts`.
+- Middleware `/app/**` em `app/middleware/auth.ts`: barra quem não tem linha em `users` e manda para `/app/bem-vindo`. **Resolve todo composable antes do primeiro `await`** e chama `navigateTo` dentro de `runWithContext` — buscar composable depois do await levanta `NUXT_E1001` no SSR e transforma o 302 em 500. Usa `useRequestFetch`, não `$fetch`, senão o cookie não chega ao servidor. Isso já quebrou duas vezes; não desfaça.
 - Auth: `server/services/auth.ts`. `/api/auth/**` **nega por padrão** — só `send-verification-otp`, `sign-in/email-otp`, `get-session` e `sign-out` passam; todo o resto responde 404. Ao mexer nisso, lembre que o plugin de OTP registra quatro rotas que disparam e-mail. Rate limit em `server/services/rate-limit.ts`, contador por hora no Postgres.
 - Formato de erro sai por `server/utils/api.ts`: `defineApiHandler(fn)` e `parseOrThrow(schema, valor)`. Rotas novas usam os dois — eles produzem `{ error, message }` e impedem stack trace de vazar.
 - Zod compartilhado em `shared/schemas/`. Uma definição, usada por formulário e rota.
