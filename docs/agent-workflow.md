@@ -147,9 +147,9 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `79e97bf`. Lint 0, typecheck 0, **364 tests passing**, `npm run build` clean.
+`develop` at `fd01bcc`. Lint 0, typecheck 0, **369 tests passing**, `npm run build` clean.
 
-**Twenty-one of the twenty-six tasks are merged.** `npm run test` now requires a
+**Twenty-two of the twenty-six tasks are merged.** `npm run test` now requires a
 current bundle and says so if it is missing — run `npm run build` first.
 
 | Merged | |
@@ -175,10 +175,11 @@ current bundle and says so if it is missing — run `npm run build` first.
 | 018 | Home page: landing for strangers, ten recent visible logs for members |
 | 012 | Optional Open Library lookup during manual book entry |
 | 020 | Empty, error and loading states across every list and page |
+| 021 | Accessibility pass: `<a>` cards, alt text, focus rings, skip link, `lang`, axe suite |
 
 ### Waiting
 
-Nothing is in flight. **021 (accessibility pass) is next** — every page it audits now exists. 025 (reading map) is unblocked but optional. 022, 023 and 024 are the owner's.
+Nothing is in flight. **025 (reading map) is the only delegatable task left** — unblocked, and the task file calls it optional. 022, 023 and 024 are the owner's: 022 is blocked on repository visibility, 023 needs a Vercel account, 024 depends on 023.
 
 **An agent run can also derail, not just fail.** The TASK-013 correction round returned exit 0 with a report block replaced by unrelated prose scraped from somewhere else, having made a single one-line edit. The worktree diff is the only thing that tells you this; the exit code and the report both said nothing was wrong. Diff before reading anything else.
 
@@ -251,6 +252,31 @@ because every one of them looked fine in a diff.
   a test covered the service one. The agent removed it as instructed and the test
   went red, which is the only reason it was caught. Write findings so a red test
   can contradict them.
+- **`happy-dom`'s `fetch` cannot reach the local test server.** A file declaring
+  `// @vitest-environment happy-dom` gets happy-dom's `fetch` as the global, and
+  it applies the Same-Origin Policy against the document's origin, `about:blank`.
+  Every request to `http://127.0.0.1:<port>` comes back
+  `NetworkError: Cross-Origin Request Blocked`. All four tests of the new
+  `axe-core` suite failed this way on the first round. A DOM-needing test that
+  also has to talk HTTP uses `node:http` for the transport and keeps happy-dom
+  only for the parsing.
+- **`@mousedown.prevent` does not cancel the `click` that follows it.**
+  `preventDefault()` on `mousedown` suppresses focus, not the click event, so a
+  button carrying both handlers runs its handler twice — here, two `navigateTo`
+  calls for one press. No test clicked those buttons, so the suite was silent.
+- **A task that exists to add a guarantee can remove one.** The accessibility
+  round weakened `BookCover`'s `alt` from a required prop to `alt?: string` with
+  `:alt="alt ?? ''"`. All six callers already passed it; the change bought
+  nothing and traded a compile error for a silently decorative cover — against
+  the very criterion the task was written to enforce.
+- **`aria-labelledby` handed to a component lands on its root and dies there.**
+  Without `inheritAttrs: false` it falls through onto the wrapper `<div>`, which
+  is `role=generic`, and an accessible name on a generic element is ignored. Two
+  of them shipped looking like fixes in the diff.
+- **An agent reverted `package-lock.json` after adding a dependency to
+  `package.json`** and filed it under `FORA DE ESCOPO NOTADO`. The two files
+  disagreed, which `npm ci` refuses — and `npm ci` is what Vercel runs. Check the
+  lockfile whenever `DEPS ADICIONADAS` is not "nenhuma".
 
 ### Decisions taken during implementation
 
