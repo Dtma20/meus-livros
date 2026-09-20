@@ -1,12 +1,15 @@
 <template>
   <div class="page-container">
     <div v-if="pending" class="loading-state">
-      <p>Carregando livro…</p>
+      <LoadingSkeleton :count="6" />
     </div>
 
     <div v-else-if="error || !work" class="error-state">
-      <p class="error-text">Livro não encontrado.</p>
-      <NuxtLink to="/" class="back-link">← Voltar para o início</NuxtLink>
+      <EmptyState
+        title="Livro não encontrado."
+        action-label="Ir para o início"
+        action-href="/"
+      />
     </div>
 
     <div v-else class="work-page">
@@ -102,7 +105,11 @@
           </h2>
 
           <div v-if="work.logs.length === 0" class="empty-logs">
-            <EmptyState message="Ninguém registrou esse livro ainda." />
+            <EmptyState
+              title="Ninguém registrou esse livro ainda."
+              action-label="Registrar"
+              action-href="/app/novo"
+            />
           </div>
 
           <ul v-else class="logs-list">
@@ -145,6 +152,7 @@ import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import type { WorkAuthorView, WorkWithDetails } from '~~/shared/schemas/work'
 import { formatCountry, formatLanguage, formatPublicationYear } from '~~/shared/schemas/work'
 

@@ -68,6 +68,7 @@
       <ExternalLookup
         :query="title"
         :disabled="submitting"
+        :auto-lookup="autoLookup"
         @select="handleExternalSelect"
       />
 
@@ -458,10 +459,12 @@ const props = withDefaults(
   defineProps<{
     initialTitle?: string
     returnTo?: string
+    autoLookup?: boolean
   }>(),
   {
     initialTitle: '',
     returnTo: '/app/novo',
+    autoLookup: false,
   },
 )
 

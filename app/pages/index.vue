@@ -37,11 +37,19 @@
         </NuxtLink>
       </header>
 
-      <!-- Error state when feed fails to load -->
-      <div v-if="hasFeedError" class="feed-error-state" role="alert">
-        <p class="feed-error-title">Não foi possível carregar as leituras recentes.</p>
-        <p class="feed-error-subtitle">Ocorreu um erro ao buscar as publicações. Tente recarregar a página.</p>
+      <!-- Loading state while feed is fetching -->
+      <div v-if="pending" class="feed-loading">
+        <LoadingSkeleton :count="4" />
       </div>
+
+      <!-- Error state when feed fails to load -->
+      <ErrorState
+        v-else-if="hasFeedError"
+        title="Algo deu errado. Tente de novo."
+        message="Não foi possível carregar as leituras recentes."
+        action-label="Tentar de novo"
+        @retry="refresh"
+      />
 
       <!-- Empty state when no visible logs exist -->
       <EmptyState
@@ -113,6 +121,8 @@ import { computed } from 'vue'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
+import ErrorState from '~/components/ui/ErrorState.vue'
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { formatFullDate, formatRelativeDate } from '~/utils/date'
 import type { FeedEntry, FeedResponse } from '~~/shared/schemas/feed'
 
@@ -131,7 +141,7 @@ const requestFetch = useRequestFetch()
 // 1. 200 with UserProfile: authenticated member with profile -> shows feed.
 // 2. 200 with null: verified session exists without profile -> redirects to /app/bem-vindo.
 // 3. 401 (or error): unauthenticated stranger -> shows landing, excludes book data from payload.
-const { data: pageData } = await useAsyncData<HomeAsyncData>('home-feed', async () => {
+const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('home-feed', async () => {
   const [meResult, feedResult] = await Promise.allSettled([
     requestFetch<Record<string, unknown> | null>('/api/users/me'),
     requestFetch<FeedResponse>('/api/feed/recentes'),

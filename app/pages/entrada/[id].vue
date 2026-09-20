@@ -2,16 +2,23 @@
   <div class="entry-page">
     <!-- Loading state -->
     <div v-if="isPending" class="entry-status-wrap" role="status">
-      <p class="loading-text">Carregando entrada…</p>
+      <LoadingSkeleton :count="1" />
     </div>
 
-    <!-- Error / Not found state (404) -->
+    <!-- Error / Not found state -->
     <div v-else-if="hasError || !logData" class="entry-status-wrap" role="status">
       <EmptyState
+        v-if="is404"
         title="Entrada não encontrada"
         message="Esta entrada não existe, foi removida ou é privada."
         action-label="Voltar para o início"
         action-href="/"
+      />
+      <ErrorState
+        v-else
+        title="Algo deu errado. Tente de novo."
+        action-label="Tentar de novo"
+        @retry="refresh"
       />
     </div>
 
@@ -134,6 +141,8 @@ import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
+import ErrorState from '~/components/ui/ErrorState.vue'
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import {
   buildOgDescription,
   buildOgTitle,
@@ -153,7 +162,7 @@ const requestFetch = useRequestFetch()
 const reqUrl = typeof useRequestURL === 'function' ? useRequestURL() : null
 const origin = computed(() => reqUrl?.origin || 'http://localhost:3000')
 
-const { data: log, pending, error } = useAsyncData<LogWithDetails>(
+const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
   `entry-${id.value}`,
   async () => {
     try {
@@ -192,6 +201,11 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
 const logData = computed(() => log?.value ?? null)
 const isPending = computed(() => Boolean(pending?.value))
 const hasError = computed(() => Boolean(error?.value))
+const is404 = computed(() => {
+  const status = (error?.value as { statusCode?: number; status?: number })?.statusCode
+    || (error?.value as { statusCode?: number; status?: number })?.status
+  return status === 404 || (!logData.value && !isPending.value)
+})
 
 // Check if viewer owns this log
 const session = typeof useState === 'function'

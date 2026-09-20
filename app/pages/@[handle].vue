@@ -1,16 +1,23 @@
 <template>
   <div class="profile-page">
     <div v-if="pending" class="loading-state">
-      <p>Carregando perfil…</p>
+      <LoadingSkeleton :count="6" />
     </div>
 
     <div v-else-if="error || !profile" class="error-state">
       <EmptyState
+        v-if="is404"
         icon="🔍"
         title="Perfil não encontrado"
         :message="`O perfil @${handle} não foi encontrado ou é privado.`"
         action-label="Voltar ao início"
         action-href="/"
+      />
+      <ErrorState
+        v-else
+        title="Algo deu errado. Tente de novo."
+        action-label="Tentar de novo"
+        @retry="refresh"
       />
     </div>
 
@@ -31,6 +38,15 @@
       <!-- Empty state when profile has no books registered -->
       <div v-if="logs.length === 0" class="empty-collection">
         <EmptyState
+          v-if="isOwner"
+          icon="📚"
+          title="Você ainda não registrou nenhum livro."
+          message="Assim que registrar seus primeiros livros, eles aparecerão aqui."
+          action-label="Registrar livro"
+          action-href="/app/novo"
+        />
+        <EmptyState
+          v-else
           icon="📚"
           title="Ainda não registrou nenhum livro."
           message="Assim que registrar seus primeiros livros, eles aparecerão aqui."
@@ -55,89 +71,136 @@
         <div v-if="hasActiveFilters && sortedBooks.length === 0" class="empty-filter-results">
           <EmptyState
             icon="🔍"
-            title="Nenhum livro encontrado"
-            :message="`Nenhum livro corresponde aos filtros selecionados: ${activeFiltersDescription}.`"
+            title="Nenhum livro com esses filtros."
+            :message="`Filtros ativos: ${activeFiltersDescription}.`"
             action-label="Limpar filtros"
             @action="resetFilters"
           />
         </div>
 
-        <!-- Poster grid of books -->
-        <BookGrid v-else>
-          <div v-for="log in sortedBooks" :key="log.id" class="book-card-item">
-            <span
-              v-if="log.visibility === 'privado'"
-              class="private-badge"
-              title="Registro privado — visível apenas para você"
-            >
-              Privado
-            </span>
-            <BookCard
-              :title="log.work.title"
-              :author="formatAuthors(log.work.authors)"
-              :rating="log.rating"
-              :cover-url="log.work.cover_url || log.edition?.cover_url"
-              :ol-cover-id="log.edition?.ol_cover_id"
-              :isbn13="log.edition?.isbn13"
-              :href="`/entrada/${log.id}`"
-            />
-          </div>
-        </BookGrid>
+        <!-- Poster grid of books and footer (only rendered when books match) -->
+        <template v-else>
+          <BookGrid>
+            <div v-for="log in sortedBooks" :key="log.id" class="book-card-item">
+              <span
+                v-if="log.visibility === 'privado'"
+                class="private-badge"
+                title="Registro privado — visível apenas para você"
+              >
+                Privado
+              </span>
+              <BookCard
+                :title="log.work.title"
+                :author="formatAuthors(log.work.authors)"
+                :rating="log.rating"
+                :cover-url="log.work.cover_url || log.edition?.cover_url"
+                :ol-cover-id="log.edition?.ol_cover_id"
+                :isbn13="log.edition?.isbn13"
+                :href="`/entrada/${log.id}`"
+              />
+            </div>
+          </BookGrid>
 
-        <!-- Footer: Paginometer following active filters -->
-        <footer class="paginometer" aria-label="Estatísticas de páginas dos livros exibidos">
-          <div class="page-stat">
-            <strong>{{ filteredStats.totalPages.toLocaleString('pt-BR') }}</strong>
-            <span class="page-stat-label">
-              Páginas Lidas
-              <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
-              <small v-else class="filter-indicator">(total)</small>
-            </span>
-          </div>
-          <div class="page-stat">
-            <strong>{{ filteredStats.averagePages }}</strong>
-            <span class="page-stat-label">
-              Média p/ Livro
-              <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
-              <small v-else class="filter-indicator">(total)</small>
-            </span>
-          </div>
-        </footer>
+          <!-- Footer: Paginometer following active filters -->
+          <footer class="paginometer" aria-label="Estatísticas de páginas dos livros exibidos">
+            <div class="page-stat">
+              <strong>{{ filteredStats.totalPages.toLocaleString('pt-BR') }}</strong>
+              <span class="page-stat-label">
+                Páginas Lidas
+                <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
+                <small v-else class="filter-indicator">(total)</small>
+              </span>
+            </div>
+            <div class="page-stat">
+              <strong>{{ filteredStats.averagePages }}</strong>
+              <span class="page-stat-label">
+                Média p/ Livro
+                <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
+                <small v-else class="filter-indicator">(total)</small>
+              </span>
+            </div>
+          </footer>
+        </template>
       </template>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import BookCard from '~/components/book/BookCard.vue'
 import BookGrid from '~/components/book/BookGrid.vue'
 import FilterBar from '~/components/profile/FilterBar.vue'
 import StatBox from '~/components/profile/StatBox.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
+import ErrorState from '~/components/ui/ErrorState.vue'
+import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { useBookFilters } from '~/composables/useBookFilters'
 import type { ProfileResponse } from '~~/shared/schemas/profile'
+import type { AuthSessionUser } from '~/middleware/auth'
 
 const route = useRoute()
 const handle = computed(() => (route.params.handle as string) || '')
 
 const requestFetch = useRequestFetch()
 
+const session = typeof useState === 'function'
+  ? useState<{ user?: AuthSessionUser | null }>('auth:session', () => ({ user: null }))
+  : ref({ user: null })
+
 // Awaited on purpose. Without it `error.value` is still null when the check
 // below runs, so the 404 never gets set and an unknown or private handle
 // answers 200 with an error box — which is the difference between "this profile
 // does not exist" and "it exists and you cannot see it".
-const { data: profile, pending, error } = await useAsyncData<ProfileResponse>(
+const { data: pageData, pending, error, refresh } = await useAsyncData(
   `profile-${handle.value}`,
-  () => requestFetch<ProfileResponse>(`/api/users/${handle.value}` as string),
+  async () => {
+    const [profileRes, meRes] = await Promise.allSettled([
+      requestFetch<ProfileResponse>(`/api/users/${handle.value}` as string),
+      session.value?.user
+        ? Promise.resolve(session.value.user)
+        : requestFetch<AuthSessionUser | null>('/api/users/me').catch(() => null),
+    ])
+
+    if (profileRes.status === 'rejected') {
+      throw profileRes.reason
+    }
+
+    const profile = profileRes.value
+    const currentUser = meRes.status === 'fulfilled' ? meRes.value : null
+
+    return { profile, currentUser }
+  },
 )
 
-// In SSR, return 404 HTTP status if profile is not found or error occurred
+const profile = computed(() => pageData.value?.profile ?? null)
+const currentUser = computed(() => pageData.value?.currentUser ?? session.value?.user ?? null)
+
+const isOwner = computed(() => {
+  if (!profile.value?.user || !currentUser.value) return false
+  if (currentUser.value.id && profile.value.user.id) {
+    return currentUser.value.id === profile.value.user.id
+  }
+  if (currentUser.value.handle && profile.value.user.handle) {
+    return currentUser.value.handle.toLowerCase() === profile.value.user.handle.toLowerCase()
+  }
+  return false
+})
+
+const is404 = computed(() => {
+  const err = error.value as { statusCode?: number; status?: number } | null | undefined
+  const status = err?.statusCode || err?.status
+  return status === 404
+})
+
+// In SSR, set HTTP response status if fetch failed
 if (import.meta.server) {
   const event = useRequestEvent()
-  if (event && (error.value || (!pending.value && !profile.value))) {
-    setResponseStatus(event, 404)
+  if (event && error.value) {
+    const err = error.value as { statusCode?: number; status?: number } | null | undefined
+    const status = err?.statusCode || err?.status || 500
+    setResponseStatus(event, status)
   }
 }
 
