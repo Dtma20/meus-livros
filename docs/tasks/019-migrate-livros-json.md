@@ -72,17 +72,17 @@ None — a script. It should print a clear summary and stop loudly on any valida
 Run against the real 86 rows, not fixtures. Assert:
 
 - `works` = 86, `editions` = 86, `reading_logs` = 86
-- `authors` = the expected count (59, or 61 if multi-author splits occur) — asserted, not assumed
+- `authors` = **60**, asserted exactly (migration.md predicted 59 or 61; the real corpus gives 60)
 - logs with a non-null review = **56**
 - logs with a non-null rating = **85**
 - `select count(*) from reading_logs where review like '%<%'` = **0**
 - `min(first_published_year)` = **-500**
 - every `edition_id` is non-null and belongs to its `work_id`
 - `sum(page_count)` equals the sum of `pages` in the JSON
-- all 86 `isbn13` values are distinct and valid
+- the 83 non-null `isbn13` values are distinct and valid; the 3 ASINs store as NULL
 - `work_genres` count equals the sum of genre-array lengths
 
-Plus spot checks: *O retorno do rei* (series `O Senhor dos Anéis` #3, read 2026, review with paragraph breaks); the Pollyanna omnibus keeps `series_number = '1-2'`; the Robots prequel keeps `'0.1'`; the unrated book has `rating IS NULL`, not 0.
+Plus spot checks: *O retorno do rei* (series `O Senhor dos Anéis` #3, read 2026 — its review carries no `<br>`, so check paragraph breaks on *A sociedade do anel* instead); the Pollyanna omnibus keeps `series_number = '1-2'`; the Robots prequel keeps `'0.1'`; the unrated book has `rating IS NULL`, not 0.
 
 ## Acceptance criteria
 

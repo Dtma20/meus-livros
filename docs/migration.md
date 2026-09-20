@@ -32,7 +32,7 @@ Each of these breaks a naive importer.
 |---|---|---|
 | 1 | `year` minimum is **−500** (an ancient text) | `first_published_year` is a **signed** integer. An unsigned column or a `> 0` check fails |
 | 2 | `series_number` contains `'1-2'` and `'0.1'` | Column is **text**. `numeric` fails |
-| 3 | 22 of 86 ISBNs are **ISBN-10** | Normalise to ISBN-13 before insert |
+| 3 | Of 86 ISBNs: 64 ISBN-13, **19 ISBN-10**, and **3 Amazon ASINs** (`B07PV188F2`, `B09LZ3RVZD`, `B015EE5N7G`) | Normalise to ISBN-13 before insert. An ASIN is not an ISBN: it stores as `isbn13 = NULL`, which the partial unique index allows |
 | 4 | `original_language` has `'português'` (15) and `'Português'` (1) | Case-fold before mapping to ISO 639-1 |
 | 5 | `read_in` is a **year**, never a date | `finished_on = make_date(read_in,1,1)`, `finished_precision = 'ano'` |
 | 6 | `country` includes `'Roma Antiga'` | No ISO code. `country_code` NULL, `country_label` preserved |

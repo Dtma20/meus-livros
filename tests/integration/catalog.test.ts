@@ -232,6 +232,45 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
       await db.delete(schema.users).where(sqlOp.eq(schema.users.id, limited.id))
     }
   })
+
+  it('allows creating beyond 30 works when skipRateLimit is true', async () => {
+    const [limited] = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}-limite-skip@example.com`,
+        handle: `ls${Date.now()}`.slice(0, 20),
+        display_name: 'Usuário limite skip',
+      })
+      .returning({ id: schema.users.id })
+
+    if (!limited) throw new Error('Não foi possível criar o usuário de teste do limite.')
+
+    try {
+      await db.insert(schema.works).values(
+        Array.from({ length: 30 }, (_, i) => ({
+          slug: `${MARKER}-limite-skip-${i}`,
+          title: `${MARKER} Limite Skip ${i}`,
+          created_by: limited.id,
+        })),
+      )
+
+      const created = await catalog.createWork(
+        {
+          title: `${MARKER} Trigésima primeira com skipRateLimit`,
+          authors: [{ name: `${MARKER} Autor Limite Skip` }],
+          genre_ids: [],
+        },
+        limited.id,
+        { skipRateLimit: true },
+      )
+
+      expect(created.id).toBeDefined()
+    } finally {
+      await db.delete(schema.works).where(sqlOp.eq(schema.works.created_by, limited.id))
+      await db.delete(schema.authors).where(sqlOp.eq(schema.authors.created_by, limited.id))
+      await db.delete(schema.users).where(sqlOp.eq(schema.users.id, limited.id))
+    }
+  })
 })
 
 describe('coverUrlSchema', () => {

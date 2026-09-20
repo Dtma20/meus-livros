@@ -49,7 +49,7 @@ Once TASK-001 runs, these move to `legacy/` and stay runnable until the new app 
 |---|---|
 | `year` reaches **−500** | `first_published_year` must be a **signed** integer. No `> 0` check |
 | `series_number` contains `'1-2'` and `'0.1'` | The column is **text**, never numeric |
-| 22 of 86 ISBNs are **ISBN-10** | Normalise to ISBN-13 before any uniqueness constraint |
+| 64 ISBN-13, **19 ISBN-10**, **3 Amazon ASINs** | Normalise to ISBN-13 before any uniqueness constraint. An ASIN stores as `isbn13 = NULL` |
 | `original_language` has `'português'` and `'Português'` | Case-fold before mapping |
 | `read_in` is a **year**, not a date | Needs a precision flag alongside the date |
 | Reviews contain 178 `<br>` and nothing else | Convert to `\n`; store plain text |
