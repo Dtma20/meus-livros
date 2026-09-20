@@ -1,0 +1,53 @@
+Geometria do mapa mundi em `world-map.ts`
+=========================================
+
+Obra original
+-------------
+
+  File:BlankMap-World.svg
+  https://commons.wikimedia.org/wiki/File:BlankMap-World.svg
+
+  Autoria: Canuckguy e outros colaboradores do Wikimedia Commons.
+  Adaptado de File:"Political World" CIA World Factbook map 2005.svg.
+
+Licença
+-------
+
+  Domínio público.
+
+  Confirmado em 2026-09-20 pela API do Commons
+  (`action=query&prop=imageinfo&iiprop=extmetadata`), que devolve
+  `LicenseShortName = Public domain`, `License = pd`, `Copyrighted = False`.
+
+  Domínio público não exige atribuição. Este arquivo existe porque procedência
+  de asset de terceiro é o tipo de coisa que ninguém consegue reconstituir dois
+  anos depois, não porque a licença obrigue.
+
+O que foi feito com o arquivo
+-----------------------------
+
+  1. Baixado de `Special:FilePath/BlankMap-World.svg` (1.101.801 bytes).
+  2. Otimizado com `svgo 3.3.5 --precision=0 --multipass` — 1,08 MB para 203 KB,
+     81% menor. As coordenadas ficam num canvas de 2754x1398 e a precisão
+     decimal original (duas a três casas) era ruído: o erro introduzido pelo
+     arredondamento para inteiro é de 0,36 px no canvas, sub-pixel em qualquer
+     largura em que o mapa é exibido.
+  3. Convertido para módulo TypeScript: cada `<g id="xx">` virou uma entrada
+     `XX: [...]` com os atributos `d` dos `<path>` daquele grupo. O código ISO
+     foi passado para maiúsculo, que é o formato de `authors.country_code`.
+     239 países e territórios, 1.915 paths, 133 KB de geometria.
+
+  A conversão para módulo não é preciosismo: `v-html` é banido no repositório
+  inteiro, então um SVG em string não teria como ser renderizado.
+
+Como regenerar
+--------------
+
+  curl -sSL -o world.svg \
+    "https://commons.wikimedia.org/wiki/Special:FilePath/BlankMap-World.svg"
+  npx --yes svgo@3 -i world.svg -o world.min.svg --precision=0 --multipass
+
+  Em seguida extraia, para cada `<g id="xx">`, os `d` dos `<path>` descendentes,
+  e escreva `XX: ['...', '...']`. O `<style>` embutido do original define
+  `fill:silver` e **não** é copiado — a cor vem dos tokens CSS, conforme o
+  requisito 4 da TASK-025.
