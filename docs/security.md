@@ -172,8 +172,8 @@ The external-lookup limit protects **Open Library**, not us — hammering a free
 | `DATABASE_URL_DIRECT` | Neon direct endpoint. **Local only** — migrations and `pg_dump` |
 | `BETTER_AUTH_SECRET` | ≥ 32 random bytes |
 | `BETTER_AUTH_URL` | Canonical origin |
-| `EMAIL_FROM` | Endereço do remetente Gmail |
-| `GMAIL_APP_PASSWORD` | Senha de app do Google (16 caracteres) |
+| `EMAIL_FROM` | The Gmail address used as sender |
+| `GMAIL_APP_PASSWORD` | Google Account App Password, 16 characters. **Grants send access to that Gmail account** — rotate it at `myaccount.google.com/apppasswords`, not by editing `.env` |
 
 - `.env` is gitignored. `.env.example` is committed with placeholder values only.
 - Never read a secret in `app/` — only `server/`. Nuxt's `runtimeConfig` keeps non-`public` keys server-side; verify no secret lands in `runtimeConfig.public`.
