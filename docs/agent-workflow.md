@@ -64,15 +64,37 @@ This also removes the incentive to fake a green report, because there is no repo
 
 ## 3. Model selection
 
-Owner's policy: **Gemini first. Use another model only when Gemini is unavailable.**
+Owner's policy: **Gemini first, and fall back down this chain only on quota.**
+
+```
+gemini-3.8-flash-high  (agy)
+  → quota exhausted → claude-sonnet-4-6  (agy)
+    → quota exhausted → muse-spark-1.3-contributor-free  (opencode, .env removed first)
+```
+
+A **derailed** run is not an exhausted quota. Re-run the same model once before stepping down — one TASK-013 round came back with its report replaced by unrelated prose after a single one-line edit, and the model was fine on the next attempt.
 
 | Model | Where | Notes |
 |---|---|---|
 | `gemini-3.8-flash-high` | `agy --model` | Default. Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
 | `claude-sonnet-4-6` | `agy --model` | Fallback. Much longer quota reset (hours). |
-| `opencode/muse-spark-1.3-contributor-free` | `opencode run --auto -m` | Last resort. **Free in exchange for Meta training on prompts and completions** — do not point it at anything sensitive. Strong at coding: it found the `ILIKE` wildcard escaping bug, a `UNION` duplicating rows, and a missing `UNIQUE (key, window_start)` that would have made OTP rate limiting fail silently. |
+| `opencode/muse-spark-1.3-contributor-free` | `opencode run --auto -m` | Last resort. **Free in exchange for Meta training on prompts and completions** — do not point it at anything sensitive. **Delete `.env` from the worktree before launching it and restore it afterwards** (see below). Strong at coding: it found the `ILIKE` wildcard escaping bug, a `UNION` duplicating rows, and a missing `UNIQUE (key, window_start)` that would have made OTP rate limiting fail silently. |
 
 Both CLIs need an auto-approve flag to run unattended: `--dangerously-skip-permissions` for `agy`, `--auto` for `opencode`. That is a standing grant to edit files and run commands in that worktree; the worktree is the blast radius.
+
+### Handing a worktree to the free model
+
+The free tier is paid for with the prompt and the completion, so the credentials must not be in the tree while it runs. It never needs them — it runs no command that touches the database or the network.
+
+```bash
+mv .env "$TMPDIR/env-t0NN.bak"      # before launching opencode
+opencode run --auto -m opencode/muse-spark-1.3-contributor-free "$(cat prompt.md)"
+mv "$TMPDIR/env-t0NN.bak" .env      # before reviewing, the suite needs it
+```
+
+This narrows the exposure, it does not remove it: the main checkout's `.env` is still one `cat ../meus-livros/.env` away, and `printenv` still shows whatever the process inherited. A disposable Neon branch is the only version of this that actually holds.
+
+**Restore `.env` before reviewing.** The integration suite silently skips every database test without `DATABASE_URL` — `describe.skipIf(!process.env.DATABASE_URL)` — so a forgotten restore produces a green run that tested nothing.
 
 A run can exit **0 having done nothing** — quota exhaustion prints an error and still exits 0. Never trust the exit code. Diff the worktree against a snapshot taken before launching.
 
