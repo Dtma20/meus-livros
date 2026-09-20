@@ -126,7 +126,7 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `569f0e6`. Lint 0, typecheck 0, **198 tests passing**, `npm run build` clean.
+`develop` at `485ae8f`. Lint 0, typecheck 0, **307 tests passing**, `npm run build` clean.
 
 | Merged | |
 |---|---|
@@ -142,10 +142,16 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 | 007 | Email OTP sign-in, allowlist gate, Postgres rate limiting |
 | 008 | Profile creation, handle rules, the `/app/**` profile gate |
 | 013 | Log a book: create, edit, delete, with draft persistence |
+| 011 | Manual add-book flow |
+| 014 | Entry permalink and Open Graph |
+| 015 | Work page |
+| 016 | Profile page with filters, sorting and stats |
+| 017 | Visibility enforcement and its tests |
+| 026 | `search_misses` instrumentation |
 
 ### Waiting
 
-Nothing is in flight. **014, 015, 016 and 017 all unblock from 013** and are independent of each other.
+Nothing is in flight. **018 (home) and 020/021 (states, accessibility) unblock from 016.** 012 unblocks from 011. 022, 023 and 024 are the owner's.
 
 **An agent run can also derail, not just fail.** The TASK-013 correction round returned exit 0 with a report block replaced by unrelated prose scraped from somewhere else, having made a single one-line edit. The worktree diff is the only thing that tells you this; the exit code and the report both said nothing was wrong. Diff before reading anything else.
 

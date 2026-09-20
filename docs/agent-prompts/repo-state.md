@@ -2,7 +2,7 @@
 
 > Mantenha este arquivo atualizado a cada merge. Ele entra no prompt de todo agente e é o que impede que reinventem o que já existe.
 
-Concluídas e em `develop`: 001 scaffold, 002 conexão Neon, 003 schema, 004 migração + seed, 005 tokens e componentes, 006 layouts e rotas, 007 autenticação por código de e-mail, 008 criação de perfil, 009 serviços de catálogo, 010 busca local, 013 registrar livro, 019 migração dos 86 livros.
+Concluídas e em `develop`: 001 scaffold, 002 conexão Neon, 003 schema, 004 migração + seed, 005 tokens e componentes, 006 layouts e rotas, 007 autenticação por código de e-mail, 008 criação de perfil, 009 serviços de catálogo, 010 busca local, 011 cadastro manual, 013 registrar livro, 014 permalink + OG, 015 página da obra, 016 página de perfil, 017 visibilidade, 019 migração dos 86 livros, 026 buscas sem resultado.
 
 ### Banco
 
@@ -23,6 +23,8 @@ Conteúdo atual: 26 gêneros, 86 obras, 60 autores, 86 edições, 86 registros d
 - Perfil: `server/services/users.ts` (`createUser`, `updateUserProfile`, `getUserById/ByEmail/ByHandle`, `getHandleSuggestions`). Rotas: `POST /api/users`, `GET /api/users/me`, `PATCH /api/users/me`. Handle é **imutável**. Reservados e formato em `shared/schemas/user.ts`.
 - Middleware `/app/**` em `app/middleware/auth.ts`: barra quem não tem linha em `users` e manda para `/app/bem-vindo`. **Resolve todo composable antes do primeiro `await`** e chama `navigateTo` dentro de `runWithContext` — buscar composable depois do await levanta `NUXT_E1001` no SSR e transforma o 302 em 500. Usa `useRequestFetch`, não `$fetch`, senão o cookie não chega ao servidor. Isso já quebrou duas vezes; não desfaça.
 - Registros: `server/services/logs.ts` (`createLog`, `getLogById`, `updateLog`, `deleteLog`, `getEditionsForWork`). Rotas `POST /api/logs` e `GET|PATCH|DELETE /api/logs/:id`. Propriedade entra **dentro do `where`**; não-dono recebe 404.
+- Páginas públicas prontas: `/@handle` (perfil), `/livro/[slug]` (obra), `/entrada/[id]` (permalink). **As três usam `await useAsyncData`** — sem o `await`, `error.value` ainda é nulo quando o 404 é decidido e um recurso inexistente responde 200. O preço é que o componente vira assíncrono: teste que o monta precisa de `Suspense`.
+- Busca: `searchWorks(query, viewer)` — o `viewer` é **obrigatório**, porque `log_count` conta só o que aquele viewer pode ver.
 - **Autorização de leitura: `server/services/visibility.ts` → `visibleLogs(viewer)`.** `Viewer` é obrigatório. Toda leitura de `reading_logs` passa por ele, e a consulta precisa do `innerJoin` em `users` porque a visibilidade do perfil também conta.
 - Contrato de resposta de log em `shared/schemas/log.ts` (`LogWithDetails` e companhia), derivado dos enums Zod. **`app/**` não importa nada de `server/`, nem tipo** — o ESLint barra. O que os dois lados compartilham mora em `shared/`.
 - Auth: `server/services/auth.ts`. `/api/auth/**` **nega por padrão** — só `send-verification-otp`, `sign-in/email-otp`, `get-session` e `sign-out` passam; todo o resto responde 404. Ao mexer nisso, lembre que o plugin de OTP registra quatro rotas que disparam e-mail. Rate limit em `server/services/rate-limit.ts`, contador por hora no Postgres.
