@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { recordSearchMiss } from '../../server/services/search'
+import { searchQuerySchema } from '../../shared/schemas/search'
+
 const mockInsert = vi.fn()
 const mockValues = vi.fn()
 
@@ -13,9 +16,6 @@ vi.mock('../../server/db', () => ({
     },
   },
 }))
-
-import { recordSearchMiss } from '../../server/services/search'
-import { searchQuerySchema } from '../../shared/schemas/search'
 
 describe('TASK-026: recordSearchMiss (unit)', () => {
   beforeEach(() => {

@@ -67,7 +67,7 @@ This also removes the incentive to fake a green report, because there is no repo
 Owner's policy: **Gemini first, and fall back down this chain only on quota.**
 
 ```
-gemini-3.8-flash-high  (agy)
+gemini-3.8-flash-medium  (agy)      ← the default
   → quota exhausted → claude-sonnet-4-6  (agy)
     → quota exhausted → grok-4.6  (grok, free on this machine)
       → quota exhausted → muse-spark-1.3-contributor-free  (opencode, .env removed first)
@@ -77,7 +77,7 @@ A **derailed** run is not an exhausted quota. Re-run the same model once before 
 
 | Model | Where | Notes |
 |---|---|---|
-| `gemini-3.8-flash-high` | `agy --model` | Default. Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
+| `gemini-3.8-flash-medium` | `agy --model` | **The default.** `-high` is not better here and burns the hourly quota far faster — six concurrent `-high` runs exhausted it mid-batch and cost three tasks their run. Use `-high` only for something that has already failed at medium. Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
 | `claude-sonnet-4-6` | `agy --model` | Fallback. Much longer quota reset (hours). |
 | `grok-4.6` | `grok --always-approve --prompt-file` | Free on the owner's machine, and the only model in this chain whose CLI takes the prompt from a file — which sidesteps the shell-quoting damage that `-p "$(cat ...)"` does to backslashes and backticks. Logged in via grok.com. |
 | `opencode/muse-spark-1.3-contributor-free` | `opencode run --auto -m` | Last resort. **Free in exchange for Meta training on prompts and completions** — do not point it at anything sensitive. **Delete `.env` from the worktree before launching it and restore it afterwards** (see below). Strong at coding: it found the `ILIKE` wildcard escaping bug, a `UNION` duplicating rows, and a missing `UNIQUE (key, window_start)` that would have made OTP rate limiting fail silently. |
