@@ -69,7 +69,8 @@ Owner's policy: **Gemini first, and fall back down this chain only on quota.**
 ```
 gemini-3.8-flash-high  (agy)
   → quota exhausted → claude-sonnet-4-6  (agy)
-    → quota exhausted → muse-spark-1.3-contributor-free  (opencode, .env removed first)
+    → quota exhausted → grok-4.6  (grok, free on this machine)
+      → quota exhausted → muse-spark-1.3-contributor-free  (opencode, .env removed first)
 ```
 
 A **derailed** run is not an exhausted quota. Re-run the same model once before stepping down — one TASK-013 round came back with its report replaced by unrelated prose after a single one-line edit, and the model was fine on the next attempt.
@@ -78,9 +79,20 @@ A **derailed** run is not an exhausted quota. Re-run the same model once before 
 |---|---|---|
 | `gemini-3.8-flash-high` | `agy --model` | Default. Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
 | `claude-sonnet-4-6` | `agy --model` | Fallback. Much longer quota reset (hours). |
+| `grok-4.6` | `grok --always-approve --prompt-file` | Free on the owner's machine, and the only model in this chain whose CLI takes the prompt from a file — which sidesteps the shell-quoting damage that `-p "$(cat ...)"` does to backslashes and backticks. Logged in via grok.com. |
 | `opencode/muse-spark-1.3-contributor-free` | `opencode run --auto -m` | Last resort. **Free in exchange for Meta training on prompts and completions** — do not point it at anything sensitive. **Delete `.env` from the worktree before launching it and restore it afterwards** (see below). Strong at coding: it found the `ILIKE` wildcard escaping bug, a `UNION` duplicating rows, and a missing `UNIQUE (key, window_start)` that would have made OTP rate limiting fail silently. |
 
 Both CLIs need an auto-approve flag to run unattended: `--dangerously-skip-permissions` for `agy`, `--auto` for `opencode`. That is a standing grant to edit files and run commands in that worktree; the worktree is the blast radius.
+
+### Invocation
+
+```bash
+agy  --model <id> --dangerously-skip-permissions -p "$(cat prompt.md)"
+grok --always-approve --prompt-file prompt.md
+opencode run --auto -m <id> "$(cat prompt.md)"
+```
+
+`grok`'s `--prompt-file` is the shape to prefer. Passing a long prompt through `"$(cat ...)"` runs it through the shell, and a prompt containing backslashes, backticks or `$` comes out altered — silently, and in the parts most likely to be code.
 
 ### Handing a worktree to the free model
 
