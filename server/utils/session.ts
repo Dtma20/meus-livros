@@ -1,20 +1,28 @@
 import type { H3Event } from 'h3'
-import { createError } from 'h3'
+import { createError, toWebRequest } from 'h3'
+import { getSessionUserByHeaders } from '../services/auth'
+import type { SessionUser } from '../services/auth'
+
+export type { SessionUser }
 
 /**
  * The single seam between the catalogue and authentication.
  *
- * TASK-007 replaces the body of `getSessionUser` with a better-auth lookup.
- * Everything else in the codebase asks through here, so that task changes one
- * function rather than every route.
+ * Checks event.context.user first (preserving existing test stubs),
+ * then validates the database-backed session token via better-auth.
  */
-export interface SessionUser {
-  id: string
-}
-
 export async function getSessionUser(event: H3Event): Promise<SessionUser | null> {
-  const user = event.context.user as SessionUser | undefined
-  return user?.id ? { id: user.id } : null
+  const contextUser = event.context.user as SessionUser | undefined
+  if (contextUser?.id) {
+    return { id: contextUser.id, email: contextUser.email }
+  }
+
+  const req = toWebRequest(event)
+  const user = await getSessionUserByHeaders(req.headers)
+  if (user) {
+    event.context.user = user
+  }
+  return user
 }
 
 /** The session, or a 401 in the project's error shape. */

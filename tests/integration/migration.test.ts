@@ -31,11 +31,34 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
   let client: typeof import('../../server/db')['client']
   let schema: typeof import('../../server/db/schema')
 
+  /**
+   * Every assertion below is scoped to the owner's rows.
+   *
+   * A bare `count(*)` over `authors` or `reading_logs` is not a migration
+   * assertion — it is an assertion about the whole database, and it breaks the
+   * moment another test file creates a row in a parallel worker. That is
+   * exactly what happened once the auth suite landed. The migration script's
+   * own post-insert checks filter by `created_by`; these do the same.
+   */
+  let ownerId: string
+
   beforeAll(async () => {
     const dbModule = await import('../../server/db')
     db = dbModule.db
     client = dbModule.client
     schema = await import('../../server/db/schema')
+
+    // The owner is whoever holds the migrated corpus: 86 logs against a handful
+    // that other test files create and delete. Deriving it from the data rather
+    // than from OWNER_EMAIL keeps this file working in a worktree whose .env
+    // carries only the database credentials.
+    const [owner] = await db.execute(sql<{ user_id: string }>`
+      SELECT user_id FROM reading_logs GROUP BY user_id ORDER BY count(*) DESC LIMIT 1
+    `)
+    if (!owner) {
+      throw new Error('reading_logs está vazia. Rode scripts/migrate-livros.ts primeiro.')
+    }
+    ownerId = String(owner.user_id)
   })
 
   afterAll(async () => {
@@ -45,9 +68,9 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
   })
 
   it('works = 86, editions = 86, reading_logs = 86', async () => {
-    const [wc] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.works)
-    const [ec] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.editions)
-    const [lc] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.reading_logs)
+    const [wc] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.works).where(sql`${schema.works.created_by} = ${ownerId}`)
+    const [ec] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.editions).where(sql`${schema.editions.created_by} = ${ownerId}`)
+    const [lc] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.reading_logs).where(sql`${schema.reading_logs.user_id} = ${ownerId}`)
 
     expect(wc?.n).toBe(86)
     expect(ec?.n).toBe(86)
@@ -59,7 +82,10 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     // 'Karl Marx, Friedrich Engels'. Friedrich Engels also authored 'Do socialismo utópico...',
     // so splitting both records yields 60 unique authors. migration.md predicted
     // 59 or 61; the real corpus gives 60.
-    const [ac] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.authors)
+    const [ac] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(schema.authors)
+      .where(sql`${schema.authors.created_by} = ${ownerId}`)
     expect(ac?.n).toBe(60)
   })
 
@@ -67,7 +93,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [rc] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.reading_logs)
-      .where(sql`${schema.reading_logs.review} IS NOT NULL`)
+      .where(sql`${schema.reading_logs.review} IS NOT NULL AND ${schema.reading_logs.user_id} = ${ownerId}`)
     expect(rc?.n).toBe(56)
   })
 
@@ -75,7 +101,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [rc] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.reading_logs)
-      .where(sql`${schema.reading_logs.rating} IS NOT NULL`)
+      .where(sql`${schema.reading_logs.rating} IS NOT NULL AND ${schema.reading_logs.user_id} = ${ownerId}`)
     expect(rc?.n).toBe(85)
   })
 
@@ -83,7 +109,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [hc] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.reading_logs)
-      .where(sql`${schema.reading_logs.review} LIKE '%<%'`)
+      .where(sql`${schema.reading_logs.review} LIKE '%<%' AND ${schema.reading_logs.user_id} = ${ownerId}`)
     expect(hc?.n).toBe(0)
   })
 
@@ -91,6 +117,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [row] = await db
       .select({ y: sql<number>`min(${schema.works.first_published_year})` })
       .from(schema.works)
+      .where(sql`${schema.works.created_by} = ${ownerId}`)
     expect(row?.y).toBe(-500)
   })
 
@@ -99,7 +126,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [nullEditions] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.reading_logs)
-      .where(sql`${schema.reading_logs.edition_id} IS NULL`)
+      .where(sql`${schema.reading_logs.edition_id} IS NULL AND ${schema.reading_logs.user_id} = ${ownerId}`)
     expect(nullEditions?.n).toBe(0)
 
     // Count logs where edition does not belong to the log's work
@@ -107,7 +134,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.reading_logs)
       .innerJoin(schema.editions, eq(schema.editions.id, schema.reading_logs.edition_id!))
-      .where(sql`${schema.editions.work_id} != ${schema.reading_logs.work_id}`)
+      .where(sql`${schema.editions.work_id} != ${schema.reading_logs.work_id} AND ${schema.reading_logs.user_id} = ${ownerId}`)
     expect(mismatch?.n).toBe(0)
   })
 
@@ -119,6 +146,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [row] = await db
       .select({ s: sql<number>`sum(${schema.editions.page_count})::int` })
       .from(schema.editions)
+      .where(sql`${schema.editions.created_by} = ${ownerId}`)
     expect(row?.s).toBe(expectedSum)
   })
 
@@ -135,6 +163,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [row] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.work_genres)
+      .where(sql`${schema.work_genres.work_id} IN (SELECT id FROM works WHERE created_by = ${ownerId})`)
     expect(row?.n).toBe(expectedGenreLinks)
   })
 
@@ -202,7 +231,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const rows = await db
       .select({ rating: schema.reading_logs.rating })
       .from(schema.reading_logs)
-      .where(sql`${schema.reading_logs.rating} IS NULL`)
+      .where(sql`${schema.reading_logs.rating} IS NULL AND ${schema.reading_logs.user_id} = ${ownerId}`)
 
     expect(rows.length).toBe(1)
     expect(rows[0]?.rating).toBeNull()
@@ -215,6 +244,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
         created_at: schema.reading_logs.created_at,
       })
       .from(schema.reading_logs)
+      .where(sql`${schema.reading_logs.user_id} = ${ownerId}`)
       .orderBy(sql`${schema.reading_logs.finished_on} ASC`, sql`${schema.reading_logs.created_at} ASC`)
 
     const byYear = new Map<string, Date[]>()

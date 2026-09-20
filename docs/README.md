@@ -37,7 +37,7 @@ The product discovery that preceded all of this is in [product-discovery.md](pro
 | Hosting | **Vercel Hobby** (free, non-commercial) | Zero-config Nitro preset, full Node runtime, region `gru1` (São Paulo) |
 | Database | **Neon free** Postgres | Resumes automatically in <1s after idle. Supabase free *pauses after 7 days and needs a manual dashboard click* — unacceptable for a project with intermittent use |
 | Query layer | **Drizzle ORM** + `postgres.js` | Real SQL, real TypeScript types, migrations versioned in git |
-| Auth | **better-auth**, email OTP via **Resend** free | Google OAuth returns `403 disallowed_useragent` inside WhatsApp's Android WebView — it breaks in the exact channel this product lives in |
+| Auth | **better-auth**, email OTP via **Gmail SMTP** (`nodemailer`) | Google OAuth returns `403 disallowed_useragent` inside WhatsApp's Android WebView — it breaks in the exact channel this product lives in |
 | Registration gate | **Email allowlist** table | Invite-only without codes, cookies, claim races or an admin UI |
 | Authorization | **Server code**, no RLS | All access already passes through trusted server routes; RLS would be a second mental model for zero added safety |
 | Search | **Local Postgres `ILIKE`** over an unaccented generated column | ~1,500 rows. Open Library search averages **8.4s** and is unusable synchronously (measured — see below) |

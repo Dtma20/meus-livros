@@ -6,7 +6,7 @@ Three managed services, all free, nothing self-operated.
 GitHub (source) ──push──> Vercel Hobby (build + SSR, region gru1)
                                 │
                                 ├──> Neon Postgres (free)
-                                └──> Resend (free, OTP email only)
+                                └──> Gmail SMTP (free, OTP email only)
 ```
 
 No Docker in production. No VPS. No Kubernetes. No CI runner executing migrations. No staging environment.
@@ -53,8 +53,8 @@ The one thing that *is* local: `npm run db:studio` (Drizzle Studio) for inspecti
 | `DATABASE_URL_DIRECT` | **local only** | Neon direct endpoint. Migrations and `pg_dump` only. Never set on Vercel |
 | `BETTER_AUTH_SECRET` | local + Vercel | ≥ 32 random bytes, different per environment |
 | `BETTER_AUTH_URL` | local + Vercel | `http://localhost:3000` / the production origin |
-| `RESEND_API_KEY` | local + Vercel | |
-| `EMAIL_FROM` | local + Vercel | A verified Resend sender |
+| `GMAIL_APP_PASSWORD` | local + Vercel | Google Account App Password for SMTP |
+| `EMAIL_FROM` | local + Vercel | Gmail address used as sender |
 | `OWNER_EMAIL`, `OWNER_HANDLE`, `OWNER_NAME` | local only | Consumed by `migrate:livros` |
 
 `.env` is gitignored; `.env.example` is committed with placeholders only. Nothing secret may appear in `runtimeConfig.public` — [tasks/024](tasks/024-security-hardening-pass.md) greps the client bundle to prove it.
@@ -83,10 +83,11 @@ The one thing that *is* local: `npm run db:studio` (Drizzle Studio) for inspecti
 
 **Headroom:** 30 users × ~100 books ≈ 3,000 logs plus a catalog of a few thousand works is well under 50 MB against 500 MB, and realistic usage is perhaps 10–20 CU-hours against 100. Roughly 10× headroom on both axes.
 
-### Resend
+### Gmail SMTP
 
-- One verified sending domain (or the shared sandbox domain for the first weeks).
-- Free tier: 3,000/month with a **100/day cap**. One sign-in is one email; 30 friends cannot approach it.
+- Sent via Nodemailer over Gmail SMTP (`smtp.gmail.com:465`).
+- Authenticated with a Google Account App Password (`GMAIL_APP_PASSWORD`).
+- Free tier: 500 emails/day per standard Gmail account. One sign-in is one email; 30 friends cannot approach it.
 
 ---
 

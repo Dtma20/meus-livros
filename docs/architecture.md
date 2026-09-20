@@ -18,7 +18,7 @@ flowchart TB
     end
 
     A -->|"postgres.js over TLS<br/>Drizzle ORM"| N[("Neon Postgres<br/>free tier · sa-east-1")]
-    A -->|"OTP emails only"| R["Resend (free)"]
+    A -->|"OTP emails only"| R["Gmail SMTP (nodemailer)"]
     A -.->|"optional enrichment<br/>2s timeout, never blocking"| OL["Open Library API"]
     B -.->|"direct hotlink, no proxy"| C["covers.openlibrary.org"]
 
@@ -113,7 +113,7 @@ Drizzle wins on three concrete things this project needs: TypeScript types deriv
 
 ### 3.5 Authentication — better-auth with email OTP
 
-**Recommendation: better-auth, email one-time codes delivered by Resend. No OAuth in the MVP.**
+**Recommendation: better-auth, email one-time codes delivered by Gmail SMTP (via nodemailer). No OAuth in the MVP.**
 
 This overturns the discovery documents, which specified Google OAuth as primary. The reason is decisive:
 
@@ -130,9 +130,16 @@ Email OTP works in every browser, embedded or not. It also collapses the registr
 | Supabase Auth | Moot once Supabase is out. Its built-in mailer is also capped at 2 messages/hour project-wide |
 | Roll our own sessions | No |
 
-**Free tier:** Resend gives 3,000 emails/month with a **100/day cap** ([Resend](https://resend.com/pricing)). One sign-in is one email; 30 friends cannot approach 100/day.
+**Sending-provider reversal (Resend → Gmail SMTP):**
 
-**Main downside:** a dependency on email deliverability, and no "one-tap" sign-in. **Why acceptable:** sign-in happens rarely (sessions are long-lived), and a code that arrives in 5 seconds beats an OAuth flow that 403s.
+The original specification named Resend. It was reversed after real sends failed with two HTTP 403s:
+
+1. `The gmail.com domain is not verified` — Resend requires a DNS-verified sending domain (SPF/DKIM). The maintainer owns no domain for this project and sends from an `@gmail.com` address, whose DNS belongs to Google.
+2. `You can only send testing emails to your own email address` — without a verified domain, Resend blocks every recipient except the account holder.
+
+The product authenticates directly against **Gmail SMTP via `nodemailer`**, using a Google app password (`GMAIL_APP_PASSWORD`). Because Google’s own infrastructure does the sending, SPF and DKIM pass naturally. A personal Gmail account allows 500 messages/day — ample for a cohort of ~30.
+
+**The cost of this choice, stated plainly:** with no dedicated domain, deliverability rides on Gmail’s reputation and a code can land in the recipient’s promotions tab or spam folder. If the project ever acquires a domain, moving to a dedicated transactional provider is worth revisiting.
 
 ### 3.6 Authorization — server code, not RLS
 
@@ -233,6 +240,6 @@ The last nine are *product* deferrals from [mvp-definition.md](mvp-definition.md
 | SSR with no cache | p95 TTFB > 800ms | Add ISR on the four public routes, with on-demand revalidation |
 | No follows | ~200 users | Add a `follows` table and a feed filter; purely additive |
 | No merge tooling for duplicate works | ~50 duplicates | Build a merge UI; until then, hand-written SQL |
-| Resend free (100 emails/day) | ~100 sign-ins/day | Resend paid, or add OAuth |
+| Gmail SMTP (500 emails/dia) | ~500 sign-ins/dia | Domínio próprio + provedor transacional dedicado (ex: Resend com DNS configurado) |
 
 None of these is engineered around today. Each is a monitored number with a known response.
