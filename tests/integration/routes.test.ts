@@ -79,13 +79,21 @@ describe('Route integration HTTP tests', () => {
     expect(html).toContain('Meus Livros')
   })
 
-  it('GET /@diogo returns 200 and the page receives handle = "diogo"', async () => {
-    const res = await fetch(`${baseUrl}/@diogo`, { redirect: 'manual' })
+  it('GET /@<handle desconhecido> returns 404', async () => {
+    // No longer the TASK-006 stub. A handle nobody owns has to say so in the
+    // status line: the crawler that builds the link preview reads that, and a
+    // 200 with an error box would be previewed as a real profile.
+    const res = await fetch(`${baseUrl}/@ninguem-tem-esse-handle`, { redirect: 'manual' })
+    expect(res.status).toBe(404)
+  })
+
+  it('GET /@dtma23 returns 200 and server-renders the profile', async () => {
+    const res = await fetch(`${baseUrl}/@dtma23`, { redirect: 'manual' })
     expect(res.status).toBe(200)
     const html = await res.text()
-    expect(html).toContain('Perfil de @diogo')
-    expect(html).toContain('Handle: diogo')
-    expect(html).toContain('Dados bibliográficos parcialmente do Open Library')
+    // Server-rendered: the name is in the first response, no JavaScript run.
+    expect(html).toContain('Diogo Amorim')
+    expect(html).toContain('@dtma23')
   })
 
   it('GET /livro/<slug desconhecido> returns 404, not a 200 with an error box', async () => {

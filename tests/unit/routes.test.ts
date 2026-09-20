@@ -24,6 +24,9 @@ vi.hoisted(() => {
   globalScope.defineNuxtRouteMiddleware = (fn: unknown) => fn
   globalScope.definePageMeta = () => {}
   globalScope.useId = () => 'test-route-id'
+  globalScope.useRequestURL = () => new URL('http://localhost:3000/')
+  globalScope.useSeoMeta = () => {}
+  globalScope.useHead = () => {}
   globalScope.useAsyncData = (_key: string, _fn: unknown) => ({
     data: { value: null },
     pending: { value: false },
@@ -243,9 +246,11 @@ describe('Page stubs and route parameters', () => {
     const wrapper = mount(ProfilePage, {}, router)
     await nextTick()
 
+    // Routing is what this file checks. What the page renders is covered by
+    // tests/integration/routes.test.ts against the real server — TASK-016 made
+    // the page await its data so an unknown handle can answer 404 instead of
+    // 200, and an awaited page renders nothing without a Suspense boundary.
     expect(router.currentRoute.value.params.handle).toBe('diogo')
-    expect(wrapper.text()).toContain('Perfil de @diogo')
-    expect(wrapper.text()).toContain('Handle: diogo')
     wrapper.unmount()
   })
 
