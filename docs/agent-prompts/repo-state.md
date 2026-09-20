@@ -2,7 +2,7 @@
 
 > Mantenha este arquivo atualizado a cada merge. Ele entra no prompt de todo agente e é o que impede que reinventem o que já existe.
 
-Concluídas e em `develop`: 001 scaffold, 002 conexão Neon, 003 schema, 004 migração + seed, 005 tokens e componentes, 006 layouts e rotas, 007 autenticação por código de e-mail, 008 criação de perfil, 009 serviços de catálogo, 010 busca local, 011 cadastro manual, 013 registrar livro, 014 permalink + OG, 015 página da obra, 016 página de perfil, 017 visibilidade, 019 migração dos 86 livros, 026 buscas sem resultado.
+Concluídas e em `develop`: 001 scaffold, 002 conexão Neon, 003 schema, 004 migração + seed, 005 tokens e componentes, 006 layouts e rotas, 007 autenticação por código de e-mail, 008 criação de perfil, 009 serviços de catálogo, 010 busca local, 011 cadastro manual, 012 busca opcional no Open Library, 013 registrar livro, 014 permalink + OG, 015 página da obra, 016 página de perfil, 017 visibilidade, 018 home, 019 migração dos 86 livros, 026 buscas sem resultado.
 
 ### Banco
 
@@ -38,3 +38,7 @@ Conteúdo atual: 26 gêneros, 86 obras, 60 autores, 86 edições, 86 registros d
 - Rodar script one-off: `npx tsx arquivo.ts`. `tsx` é devDependency. `npm run db:seed` semeia gêneros. `scripts/migrate-livros.ts` já importou os 86 livros e **se recusa a rodar de novo** sem `--force`.
 - Teste: `environment: 'node'` é o padrão. Teste que precisa de DOM declara `// @vitest-environment happy-dom` no topo do arquivo. **Não mexa no padrão global** — `happy-dom` global custou 47s de setup e foi revertido.
 - Datas default vêm da **data local do navegador**. O servidor é UTC e a coorte é UTC−3.
+- Feed da home: `server/services/feed.ts` → `getRecentFeed(viewer, limit)`, rota `GET /api/feed/recentes`. Limite fixado em 10 no servidor, não importa o que a query string peça. **A rota exige sessão** — a home só mostra o feed a membro, então rota aberta só serviria para bot custar consulta no Neon. O ramo anônimo de `visibleLogs` continua certo e continua coberto no nível do serviço.
+- Datas relativas em pt-BR: `app/utils/date.ts` → `formatRelativeDate` e `formatFullDate`. `formatFullDate` fixa `America/Sao_Paulo`. Não escreva outra — já existem três cópias da lógica de trecho de resenha no repositório e não vale repetir o erro com datas.
+- Open Library: `server/services/open-library.ts`, rota `GET /api/search/externo` com sessão obrigatória e 20 consultas por usuário por hora. **É enriquecimento, nunca dependência**: timeout de 2s, e qualquer falha vira 200 `{ results: [], indisponivel: true }`. Medido contra o serviço real em 2026-09-20: o timeout de 2s dispara de fato. `normalizeLanguageToIso6391` só devolve código que exista em `shared/constants/languages.ts` — o `<select>` do formulário tem 18 opções fixas e um código fora dela renderiza em branco mas seria enviado assim mesmo.
+- **Gêneros nunca vêm do Open Library.** Os `subjects` deles são ruído em inglês.

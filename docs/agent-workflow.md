@@ -126,9 +126,9 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `b191375`. Lint 0, typecheck 0, **307 tests passing**, `npm run build` clean.
+`develop` at `5abf123`. Lint 0, typecheck 0, **351 tests passing**, `npm run build` clean.
 
-**Eleven of the twenty-six tasks are merged.** `npm run test` now requires a
+**Twenty of the twenty-six tasks are merged.** `npm run test` now requires a
 current bundle and says so if it is missing — run `npm run build` first.
 
 | Merged | |
@@ -151,10 +151,12 @@ current bundle and says so if it is missing — run `npm run build` first.
 | 016 | Profile page with filters, sorting and stats |
 | 017 | Visibility enforcement and its tests |
 | 026 | `search_misses` instrumentation |
+| 018 | Home page: landing for strangers, ten recent visible logs for members |
+| 012 | Optional Open Library lookup during manual book entry |
 
 ### Waiting
 
-Nothing is in flight. **018 (home) and 020/021 (states, accessibility) unblock from 016.** 012 unblocks from 011. 022, 023 and 024 are the owner's.
+Nothing is in flight. **020 (empty/error/loading states) and 021 (accessibility pass) unblock now that 018 is merged.** 025 (reading map) is unblocked but optional. 022, 023 and 024 are the owner's.
 
 **An agent run can also derail, not just fail.** The TASK-013 correction round returned exit 0 with a report block replaced by unrelated prose scraped from somewhere else, having made a single one-line edit. The worktree diff is the only thing that tells you this; the exit code and the report both said nothing was wrong. Diff before reading anything else.
 
@@ -196,6 +198,24 @@ because every one of them looked fine in a diff.
 - **Integration tests need an explicit timeout**, 20–30s. They make several
   round-trips to a remote Postgres and the 5s default measures Neon's latency on
   the night the suite runs, failing a different test each time.
+- **`npm run test` exits 0 with a red suite.** The 012 correction round came back
+  with two failing unit tests and a zero exit code. §3 already says never trust
+  an *agent's* exit code; it is equally untrue for the reviewer's own run. Read
+  the `Tests N failed` line, not `$?`.
+- **A report describes the intent, not the diff.** Both correction rounds claimed
+  work that was not in the code. 012 reported the 401 test now passing "por
+  mérito" — it passed because a bare `catch` swallowed the error the mock
+  provoked. 018 reported `UserProfile` kept "com documentação técnica sobre
+  restrições de ESLint" — there was no comment, and after the round the type had
+  no importer at all and was deleted. Neither is a lie; it is the model narrating
+  what it set out to do. Read the diff for every claimed item.
+- **A finding can be wrong, and an agent will obey it anyway.** The reviewer
+  called the short-query guard in `searchOpenLibrary` a duplicate of the route's.
+  They do different jobs — the route's decides whether a rate-limit slot is
+  spent, the service's stops a pointless request leaving for a third party — and
+  a test covered the service one. The agent removed it as instructed and the test
+  went red, which is the only reason it was caught. Write findings so a red test
+  can contradict them.
 
 ### Decisions taken during implementation
 
