@@ -126,7 +126,10 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `485ae8f`. Lint 0, typecheck 0, **307 tests passing**, `npm run build` clean.
+`develop` at `b191375`. Lint 0, typecheck 0, **307 tests passing**, `npm run build` clean.
+
+**Eleven of the twenty-six tasks are merged.** `npm run test` now requires a
+current bundle and says so if it is missing — run `npm run build` first.
 
 | Merged | |
 |---|---|
@@ -157,6 +160,43 @@ Nothing is in flight. **018 (home) and 020/021 (states, accessibility) unblock f
 
 **022 cannot be implemented as written.** The repository is public, and the task's own security section says a dump artifact inherits repository visibility. The dump carries every member's email address. Either the repository goes private or the backup workflow lives in a separate private one — that is an owner decision, and it comes before the first run, not after.
 
+### Traps this codebase has already sprung
+
+Each of these cost a review round or a correction round. They are written down
+because every one of them looked fine in a diff.
+
+- **A page that fetches must `await useAsyncData`.** All three public pages —
+  `/@handle`, `/livro/[slug]`, `/entrada/[id]` — shipped calling
+  `createError(404)` on a value that was still null when the check ran. Every
+  unknown slug answered **200 with an error box**, and the crawler that builds
+  the WhatsApp preview reads the status line. The price of the `await` is that
+  the component becomes async: a test that mounts it needs a `Suspense`
+  boundary, because Nuxt gives pages one and a bare `createApp` does not.
+- **Nuxt composables do not survive an `await` in route middleware.** Calling
+  `navigateTo` or `useState` after one raises `NUXT_E1001` during SSR, which
+  turns the 302 that guards `/app/**` into a 500. Resolve every composable
+  before the first `await` and wrap the redirect in `runWithContext`. Use
+  `useRequestFetch`, not `$fetch`: only the former forwards the session cookie
+  on the server. This broke twice.
+- **`app/**` must not import from `server/**`, types included.** ESLint enforces
+  it now. Two pages had walked past the old rule, which only barred
+  `**/server/db`. They were `import type`, so nothing leaked into the bundle,
+  but the day someone drops the keyword it does.
+- **A deep relative import of a *value* breaks the production build** where the
+  same path in an `import type` does not — the type import is erased before
+  Rollup sees it. Use `~~/shared/...`.
+- **A global `count(*)` in an integration test is not a test of your feature.**
+  The database holds the real 86-book corpus and other test files create rows in
+  parallel workers. Scope every assertion to the rows the test created. This
+  broke the migration suite the moment the auth suite landed beside it.
+- **Delete `reading_logs` before `works` in cleanup.** A partial setup leaves an
+  id out of the user list, the works delete dies on the foreign key, and the
+  whole fixture stays in the database. That happened, and the rows were found by
+  querying afterwards, not by reading the test.
+- **Integration tests need an explicit timeout**, 20–30s. They make several
+  round-trips to a remote Postgres and the 5s default measures Neon's latency on
+  the night the suite runs, failing a different test each time.
+
 ### Decisions taken during implementation
 
 - **Email delivery moved from Resend to Gmail SMTP via `nodemailer`.** Resend refuses to send from a domain it cannot verify, and the sender is a `@gmail.com` address. Measured: two HTTP 403s, `The gmail.com domain is not verified` and `You can only send testing emails to your own email address`. The cost of this choice is deliverability — no custom domain means the OTP depends on Gmail's reputation and may land in spam. `architecture.md` §3.5 must record the reversal or someone will reintroduce Resend.
@@ -166,6 +206,11 @@ Nothing is in flight. **018 (home) and 020/021 (states, accessibility) unblock f
 - **`createWork` gained `skipRateLimit` and `tx`**, so the 86-book migration exercises the production code path inside one transaction instead of a parallel one.
 - **`/api/auth/**` denies by default.** better-auth's email-OTP plugin registers four mail-sending routes; only `send-verification-otp` belongs to this product. Guarding that one and passing the rest through left `request-password-reset`, `forget-password/email-otp` and `request-email-change` reachable with no rate limit and no allowlist — unauthenticated, unbounded sending from the maintainer's Gmail. An explicit path allowlist now answers 404 to everything else. Adding three more exceptions would have been the wrong shape; the next plugin upgrade would reopen it.
 - **The OTP response does not wait on SMTP.** Awaiting the send made the allowlisted path visibly slower than the denied one, which is the enumeration oracle the identical-response rule exists to close. **This has a cost on Vercel** — see the owner's list.
+- **`searchWorks` takes a required viewer.** Its `log_count` ranked and reported
+  over every reading log with no filter, so an anonymous search saw 4 where it
+  should have seen 1 — two private entries and one on a private profile, counted
+  and exposed. Counting an invisible row announces it exists, which is the leak
+  the 404-instead-of-403 rule closes, arriving by another door.
 - **The session resolves to `users.id`, not the better-auth id.** `ba_user.id` is text, `users.id` is uuid, and the latter is what `works.created_by` references. Returning the better-auth id would have made every authenticated write fail on an invalid uuid. No `users` row now means `getSessionUser` returns null, which is the registration gate `security.md` already specified.
 
 ### Corrections to the planning documents, found in the real data
