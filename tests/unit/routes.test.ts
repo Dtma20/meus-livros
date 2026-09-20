@@ -2,7 +2,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { createApp, type Component, defineComponent, h, nextTick } from 'vue'
+import { createApp, type Component, defineComponent, h, nextTick, Suspense } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
 
 import DefaultLayout from '../../app/layouts/default.vue'
@@ -24,6 +24,7 @@ vi.hoisted(() => {
   globalScope.defineNuxtRouteMiddleware = (fn: unknown) => fn
   globalScope.definePageMeta = () => {}
   globalScope.useId = () => 'test-route-id'
+  globalScope.setPageLayout = () => {}
   globalScope.useRequestURL = () => new URL('http://localhost:3000/')
   globalScope.useSeoMeta = () => {}
   globalScope.useHead = () => {}
@@ -69,6 +70,13 @@ const NuxtLayout = defineComponent({
   }
 })
 
+async function flushAsync() {
+  for (let i = 0; i < 5; i++) {
+    await Promise.resolve()
+    await nextTick()
+  }
+}
+
 function mount<T extends Component>(
   component: T,
   props: Record<string, unknown> = {},
@@ -76,7 +84,9 @@ function mount<T extends Component>(
 ) {
   const container = document.createElement('div')
   document.body.appendChild(container)
-  const app = createApp(component, props)
+  const app = createApp({
+    render: () => h(Suspense, null, { default: () => h(component, props) })
+  })
   app.component('NuxtLink', NuxtLink)
   app.component('NuxtLayout', NuxtLayout)
   if (router) {
@@ -290,12 +300,16 @@ describe('Page stubs and route parameters', () => {
     wrapper.unmount()
   })
 
-  it('renders index and login pages', () => {
+  it('renders index and login pages', async () => {
+    // TASK-018 turned IndexPage into an async component (await useAsyncData).
+    // An awaited page renders its DOM inside a Suspense boundary; verify mount resolves.
     const wIndex = mount(IndexPage)
+    await flushAsync()
     expect(wIndex.text()).toContain('Início')
     wIndex.unmount()
 
     const wLogin = mount(LoginPage)
+    await flushAsync()
     expect(wLogin.text()).toContain('Entrar')
     wLogin.unmount()
   })
