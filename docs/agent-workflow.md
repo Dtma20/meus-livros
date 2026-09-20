@@ -147,9 +147,9 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `5abf123`. Lint 0, typecheck 0, **351 tests passing**, `npm run build` clean.
+`develop` at `79e97bf`. Lint 0, typecheck 0, **364 tests passing**, `npm run build` clean.
 
-**Twenty of the twenty-six tasks are merged.** `npm run test` now requires a
+**Twenty-one of the twenty-six tasks are merged.** `npm run test` now requires a
 current bundle and says so if it is missing — run `npm run build` first.
 
 | Merged | |
@@ -174,10 +174,11 @@ current bundle and says so if it is missing — run `npm run build` first.
 | 026 | `search_misses` instrumentation |
 | 018 | Home page: landing for strangers, ten recent visible logs for members |
 | 012 | Optional Open Library lookup during manual book entry |
+| 020 | Empty, error and loading states across every list and page |
 
 ### Waiting
 
-Nothing is in flight. **020 (empty/error/loading states) and 021 (accessibility pass) unblock now that 018 is merged.** 025 (reading map) is unblocked but optional. 022, 023 and 024 are the owner's.
+Nothing is in flight. **021 (accessibility pass) is next** — every page it audits now exists. 025 (reading map) is unblocked but optional. 022, 023 and 024 are the owner's.
 
 **An agent run can also derail, not just fail.** The TASK-013 correction round returned exit 0 with a report block replaced by unrelated prose scraped from somewhere else, having made a single one-line edit. The worktree diff is the only thing that tells you this; the exit code and the report both said nothing was wrong. Diff before reading anything else.
 
@@ -230,6 +231,19 @@ because every one of them looked fine in a diff.
   restrições de ESLint" — there was no comment, and after the round the type had
   no importer at all and was deleted. Neither is a lie; it is the model narrating
   what it set out to do. Read the diff for every claimed item.
+- **A test that fails for want of a stub reports the wrong symptom.** Both new
+  TASK-020 test files mounted `SearchBox` without stubbing `useId`, `navigateTo`
+  and `useRoute`. The component threw on mount, the container stayed empty, and
+  vitest reported a missing `[data-testid="search-add-manual"]` — which reads as
+  a button the implementation forgot, when the button was there. Believing the
+  message would have sent a correction round asking for buttons that already
+  existed. Find the first thrown line before trusting the assertion.
+- **Before forbidding a file in a prompt, look for its twin.** The TASK-020
+  correction prompt said "do not touch `tests/unit/routes.test.ts`" without
+  checking whether an integration file asserted the same strings. One did, the
+  agent obeyed to the letter, and the suite went red on copy the reviewer had
+  already fixed once. A narrow prohibition written from incomplete knowledge of
+  the tree is the reviewer's bug, not the agent's.
 - **A finding can be wrong, and an agent will obey it anyway.** The reviewer
   called the short-query guard in `searchOpenLibrary` a duplicate of the route's.
   They do different jobs — the route's decides whether a rate-limit slot is
