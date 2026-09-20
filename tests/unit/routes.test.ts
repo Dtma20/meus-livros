@@ -41,6 +41,10 @@ vi.hoisted(() => {
   // cannot run outside a Nuxt app.
   globalScope.useNuxtApp = () => ({ runWithContext: (fn: () => unknown) => fn() })
   globalScope.useRequestFetch = () => (globalThis as unknown as Record<string, unknown>).$fetch
+  globalScope.useRequestURL = () => new URL('http://localhost:3000/livro/test')
+  globalScope.useSeoMeta = () => {}
+  globalScope.useHead = () => {}
+  globalScope.createError = (err: unknown) => err
 })
 
 const NuxtLink = defineComponent({
@@ -255,9 +259,12 @@ describe('Page stubs and route parameters', () => {
     const wrapper = mount(BookPage, {}, router)
     await nextTick()
 
+    // This file's job is routing: the slug reaches the route. What the page
+    // renders is covered in tests/unit/work.test.ts, which mounts it inside a
+    // Suspense boundary — TASK-015 made the page await its data so that an
+    // unknown slug can answer 404 instead of 200, and an awaited page renders
+    // nothing at all without that boundary.
     expect(router.currentRoute.value.params.slug).toBe('dom-casmurro')
-    expect(wrapper.text()).toContain('Livro: dom-casmurro')
-    expect(wrapper.text()).toContain('Slug: dom-casmurro')
     wrapper.unmount()
   })
 

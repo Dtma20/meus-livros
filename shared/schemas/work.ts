@@ -67,3 +67,113 @@ export const workInputSchema = z.object({
 export type WorkInput = z.infer<typeof workInputSchema>
 export type EditionInput = z.infer<typeof editionInputSchema>
 export type AuthorInput = z.infer<typeof authorInputSchema>
+
+/**
+ * Formats publication year.
+ * Real corpus contains negative years (e.g. -500 for Aesop/Sun Tzu).
+ * Renders -500 as "500 a.C.", not "-500".
+ */
+export function formatPublicationYear(year: number | null | undefined): string | null {
+  if (year === null || year === undefined) return null
+  if (year < 0) return `${Math.abs(year)} a.C.`
+  return String(year)
+}
+
+/**
+ * Formats author country.
+ * Prioritizes country_label (e.g. "Roma Antiga"), otherwise resolves ISO 3166-1 alpha-2.
+ */
+export function formatCountry(
+  countryCode?: string | null,
+  countryLabel?: string | null,
+): string | null {
+  if (countryLabel && countryLabel.trim() !== '') return countryLabel.trim()
+  if (!countryCode || countryCode.trim() === '') return null
+  const code = countryCode.trim().toUpperCase()
+  try {
+    const regionNames = new Intl.DisplayNames(['pt-BR'], { type: 'region' })
+    return regionNames.of(code) ?? code
+  } catch {
+    return code
+  }
+}
+
+/**
+ * Formats language code (ISO 639-1) into Portuguese name (e.g. 'en' -> 'Inglês').
+ */
+export function formatLanguage(languageCode?: string | null): string | null {
+  if (!languageCode || languageCode.trim() === '') return null
+  const code = languageCode.trim().toLowerCase()
+  try {
+    const langNames = new Intl.DisplayNames(['pt-BR'], { type: 'language' })
+    const name = langNames.of(code)
+    if (name) {
+      return name.charAt(0).toUpperCase() + name.slice(1)
+    }
+    return code.toUpperCase()
+  } catch {
+    return code.toUpperCase()
+  }
+}
+
+/**
+ * The response contract for a work page (/livro/[slug]).
+ * Lives in shared/ so app/ can type its useAsyncData call without importing server/.
+ */
+export interface WorkAuthorView {
+  id: string
+  name: string
+  slug: string
+  country_code: string | null
+  country_label: string | null
+}
+
+export interface WorkGenreView {
+  id: number
+  slug: string
+  label_pt: string
+}
+
+export interface WorkEditionView {
+  id: string
+  isbn13: string | null
+  publisher: string | null
+  page_count: number | null
+  published_year: number | null
+  language: string | null
+  cover_url: string | null
+  ol_cover_id: number | null
+}
+
+export interface WorkLogUserView {
+  id: string
+  handle: string
+  display_name: string
+}
+
+export interface WorkLogView {
+  id: string
+  rating: number | null
+  review: string | null
+  finished_on: string | null
+  created_at: Date | string
+  user: WorkLogUserView
+}
+
+export interface WorkWithDetails {
+  id: string
+  slug: string
+  title: string
+  original_language: string | null
+  first_published_year: number | null
+  series_name: string | null
+  series_number: string | null
+  cover_url: string | null
+  authors: WorkAuthorView[]
+  genres: WorkGenreView[]
+  editions: WorkEditionView[]
+  logs: WorkLogView[]
+  log_count: number
+  average_rating: number | null
+}
+

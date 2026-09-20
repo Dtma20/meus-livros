@@ -88,12 +88,19 @@ describe('Route integration HTTP tests', () => {
     expect(html).toContain('Dados bibliográficos parcialmente do Open Library')
   })
 
-  it('GET /livro/x returns 200 and the page receives slug = "x"', async () => {
-    const res = await fetch(`${baseUrl}/livro/x`, { redirect: 'manual' })
+  it('GET /livro/<slug desconhecido> returns 404, not a 200 with an error box', async () => {
+    // No longer the TASK-006 stub. The crawler that builds the WhatsApp preview
+    // reads the status of the first response, so a work that does not exist has
+    // to say so in the status line and not only in the body.
+    const res = await fetch(`${baseUrl}/livro/slug-que-nao-existe`, { redirect: 'manual' })
+    expect(res.status).toBe(404)
+  })
+
+  it('GET /livro/<slug real> returns 200 and server-renders the title', async () => {
+    const res = await fetch(`${baseUrl}/livro/1984`, { redirect: 'manual' })
     expect(res.status).toBe(200)
-    const html = await res.text()
-    expect(html).toContain('Livro: x')
-    expect(html).toContain('Slug: x')
+    // Server-rendered, so the title is in the first response with no JavaScript run.
+    expect(await res.text()).toContain('1984')
   })
 
   it('GET /entrada/x returns 200 and the page receives id = "x"', async () => {

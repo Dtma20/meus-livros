@@ -1,0 +1,219 @@
+import { and, desc, eq } from 'drizzle-orm'
+import { createError } from 'h3'
+import type { WorkWithDetails } from '../../shared/schemas/work'
+import { db } from '../db'
+import {
+  authors,
+  editions,
+  genres,
+  reading_logs,
+  users,
+  work_authors,
+  work_genres,
+  works,
+} from '../db/schema'
+import { visibleLogs, type Viewer } from './visibility'
+
+export type { Viewer }
+
+interface WorkBaseRow {
+  id: string
+  slug: string
+  title: string
+  original_language: string | null
+  first_published_year: number | null
+  series_name: string | null
+  series_number: string | null
+}
+
+async function assembleWorkDetails(
+  work: WorkBaseRow,
+  viewer: Viewer,
+): Promise<WorkWithDetails> {
+  // 1. Authors in assigned display order
+  const authorsList = await db
+    .select({
+      id: authors.id,
+      name: authors.name,
+      slug: authors.slug,
+      country_code: authors.country_code,
+      country_label: authors.country_label,
+    })
+    .from(work_authors)
+    .innerJoin(authors, eq(authors.id, work_authors.author_id))
+    .where(eq(work_authors.work_id, work.id))
+    .orderBy(work_authors.position)
+
+  // 2. Genres
+  const genresList = await db
+    .select({
+      id: genres.id,
+      slug: genres.slug,
+      label_pt: genres.label_pt,
+    })
+    .from(work_genres)
+    .innerJoin(genres, eq(genres.id, work_genres.genre_id))
+    .where(eq(work_genres.work_id, work.id))
+    .orderBy(genres.id)
+
+  // 3. Editions
+  const editionsList = await db
+    .select({
+      id: editions.id,
+      isbn13: editions.isbn13,
+      publisher: editions.publisher,
+      page_count: editions.page_count,
+      published_year: editions.published_year,
+      language: editions.language,
+      cover_url: editions.cover_url,
+      ol_cover_id: editions.ol_cover_id,
+    })
+    .from(editions)
+    .where(eq(editions.work_id, work.id))
+    .orderBy(editions.published_year, editions.created_at)
+
+  // Best available cover from editions
+  const bestCoverEdition = editionsList.find((e) => e.cover_url)
+    ?? editionsList.find((e) => e.ol_cover_id)
+    ?? editionsList.find((e) => e.isbn13)
+    ?? null
+
+  let coverUrl: string | null = null
+  if (bestCoverEdition?.cover_url) {
+    coverUrl = bestCoverEdition.cover_url
+  } else if (bestCoverEdition?.ol_cover_id) {
+    coverUrl = `https://covers.openlibrary.org/b/id/${bestCoverEdition.ol_cover_id}-L.jpg`
+  } else if (bestCoverEdition?.isbn13) {
+    const clean = bestCoverEdition.isbn13.replace(/[-\s]/g, '').trim()
+    if (clean) {
+      coverUrl = `https://covers.openlibrary.org/b/isbn/${clean}-L.jpg?default=false`
+    }
+  }
+
+  // 4. Visible reading logs for this work, newest first
+  // Enforces visibleLogs(viewer) with innerJoin on users
+  const logsList = await db
+    .select({
+      id: reading_logs.id,
+      rating: reading_logs.rating,
+      review: reading_logs.review,
+      finished_on: reading_logs.finished_on,
+      created_at: reading_logs.created_at,
+      user: {
+        id: users.id,
+        handle: users.handle,
+        display_name: users.display_name,
+      },
+    })
+    .from(reading_logs)
+    .innerJoin(users, eq(users.id, reading_logs.user_id))
+    .where(and(eq(reading_logs.work_id, work.id), visibleLogs(viewer)))
+    .orderBy(desc(reading_logs.created_at))
+
+  // Aggregate stats: strictly over visible logs
+  const logCount = logsList.length
+
+  const ratedLogs = logsList.filter(
+    (l) => l.rating !== null && l.rating !== undefined && !Number.isNaN(Number(l.rating)),
+  )
+
+  const averageRating = ratedLogs.length > 0
+    ? Math.round((ratedLogs.reduce((sum, l) => sum + Number(l.rating), 0) / ratedLogs.length) * 10) / 10
+    : null
+
+  const shapedLogs = logsList.map((l) => ({
+    id: l.id,
+    rating: l.rating !== null ? Number(l.rating) : null,
+    review: l.review,
+    finished_on: l.finished_on,
+    created_at: l.created_at,
+    user: l.user,
+  }))
+
+  return {
+    id: work.id,
+    slug: work.slug,
+    title: work.title,
+    original_language: work.original_language,
+    first_published_year: work.first_published_year,
+    series_name: work.series_name,
+    series_number: work.series_number,
+    cover_url: coverUrl,
+    authors: authorsList,
+    genres: genresList,
+    editions: editionsList,
+    logs: shapedLogs,
+    log_count: logCount,
+    average_rating: averageRating,
+  }
+}
+
+/**
+ * Retrieves a work by its unique slug, including authors, genres, editions,
+ * and reading logs filtered by the viewer's visibility.
+ *
+ * Rules:
+ * - Private logs are never included unless viewer is the author.
+ * - Profile visibility of log authors is respected via visibleLogs(viewer).
+ * - Aggregates (log_count and average_rating) only count visible logs.
+ * - If not found, throws 404 with standard error code 'nao_encontrado'.
+ */
+export async function getWorkBySlug(slug: string, viewer: Viewer): Promise<WorkWithDetails> {
+  const [work] = await db
+    .select({
+      id: works.id,
+      slug: works.slug,
+      title: works.title,
+      original_language: works.original_language,
+      first_published_year: works.first_published_year,
+      series_name: works.series_name,
+      series_number: works.series_number,
+    })
+    .from(works)
+    .where(eq(works.slug, slug))
+    .limit(1)
+
+  if (!work) {
+    throw createError({
+      statusCode: 404,
+      data: {
+        error: 'nao_encontrado',
+        message: 'Obra não encontrada.',
+      },
+    })
+  }
+
+  return assembleWorkDetails(work, viewer)
+}
+
+/**
+ * Retrieves a work by its UUID, including authors, genres, editions,
+ * and reading logs filtered by the viewer's visibility.
+ */
+export async function getWorkById(id: string, viewer: Viewer): Promise<WorkWithDetails> {
+  const [work] = await db
+    .select({
+      id: works.id,
+      slug: works.slug,
+      title: works.title,
+      original_language: works.original_language,
+      first_published_year: works.first_published_year,
+      series_name: works.series_name,
+      series_number: works.series_number,
+    })
+    .from(works)
+    .where(eq(works.id, id))
+    .limit(1)
+
+  if (!work) {
+    throw createError({
+      statusCode: 404,
+      data: {
+        error: 'nao_encontrado',
+        message: 'Obra não encontrada.',
+      },
+    })
+  }
+
+  return assembleWorkDetails(work, viewer)
+}
