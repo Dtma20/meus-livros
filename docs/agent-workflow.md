@@ -92,7 +92,7 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `f841919`. Lint 0, typecheck 0, 104 tests passing.
+`develop` at `019c62d`. Lint 0, typecheck 0, **127 tests passing**, `npm run build` clean.
 
 | Merged | |
 |---|---|
@@ -104,11 +104,13 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 | 006 | Layouts, nine stub routes, auth middleware stub, pt-BR 404 |
 | 009 | Catalog services, ISBN normalisation, two POST endpoints |
 | 010 | Local search over the generated column |
+| 019 | The 86 books, 60 authors, 86 editions, 86 reading logs |
 
 ### Waiting
 
-- **`task/019-migrate-livros-json`** — committed at `208e41f`, **not reviewed, not merged**. It already wrote to the database: 86 works, 60 authors, 86 editions, 86 reading logs. Review it first; it is the cheapest one outstanding.
-- **`task/007-auth-email-otp`** — fourteen files written, **no commit, no verification**. Includes a real `getSessionUser` implementation, `0002_better_auth.sql` (generated, **not applied**), Gmail SMTP mail transport, rate limiting, and updates to `architecture.md` and `security.md`. Auth is the most security-sensitive task in the project; do not rush it.
+- **`task/007-auth-email-otp`** — reviewed, **one correction round in flight**. The eighteen files were checkpointed at `4006c54`, `develop` merged on top at `bda61fd`, and the findings below sent back to an agent. Nothing merges until the round is re-reviewed.
+
+Everything else is unstarted. **008 is next** once 007 lands, then **013**, the gate to the distribution path.
 
 ### Decisions taken during implementation
 
@@ -120,17 +122,18 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ### Corrections to the planning documents, found in the real data
 
-- **Three of the 86 "ISBNs" are Amazon ASINs**, not ISBNs: `B07PV188F2`, `B09LZ3RVZD`, `B015EE5N7G`. `CLAUDE.md` says 22 of 86 are ISBN-10; 22 are ten-character strings, of which three are ASINs. Real split: 19 ISBN-10, 64 ISBN-13, 3 not ISBNs at all.
-- **`infrastructure.md` §88 is wrong.** It offers "the shared sandbox domain for the first weeks" as an alternative to a verified sending domain. Resend's sandbox delivers only to the account owner's own address, so it cannot serve a multi-user product for a single day, let alone weeks.
-- **Author count is 60**, not the 59 or 61 `migration.md` predicted.
+- **Three of the 86 "ISBNs" are Amazon ASINs**, not ISBNs: `B07PV188F2`, `B09LZ3RVZD`, `B015EE5N7G`. `CLAUDE.md` said 22 of 86 are ISBN-10; 22 are ten-character strings, of which three are ASINs. Real split: 19 ISBN-10, 64 ISBN-13, 3 not ISBNs at all. **Corrected** in `CLAUDE.md`, `migration.md`, `tasks/019` and the `isbn.ts` header at the 019 merge.
+- **`infrastructure.md` §88 is wrong.** It offers "the shared sandbox domain for the first weeks" as an alternative to a verified sending domain. Resend's sandbox delivers only to the account owner's own address, so it cannot serve a multi-user product for a single day, let alone weeks. Still open — it goes out with the 007 correction round.
+- **Author count is 60**, not the 59 or 61 `migration.md` predicted. The assertion now checks exactly 60, because a range that wide asserts nothing.
 
 ### Blocked on the owner
 
-1. `GMAIL_APP_PASSWORD` in `.env` — generate at `https://myaccount.google.com/apppasswords` (the link is gone from the Security page; go to the URL directly).
-2. `pg_dump` is not on `PATH`. TASK-022 needs it.
-3. TASK-023 needs a Vercel account and dashboard configuration. TASK-024 depends on 023.
+1. ~~`GMAIL_APP_PASSWORD` in `.env`~~ — **done.** A 16-character app password is in `.env`.
+2. ~~`pg_dump` is not on `PATH`~~ — **found, and it works.** `C:\Program Files\PostgreSQL\18\bin\pg_dump.exe`, version 18.4, dumps the Neon 17.11 server cleanly (a newer `pg_dump` against an older server is the supported direction). TASK-022 only needs that directory added to `PATH`, or the absolute path written into the backup script.
+3. TASK-023 needs a Vercel account and dashboard configuration. TASK-024 depends on 023. **Still the only hard block.**
 4. Real email delivery beyond the owner's own address needs either a verified domain or acceptance that Gmail SMTP is the ceiling.
+5. The WhatsApp WebView acceptance criterion in TASK-007 needs a real Android phone. It cannot be verified here, and it is the criterion that ruled out OAuth.
 
 ### Next
 
-Review and merge `task/019`. Then finish `task/007` from its `REPORT.md`. After 007 lands, 008 unblocks, then 013, which is the gate to everything on the distribution path.
+Re-review `task/007` after the correction round. After 007 lands, 008 unblocks, then 013, which is the gate to everything on the distribution path.
