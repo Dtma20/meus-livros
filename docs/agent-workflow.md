@@ -14,16 +14,26 @@ worktree + branch per task
     → reviewer re-runs everything, independently
       → clean: merge into develop, delete worktree, next task in
       → findings: a correction round, then re-review
-        → three failed attempts: the reviewer finishes it by hand
+        → attempt 3 runs at high effort, and is the last delegated one
+          → still failing: the reviewer finishes it by hand
 ```
 
 **Three attempts is the ceiling**, counted per task — the first run plus each
-correction round. At three, stop delegating and write the corrections directly.
-Owner's rule, 2026-09-20. It replaces the older "same defect survives two rounds,
-ask the owner": a model that cannot converge on a task is not a question for the
-owner, it is work to be done. A fourth round costs a whole agent run to produce
-what the reviewer can write in minutes, and by then the reviewer has read the
-code closely enough to be faster than the prompt describing it.
+correction round. Owner's rule, 2026-09-20. It replaces the older "same defect
+survives two rounds, ask the owner": a model that cannot converge on a task is
+not a question for the owner, it is work to be done. A fourth round costs a whole
+agent run to produce what the reviewer can write in minutes, and by then the
+reviewer has read the code closely enough to be faster than the prompt describing
+it.
+
+**The third attempt raises the effort**, and it is the one place `-high` belongs:
+run it as `gemini-3.8-flash-high`, or keep the model and pass `--effort high`.
+§3 says to reserve `-high` for something that has already failed at medium — the
+last delegated attempt is the definition of that, and one run is nowhere near the
+six concurrent `-high` runs that emptied the hourly quota.
+
+Attempt 1 at medium → attempt 2 at medium → **attempt 3 at high** → the reviewer
+finishes it by hand.
 
 Still stop and ask when a finding genuinely needs the owner's judgement: cost, a
 scope change, or an external credential.
@@ -88,7 +98,7 @@ A **derailed** run is not an exhausted quota. Re-run the same model once before 
 
 | Model | Where | Notes |
 |---|---|---|
-| `gemini-3.8-flash-medium` | `agy --model` | **The default.** `-high` is not better here and burns the hourly quota far faster — six concurrent `-high` runs exhausted it mid-batch and cost three tasks their run. Use `-high` only for something that has already failed at medium. Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
+| `gemini-3.8-flash-medium` | `agy --model` | **The default for attempts 1 and 2.** `-high` is not better as a default and burns the hourly quota far faster — six concurrent `-high` runs exhausted it mid-batch and cost three tasks their run. `-high` is reserved for **the third and last attempt** on a task that failed twice at medium (§1). Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
 | `claude-sonnet-4-6` | `agy --model` | Fallback. Much longer quota reset (hours). |
 | `grok-4.6` | `grok --always-approve --prompt-file` | Free on the owner's machine, and the only model in this chain whose CLI takes the prompt from a file — which sidesteps the shell-quoting damage that `-p "$(cat ...)"` does to backslashes and backticks. Logged in via grok.com. |
 | `opencode/muse-spark-1.3-contributor-free` | `opencode run --auto -m` | Last resort. **Free in exchange for Meta training on prompts and completions** — do not point it at anything sensitive. **Delete `.env` from the worktree before launching it and restore it afterwards** (see below). Strong at coding: it found the `ILIKE` wildcard escaping bug, a `UNION` duplicating rows, and a missing `UNIQUE (key, window_start)` that would have made OTP rate limiting fail silently. |
