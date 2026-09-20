@@ -92,7 +92,7 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `ae2419a`. Lint 0, typecheck 0, **167 tests passing**, `npm run build` clean.
+`develop` at `569f0e6`. Lint 0, typecheck 0, **198 tests passing**, `npm run build` clean.
 
 | Merged | |
 |---|---|
@@ -107,10 +107,13 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 | 019 | The 86 books, 60 authors, 86 editions, 86 reading logs |
 | 007 | Email OTP sign-in, allowlist gate, Postgres rate limiting |
 | 008 | Profile creation, handle rules, the `/app/**` profile gate |
+| 013 | Log a book: create, edit, delete, with draft persistence |
 
 ### Waiting
 
-**013 is in flight** — log a book, the one content-generating feature in the MVP.
+Nothing is in flight. **014, 015, 016 and 017 all unblock from 013** and are independent of each other.
+
+**An agent run can also derail, not just fail.** The TASK-013 correction round returned exit 0 with a report block replaced by unrelated prose scraped from somewhere else, having made a single one-line edit. The worktree diff is the only thing that tells you this; the exit code and the report both said nothing was wrong. Diff before reading anything else.
 
 **022 cannot be implemented as written.** The repository is public, and the task's own security section says a dump artifact inherits repository visibility. The dump carries every member's email address. Either the repository goes private or the backup workflow lives in a separate private one — that is an owner decision, and it comes before the first run, not after.
 
