@@ -89,9 +89,16 @@ Rules that make it hold:
 
 | Method | Route | Auth | Purpose |
 |---|---|---|---|
+| `GET` | `/api/users/me` | session | Read current session user profile (or null if unprofiled) |
 | `POST` | `/api/users` | session, no profile yet | Create the profile row after first sign-in |
 | `GET` | `/api/users/:handle` | optional | Public profile + visible logs |
 | `PATCH` | `/api/users/me` | session | Update `display_name`, `bio`, `profile_visibility` |
+
+**`GET /api/users/me`**
+
+- Returns `200` with user profile object (`id`, `email`, `handle`, `display_name`, `bio`, `profile_visibility`) for an authenticated user with an existing `users` row.
+- Returns `200` with `null` when a valid authenticated session exists but the profile has not been created yet.
+- Returns `401` when unauthenticated.
 
 **`POST /api/users`**
 

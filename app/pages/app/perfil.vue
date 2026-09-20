@@ -1,13 +1,434 @@
 <template>
-  <div class="page-edit-profile">
-    <h1>Editar perfil</h1>
-    <p>Atualize sua biografia e informações do perfil.</p>
+  <div class="profile-container">
+    <div class="profile-card">
+      <h1 class="profile-title">
+        Editar perfil
+      </h1>
+
+      <p class="profile-desc">
+        Atualize suas informações públicas e configurações de privacidade.
+      </p>
+
+      <form class="profile-form" @submit.prevent="handleSave">
+        <!-- Handle (Immutable) -->
+        <div class="form-group">
+          <label for="profile-handle" class="form-label">Nome de usuário</label>
+          <div class="handle-input-wrapper">
+            <span class="handle-prefix">@</span>
+            <input
+              id="profile-handle"
+              :value="handle"
+              type="text"
+              disabled
+              readonly
+              class="form-input handle-input handle-disabled"
+            >
+          </div>
+          <span class="field-hint immutable-hint">
+            O nome de usuário é definitivo e não pode ser alterado no MVP.
+          </span>
+        </div>
+
+        <!-- Display Name -->
+        <div class="form-group">
+          <label for="profile-name" class="form-label">Nome de exibição</label>
+          <input
+            id="profile-name"
+            v-model="displayName"
+            type="text"
+            required
+            maxlength="100"
+            placeholder="Seu nome"
+            class="form-input"
+            :disabled="loading"
+          >
+          <span class="field-hint">Como seu nome aparecerá nas leituras e no perfil.</span>
+        </div>
+
+        <!-- Bio -->
+        <div class="form-group">
+          <div class="label-row">
+            <label for="profile-bio" class="form-label">Biografia</label>
+            <span class="char-count" :class="{ 'char-count-limit': bio.length > 500 }">
+              {{ bio.length }} / 500
+            </span>
+          </div>
+          <textarea
+            id="profile-bio"
+            v-model="bio"
+            maxlength="500"
+            rows="4"
+            placeholder="Conte um pouco sobre suas leituras e interesses..."
+            class="form-input form-textarea"
+            :disabled="loading"
+          />
+          <span class="field-hint">Apresentação curta no seu perfil público. Máximo 500 caracteres.</span>
+        </div>
+
+        <!-- Profile Visibility -->
+        <fieldset class="form-group visibility-fieldset">
+          <legend class="form-label">
+            Visibilidade do perfil
+          </legend>
+
+          <div class="visibility-options">
+            <label class="radio-card" :class="{ selected: visibility === 'publico' }">
+              <input
+                v-model="visibility"
+                type="radio"
+                name="visibility"
+                value="publico"
+                :disabled="loading"
+                class="radio-input"
+              >
+              <div class="radio-text">
+                <span class="radio-title">Público</span>
+                <span class="radio-desc">Qualquer pessoa com o link pode ver seu perfil e leituras públicas.</span>
+              </div>
+            </label>
+
+            <label class="radio-card" :class="{ selected: visibility === 'privado' }">
+              <input
+                v-model="visibility"
+                type="radio"
+                name="visibility"
+                value="privado"
+                :disabled="loading"
+                class="radio-input"
+              >
+              <div class="radio-text">
+                <span class="radio-title">Privado</span>
+                <span class="radio-desc">Só você pode ver suas leituras e perfil.</span>
+              </div>
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Messages -->
+        <p v-if="successMessage" class="success-message" role="status">
+          {{ successMessage }}
+        </p>
+
+        <p v-if="errorMessage" class="error-message" role="alert">
+          {{ errorMessage }}
+        </p>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          class="submit-btn"
+          :disabled="loading || !displayName || bio.length > 500"
+        >
+          {{ loading ? 'Salvando...' : 'Salvar alterações' }}
+        </button>
+      </form>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from 'vue'
+import type { AuthSessionState, AuthSessionUser } from '~/middleware/auth'
+
 definePageMeta({
   layout: 'app',
-  middleware: 'auth'
+  middleware: 'auth',
 })
+
+const session = useState<AuthSessionState>('auth:session')
+
+const handle = ref(session.value?.user?.handle ?? '')
+const displayName = ref(String(session.value?.user?.display_name ?? ''))
+const bio = ref(String(session.value?.user?.bio ?? ''))
+const visibility = ref<'publico' | 'privado'>(
+  (session.value?.user?.profile_visibility as 'publico' | 'privado') || 'publico',
+)
+
+const loading = ref(false)
+const successMessage = ref('')
+const errorMessage = ref('')
+
+function syncProfile(user: AuthSessionUser) {
+  if (user.handle) handle.value = user.handle
+  if (user.display_name !== undefined) displayName.value = user.display_name ?? ''
+  if (user.bio !== undefined) bio.value = user.bio ?? ''
+  if (user.profile_visibility === 'publico' || user.profile_visibility === 'privado') {
+    visibility.value = user.profile_visibility
+  }
+}
+
+if (session.value?.user) {
+  syncProfile(session.value.user)
+}
+
+onMounted(async () => {
+  try {
+    const me = await $fetch<AuthSessionUser | null>('/api/users/me')
+    if (me) {
+      session.value = {
+        user: { ...me, hasProfile: true },
+        hasProfile: true,
+        fetched: true,
+      }
+      syncProfile(me)
+    }
+  } catch {
+    // Handled by middleware
+  }
+})
+
+async function handleSave() {
+  successMessage.value = ''
+  errorMessage.value = ''
+
+  if (bio.value.length > 500) {
+    errorMessage.value = 'A biografia deve ter no máximo 500 caracteres.'
+    return
+  }
+
+  loading.value = true
+
+  try {
+    const updated = await $fetch<{
+      id: string
+      handle: string
+      display_name: string
+      bio: string | null
+      profile_visibility: 'publico' | 'privado'
+    }>('/api/users/me', {
+      method: 'PATCH',
+      body: {
+        display_name: displayName.value,
+        bio: bio.value || null,
+        profile_visibility: visibility.value,
+      },
+    })
+
+    if (session.value?.user) {
+      session.value.user.display_name = updated.display_name
+      session.value.user.bio = updated.bio
+      session.value.user.profile_visibility = updated.profile_visibility
+    }
+
+    successMessage.value = 'Perfil atualizado com sucesso!'
+  } catch (err: unknown) {
+    const fetchErr = err as { data?: { message?: string } }
+    errorMessage.value = fetchErr.data?.message ?? 'Não foi possível atualizar o perfil.'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
+
+<style scoped>
+.profile-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--space-4) 0;
+}
+
+.profile-card {
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-8);
+  width: 100%;
+  max-width: 540px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.profile-title {
+  font-size: var(--font-size-2xl);
+  margin-top: 0;
+  margin-bottom: var(--space-2);
+  color: #fff;
+}
+
+.profile-desc {
+  color: var(--text-color);
+  font-size: var(--font-size-sm);
+  margin-top: 0;
+  margin-bottom: var(--space-6);
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: #fff;
+}
+
+.char-count {
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+}
+
+.char-count-limit {
+  color: var(--danger);
+  font-weight: bold;
+}
+
+.field-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+}
+
+.immutable-hint {
+  color: var(--text-color);
+  font-style: italic;
+}
+
+.form-input {
+  background-color: var(--input-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  color: #fff;
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--highlight);
+  box-shadow: 0 0 0 2px rgba(64, 188, 244, 0.2);
+}
+
+.form-textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: var(--line-height-normal);
+}
+
+.handle-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.handle-prefix {
+  position: absolute;
+  left: var(--space-3);
+  color: var(--text-color);
+  font-size: var(--font-size-base);
+  pointer-events: none;
+}
+
+.handle-input {
+  padding-left: calc(var(--space-3) + 14px);
+}
+
+.handle-disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background-color: rgba(0, 0, 0, 0.25);
+  border: 1px dashed var(--input-bg);
+}
+
+.visibility-fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+
+.visibility-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  background-color: var(--input-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+
+.radio-card.selected {
+  border-color: var(--highlight);
+  background-color: rgba(64, 188, 244, 0.08);
+}
+
+.radio-input {
+  margin-top: 3px;
+  accent-color: var(--highlight);
+}
+
+.radio-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.radio-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #fff;
+}
+
+.radio-desc {
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+  line-height: var(--line-height-tight);
+}
+
+.success-message {
+  color: #34d399;
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.error-message {
+  color: var(--danger);
+  font-size: var(--font-size-sm);
+  margin: 0;
+}
+
+.submit-btn {
+  background-color: var(--highlight);
+  color: #14181c;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  font-size: var(--font-size-base);
+  font-weight: bold;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: var(--space-2);
+}
+
+.submit-btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+</style>

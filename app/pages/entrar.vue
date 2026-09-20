@@ -92,6 +92,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { AuthSessionState } from '~/middleware/auth'
 import { authClient } from '~/utils/auth-client'
 import { emailSchema, otpSchema } from '~~/shared/schemas/auth'
 
@@ -223,7 +224,16 @@ async function handleVerifyOtp() {
     }
 
     const redirectPath = getSafeRedirectUrl(route.query.next)
-    await router.push(redirectPath)
+
+    // Invalidate cached auth session so middleware fetches fresh profile
+    const session = useState<AuthSessionState>('auth:session')
+    session.value = { user: null, fetched: false }
+
+    if (redirectPath === '/') {
+      await router.push('/app/bem-vindo')
+    } else {
+      await router.push(redirectPath)
+    }
   } catch {
     errorMessage.value = 'Código inválido ou expirado.'
     await nextTick()

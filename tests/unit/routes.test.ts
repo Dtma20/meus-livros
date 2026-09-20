@@ -31,6 +31,10 @@ vi.hoisted(() => {
     ...options
   })
   globalScope.clearError = (opts?: unknown) => opts
+  // The middleware resolves these before its first await; without them it
+  // cannot run outside a Nuxt app.
+  globalScope.useNuxtApp = () => ({ runWithContext: (fn: () => unknown) => fn() })
+  globalScope.useRequestFetch = () => (globalThis as unknown as Record<string, unknown>).$fetch
 })
 
 const NuxtLink = defineComponent({
@@ -80,7 +84,7 @@ function mount<T extends Component>(
   }
 }
 
-type MiddlewareHandler = (to: { path: string; fullPath: string }) => unknown
+type MiddlewareHandler = (to: { path: string; fullPath: string }) => Promise<unknown> | unknown
 
 const runAuthMiddleware = authMiddleware as unknown as MiddlewareHandler
 
@@ -187,8 +191,8 @@ describe('robots.txt', () => {
 })
 
 describe('Auth middleware: auth.ts', () => {
-  it('redirects unauthenticated users from /app/novo to /entrar?next=/app/novo with 302', () => {
-    const result = runAuthMiddleware({
+  it('redirects unauthenticated users from /app/novo to /entrar?next=/app/novo with 302', async () => {
+    const result = await runAuthMiddleware({
       path: '/app/novo',
       fullPath: '/app/novo'
     })
@@ -198,8 +202,8 @@ describe('Auth middleware: auth.ts', () => {
     })
   })
 
-  it('redirects unauthenticated users from /app/bem-vindo to /entrar?next=/app/bem-vindo with 302', () => {
-    const result = runAuthMiddleware({
+  it('redirects unauthenticated users from /app/bem-vindo to /entrar?next=/app/bem-vindo with 302', async () => {
+    const result = await runAuthMiddleware({
       path: '/app/bem-vindo',
       fullPath: '/app/bem-vindo'
     })
@@ -209,12 +213,12 @@ describe('Auth middleware: auth.ts', () => {
     })
   })
 
-  it('does not redirect public paths', () => {
-    expect(runAuthMiddleware({ path: '/', fullPath: '/' })).toBeUndefined()
-    expect(runAuthMiddleware({ path: '/@diogo', fullPath: '/@diogo' })).toBeUndefined()
-    expect(runAuthMiddleware({ path: '/livro/x', fullPath: '/livro/x' })).toBeUndefined()
-    expect(runAuthMiddleware({ path: '/entrada/x', fullPath: '/entrada/x' })).toBeUndefined()
-    expect(runAuthMiddleware({ path: '/entrar', fullPath: '/entrar' })).toBeUndefined()
+  it('does not redirect public paths', async () => {
+    expect(await runAuthMiddleware({ path: '/', fullPath: '/' })).toBeUndefined()
+    expect(await runAuthMiddleware({ path: '/@diogo', fullPath: '/@diogo' })).toBeUndefined()
+    expect(await runAuthMiddleware({ path: '/livro/x', fullPath: '/livro/x' })).toBeUndefined()
+    expect(await runAuthMiddleware({ path: '/entrada/x', fullPath: '/entrada/x' })).toBeUndefined()
+    expect(await runAuthMiddleware({ path: '/entrar', fullPath: '/entrar' })).toBeUndefined()
   })
 })
 
