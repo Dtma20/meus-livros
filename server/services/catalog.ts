@@ -40,8 +40,10 @@ function isUniqueViolation(error: unknown): boolean {
   return code === '23505'
 }
 
-async function assertUnderRateLimit(userId: string): Promise<void> {
-  const [row] = await db
+export type DbOrTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
+
+async function assertUnderRateLimit(userId: string, conn: DbOrTx = db): Promise<void> {
+  const [row] = await conn
     .select({ n: sql<number>`count(*)::int` })
     .from(works)
     .where(and(eq(works.created_by, userId), gt(works.created_at, sql`now() - interval '1 hour'`)))
@@ -62,14 +64,15 @@ export async function findOrCreateAuthor(
   name: string,
   userId: string,
   country?: { code?: string | null, label?: string | null },
+  conn: DbOrTx = db,
 ): Promise<string> {
   const slug = slugify(name)
   if (!slug) throw badRequest('Nome de autor inválido.')
 
-  const [existing] = await db.select({ id: authors.id }).from(authors).where(eq(authors.slug, slug))
+  const [existing] = await conn.select({ id: authors.id }).from(authors).where(eq(authors.slug, slug))
   if (existing) return existing.id
 
-  const [created] = await db
+  const [created] = await conn
     .insert(authors)
     .values({
       name,
@@ -84,7 +87,7 @@ export async function findOrCreateAuthor(
   if (created) return created.id
 
   // Lost the race against a concurrent insert: the row exists now.
-  const [raced] = await db.select({ id: authors.id }).from(authors).where(eq(authors.slug, slug))
+  const [raced] = await conn.select({ id: authors.id }).from(authors).where(eq(authors.slug, slug))
   if (!raced) throw new Error(`O autor "${name}" não pôde ser criado nem encontrado.`)
   return raced.id
 }
@@ -97,10 +100,11 @@ export async function findOrCreateAuthor(
 export async function findDuplicateWork(
   title: string,
   authorSlugs: string[],
+  conn: DbOrTx = db,
 ): Promise<{ id: string, slug: string, title: string } | null> {
   if (authorSlugs.length === 0) return null
 
-  const rows = await db
+  const rows = await conn
     .select({ id: works.id, slug: works.slug, title: works.title })
     .from(works)
     .innerJoin(work_authors, eq(work_authors.work_id, works.id))
@@ -116,7 +120,7 @@ export async function findDuplicateWork(
   return rows[0] ?? null
 }
 
-type EditionInserter = Pick<typeof db, 'insert'>
+type EditionInserter = Pick<DbOrTx, 'insert'>
 
 async function insertEdition(
   tx: EditionInserter,
@@ -159,19 +163,39 @@ async function insertEdition(
 export interface CreateWorkResult {
   id: string
   slug: string
+  edition?: { id: string }
+}
+
+export interface CreateWorkOptions {
+  force?: boolean
+  /**
+   * Pula a verificação de limite de taxa (WORKS_PER_HOUR).
+   * Existe só para scripts de migração rodados da máquina do mantenedor,
+   * NUNCA a partir de rota HTTP (server/api/).
+   */
+  skipRateLimit?: boolean
+  /**
+   * Transação ou conexão Drizzle para operações em lote dentro de uma mesma transação.
+   * Existe só para scripts de migração rodados da máquina do mantenedor.
+   */
+  tx?: DbOrTx
 }
 
 export async function createWork(
   input: WorkInput,
   userId: string,
-  options: { force?: boolean } = {},
+  options: CreateWorkOptions = {},
 ): Promise<CreateWorkResult> {
-  await assertUnderRateLimit(userId)
+  const conn = options.tx ?? db
+
+  if (!options.skipRateLimit) {
+    await assertUnderRateLimit(userId, conn)
+  }
 
   const authorSlugs = input.authors.map((a) => slugify(a.name)).filter(Boolean)
 
   if (!options.force) {
-    const duplicate = await findDuplicateWork(input.title, authorSlugs)
+    const duplicate = await findDuplicateWork(input.title, authorSlugs, conn)
     if (duplicate) {
       throw conflict(
         'Já existe uma obra com este título e autor. Use ?forcar=1 para cadastrar mesmo assim.',
@@ -182,7 +206,7 @@ export async function createWork(
 
   const genreIds = [...new Set(input.genre_ids)]
   if (genreIds.length > 0) {
-    const found = await db.select({ id: genres.id }).from(genres).where(inArray(genres.id, genreIds))
+    const found = await conn.select({ id: genres.id }).from(genres).where(inArray(genres.id, genreIds))
     if (found.length !== genreIds.length) {
       throw badRequest('Um ou mais gêneros informados não existem.')
     }
@@ -194,16 +218,16 @@ export async function createWork(
       await findOrCreateAuthor(author.name, userId, {
         code: author.country_code,
         label: author.country_label,
-      }),
+      }, conn),
     )
   }
 
   const slug = await uniqueSlug(input.title, async (candidate) => {
-    const [row] = await db.select({ id: works.id }).from(works).where(eq(works.slug, candidate))
+    const [row] = await conn.select({ id: works.id }).from(works).where(eq(works.slug, candidate))
     return Boolean(row)
   })
 
-  return db.transaction(async (tx) => {
+  return conn.transaction(async (tx) => {
     const [work] = await tx
       .insert(works)
       .values({
@@ -235,11 +259,12 @@ export async function createWork(
         .onConflictDoNothing()
     }
 
+    let createdEdition: { id: string } | undefined
     if (input.edition) {
-      await insertEdition(tx, work.id, input.edition, userId)
+      createdEdition = await insertEdition(tx, work.id, input.edition, userId)
     }
 
-    return { id: work.id, slug: work.slug }
+    return { id: work.id, slug: work.slug, edition: createdEdition }
   })
 }
 
@@ -247,8 +272,9 @@ export async function createEdition(
   workId: string,
   input: EditionInput,
   userId: string,
+  conn: DbOrTx = db,
 ): Promise<{ id: string }> {
-  const [work] = await db.select({ id: works.id }).from(works).where(eq(works.id, workId))
+  const [work] = await conn.select({ id: works.id }).from(works).where(eq(works.id, workId))
   if (!work) {
     throw createError({
       statusCode: 404,
@@ -256,5 +282,5 @@ export async function createEdition(
     })
   }
 
-  return insertEdition(db, workId, input, userId)
+  return insertEdition(conn, workId, input, userId)
 }

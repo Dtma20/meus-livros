@@ -1,9 +1,10 @@
 /**
  * ISBN normalisation.
  *
- * Every ISBN in the catalogue is stored as an ISBN-13. 22 of the 86 books in
- * the corpus carry an ISBN-10, so the 10 -> 13 path is the common one, not an
- * edge case. A malformed ISBN is never stored: callers get null and decide.
+ * Every ISBN in the catalogue is stored as an ISBN-13. Of the 86 books in the
+ * corpus, 64 carry an ISBN-13, 19 an ISBN-10 and 3 an Amazon ASIN, so the
+ * 10 -> 13 path is routine and "not an ISBN at all" is a real case, not a
+ * defensive one. A malformed ISBN is never stored: callers get null and decide.
  */
 
 /** EAN-13 check digit for the first 12 digits. */
