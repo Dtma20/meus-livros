@@ -124,6 +124,7 @@ import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { formatFullDate, formatRelativeDate } from '~/utils/date'
+import type { AuthSessionState } from '~/middleware/auth'
 import type { FeedEntry, FeedResponse } from '~~/shared/schemas/feed'
 
 interface HomeAsyncData {
@@ -133,23 +134,31 @@ interface HomeAsyncData {
   redirectTo?: string
 }
 
+// `/` is the one route whose layout depends on the viewer. That decision lives
+// in middleware and not here: `setPageLayout` inside `setup()` raises
+// NUXT_E2007 and hands the client a different shell than the server rendered.
+definePageMeta({
+  middleware: 'home-layout',
+})
+
 const requestFetch = useRequestFetch()
 
-// Server-rendered with useAsyncData:
-// Dispatches /api/users/me and /api/feed/recentes concurrently to avoid sequential round trips.
-// Distinguishes three states of /api/users/me:
-// 1. 200 with UserProfile: authenticated member with profile -> shows feed.
-// 2. 200 with null: verified session exists without profile -> redirects to /app/bem-vindo.
-// 3. 401 (or error): unauthenticated stranger -> shows landing, excludes book data from payload.
-const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('home-feed', async () => {
-  const [meResult, feedResult] = await Promise.allSettled([
-    requestFetch<Record<string, unknown> | null>('/api/users/me'),
-    requestFetch<FeedResponse>('/api/feed/recentes'),
-  ])
+// The `home-layout` middleware has already resolved `/api/users/me` into the
+// shared `auth:session` state, on whichever side is rendering. Reading it here
+// keeps this page at one round trip instead of asking the same question twice.
+const session = useState<AuthSessionState>('auth:session', () => ({
+  user: null,
+  fetched: false,
+}))
 
-  // Handle /api/users/me outcome
-  if (meResult.status === 'rejected') {
-    // 401 unauthenticated stranger: render landing without any feed data
+// Server-rendered with useAsyncData. Three states of the session:
+// 1. no user: unauthenticated stranger -> landing, and no book data in the payload.
+// 2. user without profile: verified identity with no `users` row -> /app/bem-vindo.
+// 3. user with profile: member -> fetch the feed.
+const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('home-feed', async () => {
+  const current = session.value
+
+  if (!current?.user) {
     return {
       authenticated: false,
       entries: [],
@@ -157,8 +166,9 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
     }
   }
 
-  // 200 with null: authenticated identity with no profile in `users`
-  if (meResult.value === null) {
+  const hasProfile = Boolean(current.hasProfile || current.user.hasProfile || current.user.handle)
+
+  if (!hasProfile) {
     return {
       authenticated: false,
       entries: [],
@@ -167,20 +177,20 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
     }
   }
 
-  // 200 with profile: member is authenticated
-  let entries: FeedEntry[] = []
-  let hasFeedError = false
-
-  if (feedResult.status === 'fulfilled') {
-    entries = feedResult.value?.entries ?? []
-  } else {
-    hasFeedError = true
+  try {
+    const feed = await requestFetch<FeedResponse>('/api/feed/recentes')
+    return {
+      authenticated: true,
+      entries: feed?.entries ?? [],
+      hasFeedError: false,
+    }
   }
-
-  return {
-    authenticated: true,
-    entries,
-    hasFeedError,
+  catch {
+    return {
+      authenticated: true,
+      entries: [],
+      hasFeedError: true,
+    }
   }
 })
 
@@ -196,9 +206,6 @@ function formatAuthors(authors?: { name: string }[]): string {
   if (!authors || authors.length === 0) return ''
   return authors.map((a) => a.name).join(', ')
 }
-
-// Dynamically set layout to app when member is authenticated
-setPageLayout(pageData.value?.authenticated ? 'app' : 'default')
 
 // Open Graph / SEO metadata
 const reqUrl = useRequestURL()
