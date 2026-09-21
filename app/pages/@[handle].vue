@@ -56,6 +56,14 @@
       </div>
 
       <template v-else>
+        <!-- Reading map of countries -->
+        <ReadingMap
+          :country-counts="readingMapData.countryCounts"
+          :selected-country="filterCountry"
+          :unmapped-countries="readingMapData.unmappedCountries"
+          @select="filterCountry = $event"
+        />
+
         <!-- Filter bar for genre, country, decade, and sorting -->
         <FilterBar
           v-model:genre="filterGenre"
@@ -134,11 +142,13 @@ import { useRoute } from 'vue-router'
 import BookCard from '~/components/book/BookCard.vue'
 import BookGrid from '~/components/book/BookGrid.vue'
 import FilterBar from '~/components/profile/FilterBar.vue'
+import ReadingMap from '~/components/profile/ReadingMap.vue'
 import StatBox from '~/components/profile/StatBox.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { useBookFilters } from '~/composables/useBookFilters'
+import { aggregateReadingMapData } from '~/utils/reading-map'
 import type { ProfileResponse } from '~~/shared/schemas/profile'
 import type { AuthSessionUser } from '~/middleware/auth'
 
@@ -256,6 +266,7 @@ useSeoMeta({
 })
 
 const logs = computed(() => profile.value?.logs || [])
+const readingMapData = computed(() => aggregateReadingMapData(logs.value))
 
 const {
   filterGenre,
