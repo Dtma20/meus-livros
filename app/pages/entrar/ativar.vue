@@ -2,13 +2,13 @@
   <div class="login-container">
     <div class="login-card">
       <h1 class="login-title">
-        Entrar
+        Primeiro acesso
       </h1>
 
       <!-- Step 1: Request OTP -->
       <form v-if="step === 'email'" class="login-form" @submit.prevent="handleRequestOtp">
         <p class="login-desc">
-          Digite seu e-mail para receber um código de acesso de uso único.
+          Digite seu e-mail cadastrado para receber um código de ativação e criar sua senha.
         </p>
 
         <div class="form-group">
@@ -32,15 +32,21 @@
           {{ errorMessage }}
         </p>
 
-        <button type="submit" class="submit-btn" :disabled="loading">
+        <button type="submit" class="submit-btn" :disabled="loading || !email">
           {{ loading ? 'Enviando...' : 'Enviar código' }}
         </button>
+
+        <div class="links-container">
+          <NuxtLink to="/entrar" class="auth-link">
+            Já tem uma senha? Entrar
+          </NuxtLink>
+        </div>
       </form>
 
-      <!-- Step 2: Verify OTP -->
-      <form v-else class="login-form" @submit.prevent="handleVerifyOtp">
+      <!-- Step 2: Verify OTP + Choose Password -->
+      <form v-else class="login-form" @submit.prevent="handleActivate">
         <p class="login-desc">
-          Enviamos um código de 6 dígitos para:
+          Enviamos um código de 6 dígitos para seu e-mail. Digite o código e escolha sua nova senha.
         </p>
 
         <div class="email-summary">
@@ -66,16 +72,66 @@
             class="form-input otp-input"
             :disabled="loading"
             :aria-invalid="errorMessage ? 'true' : undefined"
-            :aria-describedby="errorMessage ? 'otp-error' : undefined"
+            :aria-describedby="errorMessage ? 'activation-error' : undefined"
           >
         </div>
 
-        <p v-if="errorMessage" id="otp-error" class="error-message" role="alert">
+        <div class="form-group">
+          <div class="label-row">
+            <label for="new-password" class="form-label">Criar senha</label>
+            <button
+              type="button"
+              class="toggle-password-btn"
+              :disabled="loading"
+              @click="showPassword = !showPassword"
+            >
+              {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+          <input
+            id="new-password"
+            v-model="newPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            required
+            minlength="8"
+            maxlength="128"
+            placeholder="Mínimo 8 caracteres"
+            class="form-input"
+            :disabled="loading"
+            :aria-invalid="errorMessage ? 'true' : undefined"
+            :aria-describedby="errorMessage ? 'activation-error' : undefined"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="confirm-password" class="form-label">Confirmar senha</label>
+          <input
+            id="confirm-password"
+            v-model="confirmPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            required
+            minlength="8"
+            maxlength="128"
+            placeholder="Digite a senha novamente"
+            class="form-input"
+            :disabled="loading"
+            :aria-invalid="errorMessage ? 'true' : undefined"
+            :aria-describedby="errorMessage ? 'activation-error' : undefined"
+          >
+        </div>
+
+        <p v-if="errorMessage" id="activation-error" class="error-message" role="alert">
           {{ errorMessage }}
         </p>
 
-        <button type="submit" class="submit-btn" :disabled="loading || otp.length !== 6">
-          {{ loading ? 'Verificando...' : 'Confirmar código' }}
+        <button
+          type="submit"
+          class="submit-btn"
+          :disabled="loading || otp.length !== 6 || !newPassword || !confirmPassword"
+        >
+          {{ loading ? 'Ativando...' : 'Ativar conta' }}
         </button>
 
         <div class="resend-container">
@@ -94,11 +150,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onUnmounted, nextTick } from 'vue'
+import { nextTick, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AuthSessionState } from '~/middleware/auth'
 import { authClient } from '~/utils/auth-client'
-import { emailSchema, otpSchema } from '~~/shared/schemas/auth'
+import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/shared/schemas/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -106,6 +162,9 @@ const router = useRouter()
 const step = ref<'email' | 'otp'>('email')
 const email = ref('')
 const otp = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const showPassword = ref(false)
 const errorMessage = ref('')
 const loading = ref(false)
 const resendCountdown = ref(0)
@@ -134,7 +193,7 @@ function getSafeRedirectUrl(nextParam: unknown): string {
   if (typeof nextParam === 'string' && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
     return nextParam
   }
-  return '/'
+  return '/app/bem-vindo'
 }
 
 async function handleRequestOtp() {
@@ -155,14 +214,8 @@ async function handleRequestOtp() {
     if (error) {
       if (error.status === 429) {
         errorMessage.value = 'Muitas tentativas. Aguarde uma hora e tente novamente.'
-      } else {
-        // Any other error from allowlist or network behaves identically to success
-        step.value = 'otp'
-        startCountdown()
-        await nextTick()
-        otpInputRef.value?.focus()
+        return
       }
-      return
     }
 
     step.value = 'otp'
@@ -170,7 +223,6 @@ async function handleRequestOtp() {
     await nextTick()
     otpInputRef.value?.focus()
   } catch {
-    // Network or other issue: still transition to step 2 to avoid enumeration
     step.value = 'otp'
     startCountdown()
     await nextTick()
@@ -203,8 +255,9 @@ async function handleResendOtp() {
   }
 }
 
-async function handleVerifyOtp() {
+async function handleActivate() {
   errorMessage.value = ''
+
   const parsedOtp = otpSchema.safeParse(otp.value)
   if (!parsedOtp.success) {
     errorMessage.value = parsedOtp.error.issues[0]?.message ?? 'Código inválido.'
@@ -213,35 +266,58 @@ async function handleVerifyOtp() {
     return
   }
 
+  if (newPassword.value !== confirmPassword.value) {
+    errorMessage.value = 'As senhas não coincidem.'
+    return
+  }
+
+  const parsedPassword = senhaSchema.safeParse(newPassword.value)
+  if (!parsedPassword.success) {
+    errorMessage.value = parsedPassword.error.issues[0]?.message ?? 'Senha inválida.'
+    return
+  }
+
+  if (isForbiddenPassword(newPassword.value, { email: email.value })) {
+    errorMessage.value = 'Senha muito fraca ou comum.'
+    return
+  }
+
   loading.value = true
   try {
-    const { error } = await authClient.signIn.emailOtp({
+    // 1. Verify OTP and obtain session
+    const { error: signInError } = await authClient.signIn.emailOtp({
       email: email.value.trim().toLowerCase(),
       otp: parsedOtp.data,
     })
 
-    if (error) {
+    if (signInError) {
       errorMessage.value = 'Código inválido ou expirado.'
       await nextTick()
       otpInputRef.value?.focus()
       return
     }
 
-    const redirectPath = getSafeRedirectUrl(route.query.next)
+    // 2. Set the first password. better-auth marks setPassword server-only, so
+    // it is absent from the client; our own route calls auth.api.setPassword
+    // behind the session the step above just issued.
+    try {
+      await $fetch('/api/auth/set-password', {
+        method: 'POST',
+        body: { newPassword: parsedPassword.data },
+      })
+    } catch {
+      errorMessage.value = 'Não foi possível definir a senha. Tente novamente.'
+      return
+    }
 
     // Invalidate cached auth session so middleware fetches fresh profile
     const session = useState<AuthSessionState>('auth:session')
     session.value = { user: null, fetched: false }
 
-    if (redirectPath === '/') {
-      await router.push('/app/bem-vindo')
-    } else {
-      await router.push(redirectPath)
-    }
+    const redirectPath = getSafeRedirectUrl(route.query.next)
+    await router.push(redirectPath)
   } catch {
-    errorMessage.value = 'Código inválido ou expirado.'
-    await nextTick()
-    otpInputRef.value?.focus()
+    errorMessage.value = 'Não foi possível ativar sua conta. Tente novamente.'
   } finally {
     loading.value = false
   }
@@ -250,6 +326,8 @@ async function handleVerifyOtp() {
 function changeEmail() {
   step.value = 'email'
   otp.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
   errorMessage.value = ''
 }
 </script>
@@ -298,10 +376,39 @@ function changeEmail() {
   gap: var(--space-2);
 }
 
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .form-label {
   font-size: var(--font-size-sm);
   color: #fff;
   font-weight: 500;
+}
+
+.toggle-password-btn {
+  background: none;
+  border: none;
+  color: var(--highlight);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  text-decoration: underline;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.toggle-password-btn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.toggle-password-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .form-input {
@@ -443,6 +550,31 @@ function changeEmail() {
 .resend-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.links-container {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+.auth-link {
+  color: var(--highlight);
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.auth-link:hover {
+  opacity: 0.8;
+}
+
+.auth-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
