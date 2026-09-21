@@ -175,6 +175,7 @@ async function performLookup(): Promise<void> {
         // Open Library lookup via /api/search/externo is non-critical enrichment.
         // Capped at 10s to fail gracefully and let users proceed with manual entry.
         timeout: 10_000,
+        retry: 0,
       },
     )
 

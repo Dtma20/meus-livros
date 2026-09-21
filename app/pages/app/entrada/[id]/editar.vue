@@ -54,6 +54,7 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
       // Without a timeout this promise can never settle: a lost request
       // leaves `pending` stuck true and the user staring at "Carregando registro…" forever.
       timeout: 15_000,
+      retry: 0,
     }),
 )
 </script>

@@ -654,6 +654,7 @@ watch(authorInput, (val) => {
         `/api/search?q=${encodeURIComponent(term)}`,
         {
           timeout: 15_000,
+          retry: 0,
         },
       )
       const matchingAuthors: string[] = []
@@ -674,11 +675,9 @@ watch(authorInput, (val) => {
       authorSuggestions.value = matchingAuthors.slice(0, 5)
       showAuthorSuggestions.value = authorSuggestions.value.length > 0
       highlightedSuggestionIndex.value = -1
-    } catch (err: unknown) {
-      const name = (err as { name?: string })?.name
-      if (name === 'AbortError' || name === 'TimeoutError') {
-        serverError.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
-      }
+    } catch {
+      // Debounced typeahead. Stays silent on purpose: a suggestion lookup that
+      // times out while the user is still typing must not raise serverError.
       authorSuggestions.value = []
       showAuthorSuggestions.value = false
     }

@@ -394,16 +394,16 @@ async function toggleEditionPicker(): Promise<void> {
         `/api/works/${selectedWork.value.id}/editions`,
         {
           timeout: 15_000,
+          // ofetch retries non-payload methods once, which would make the
+          // effective wait 30s. The point here is a bound, not a retry.
+          retry: 0,
         },
       )
       editionsList.value = res.editions
-    } catch (err: unknown) {
-      const name = (err as { name?: string })?.name
-      if (name === 'AbortError' || name === 'TimeoutError') {
-        errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
-        return
-      }
-      // Catalog enrichment fallback
+    } catch {
+      // Catalog enrichment fallback. Stays silent on purpose, timeout included:
+      // errorMessage is the submit slot, and an optional edition lookup must not
+      // write there -- it would overwrite a real save error.
     } finally {
       loadingEditions.value = false
     }

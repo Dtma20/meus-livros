@@ -168,6 +168,7 @@ onMounted(async () => {
   try {
     const me = await $fetch<AuthSessionUser | null>('/api/users/me', {
       timeout: 15_000,
+      retry: 0,
     })
     if (me) {
       session.value = {
