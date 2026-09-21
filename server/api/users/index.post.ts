@@ -1,4 +1,4 @@
-import { createError, readBody, setResponseStatus, toWebRequest } from 'h3'
+import { createError, readBody, setResponseStatus } from 'h3'
 import { createUserSchema } from '../../../shared/schemas/user'
 import { auth } from '../../services/auth'
 import { createUser } from '../../services/users'
@@ -22,8 +22,10 @@ export default defineApiHandler(async (event) => {
   let email = contextUser?.email?.trim().toLowerCase()
 
   if (!email) {
-    const req = toWebRequest(event)
-    const session = await auth.api.getSession({ headers: req.headers })
+    // event.headers, not toWebRequest(event).headers: the latter attaches a
+    // stream over the node request, the await below drains it, and the
+    // readBody() further down then waits forever. See server/utils/session.ts.
+    const session = await auth.api.getSession({ headers: event.headers })
     if (session?.user?.email) {
       email = session.user.email.trim().toLowerCase()
     }

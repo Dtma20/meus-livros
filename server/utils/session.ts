@@ -1,5 +1,5 @@
 import type { H3Event } from 'h3'
-import { createError, toWebRequest } from 'h3'
+import { createError } from 'h3'
 import { getSessionUserByHeaders } from '../services/auth'
 import type { SessionUser } from '../services/auth'
 
@@ -17,8 +17,25 @@ export async function getSessionUser(event: H3Event): Promise<SessionUser | null
     return { id: contextUser.id, email: contextUser.email }
   }
 
-  const req = toWebRequest(event)
-  const user = await getSessionUserByHeaders(req.headers)
+  // `event.headers`, never `toWebRequest(event).headers`.
+  //
+  // toWebRequest builds `new Request(url, { body: getRequestWebStream(event),
+  // duplex: 'half' })`. That attaches a ReadableStream over `event.node.req` to
+  // a Request object, and during the very next `await` — here, a round trip to
+  // Neon to validate the session — the stream drains the node request. A later
+  // `readBody(event)` then waits on `data`/`end` events that have already
+  // fired, and waits forever.
+  //
+  // Every authenticated mutating route did exactly that: resolve the session,
+  // then read the body. POST /api/logs, POST /api/users, PATCH /api/logs/:id,
+  // PATCH /api/users/me, POST /api/works, POST /api/works/:id/editions — the
+  // whole write path hung, in dev and in the production build alike. Reproduced
+  // minimally: toWebRequest + a 600 ms await + readBody hangs; the same await
+  // without toWebRequest returns in 614 ms.
+  //
+  // better-auth only ever needed the headers, and `event.headers` is the same
+  // Headers instance toWebRequest would have copied.
+  const user = await getSessionUserByHeaders(event.headers)
   if (user) {
     event.context.user = user
   }

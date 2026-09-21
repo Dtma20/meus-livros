@@ -1,4 +1,4 @@
-import { createError, toWebRequest } from 'h3'
+import { createError } from 'h3'
 import { auth } from '../../services/auth'
 import { getUserByEmail } from '../../services/users'
 import { defineApiHandler } from '../../utils/api'
@@ -19,8 +19,7 @@ export default defineApiHandler(async (event) => {
   let email = contextUser?.email?.trim().toLowerCase()
 
   if (!email) {
-    const req = toWebRequest(event)
-    const session = await auth.api.getSession({ headers: req.headers })
+    const session = await auth.api.getSession({ headers: event.headers })
     if (session?.user?.email) {
       email = session.user.email.trim().toLowerCase()
     }
