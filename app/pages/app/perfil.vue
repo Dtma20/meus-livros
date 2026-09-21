@@ -166,7 +166,10 @@ if (session.value?.user) {
 
 onMounted(async () => {
   try {
-    const me = await $fetch<AuthSessionUser | null>('/api/users/me')
+    const me = await $fetch<AuthSessionUser | null>('/api/users/me', {
+      timeout: 15_000,
+      retry: 0,
+    })
     if (me) {
       session.value = {
         user: { ...me, hasProfile: true },
@@ -175,7 +178,12 @@ onMounted(async () => {
       }
       syncProfile(me)
     }
-  } catch {
+  } catch (err: unknown) {
+    const name = (err as { name?: string })?.name
+    if (name === 'AbortError' || name === 'TimeoutError') {
+      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      return
+    }
     // Handled by middleware
   }
 })
@@ -200,6 +208,11 @@ async function handleSave() {
       profile_visibility: 'publico' | 'privado'
     }>('/api/users/me', {
       method: 'PATCH',
+      // Without a timeout this promise can never settle: a request lost
+      // without the server answering or closing leaves `finally` unreached,
+      // `loading` stuck true, and the button reading "Salvando..." forever
+      // with no error and no way out but a reload. Observed in the wild.
+      timeout: 15_000,
       body: {
         display_name: displayName.value,
         bio: bio.value || null,
@@ -215,6 +228,11 @@ async function handleSave() {
 
     successMessage.value = 'Perfil atualizado com sucesso!'
   } catch (err: unknown) {
+    const name = (err as { name?: string })?.name
+    if (name === 'AbortError' || name === 'TimeoutError') {
+      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      return
+    }
     const fetchErr = err as { data?: { message?: string } }
     errorMessage.value = fetchErr.data?.message ?? 'Não foi possível atualizar o perfil.'
   } finally {
