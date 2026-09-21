@@ -96,6 +96,7 @@
 </template>
 
 <script setup lang="ts">
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { computed, onMounted, ref } from 'vue'
 import type { AuthSessionState, AuthSessionUser } from '~/middleware/auth'
 import { isReservedHandle, transliterateToHandle } from '~~/shared/schemas/user'
@@ -136,9 +137,8 @@ onMounted(async () => {
       await navigateTo('/app/novo')
     }
   } catch (err: unknown) {
-    const name = (err as { name?: string })?.name
-    if (name === 'AbortError' || name === 'TimeoutError') {
-      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
       return
     }
     // Unauthenticated handled by middleware
@@ -224,9 +224,8 @@ async function handleSubmit() {
 
     await navigateTo('/app/novo')
   } catch (err: unknown) {
-    const name = (err as { name?: string })?.name
-    if (name === 'AbortError' || name === 'TimeoutError') {
-      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
       return
     }
     const fetchErr = err as { data?: { error?: string; message?: string; suggestions?: string[] }; statusCode?: number }

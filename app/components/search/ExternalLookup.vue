@@ -108,6 +108,7 @@
 </template>
 
 <script setup lang="ts">
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { onMounted, ref, watch } from 'vue'
 import BookCover from '../book/BookCover.vue'
 import type { ExternalBookResult, ExternalSearchResponse } from '../../../shared/schemas/search'
@@ -193,10 +194,8 @@ async function performLookup(): Promise<void> {
   } catch (err: unknown) {
     hasSearched.value = true
     unavailable.value = true
-    const name = (err as { name?: string })?.name
-    if (name === 'AbortError' || name === 'TimeoutError') {
-      customErrorMessage.value =
-        'A conexão demorou demais. Verifique sua internet e tente de novo.'
+    if (isTimeoutOrAbort(err)) {
+      customErrorMessage.value = TIMEOUT_MESSAGE
       return
     }
     const e = err as {

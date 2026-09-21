@@ -220,6 +220,7 @@
 </template>
 
 <script setup lang="ts">
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { onMounted, ref } from 'vue'
 import type { AuthSessionState, AuthSessionUser } from '~/middleware/auth'
 import { authClient } from '~/utils/auth-client'
@@ -280,9 +281,8 @@ onMounted(async () => {
       syncProfile(me)
     }
   } catch (err: unknown) {
-    const name = (err as { name?: string })?.name
-    if (name === 'AbortError' || name === 'TimeoutError') {
-      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
       return
     }
     // Handled by middleware
@@ -329,9 +329,8 @@ async function handleSave() {
 
     successMessage.value = 'Perfil atualizado com sucesso!'
   } catch (err: unknown) {
-    const name = (err as { name?: string })?.name
-    if (name === 'AbortError' || name === 'TimeoutError') {
-      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
       return
     }
     const fetchErr = err as { data?: { message?: string } }

@@ -463,6 +463,7 @@
 </template>
 
 <script setup lang="ts">
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { onMounted, ref, watch } from 'vue'
 import BookCover from '../book/BookCover.vue'
 import ExternalLookup from './ExternalLookup.vue'
@@ -1144,9 +1145,8 @@ async function handleSubmit(force = false): Promise<void> {
     const sep = target.includes('?') ? '&' : '?'
     await navigateTo(`${target}${sep}work_id=${res.id}`)
   } catch (err: unknown) {
-    const name = (err as { name?: string })?.name
-    if (name === 'AbortError' || name === 'TimeoutError') {
-      serverError.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+    if (isTimeoutOrAbort(err)) {
+      serverError.value = TIMEOUT_MESSAGE
       return
     }
     const e = err as {

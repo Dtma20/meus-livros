@@ -288,6 +288,7 @@
 </template>
 
 <script setup lang="ts">
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { computed, onMounted, ref, watch } from 'vue'
 import BookCover from '../book/BookCover.vue'
 import RatingInput from '../book/RatingInput.vue'
@@ -566,9 +567,8 @@ async function handleSubmit(): Promise<void> {
       void navigateTo(`/entrada/${res.id}`)
     }
   } catch (err: unknown) {
-    const name = (err as { name?: string })?.name
-    if (name === 'AbortError' || name === 'TimeoutError') {
-      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
       return
     }
     // Retain typed input — NEVER clear on failed save!
@@ -595,9 +595,8 @@ async function handleDelete(): Promise<void> {
     })
     void navigateTo('/app')
   } catch (err: unknown) {
-    const name = (err as { name?: string })?.name
-    if (name === 'AbortError' || name === 'TimeoutError') {
-      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
       return
     }
     const fetchErr = err as { data?: { message?: string } }
