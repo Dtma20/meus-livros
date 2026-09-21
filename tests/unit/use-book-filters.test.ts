@@ -29,7 +29,6 @@ function createSampleLog(overrides: Partial<ProfileLogItem> & {
   return {
     id: overrides.id ?? `log-${Math.random().toString(36).slice(2)}`,
     rating: overrides.rating !== undefined ? overrides.rating : 4,
-    review: overrides.review ?? null,
     started_on: overrides.started_on ?? null,
     finished_on: overrides.finished_on !== undefined ? overrides.finished_on : '2024-01-01',
     finished_precision: overrides.finished_precision ?? 'dia',
@@ -48,7 +47,6 @@ function createSampleLog(overrides: Partial<ProfileLogItem> & {
     edition: {
       id: 'edition-1',
       isbn13: '9788598078397',
-      publisher: 'Editora Teste',
       page_count: overrides.pageCount !== undefined ? overrides.pageCount : 200,
       published_year: overrides.year !== undefined ? overrides.year : 2020,
       cover_url: null,

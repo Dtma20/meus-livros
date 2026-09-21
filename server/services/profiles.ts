@@ -89,7 +89,9 @@ export async function getProfileByHandle(
       work_id: reading_logs.work_id,
       edition_id: reading_logs.edition_id,
       rating: reading_logs.rating,
-      review: reading_logs.review,
+      // review is deliberately absent: the profile grid renders covers and
+      // counters, never review text. Selecting it shipped ~58 KB of dead
+      // payload per profile load (86 logs, 56 reviews in the real corpus).
       started_on: reading_logs.started_on,
       finished_on: reading_logs.finished_on,
       finished_precision: reading_logs.finished_precision,
@@ -102,13 +104,17 @@ export async function getProfileByHandle(
         slug: works.slug,
         first_published_year: works.first_published_year,
         cover_url: sql<string | null>`(
-          SELECT e.cover_url FROM editions e WHERE e.work_id = works.id AND e.cover_url IS NOT NULL LIMIT 1
+          -- ORDER BY is what makes this deterministic. LIMIT 1 without it
+          -- returns whatever row the plan yields first, so SSR and a client
+          -- refresh() can disagree on which cover a work has.
+          SELECT e.cover_url FROM editions e
+          WHERE e.work_id = works.id AND e.cover_url IS NOT NULL
+          ORDER BY e.created_at, e.id LIMIT 1
         )`,
       },
       edition: {
         id: editions.id,
         isbn13: editions.isbn13,
-        publisher: editions.publisher,
         cover_url: editions.cover_url,
         ol_cover_id: editions.ol_cover_id,
         page_count: editions.page_count,
@@ -149,20 +155,35 @@ export async function getProfileByHandle(
   // 4. Batch query authors and genres for all retrieved works
   const workIds = [...new Set(logRows.map((r) => r.work.id))]
 
-  const authorsRows = await db
-    .select({
-      work_id: work_authors.work_id,
-      id: authors.id,
-      name: authors.name,
-      slug: authors.slug,
-      country_code: authors.country_code,
-      country_label: authors.country_label,
-      position: work_authors.position,
-    })
-    .from(work_authors)
-    .innerJoin(authors, eq(authors.id, work_authors.author_id))
-    .where(inArray(work_authors.work_id, workIds))
-    .orderBy(work_authors.position)
+  // With postgres(url, { max: 1 }), Promise.all pipelines queries over the
+  // single connection rather than achieving true parallel execution. The gain
+  // is round-trip latency elimination via pipelining, not halved wall-clock time.
+  const [authorsRows, genresRows] = await Promise.all([
+    db
+      .select({
+        work_id: work_authors.work_id,
+        id: authors.id,
+        name: authors.name,
+        slug: authors.slug,
+        country_code: authors.country_code,
+        country_label: authors.country_label,
+        position: work_authors.position,
+      })
+      .from(work_authors)
+      .innerJoin(authors, eq(authors.id, work_authors.author_id))
+      .where(inArray(work_authors.work_id, workIds))
+      .orderBy(work_authors.position),
+    db
+      .select({
+        work_id: work_genres.work_id,
+        id: genres.id,
+        slug: genres.slug,
+        label_pt: genres.label_pt,
+      })
+      .from(work_genres)
+      .innerJoin(genres, eq(genres.id, work_genres.genre_id))
+      .where(inArray(work_genres.work_id, workIds)),
+  ])
 
   const authorsByWorkId = new Map<string, ProfileAuthorView[]>()
   for (const row of authorsRows) {
@@ -179,17 +200,6 @@ export async function getProfileByHandle(
       country_label: row.country_label,
     })
   }
-
-  const genresRows = await db
-    .select({
-      work_id: work_genres.work_id,
-      id: genres.id,
-      slug: genres.slug,
-      label_pt: genres.label_pt,
-    })
-    .from(work_genres)
-    .innerJoin(genres, eq(genres.id, work_genres.genre_id))
-    .where(inArray(work_genres.work_id, workIds))
 
   const genresByWorkId = new Map<string, ProfileGenreView[]>()
   for (const row of genresRows) {
@@ -209,7 +219,6 @@ export async function getProfileByHandle(
   const logs: ProfileLogItem[] = logRows.map((row) => ({
     id: row.id,
     rating: row.rating !== null ? Number(row.rating) : null,
-    review: row.review,
     started_on: row.started_on,
     finished_on: row.finished_on,
     finished_precision: row.finished_precision,

@@ -27,7 +27,6 @@ export interface ProfileWorkView {
 export interface ProfileEditionView {
   id: string | null
   isbn13: string | null
-  publisher: string | null
   page_count: number | null
   published_year: number | null
   cover_url: string | null
@@ -37,7 +36,6 @@ export interface ProfileEditionView {
 export interface ProfileLogItem {
   id: string
   rating: number | null
-  review: string | null
   started_on: string | null
   finished_on: string | null
   finished_precision: DatePrecision
