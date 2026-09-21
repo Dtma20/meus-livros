@@ -156,7 +156,7 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `834d0a3`. Lint 0, typecheck 0, **393 tests passing**, `npm run build` clean.
+`develop` at `b06015d`. Lint 0, typecheck 0, **397 tests passing**, `npm run build` clean.
 
 **Twenty-three of the twenty-seven tasks are merged.** `npm run test` now requires a
 current bundle and says so if it is missing — run `npm run build` first.
@@ -189,7 +189,46 @@ The bottleneck was query shape, not the leading-wildcard `ILIKE`, and query shap
 free. An index costs a migration applied by hand. If the p95 ever regresses past 150
 with the shape already fixed, that is when the extension earns its place.
 
-**[027](tasks/027-password-sign-in.md) is new and not started.** It moves the daily sign-in from a one-time email code to `handle`-or-email + password, keeping the code for activation and reset. It rewrites shipped auth code, so it is not a delegatable greenfield task — see the decision note below.
+**[027](tasks/027-password-sign-in.md) is merged.** The daily sign-in is now
+`handle`-or-email + password; the six-digit code is narrowed to first access and
+password reset.
+
+It had been implemented on `task/027-password-sign-in` and left unmerged and
+unreviewed, which is why this section called it "not started" for a day while
+the running site still asked for a code. The review found three defects, and
+the first one made the feature unusable:
+
+- **First access answered 401 to every real invitee.** `/api/auth/set-password`
+  gated on `getSessionUserByHeaders`, which resolves the *app profile* and
+  returns null with no `users` row. The invitee has no such row at that
+  moment — it is created at `/app/bem-vindo`, after the password is set. The
+  gate is now the better-auth session, which is what actually proves the code
+  was verified.
+- **The test could not catch it.** `beforeAll` inserted the profile with the
+  comment "so getSessionUserByHeaders resolves a valid user UUID", so the
+  first-access test was not testing first access. There is now a second invitee
+  with no profile row, and the test asserts the row is absent both before and
+  after the code verifies. Reverting the fix fails that test with
+  `expected 401 to be 200` and nothing else — which is the evidence that the
+  old suite was green for the wrong reason.
+- **The reset branch reopened a timing signal.** It sends mail and had no
+  `await import('nodemailer')`, so an address that gets a reset code paid the
+  62 ms first load and an unknown one did not. Ours, not the branch's: the
+  branch predates nodemailer becoming a dynamic import, and the two changes only
+  conflict once combined. Any future branch that sends mail needs that warm
+  ahead of its allowlist check.
+
+Verified rather than believed: better-auth **does** hash the password on the
+user-not-found path (`dist/api/routes/sign-in.mjs`, `await
+ctx.context.password.hash(password)` before the throw), so requirement 3's
+timing floor holds without a dummy hash of our own. And the implementation is
+better than the spec on one point — the spec said to open `sign-in/email` in the
+allowlist; it instead built `/entrar` and left `sign-in/email` denied, so the
+sign-in rate limit cannot be bypassed by calling better-auth directly.
+
+**Still unverified, and unverifiable here:** sign-in inside WhatsApp's in-app
+browser on a real Android phone, with the phone's password manager offering to
+save the credential. It is the criterion that motivated the whole task.
 
 | Merged | |
 |---|---|
