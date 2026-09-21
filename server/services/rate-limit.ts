@@ -25,7 +25,7 @@ export async function checkRateLimit(key: string, limitPerHour: number): Promise
   return count <= limitPerHour
 }
 
-/** Error body for a tripped OTP limit, in the project's `{ error, message }` shape. */
+/** Error body for a tripped rate limit, in the project's `{ error, message }` shape. */
 export interface RateLimitExceeded {
   error: 'muitas_tentativas'
   message: string
@@ -45,11 +45,54 @@ export async function checkOtpRequestLimit(
   ip: string,
 ): Promise<RateLimitExceeded | null> {
   const [emailOk, ipOk] = await Promise.all([
-    checkRateLimit(`otp:email:${email.toLowerCase()}`, 5),
+    checkRateLimit(`otp:email:${email.toLowerCase().trim()}`, 5),
     checkRateLimit(`otp:ip:${ip}`, 20),
   ])
 
   if (!emailOk || !ipOk) {
+    return {
+      error: 'muitas_tentativas',
+      message: 'Muitas tentativas. Aguarde uma hora e tente novamente.',
+    }
+  }
+
+  return null
+}
+
+/**
+ * Password sign-in limits (security.md §8):
+ *   - 10 attempts per identifier per hour
+ *   - 30 attempts per IP per hour
+ *
+ * Counted BEFORE resolving the identifier so unknown handles still trip the IP counter.
+ */
+export async function checkSignInLimit(
+  identifier: string,
+  ip: string,
+): Promise<RateLimitExceeded | null> {
+  const [idOk, ipOk] = await Promise.all([
+    checkRateLimit(`signin:id:${identifier.toLowerCase().trim()}`, 10),
+    checkRateLimit(`signin:ip:${ip}`, 30),
+  ])
+
+  if (!idOk || !ipOk) {
+    return {
+      error: 'muitas_tentativas',
+      message: 'Muitas tentativas. Aguarde uma hora e tente novamente.',
+    }
+  }
+
+  return null
+}
+
+/**
+ * Password change limit (security.md §8):
+ *   - 10 attempts per user per hour
+ */
+export async function checkPasswordChangeLimit(userId: string): Promise<RateLimitExceeded | null> {
+  const userOk = await checkRateLimit(`pwchange:user:${userId}`, 10)
+
+  if (!userOk) {
     return {
       error: 'muitas_tentativas',
       message: 'Muitas tentativas. Aguarde uma hora e tente novamente.',

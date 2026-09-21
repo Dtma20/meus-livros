@@ -126,12 +126,104 @@
         </button>
       </form>
     </div>
+
+    <!-- Alterar senha -->
+    <div class="profile-card password-card">
+      <h2 class="profile-title section-title">
+        Alterar senha
+      </h2>
+
+      <p class="profile-desc">
+        Informe sua senha atual e a nova senha para atualizar suas credenciais.
+      </p>
+
+      <form class="profile-form" @submit.prevent="handleChangePassword">
+        <div class="form-group">
+          <label for="current-password" class="form-label">Senha atual</label>
+          <input
+            id="current-password"
+            v-model="currentPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="current-password"
+            required
+            class="form-input"
+            :disabled="loadingPassword"
+            :aria-invalid="passwordErrorMessage ? 'true' : undefined"
+            :aria-describedby="passwordErrorMessage ? 'password-error' : undefined"
+          >
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="new-password" class="form-label">Nova senha</label>
+            <button
+              type="button"
+              class="toggle-password-btn"
+              :disabled="loadingPassword"
+              @click="showPassword = !showPassword"
+            >
+              {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+          <input
+            id="new-password"
+            v-model="newPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            required
+            minlength="8"
+            maxlength="128"
+            placeholder="Mínimo 8 caracteres"
+            class="form-input"
+            :disabled="loadingPassword"
+            :aria-invalid="passwordErrorMessage ? 'true' : undefined"
+            :aria-describedby="passwordErrorMessage ? 'password-error' : undefined"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="confirm-password" class="form-label">Confirmar nova senha</label>
+          <input
+            id="confirm-password"
+            v-model="confirmPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            required
+            minlength="8"
+            maxlength="128"
+            placeholder="Digite a nova senha novamente"
+            class="form-input"
+            :disabled="loadingPassword"
+            :aria-invalid="passwordErrorMessage ? 'true' : undefined"
+            :aria-describedby="passwordErrorMessage ? 'password-error' : undefined"
+          >
+        </div>
+
+        <p v-if="passwordSuccessMessage" class="success-message" role="status">
+          {{ passwordSuccessMessage }}
+        </p>
+
+        <p v-if="passwordErrorMessage" id="password-error" class="error-message" role="alert">
+          {{ passwordErrorMessage }}
+        </p>
+
+        <button
+          type="submit"
+          class="submit-btn"
+          :disabled="loadingPassword || !currentPassword || !newPassword || !confirmPassword"
+        >
+          {{ loadingPassword ? 'Alterando...' : 'Alterar senha' }}
+        </button>
+      </form>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import type { AuthSessionState, AuthSessionUser } from '~/middleware/auth'
+import { authClient } from '~/utils/auth-client'
+import { isForbiddenPassword, senhaSchema } from '~~/shared/schemas/auth'
 
 definePageMeta({
   layout: 'app',
@@ -150,6 +242,15 @@ const visibility = ref<'publico' | 'privado'>(
 const loading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
+
+// Password change state
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const showPassword = ref(false)
+const loadingPassword = ref(false)
+const passwordSuccessMessage = ref('')
+const passwordErrorMessage = ref('')
 
 function syncProfile(user: AuthSessionUser) {
   if (user.handle) handle.value = user.handle
@@ -221,13 +322,73 @@ async function handleSave() {
     loading.value = false
   }
 }
+
+async function handleChangePassword() {
+  passwordSuccessMessage.value = ''
+  passwordErrorMessage.value = ''
+
+  if (!currentPassword.value) {
+    passwordErrorMessage.value = 'Informe a senha atual.'
+    return
+  }
+
+  if (newPassword.value !== confirmPassword.value) {
+    passwordErrorMessage.value = 'As senhas não coincidem.'
+    return
+  }
+
+  const parsed = senhaSchema.safeParse(newPassword.value)
+  if (!parsed.success) {
+    passwordErrorMessage.value = parsed.error.issues[0]?.message ?? 'Nova senha inválida.'
+    return
+  }
+
+  if (
+    isForbiddenPassword(newPassword.value, {
+      handle: handle.value,
+      email: session.value?.user?.email,
+    })
+  ) {
+    passwordErrorMessage.value = 'Senha muito fraca ou comum.'
+    return
+  }
+
+  loadingPassword.value = true
+
+  try {
+    const { error } = await authClient.changePassword({
+      currentPassword: currentPassword.value,
+      newPassword: parsed.data,
+      revokeOtherSessions: true,
+    })
+
+    if (error) {
+      if (error.status === 429) {
+        passwordErrorMessage.value = 'Muitas tentativas. Aguarde uma hora e tente novamente.'
+      } else {
+        passwordErrorMessage.value = 'Senha atual incorreta.'
+      }
+      return
+    }
+
+    passwordSuccessMessage.value = 'Senha alterada com sucesso!'
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+  } catch {
+    passwordErrorMessage.value = 'Senha atual incorreta.'
+  } finally {
+    loadingPassword.value = false
+  }
+}
 </script>
 
 <style scoped>
 .profile-container {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
   padding: var(--space-4) 0;
 }
 
@@ -238,6 +399,14 @@ async function handleSave() {
   width: 100%;
   max-width: 540px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.password-card {
+  margin-top: 0;
+}
+
+.section-title {
+  font-size: var(--font-size-xl);
 }
 
 .profile-title {
@@ -276,6 +445,29 @@ async function handleSave() {
   font-size: var(--font-size-sm);
   font-weight: 500;
   color: #fff;
+}
+
+.toggle-password-btn {
+  background: none;
+  border: none;
+  color: var(--highlight);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  text-decoration: underline;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.toggle-password-btn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.toggle-password-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .char-count {

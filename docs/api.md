@@ -52,7 +52,7 @@ The daily credential is a **password**; the six-digit email code is kept for fir
 |---|---|---|
 | **Activation — request code** | `POST /api/auth/email-otp/send-verification-otp` `{ email }` | Rate limit, then **check `allowed_emails`**. Not allowlisted, unknown, *or already activated* → `200` with a generic body and nothing sent |
 | **Activation — complete** | `POST /api/auth/sign-in/email-otp` `{ email, otp }`, then `POST /api/auth/set-password` `{ newPassword }` | The code issues the session; the session sets the first password. Two better-auth routes behind one screen |
-| **Sign-in (the daily path)** | `POST /api/auth/sign-in/email` `{ email, password }` | Fronted by a resolver that turns a `handle` into its email before delegating. The client sends one `identificador` field |
+| **Sign-in (the daily path)** | `POST /api/auth/entrar` `{ identificador, senha }` | `identificador` is a handle or an email. A resolver turns a handle into its email, then delegates to better-auth's `sign-in/email` internally. That route is **not** exposed: its name promises an email and this field does not carry one |
 | **Reset — request code** | `POST /api/auth/forget-password/email-otp` `{ email }` | Previously 404'd by the deny list; now opened, behind the same rate limit and the same generic response |
 | **Reset — complete** | `POST /api/auth/email-otp/reset-password` `{ email, otp, password }` | Sets the new password and revokes the user's other sessions |
 | **Change password** | `POST /api/auth/change-password` `{ currentPassword, newPassword, revokeOtherSessions: true }` | Session required. The current password is mandatory |

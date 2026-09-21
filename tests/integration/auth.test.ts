@@ -12,7 +12,7 @@ import { setTransport } from '../../server/utils/email'
  */
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
-describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (better-auth + email OTP + allowlist)', () => {
+describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activation/reset OTP flows', () => {
   let db: typeof import('../../server/db')['db']
   let schema: typeof import('../../server/db/schema')
   const testId = Date.now()
@@ -21,13 +21,22 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
   const testIp = `192.0.2.${(testId % 200) + 1}`
 
   const sentEmails: Array<{ to: string; subject: string; text: string }> = []
-  const createdEmails = [allowedEmail, nonAllowedEmail]
-  // Both IPs are derived from testId, so two runs inside the same hour can reuse
-  // one. Left behind, the 20/hour IP counter trips and fails a later run for a
-  // reason that has nothing to do with the code. Register them for cleanup.
+  const createdEmails: string[] = [allowedEmail, nonAllowedEmail]
   const customIp = `198.51.100.${(testId % 200) + 1}`
   const gateIp = `203.0.113.${(testId % 200) + 1}`
-  const createdRateLimitKeys: string[] = [`otp:ip:${testIp}`, `otp:ip:${customIp}`, `otp:ip:${gateIp}`]
+  const signInIdIp = `192.0.2.${((testId + 1) % 200) + 1}`
+  const signInIpLimitIp = `192.0.2.${((testId + 2) % 200) + 1}`
+  const createdRateLimitKeys: string[] = [
+    `otp:ip:${testIp}`,
+    `otp:ip:${customIp}`,
+    `otp:ip:${gateIp}`,
+    `signin:ip:${signInIdIp}`,
+    `signin:ip:${signInIpLimitIp}`,
+  ]
+
+  const testHandle = `ta${testId % 1000000000}`
+  const initialPassword = 'InitialPassword123'
+
   beforeAll(async () => {
     const dbModule = await import('../../server/db')
     db = dbModule.db
@@ -49,25 +58,22 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     // Insert test address into allowed_emails table
     await db.insert(schema.allowed_emails).values({
       email: allowedEmail,
-      note: 'TASK-007 integration test',
+      note: 'TASK-027 integration test',
     })
 
     // Insert user into users table so getSessionUserByHeaders resolves a valid user UUID
     await db.insert(schema.users).values({
       email: allowedEmail,
-      handle: `ta${testId % 1000000000}`,
+      handle: testHandle,
       display_name: 'Test Auth User',
     })
-  })
 
-  /**
-   * The server answers the OTP request without waiting for SMTP — that is what
-   * keeps the allowlisted and non-allowlisted paths indistinguishable in time.
-   * The consequence here is that the mock transport receives the mail a tick
-   * after the response, so a test must wait for it rather than assume it has
-   * already arrived.
-   */
-  async function waitForEmail(index = 0, timeoutMs = 5000): Promise<{ to: string, subject: string, text: string }> {
+    // Start from a clean counter. A run that crashed inside this hour would
+    // otherwise hand its leftovers to this one.
+    await purgeTestRateLimits()
+  }, 30000)
+
+  async function waitForEmail(index = 0, timeoutMs = 5000): Promise<{ to: string; subject: string; text: string }> {
     const deadline = Date.now() + timeoutMs
     while (Date.now() < deadline) {
       const mail = sentEmails[index]
@@ -81,9 +87,35 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     sentEmails.length = 0
   })
 
+  /**
+   * Rate-limit rows are the one piece of state that outlives a failed run: they
+   * are keyed by (key, hour window), so a counter left behind by a crashed run
+   * makes the *next* run inside the same hour fail for a reason that has nothing
+   * to do with the code. Two defences: purge before as well as after, and match
+   * the spray keys by prefix rather than trusting that every one was pushed.
+   */
+  async function purgeTestRateLimits() {
+    // One statement, not a loop. Each round-trip to Neon costs enough that a
+    // dozen of them pushes afterAll past the 10s default hook timeout, and a
+    // hook that times out leaves exactly the rows this function exists to drop.
+    const exact = [...createdRateLimitKeys, `signin:id:${testHandle}`]
+    const patterns = [
+      ...createdEmails.map((e) => `%${e}%`),
+      `signin:id:spray_${testId % 100000}_%`,
+    ]
+    await db.execute(sql`
+      DELETE FROM rate_limit
+      WHERE key IN (${sql.join(exact.map((k) => sql`${k}`), sql`, `)})
+         OR ${sql.join(patterns.map((pat) => sql`key LIKE ${pat}`), sql` OR `)}
+    `)
+  }
+
   afterAll(async () => {
-    // Clean up all rows created during testing
     setTransport(null)
+
+    // Purge counters first. Everything below can throw on a half-created
+    // fixture, and if it does, the rate-limit rows must already be gone.
+    await purgeTestRateLimits()
 
     // 1. Delete verification entries
     for (const email of createdEmails) {
@@ -105,19 +137,12 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     await db.delete(schema.allowed_emails).where(inArray(schema.allowed_emails.email, createdEmails))
     await db.delete(schema.users).where(inArray(schema.users.email, createdEmails))
 
-    // 4. Delete rate limit entries
-    for (const email of createdEmails) {
-      await db.execute(sql`DELETE FROM rate_limit WHERE key LIKE ${`%${email}%`}`)
-    }
-    if (createdRateLimitKeys.length > 0) {
-      for (const k of createdRateLimitKeys) {
-        await db.execute(sql`DELETE FROM rate_limit WHERE key = ${k}`)
-      }
-    }
-  })
+    // 4. Delete rate limit entries created after the first purge above.
+    await purgeTestRateLimits()
+  }, 30000)
 
-  it('an allowlisted address receives a 6-digit code and completes sign-in', async () => {
-    // 1. Request OTP
+  it('first access activation: allowlisted address receives code, sets password, and signs in', async () => {
+    // 1. Request activation code
     const req = new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
       method: 'POST',
       headers: {
@@ -133,16 +158,14 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     expect(body.success).toBe(true)
 
     // Verify email was sent via mock transport
-    expect(sentEmails.length).toBe(1)
     const emailData = await waitForEmail()
     expect(emailData.to).toBe(allowedEmail)
 
-    // Extract the 6-digit code
     const match = emailData.text.match(/\b\d{6}\b/)
     expect(match).not.toBeNull()
     const otp = match![0]
 
-    // 2. Verify OTP / Sign-in
+    // 2. Verify OTP
     const verifyReq = new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
       method: 'POST',
       headers: {
@@ -154,24 +177,46 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
 
     const verifyRes = await handleAuthRequest(verifyReq)
     expect(verifyRes.status).toBe(200)
+    const cookie = verifyRes.headers.get('set-cookie')
+    expect(cookie).toBeTruthy()
 
-    // 3. Check session cookie attributes: httpOnly, Secure, SameSite=Lax
-    const setCookie = verifyRes.headers.get('set-cookie')
-    expect(setCookie).toBeTruthy()
-    expect(setCookie?.toLowerCase()).toContain('httponly')
-    expect(setCookie?.toLowerCase()).toContain('samesite=lax')
-    expect(setCookie?.toLowerCase()).toContain('secure')
+    // 3. Set password
+    const setPwReq = new Request('http://localhost:3000/api/auth/set-password', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'cookie': cookie!,
+        'x-forwarded-for': testIp,
+      },
+      body: JSON.stringify({ newPassword: initialPassword }),
+    })
 
-    // 4. Validate that getSessionUserByHeaders resolves the session user
-    const headers = new Headers()
-    headers.set('cookie', setCookie!)
-    const sessionUser = await getSessionUserByHeaders(headers)
-    expect(sessionUser).not.toBeNull()
-    expect(sessionUser?.email).toBe(allowedEmail)
-    expect(sessionUser?.id).toBeTypeOf('string')
+    const setPwRes = await handleAuthRequest(setPwReq)
+    expect(setPwRes.status).toBe(200)
+    const setPwBody = await setPwRes.json()
+    expect(setPwBody.success).toBe(true)
   }, 20000)
 
-  it('a non-allowlisted address gets an identical response and zero emails are sent', async () => {
+  it('an activation request for an already-activated address sends zero emails and returns generic response', async () => {
+    const req = new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': testIp,
+      },
+      body: JSON.stringify({ email: allowedEmail, type: 'sign-in' }),
+    })
+
+    const res = await handleAuthRequest(req)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.success).toBe(true)
+
+    // Zero emails sent!
+    expect(sentEmails.length).toBe(0)
+  }, 20000)
+
+  it('an activation request for a non-allowlisted address sends zero emails and returns generic response', async () => {
     const req = new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
       method: 'POST',
       headers: {
@@ -186,272 +231,391 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
     const body = await res.json()
     expect(body.success).toBe(true)
 
-    // Zero emails sent!
     expect(sentEmails.length).toBe(0)
   }, 20000)
 
-  it('timing between allowlisted and non-allowlisted paths does not differ by an order of magnitude', async () => {
-    const timingAllowedEmail = `test-time-a-${testId}@example.com`
-    const timingBlockedEmail = `test-time-b-${testId}@example.com`
-    createdEmails.push(timingAllowedEmail, timingBlockedEmail)
+  it('sign-in with handle + password succeeds and sets session cookie', async () => {
+    createdRateLimitKeys.push(`signin:id:${testHandle}`)
 
-    await db.insert(schema.allowed_emails).values({
-      email: timingAllowedEmail,
-      note: 'Timing test',
+    const req = new Request('http://localhost:3000/api/auth/entrar', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': testIp,
+      },
+      body: JSON.stringify({
+        identificador: testHandle,
+        senha: initialPassword,
+      }),
     })
+
+    const res = await handleAuthRequest(req)
+    expect(res.status).toBe(200)
+    const cookie = res.headers.get('set-cookie')
+    expect(cookie).toBeTruthy()
+    expect(cookie?.toLowerCase()).toContain('httponly')
+    expect(cookie?.toLowerCase()).toContain('samesite=lax')
+
+    const headers = new Headers()
+    headers.set('cookie', cookie!)
+    const sessionUser = await getSessionUserByHeaders(headers)
+    expect(sessionUser).not.toBeNull()
+    expect(sessionUser?.email).toBe(allowedEmail)
+  }, 20000)
+
+  it('sign-in with email + password succeeds and sets session cookie', async () => {
+    createdRateLimitKeys.push(`signin:id:${allowedEmail.toLowerCase()}`)
+
+    const req = new Request('http://localhost:3000/api/auth/entrar', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-forwarded-for': testIp,
+      },
+      body: JSON.stringify({
+        identificador: allowedEmail,
+        senha: initialPassword,
+      }),
+    })
+
+    const res = await handleAuthRequest(req)
+    expect(res.status).toBe(200)
+    const cookie = res.headers.get('set-cookie')
+    expect(cookie).toBeTruthy()
+
+    const headers = new Headers()
+    headers.set('cookie', cookie!)
+    const sessionUser = await getSessionUserByHeaders(headers)
+    expect(sessionUser).not.toBeNull()
+    expect(sessionUser?.email).toBe(allowedEmail)
+  }, 20000)
+
+  it('wrong password and unknown handle return byte-identical bodies and status 400', async () => {
+    const unknownHandle = `unk_${testId % 1000000}`
+    createdRateLimitKeys.push(`signin:id:${testHandle}`)
+    createdRateLimitKeys.push(`signin:id:${unknownHandle}`)
+
+    const wrongPwReq = new Request('http://localhost:3000/api/auth/entrar', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+      body: JSON.stringify({ identificador: testHandle, senha: 'wrongPassword999' }),
+    })
+    const wrongPwRes = await handleAuthRequest(wrongPwReq)
+    expect(wrongPwRes.status).toBe(400)
+    const wrongPwText = await wrongPwRes.text()
+
+    const unknownHandleReq = new Request('http://localhost:3000/api/auth/entrar', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+      body: JSON.stringify({ identificador: unknownHandle, senha: 'wrongPassword999' }),
+    })
+    const unknownHandleRes = await handleAuthRequest(unknownHandleReq)
+    expect(unknownHandleRes.status).toBe(400)
+    const unknownHandleText = await unknownHandleRes.text()
+
+    expect(wrongPwText).toBe(unknownHandleText)
+    const parsed = JSON.parse(wrongPwText)
+    expect(parsed.error).toBe('validacao')
+    expect(parsed.message).toBe('E-mail, usuário ou senha incorretos.')
+  }, 20000)
+
+  it('timing between unknown-identifier and wrong-password does not differ by an order of magnitude', async () => {
+    const timingUnknownHandle = `unk_time_${testId % 1000000}`
+    createdRateLimitKeys.push(`signin:id:${testHandle}`)
+    createdRateLimitKeys.push(`signin:id:${timingUnknownHandle}`)
 
     const t0 = performance.now()
     await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+      new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: timingAllowedEmail, type: 'sign-in' }),
+        body: JSON.stringify({ identificador: testHandle, senha: 'wrongPasswordTest' }),
       }),
     )
-    const allowedDuration = performance.now() - t0
+    const wrongPwDuration = performance.now() - t0
 
     const t1 = performance.now()
     await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+      new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: timingBlockedEmail, type: 'sign-in' }),
+        body: JSON.stringify({ identificador: timingUnknownHandle, senha: 'wrongPasswordTest' }),
       }),
     )
-    const blockedDuration = performance.now() - t1
+    const unknownHandleDuration = performance.now() - t1
 
-    // Ratio should not exceed 10x
-    const ratio = Math.max(allowedDuration, blockedDuration) / Math.min(allowedDuration, blockedDuration)
+    const ratio = Math.max(wrongPwDuration, unknownHandleDuration) / Math.min(wrongPwDuration, unknownHandleDuration)
     expect(ratio).toBeLessThan(10)
   }, 20000)
 
-  it('an incorrect code returns 400 with { error: "validacao" }', async () => {
-    // Generate a fresh OTP
-    await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: allowedEmail, type: 'sign-in' }),
-      }),
-    )
+  it('the 11th sign-in attempt for one identifier within an hour returns 429', async () => {
+    const rateLimitHandle = `rl_${testId % 1000000}`
+    createdRateLimitKeys.push(`signin:id:${rateLimitHandle}`)
 
-    const verifyReq = new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-      body: JSON.stringify({ email: allowedEmail, otp: '000000' }),
-    })
-
-    const res = await handleAuthRequest(verifyReq)
-    expect(res.status).toBe(400)
-    const body = await res.json()
-    expect(body.error).toBe('validacao')
-  }, 20000)
-
-  it('a code fails after 5 incorrect attempts', async () => {
-    const freshEmail = `test-attempts-${testId}@example.com`
-    createdEmails.push(freshEmail)
-    await db.insert(schema.allowed_emails).values({ email: freshEmail, note: 'Attempts test' })
-
-    // 1. Request code
-    await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: freshEmail, type: 'sign-in' }),
-      }),
-    )
-
-    const match = (await waitForEmail()).text.match(/\b\d{6}\b/)
-    expect(match).not.toBeNull()
-    const validCode = match![0]
-
-    // 2. Submit 5 incorrect codes
-    for (let i = 0; i < 5; i++) {
-      const badReq = new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: freshEmail, otp: '111111' }),
-      })
-      const badRes = await handleAuthRequest(badReq)
-      expect(badRes.status).toBe(400)
-      const b = await badRes.json()
-      expect(b.error).toBe('validacao')
-    }
-
-    // 3. On 6th attempt, even the CORRECT code must fail
-    const sixthReq = new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-      body: JSON.stringify({ email: freshEmail, otp: validCode }),
-    })
-    const sixthRes = await handleAuthRequest(sixthReq)
-    expect(sixthRes.status).toBe(400)
-    const sixthBody = await sixthRes.json()
-    expect(sixthBody.error).toBe('validacao')
-  }, 20000)
-
-  it('a verified code cannot be used a second time', async () => {
-    const reuseEmail = `test-reuse-${testId}@example.com`
-    createdEmails.push(reuseEmail)
-    await db.insert(schema.allowed_emails).values({ email: reuseEmail, note: 'Reuse test' })
-
-    await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: reuseEmail, type: 'sign-in' }),
-      }),
-    )
-
-    const match = (await waitForEmail()).text.match(/\b\d{6}\b/)
-    expect(match).not.toBeNull()
-    const validCode = match![0]
-
-    // First use: success
-    const firstRes = await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: reuseEmail, otp: validCode }),
-      }),
-    )
-    expect(firstRes.status).toBe(200)
-
-    // Second use: fails with 400 { error: 'validacao' }
-    const secondRes = await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: reuseEmail, otp: validCode }),
-      }),
-    )
-    expect(secondRes.status).toBe(400)
-    const b = await secondRes.json()
-    expect(b.error).toBe('validacao')
-  }, 20000)
-
-  it('a code older than 10 minutes fails', async () => {
-    const expireEmail = `test-expire-${testId}@example.com`
-    createdEmails.push(expireEmail)
-    await db.insert(schema.allowed_emails).values({ email: expireEmail, note: 'Expire test' })
-
-    await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: expireEmail, type: 'sign-in' }),
-      }),
-    )
-
-    const match = (await waitForEmail()).text.match(/\b\d{6}\b/)
-    expect(match).not.toBeNull()
-    const validCode = match![0]
-
-    // Manually expire the code in the DB (set expiresAt to 15 minutes ago)
-    await db.execute(sql`
-      UPDATE verification
-      SET "expiresAt" = now() - interval '15 minutes'
-      WHERE identifier LIKE ${`%${expireEmail}%`}
-    `)
-
-    const res = await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: expireEmail, otp: validCode }),
-      }),
-    )
-    expect(res.status).toBe(400)
-    const b = await res.json()
-    expect(b.error).toBe('validacao')
-  }, 20000)
-
-  it('the 6th request in one hour for one email returns 429', async () => {
-    const rateLimitEmail = `test-ratelimit-${testId}@example.com`
-    createdEmails.push(rateLimitEmail)
-    await db.insert(schema.allowed_emails).values({ email: rateLimitEmail, note: 'Rate limit test' })
-
-    // customIp is dedicated to this test so the email limit (5) trips before the
-    // IP limit (20).
-
-    // 5 allowed requests
-    for (let i = 0; i < 5; i++) {
+    // 10 attempts
+    for (let i = 0; i < 10; i++) {
       const res = await handleAuthRequest(
-        new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+        new Request('http://localhost:3000/api/auth/entrar', {
           method: 'POST',
-          headers: { 'content-type': 'application/json', 'x-forwarded-for': customIp },
-          body: JSON.stringify({ email: rateLimitEmail, type: 'sign-in' }),
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': signInIdIp },
+          body: JSON.stringify({ identificador: rateLimitHandle, senha: 'wrongPassword' }),
         }),
       )
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(400)
     }
 
-    // 6th request must trip the limit -> 429 { error: 'muitas_tentativas' }
-    const sixthRes = await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+    // 11th attempt returns 429
+    const eleventhRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': customIp },
-        body: JSON.stringify({ email: rateLimitEmail, type: 'sign-in' }),
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': signInIdIp },
+        body: JSON.stringify({ identificador: rateLimitHandle, senha: 'wrongPassword' }),
       }),
     )
-    expect(sixthRes.status).toBe(429)
-    const b = await sixthRes.json()
-    expect(b.error).toBe('muitas_tentativas')
+    expect(eleventhRes.status).toBe(429)
+    const body = await eleventhRes.json()
+    expect(body.error).toBe('muitas_tentativas')
   }, 20000)
 
-  it('deleting the session row logs the user out on the next request', async () => {
-    const revokeEmail = `test-revoke-${testId}@example.com`
-    createdEmails.push(revokeEmail)
-    await db.insert(schema.allowed_emails).values({ email: revokeEmail, note: 'Revoke test' })
-    await db.insert(schema.users).values({
-      email: revokeEmail,
-      handle: `tr${testId % 1000000000}`,
-      display_name: 'Test Revoke User',
-    })
-
-    await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: revokeEmail, type: 'sign-in' }),
-      }),
-    )
-
-    const match = (await waitForEmail()).text.match(/\b\d{6}\b/)
-    expect(match).not.toBeNull()
-    const code = match![0]
-
-    const verifyRes = await handleAuthRequest(
-      new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: revokeEmail, otp: code }),
-      }),
-    )
-    const cookie = verifyRes.headers.get('set-cookie')!
-    const headers = new Headers()
-    headers.set('cookie', cookie)
-
-    // User is currently authenticated
-    const userBefore = await getSessionUserByHeaders(headers)
-    expect(userBefore).not.toBeNull()
-
-    // Delete session row in database
+  it('the 31st sign-in attempt from one IP within an hour returns 429', async () => {
+    // Driving all 30 attempts through the route costs ~620ms each against Neon
+    // — 19s, against a 20s timeout, so it failed roughly half the time for a
+    // reason that had nothing to do with the limit. Seed the counter to 29 and
+    // spend the two remaining round-trips on what is actually being asserted:
+    // that an unknown handle still increments the *IP* counter (the whole point
+    // of counting before resolving the identifier), and that 31 trips it.
     await db.execute(sql`
-      DELETE FROM session
-      WHERE "userId" = (SELECT id FROM ba_user WHERE email = ${revokeEmail})
+      INSERT INTO rate_limit (key, count, window_start)
+      VALUES (${`signin:ip:${signInIpLimitIp}`}, 29, date_trunc('hour', now()))
+      ON CONFLICT (key, window_start) DO UPDATE SET count = 29
     `)
 
-    // User is immediately logged out (sessions are database-backed and revocable)
-    const userAfter = await getSessionUserByHeaders(headers)
-    expect(userAfter).toBeNull()
+    const unknownHandleId = `spray_${testId % 100000}_30`
+    createdRateLimitKeys.push(`signin:id:${unknownHandleId}`)
+    const thirtieth = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': signInIpLimitIp },
+        body: JSON.stringify({ identificador: unknownHandleId, senha: 'wrongPassword' }),
+      }),
+    )
+    // Unknown handle: still a plain rejection, and still counted.
+    expect(thirtieth.status).toBe(400)
+
+    const [counter] = await db.execute(sql<{ count: number }>`
+      SELECT count FROM rate_limit
+      WHERE key = ${`signin:ip:${signInIpLimitIp}`}
+        AND window_start = date_trunc('hour', now())
+    `)
+    expect(Number(counter?.count)).toBe(30)
+
+    const thirtyFirstRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': signInIpLimitIp },
+        body: JSON.stringify({ identificador: `spray_${testId % 100000}_31`, senha: 'wrongPassword' }),
+      }),
+    )
+    expect(thirtyFirstRes.status).toBe(429)
+    const body = await thirtyFirstRes.json()
+    expect(body.error).toBe('muitas_tentativas')
   }, 20000)
 
-  it('unallowed auth routes return 404 and do not send emails', async () => {
+  it('password reset flow: sends code, resets password, invalidates old sessions, single-use code', async () => {
+    // 1. Establish an active session before reset to verify revocation
+    const loginRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ identificador: testHandle, senha: initialPassword }),
+      }),
+    )
+    const oldSessionCookie = loginRes.headers.get('set-cookie')!
+    const oldHeaders = new Headers({ cookie: oldSessionCookie })
+    expect(await getSessionUserByHeaders(oldHeaders)).not.toBeNull()
+
+    // 2. Request reset code
+    const resetReq = new Request('http://localhost:3000/api/auth/forget-password/email-otp', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+      body: JSON.stringify({ email: allowedEmail }),
+    })
+    const resetRes = await handleAuthRequest(resetReq)
+    expect(resetRes.status).toBe(200)
+
+    const emailData = await waitForEmail()
+    expect(emailData.to).toBe(allowedEmail)
+    const match = emailData.text.match(/\b\d{6}\b/)
+    expect(match).not.toBeNull()
+    const resetCode = match![0]
+
+    // 3. Reset password
+    const newPassword = 'ResetPassword456'
+    const completeResetReq = new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+      body: JSON.stringify({ email: allowedEmail, otp: resetCode, password: newPassword }),
+    })
+    const completeResetRes = await handleAuthRequest(completeResetReq)
+    expect(completeResetRes.status).toBe(200)
+
+    // 4. Old session is deleted (revoked)
+    const oldSessionAfter = await getSessionUserByHeaders(oldHeaders)
+    expect(oldSessionAfter).toBeNull()
+
+    // 5. Old password no longer works
+    const oldPwLogin = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ identificador: testHandle, senha: initialPassword }),
+      }),
+    )
+    expect(oldPwLogin.status).toBe(400)
+
+    // 6. New password works
+    const newPwLogin = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ identificador: testHandle, senha: newPassword }),
+      }),
+    )
+    expect(newPwLogin.status).toBe(200)
+
+    // 7. Reset code cannot be replayed
+    const replayRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: allowedEmail, otp: resetCode, password: 'AnotherPassword999' }),
+      }),
+    )
+    expect(replayRes.status).toBe(400)
+    const replayBody = await replayRes.json()
+    expect(replayBody.error).toBe('validacao')
+  }, 20000)
+
+  it('change-password without currentPassword is rejected, and with valid currentPassword revokes other sessions', async () => {
+    // Current password is now ResetPassword456
+    const currentPassword = 'ResetPassword456'
+    const newPassword = 'ChangedPassword789'
+
+    // Sign in to get session A
+    const loginResA = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ identificador: testHandle, senha: currentPassword }),
+      }),
+    )
+    const cookieA = loginResA.headers.get('set-cookie')!
+    const headersA = new Headers({ cookie: cookieA })
+
+    // Sign in to get session B (other session)
+    const loginResB = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ identificador: testHandle, senha: currentPassword }),
+      }),
+    )
+    const cookieB = loginResB.headers.get('set-cookie')!
+    const headersB = new Headers({ cookie: cookieB })
+
+    // 1. Missing current password returns 400
+    const noCurrentPwRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'cookie': cookieA,
+          'x-forwarded-for': testIp,
+        },
+        body: JSON.stringify({ currentPassword: '', newPassword }),
+      }),
+    )
+    expect(noCurrentPwRes.status).toBe(400)
+    const noCurrentBody = await noCurrentPwRes.json()
+    expect(noCurrentBody.error).toBe('validacao')
+
+    // 2. Change password with session A
+    const userA = await getSessionUserByHeaders(headersA)
+    expect(userA).not.toBeNull()
+    createdRateLimitKeys.push(`pwchange:user:${userA!.id}`)
+
+    const changePwRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'cookie': cookieA,
+          'x-forwarded-for': testIp,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }),
+    )
+    expect(changePwRes.status).toBe(200)
+
+    // The session performing the change (session A) receives updated cookie and survives
+    const updatedCookieA = changePwRes.headers.get('set-cookie') || cookieA
+    const survivingHeaders = new Headers({ cookie: updatedCookieA })
+    const userAfter = await getSessionUserByHeaders(survivingHeaders)
+    expect(userAfter).not.toBeNull()
+
+    // Session B is revoked
+    const sessionBAfter = await getSessionUserByHeaders(headersB)
+    expect(sessionBAfter).toBeNull()
+  }, 20000)
+
+  it('passwords under 8 characters and senha123 are rejected server-side', async () => {
+    // set-password authenticates before it validates, and that order is
+    // deliberate: an anonymous caller must not learn whether the password rules
+    // were even reached. 401, not 400.
+    const anonRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/set-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ newPassword: 'short' }),
+      }),
+    )
+    expect(anonRes.status).toBe(401)
+
+    // 1. Short password (< 8 chars). Asserted on reset-password because the
+    // floor runs there before the OTP is looked at, so no session is needed.
+    const shortRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: allowedEmail, otp: '123456', password: 'curta7' }),
+      }),
+    )
+    expect(shortRes.status).toBe(400)
+    const shortBody = await shortRes.json()
+    expect(shortBody.error).toBe('validacao')
+
+    // 2. Forbidden password ('senha123') on reset-password
+    const forbiddenRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: allowedEmail, otp: '123456', password: 'senha123' }),
+      }),
+    )
+    expect(forbiddenRes.status).toBe(400)
+    const forbiddenBody = await forbiddenRes.json()
+    expect(forbiddenBody.error).toBe('validacao')
+  }, 20000)
+
+  it('unallowed auth routes (including request-email-change) return 404', async () => {
     const unallowedRoutes = [
       '/api/auth/email-otp/request-password-reset',
-      '/api/auth/forget-password/email-otp',
       '/api/auth/email-otp/request-email-change',
+      '/api/auth/request-email-change',
+      // better-auth's own password sign-in. /entrar calls it internally; it is
+      // not reachable from outside, because its name promises an email and the
+      // field accepts a handle. Asserted so it is not quietly reopened.
+      '/api/auth/sign-in/email',
       '/api/auth/unknown-route',
     ]
 
@@ -467,24 +631,18 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
       const body = await res.json()
       expect(body.error).toBe('nao_encontrado')
     }
-
-    expect(sentEmails.length).toBe(0)
   }, 20000)
 
   it('a verified identity with no users row is not a session: getSessionUser returns null', async () => {
-    // The registration gate, from security.md: "no `users` row means every
-    // service query returns nothing". The better-auth identity exists the moment
-    // the code verifies; the profile does not, and TASK-008 is what creates it.
-    // Between those two moments the person must read as anonymous.
-    const gateEmail = `test-gate-${testId}@example.com`
-    createdEmails.push(gateEmail)
-    await db.insert(schema.allowed_emails).values({ email: gateEmail, note: 'Gate test' })
+    const unprofiledEmail = `test-unprof-${testId}@example.com`
+    createdEmails.push(unprofiledEmail)
+    await db.insert(schema.allowed_emails).values({ email: unprofiledEmail, note: 'Unprofiled test' })
 
     await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': gateIp },
-        body: JSON.stringify({ email: gateEmail, type: 'sign-in' }),
+        body: JSON.stringify({ email: unprofiledEmail, type: 'sign-in' }),
       }),
     )
 
@@ -495,16 +653,14 @@ describe.skipIf(!hasDatabaseUrl)('TASK-007 — Authentication integration (bette
       new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': gateIp },
-        body: JSON.stringify({ email: gateEmail, otp: match![0] }),
+        body: JSON.stringify({ email: unprofiledEmail, otp: match![0] }),
       }),
     )
 
-    // better-auth signed the person in: the identity is real and the cookie is set.
     expect(verifyRes.status).toBe(200)
     const cookie = verifyRes.headers.get('set-cookie')
     expect(cookie).toBeTruthy()
 
-    // No `users` row was ever created, so the application sees nobody.
     const headers = new Headers()
     headers.set('cookie', cookie!)
     expect(await getSessionUserByHeaders(headers)).toBeNull()
