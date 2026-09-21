@@ -147,7 +147,7 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `5a8b373`. Lint 0, typecheck 0, **388 tests passing**, `npm run build` clean.
+`develop` at `f13f1fb`. Lint 0, typecheck 0, **393 tests passing**, `npm run build` clean.
 
 **Twenty-three of the twenty-six tasks are merged.** `npm run test` now requires a
 current bundle and says so if it is missing — run `npm run build` first.
@@ -292,6 +292,14 @@ because every one of them looked fine in a diff.
   no matter how the component was loaded. The lazy import only worked once that
   edge was cut. Before splitting a chunk, `grep` for every importer of what you
   are trying to move.
+- **A green suite does not mean the browser console is.** The home page called
+  `setPageLayout` inside `setup()` from the day TASK-018 merged. Lint, typecheck,
+  build and every test passed, and the route test asserted the anonymous shell —
+  which is the one case that never mismatched. A signed-in member got the
+  anonymous shell from the server and the member one from hydration, and the
+  console filled with mismatches on every load. Nothing in the pipeline opens a
+  page as a logged-in user. Until something does, open one by hand after touching
+  a layout or a page's shell.
 - **`getComputedStyle` does not exist on the server.** TASK-025's own
   requirement 4 asked for it to read the colour scale; following it literally
   means an uncoloured first paint or an `onMounted` repaint that flashes. CSS
