@@ -57,12 +57,15 @@
 
       <template v-else>
         <!-- Reading map of countries -->
-        <ReadingMap
-          :country-counts="readingMapData.countryCounts"
-          :selected-country="filterCountry"
-          :unmapped-countries="readingMapData.unmappedCountries"
-          @select="filterCountry = $event"
-        />
+        <ClientOnly>
+          <ReadingMap
+            v-if="showMap"
+            :country-counts="readingMapData.countryCounts"
+            :selected-country="filterCountry"
+            :unmapped-countries="readingMapData.unmappedCountries"
+            @select="filterCountry = $event"
+          />
+        </ClientOnly>
 
         <!-- Filter bar for genre, country, decade, and sorting -->
         <FilterBar
@@ -137,12 +140,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import BookCard from '~/components/book/BookCard.vue'
 import BookGrid from '~/components/book/BookGrid.vue'
 import FilterBar from '~/components/profile/FilterBar.vue'
-import ReadingMap from '~/components/profile/ReadingMap.vue'
 import StatBox from '~/components/profile/StatBox.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
@@ -151,6 +153,8 @@ import { useBookFilters } from '~/composables/useBookFilters'
 import { aggregateReadingMapData } from '~/utils/reading-map'
 import type { ProfileResponse } from '~~/shared/schemas/profile'
 import type { AuthSessionUser } from '~/middleware/auth'
+
+const ReadingMap = defineAsyncComponent(() => import('~/components/profile/ReadingMap.vue'))
 
 const route = useRoute()
 const handle = computed(() => (route.params.handle as string) || '')
@@ -267,6 +271,26 @@ useSeoMeta({
 
 const logs = computed(() => profile.value?.logs || [])
 const readingMapData = computed(() => aggregateReadingMapData(logs.value))
+
+const showMap = ref(false)
+let mediaQueryList: MediaQueryList | null = null
+
+function updateShowMap(e: MediaQueryListEvent | MediaQueryList) {
+  showMap.value = e.matches
+}
+
+onMounted(() => {
+  mediaQueryList = window.matchMedia('(min-width: 601px)')
+  showMap.value = mediaQueryList.matches
+  mediaQueryList.addEventListener('change', updateShowMap)
+})
+
+onUnmounted(() => {
+  if (mediaQueryList) {
+    mediaQueryList.removeEventListener('change', updateShowMap)
+    mediaQueryList = null
+  }
+})
 
 const {
   filterGenre,

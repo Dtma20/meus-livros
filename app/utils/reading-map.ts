@@ -1,4 +1,3 @@
-import { WORLD_MAP_PATHS } from '~/assets/world-map'
 import { formatCountryName, type ProfileLogItem } from '~~/shared/schemas/profile'
 
 export interface AggregatedReadingMapData {
@@ -10,6 +9,8 @@ export interface AggregatedReadingMapData {
   unmappedCountries: string[]
 }
 
+const ISO_3166_1_ALPHA_2_REGEX = /^[A-Z]{2}$/
+
 /**
  * Aggregates country data for the reading map from a list of profile reading logs.
  *
@@ -18,9 +19,9 @@ export interface AggregatedReadingMapData {
  * - Counts 1 book per unique country per log (a book with multiple authors from
  *   different countries counts for both countries; a book with multiple authors
  *   from the same country counts once for that country).
- * - Authors without a valid ISO code in the map geometry (e.g. 'Roma Antiga'
- *   where country_code is null) are excluded from countryCounts but collected
- *   in unmappedCountries for the descriptive note.
+ * - Authors without a valid ISO 3166-1 alpha-2 code (e.g. 'Roma Antiga'
+ *   where country_code is null or malformed) are excluded from countryCounts but
+ *   collected in unmappedCountries for the descriptive note.
  */
 export function aggregateReadingMapData(logs: ProfileLogItem[]): AggregatedReadingMapData {
   const countryCounts: Record<string, number> = {}
@@ -32,7 +33,7 @@ export function aggregateReadingMapData(logs: ProfileLogItem[]): AggregatedReadi
     for (const author of log.work?.authors || []) {
       const rawCode = author.country_code?.trim().toUpperCase()
 
-      if (rawCode && rawCode in WORLD_MAP_PATHS) {
+      if (rawCode && ISO_3166_1_ALPHA_2_REGEX.test(rawCode)) {
         if (!seenCodesInLog.has(rawCode)) {
           seenCodesInLog.add(rawCode)
           countryCounts[rawCode] = (countryCounts[rawCode] || 0) + 1

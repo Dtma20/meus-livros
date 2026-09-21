@@ -363,12 +363,6 @@ function clearSelection() {
   line-height: var(--line-height-normal, 1.5);
 }
 
-@media (max-width: 640px) {
-  .reading-map-card {
-    display: none;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .country-group path,
   .clear-filter-btn {

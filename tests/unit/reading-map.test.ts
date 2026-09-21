@@ -151,6 +151,21 @@ describe('aggregateReadingMapData (unit)', () => {
     expect(result.totalMappedCountries).toBe(2)
     expect(result.unmappedCountries).toEqual(['Roma Antiga'])
   })
+
+  it('excludes authors whose country_code does not match /^[A-Z]{2}$/ from countryCounts and sends to unmappedCountries', () => {
+    const log = createSampleLog({
+      title: 'Obra com Códigos Não Padrão',
+      authors: [
+        { name: 'Autor Código Três Letras', country_code: 'BRA', country_label: 'Brasil' },
+        { name: 'Autor Código Numérico', country_code: '12', country_label: 'Desconhecido' },
+        { name: 'Autor Código Vazio', country_code: '   ', country_label: 'Vazio' },
+      ],
+    })
+    const result = aggregateReadingMapData([log])
+    expect(result.countryCounts).toEqual({})
+    expect(result.totalMappedCountries).toBe(0)
+    expect(result.unmappedCountries).toEqual(['Brasil', 'Desconhecido', 'Vazio'])
+  })
 })
 
 describe('getMapColorTier (unit)', () => {
