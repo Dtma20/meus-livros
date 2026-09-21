@@ -101,7 +101,7 @@ export const auth = betterAuth({
       allowedAttempts: 5,
       sendVerificationOTP: async ({ email, otp, type }) => {
         // OTP codes must never appear in logs — do NOT log otp here.
-        const transport = getTransport()
+        const transport = await getTransport()
         const subject =
           type === 'sign-in' ? 'Seu código de acesso — Meus Livros' : 'Seu código — Meus Livros'
 
@@ -234,6 +234,15 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
         headers: { 'content-type': 'application/json' },
       })
     }
+
+    // Warm nodemailer's module cache before the allowlist branch, so both the
+    // invited and the uninvited address pay its 62 ms first load. getTransport()
+    // moved nodemailer to a dynamic import to keep 1.4 MB out of every
+    // serverless bundle; awaiting it only inside sendVerificationOTP -- which
+    // runs for allowlisted addresses alone -- would hand that 62 ms back as an
+    // enumeration timing signal, which is the very thing the identical 200
+    // below exists to deny. Second call costs 0.06 ms, from cache.
+    await import('nodemailer')
 
     // Allowlist check
     const allowed = await isEmailAllowed(email)
