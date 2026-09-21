@@ -80,17 +80,53 @@ Drizzle parameterises everything. The rules:
 
 ## 4. Authentication
 
+Three flows, one identity. The daily path is `handle` or email + **password**; the six-digit email code survives at exactly two moments — first-access activation and password reset. Rationale in [architecture.md](architecture.md) §3.5.
+
+### 4.1 The credential
+
 | Concern | Control |
 |---|---|
-| Password storage | **None.** There are no passwords. Email OTP only |
+| Password storage | better-auth's default **scrypt** hash, in `account.password`. No plaintext, no reversible encryption, and no hashing code written by this project |
+| Length | Minimum 8, maximum 128 characters. The maximum exists because an unbounded password is a cheap CPU-exhaustion vector against the hash |
+| Composition rules | **None.** No forced symbol, no forced digit, no expiry. They produce `Senha1!` and a note on the fridge, and they are contrary to current NIST guidance |
+| Weak-password floor | A short deny-list of the obvious: `12345678`, `senha123`, `password`, the user's own handle, and the local-part of their email. A breach-corpus check is not worth a dependency at 30 users |
+| Password in logs or errors | Never — not on a validation failure, not in a 500 correlation record, not in a Zod error echo |
+| Transport | HTTPS only. `useSecureCookies` is already unconditional |
+| Changing a password | Requires the **current** password. Otherwise a stolen session upgrades itself into permanent account takeover |
+| After a change or reset | Every **other** session for that user is deleted. The session performing the change survives |
+
+### 4.2 The identifier
+
+`handle` or email, resolved to one `users` row before better-auth is handed a credential.
+
+- `handle` is already unique and already constrained to `^[a-z0-9_]{3,20}$`. It is not a new namespace, and the reserved-handle list in [api.md](api.md) §4 already keeps route names out of it.
+- Both sides of the comparison are case-folded. Email is `citext`; handle is lowercase by constraint.
+- **A failed sign-in never reveals which half was wrong.** One message: `E-mail, usuário ou senha incorretos.` Separate messages turn the login form into an account-enumeration oracle — the same leak the allowlist rules close, arriving through a different door.
+- The failure must not be measurably faster when no account exists. Verify against a dummy hash on the not-found branch rather than returning early.
+
+### 4.3 Activation and reset — where the OTP survives
+
+| Concern | Control |
+|---|---|
 | OTP strength | 6 digits, single use, 10-minute expiry, invalidated on use |
 | OTP brute force | 5 verification attempts per code, then the code dies. 5 code requests per email per hour |
-| Session storage | better-auth database sessions; httpOnly + Secure + SameSite=Lax; 30-day rolling |
-| Revocation | Database-backed sessions are revocable. This is why we did not use a stateless sealed cookie |
-| Registration | `allowed_emails` checked **twice**: at code request and at profile creation |
-| Enumeration | Requesting a code for a non-allowlisted address returns the **same** status, body and approximate timing. Never "este email não foi convidado" |
+| Registration | `allowed_emails` checked **twice**: at activation-code request and at profile creation. Unchanged by the password decision |
+| Enumeration | Requesting an activation or reset code for an address that is not allowlisted — or simply not known — returns the **same** status, body and approximate timing. Never "este email não foi convidado", and never "não existe conta com este e-mail" |
+| Already-activated address | An *activation* request for an address that already has a password sends nothing and returns the same generic response. Otherwise the endpoint reports which invitees have signed up |
+| Reset-code consumption | The code is consumed by the password change, not by its verification. Verifying and then abandoning the flow must not leave a usable code behind |
+| Reset without an account | Same generic response, no email. A reset request is not a membership test |
 
 **A better-auth identity exists the moment the OTP verifies, before any `users` row.** The real gate is therefore that **no `users` row means every service query returns nothing** — there is no orphan state that can read data. A weekly manual check for identities with no profile is enough at this scale; automate it only if it ever produces a hit.
+
+**The third state.** An address is now *not invited*, *invited but not activated*, or *active*. Nothing user-facing may distinguish the last two.
+
+### 4.4 Sessions
+
+| Concern | Control |
+|---|---|
+| Session storage | better-auth database sessions; httpOnly + Secure + SameSite=Lax; 30-day rolling |
+| Revocation | Database-backed sessions are revocable. This is why we did not use a stateless sealed cookie |
+| Fixation | A fresh session token is issued on every successful sign-in, activation and reset |
 
 ---
 
@@ -143,7 +179,9 @@ A Postgres table, not Redis. At this scale a counter row is correct and adding R
 
 | Action | Limit |
 |---|---|
-| OTP request | 5 / email / hour, 20 / IP / hour |
+| **Password sign-in** | **10 / identifier / hour and 30 / IP / hour.** Both are required. Per-identifier alone lets one host spray one likely password across every handle; per-IP alone lets a distributed attacker grind a single account |
+| **Password change** | 10 / user / hour |
+| Activation or reset code request | 5 / email / hour, 20 / IP / hour |
 | OTP verify | 5 attempts / code |
 | `POST /api/logs` | 60 / user / hour |
 | `POST /api/works` | 30 / user / hour |
@@ -186,7 +224,7 @@ The external-lookup limit protects **Open Library**, not us — hammering a free
 - `500` responses carry a fixed Portuguese message and a correlation id. Never a stack trace, never a database error.
 - Postgres errors are caught and mapped: unique violation → `409`, FK violation → `400`. The raw `detail` is logged, never returned — it contains column values.
 - Nuxt dev-mode error overlays must not be reachable in production. Verify `NODE_ENV=production` on Vercel.
-- Logs redact email addresses beyond the first character and never contain OTP codes or session tokens.
+- Logs redact email addresses beyond the first character and never contain passwords, password hashes, OTP codes or session tokens. A rejected sign-in logs the outcome, never the submitted secret.
 
 ---
 
@@ -210,7 +248,11 @@ Registration is invite-only and the cohort knows each other offline, so the ordi
 - [ ] The four visibility integration tests pass
 - [ ] A `privado` entry returns 404, not 403, for a second user
 - [ ] Rating validation rejects `3.7` and `6` server-side
-- [ ] Requesting an OTP for a non-allowlisted address is indistinguishable from an allowlisted one
+- [ ] Requesting an activation or reset code for a non-allowlisted address is indistinguishable from an allowlisted one
+- [ ] A sign-in with an unknown handle and one with a wrong password return the same body and comparable timing
+- [ ] Changing a password without supplying the current one is rejected
+- [ ] A password change deletes the user's other sessions and keeps the current one
+- [ ] No password, hash or OTP value appears anywhere in log output
 - [ ] No secret appears in `runtimeConfig.public` or in any client bundle (grep the build output)
 - [ ] CSP header present on every response
 - [ ] Session cookie is httpOnly, Secure, SameSite=Lax

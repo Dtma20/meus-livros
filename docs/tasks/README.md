@@ -1,6 +1,6 @@
 # Implementation tasks
 
-26 tasks. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
+27 tasks. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
 
 **Read [../README.md](../README.md) first.** The two blocking questions in [../open-questions.md](../open-questions.md) were settled on 2026-09-19 — Q2 resolved, Q1's risk accepted with a mitigation due before [023](023-deploy-to-vercel.md). 001 is complete.
 
@@ -16,7 +16,7 @@
 | [004](004-initial-migration-and-genre-seed.md) | Initial migration + genre seed | 1 Data | 2h | 003 |
 | [005](005-port-design-tokens-and-components.md) | Port design tokens and base components | 0 Foundation | 4h | 001 |
 | [006](006-layout-and-routing-shell.md) | Layouts and routing shell | 0 Foundation | 2h | 005 |
-| [007](007-auth-email-otp.md) | better-auth + email OTP + allowlist | 2 Identity | 4h | 004 |
+| [007](007-auth-email-otp.md) | better-auth + email OTP + allowlist *(partially superseded by 027)* | 2 Identity | 4h | 004 |
 | [008](008-profile-creation.md) | Profile creation and handle selection | 2 Identity | 3h | 007 |
 | [009](009-catalog-services.md) | Catalog services + ISBN normalisation | 3 Catalog | 3h | 004 |
 | [010](010-local-search.md) | Local catalog search | 3 Catalog | 3h | 009 |
@@ -36,8 +36,9 @@
 | [024](024-security-hardening-pass.md) | Security hardening pass | 7 Hardening | 3h | 017, 023 |
 | [025](025-reading-map.md) | Reading map *(should-have)* | 8 Optional | 4h | 016 |
 | [026](026-search-misses-instrumentation.md) | `search_misses` instrumentation | 8 Optional | 1h | 010 |
+| [027](027-password-sign-in.md) | Password sign-in; OTP narrowed to activation and reset | 2 Identity | 5h | 007, 008 |
 
-Roughly 74 hours of focused work — about four weeks part-time.
+Roughly 79 hours of focused work — about four weeks part-time.
 
 ---
 
@@ -53,6 +54,7 @@ graph TD
 
     T004 --> T007[007 auth OTP]
     T007 --> T008[008 profile creation]
+    T008 --> T027[027 password sign-in]
 
     T004 --> T009[009 catalog services]
     T009 --> T010[010 local search]
@@ -121,7 +123,7 @@ With two people: one takes 002→004→007→008, the other 005→006→009→01
 |---|---|---|
 | 0 Foundation | 001, 005, 006 | Nuxt runs, tokens ported, layouts exist |
 | 1 Data | 002, 003, 004 | Schema is live in Neon with genres seeded |
-| 2 Identity | 007, 008 | A real person can sign in and own a handle |
+| 2 Identity | 007, 008, 027 | A real person can sign in and own a handle |
 | 3 Catalog | 009–012 | A book can be found or added |
 | 4 Reading | 013, 017 | A book can be logged, and privacy holds |
 | 5 Distribution | 014, 015, 016, 018 | Links preview correctly in WhatsApp |

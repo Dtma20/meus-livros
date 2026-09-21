@@ -69,7 +69,7 @@ Full detail in [docs/architecture.md](docs/architecture.md). Summary:
 | Hosting | Vercel Hobby, region `gru1` |
 | Database | **Neon** Postgres (not Supabase — Supabase free pauses after 7 days and needs a manual restore) |
 | Query layer | Drizzle ORM + `postgres.js` |
-| Auth | better-auth, **email OTP** via Resend (not Google OAuth — it 403s inside WhatsApp's WebView) |
+| Auth | better-auth, **`handle`-or-email + password**; email OTP (Gmail SMTP) kept only for first-access activation and password reset. Not Google OAuth — it 403s inside WhatsApp's WebView; not OTP-per-sign-in — it forces an app switch out of that same WebView on every session expiry |
 | Authorization | Server-side helper, **no RLS** |
 | Search | Local Postgres `ILIKE` (Open Library averages 8.4s and has 40% coverage of Brazilian editions) |
 | Analytics | One `search_misses` table |

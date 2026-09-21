@@ -2,7 +2,7 @@
 
 **What we're building:** a small social reading platform in Brazilian Portuguese — "Letterboxd for books" — for the owner's ~30-person university friend group. Read → log → rate/review → share to WhatsApp → someone else discovers → logs their own.
 
-**Status:** implementation under way. Eight of 26 tasks are merged — scaffold, database, schema, migration, design system, routing shell, catalog services and search. The database holds the 86 migrated books. Current state and what is still in flight: [agent-workflow.md](agent-workflow.md) §5.
+**Status:** implementation under way. Twenty-three of 27 tasks are merged — scaffold, database, schema, migration, design system, routing shell, catalog services and search. The database holds the 86 migrated books. Current state and what is still in flight: [agent-workflow.md](agent-workflow.md) §5.
 
 ---
 
@@ -37,7 +37,7 @@ The product discovery that preceded all of this is in [product-discovery.md](pro
 | Hosting | **Vercel Hobby** (free, non-commercial) | Zero-config Nitro preset, full Node runtime, region `gru1` (São Paulo) |
 | Database | **Neon free** Postgres | Resumes automatically in <1s after idle. Supabase free *pauses after 7 days and needs a manual dashboard click* — unacceptable for a project with intermittent use |
 | Query layer | **Drizzle ORM** + `postgres.js` | Real SQL, real TypeScript types, migrations versioned in git |
-| Auth | **better-auth**, email OTP via **Gmail SMTP** (`nodemailer`) | Google OAuth returns `403 disallowed_useragent` inside WhatsApp's Android WebView — it breaks in the exact channel this product lives in |
+| Auth | **better-auth**, `handle`-or-email + **password**; email OTP via **Gmail SMTP** (`nodemailer`) kept for activation and password reset | Google OAuth returns `403 disallowed_useragent` inside WhatsApp's Android WebView. OTP survived that but forced an app switch on every sign-in inside the same WebView — a password is filled by the phone's password manager and keeps Gmail off the critical path |
 | Registration gate | **Email allowlist** table | Invite-only without codes, cookies, claim races or an admin UI |
 | Authorization | **Server code**, no RLS | All access already passes through trusted server routes; RLS would be a second mental model for zero added safety |
 | Search | **Local Postgres `ILIKE`** over an unaccented generated column | ~1,500 rows. Open Library search averages **8.4s** and is unusable synchronously (measured — see below) |
@@ -116,7 +116,7 @@ meus-livros/
 | `/@{handle}` | yes | SSR | Profile: poster grid, filters, stats |
 | `/livro/{slug}` | yes | SSR | Work page + everyone's público entries for it |
 | `/entrada/{id}` | yes | SSR | **The review permalink — the object that gets pasted into WhatsApp** |
-| `/entrar` | yes | SSR | Email OTP sign-in |
+| `/entrar` | yes | SSR | Sign-in: `handle` or email + password |
 | `/app/**` | no | SSR, `no-store` | Authenticated: log a book, edit profile |
 
 Only the four public routes carry Open Graph tags. There is no sitemap and no SEO work — the channel is a group chat, not Google.

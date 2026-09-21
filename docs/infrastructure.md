@@ -6,7 +6,7 @@ Three managed services, all free, nothing self-operated.
 GitHub (source) ──push──> Vercel Hobby (build + SSR, region gru1)
                                 │
                                 ├──> Neon Postgres (free)
-                                └──> Gmail SMTP (free, OTP email only)
+                                └──> Gmail SMTP (free; activation + password-reset codes only)
 ```
 
 No Docker in production. No VPS. No Kubernetes. No CI runner executing migrations. No staging environment.
@@ -87,7 +87,7 @@ The one thing that *is* local: `npm run db:studio` (Drizzle Studio) for inspecti
 
 - Sent via Nodemailer over Gmail SMTP (`smtp.gmail.com:465`).
 - Authenticated with a Google Account App Password (`GMAIL_APP_PASSWORD`).
-- Free tier: 500 emails/day per standard Gmail account. One sign-in is one email; 30 friends cannot approach it.
+- Free tier: 500 emails/day per standard Gmail account. **Signing in sends no email** — only first-access activation and password reset do, so 30 friends produce a handful of messages a month.
 
 ---
 

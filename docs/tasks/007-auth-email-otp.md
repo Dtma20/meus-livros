@@ -1,5 +1,9 @@
 # TASK-007 — better-auth + email OTP + allowlist
 
+> **Partially superseded by [TASK-027](027-password-sign-in.md).** This task is merged and everything in it was built. What changed afterwards is *when* the code is used: the daily sign-in became `handle`-or-email + password, and the six-digit code was narrowed to first-access activation and password reset. The OTP mechanism, the allowlist gate, the identical-response rule, the Postgres rate limiter and the deny-by-default `/api/auth/**` allowlist all survive unchanged — TASK-027 changes what sits in front of them.
+>
+> **This file is history. Do not edit it to match the new design; read [TASK-027](027-password-sign-in.md) and [architecture.md](../architecture.md) §3.5 for what is true now.** The "Explicitly excluded → Password auth" line below is the specific item that was reversed.
+
 ## Goal
 
 Authentication by one-time code sent to email, restricted to allowlisted addresses.

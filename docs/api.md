@@ -36,23 +36,46 @@ Public pages fetch nothing from these endpoints — they are server-rendered dir
 
 ## 2. Authentication
 
-better-auth mounts its own handler. We do not hand-write sign-in.
+better-auth mounts its own handler. We do not hand-write sign-in, password hashing or session issuance.
 
 ```
-ALL  /api/auth/**          → better-auth handler (email OTP)
+ALL  /api/auth/**          → better-auth handler (password + email OTP)
 ```
 
-| Step | Behaviour |
-|---|---|
-| Request code | `POST /api/auth/sign-in/email-otp` with `{ email }`. **Before sending, check `allowed_emails`.** If absent, return `200` with a generic body and send nothing |
-| Verify | `POST /api/auth/sign-in/email-otp/verify` with `{ email, otp }`. On success, sets a session cookie |
-| First sign-in | No `users` row yet → the app redirects to `/app/bem-vindo` to choose a handle and display name |
+The daily credential is a **password**; the six-digit email code is kept for first-access activation and for password reset only. Reasoning in [architecture.md](architecture.md) §3.5.
 
-**Account enumeration.** Requesting a code for an email that is not on the allowlist must return the **same** status, body and approximate timing as one that is. Whether an address is invited is not public information.
+**`/api/auth/**` denies by default.** better-auth's plugins register more routes than this product uses, several of which send email with no rate limit and no allowlist check. An explicit path allowlist answers `404` to everything not in the table below. Adding one exception per plugin route is the wrong shape — the next upgrade reopens the hole.
 
-**Rate limiting.** 5 code requests per email per hour and 20 per IP per hour, held in a Postgres table (no Redis). Exceeding either returns `429`.
+### 2.1 The flows
 
-**Sessions.** better-auth database sessions, httpOnly + Secure + SameSite=Lax cookie, 30-day expiry with rolling refresh. Database-backed rather than a sealed stateless cookie specifically so a session can be revoked server-side.
+| Flow | Route | Behaviour |
+|---|---|---|
+| **Activation — request code** | `POST /api/auth/email-otp/send-verification-otp` `{ email }` | Rate limit, then **check `allowed_emails`**. Not allowlisted, unknown, *or already activated* → `200` with a generic body and nothing sent |
+| **Activation — complete** | `POST /api/auth/sign-in/email-otp` `{ email, otp }`, then `POST /api/auth/set-password` `{ newPassword }` | The code issues the session; the session sets the first password. Two better-auth routes behind one screen |
+| **Sign-in (the daily path)** | `POST /api/auth/sign-in/email` `{ email, password }` | Fronted by a resolver that turns a `handle` into its email before delegating. The client sends one `identificador` field |
+| **Reset — request code** | `POST /api/auth/forget-password/email-otp` `{ email }` | Previously 404'd by the deny list; now opened, behind the same rate limit and the same generic response |
+| **Reset — complete** | `POST /api/auth/email-otp/reset-password` `{ email, otp, password }` | Sets the new password and revokes the user's other sessions |
+| **Change password** | `POST /api/auth/change-password` `{ currentPassword, newPassword, revokeOtherSessions: true }` | Session required. The current password is mandatory |
+| **Session / sign out** | `GET /api/auth/get-session`, `POST /api/auth/sign-out` | Unchanged |
+
+`request-email-change` stays denied. Nothing in the MVP changes an email address.
+
+**First sign-in.** A verified identity with no `users` row is redirected to `/app/bem-vindo` to choose a handle and display name — unchanged.
+
+### 2.2 Failure shapes
+
+| Case | Status | Body |
+|---|---|---|
+| Unknown identifier **or** wrong password | `400` | `{ error: 'validacao', message: 'E-mail, usuário ou senha incorretos.' }` — **one message for both cases** |
+| Invalid or expired code | `400` | `{ error: 'validacao', message: 'Código inválido ou expirado.' }` |
+| The new password fails the rules | `400` | `{ error: 'validacao' }` naming the rule, in pt-BR. This one *is* safe to be specific about: it describes the submitted input, not the account |
+| Any rate limit | `429` | `{ error: 'muitas_tentativas' }` |
+
+**Account enumeration.** Requesting a code for an address that is not on the allowlist must return the same status, body and approximate timing as one that is. Whether an address is invited — and whether it has already activated — is not public information. The same rule binds sign-in: the not-found branch verifies against a dummy hash instead of returning early, so a nonexistent handle is not measurably faster than a wrong password.
+
+**Rate limiting.** A Postgres table, no Redis. 10 sign-in attempts per identifier per hour and 30 per IP per hour; 5 code requests per email per hour and 20 per IP per hour. Exceeding any of them returns `429`. Full table in [security.md](security.md) §8.
+
+**Sessions.** better-auth database sessions, httpOnly + Secure + SameSite=Lax cookie, 30-day expiry with rolling refresh. Database-backed rather than a sealed stateless cookie specifically so a session can be revoked server-side — which is also what makes "sign out everywhere else" implementable on a password change.
 
 ---
 
@@ -111,7 +134,7 @@ Rules that make it hold:
 - Accented input is transliterated client-side and shown to the user before submit (`João` → `joao`), never silently.
 - Idempotent: a second call by a user who already has a profile returns `409`.
 
-**Security:** this endpoint is the real registration gate. A better-auth identity exists the moment the OTP verifies, *before* any profile is created — so the gate is that **no `users` row means every service query returns nothing**. Verify allowlist membership here as well as at code-request time.
+**Security:** this endpoint is the real registration gate. A better-auth identity exists the moment the activation code verifies, *before* any profile is created — so the gate is that **no `users` row means every service query returns nothing**. Verify allowlist membership here as well as at code-request time.
 
 ### Search
 

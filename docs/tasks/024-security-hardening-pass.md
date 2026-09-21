@@ -44,7 +44,7 @@ server/utils/rate-limit.ts   (applied)
 4. Apply every rate limit from [security.md](../security.md) §8 and verify each fires.
 5. **Secret audit**: build, then grep `.vercel/output/static` for each secret's value. Any hit is a blocking failure.
 6. **Error audit**: force a 500, a Postgres unique violation, and a Zod failure. Confirm responses carry the documented shapes and no internals. Confirm unique violations map to 409, not 500.
-7. **Log audit**: confirm OTP codes, session tokens and full email addresses never appear in logs.
+7. **Log audit**: confirm passwords, password hashes, OTP codes, session tokens and full email addresses never appear in logs.
 8. `cover_url` scheme validation verified against `javascript:` and `data:text/html`.
 9. **Close the `v-html` gap.** `vue/no-v-html` only sees templates. Add a rule banning `innerHTML`, `outerHTML`, `insertAdjacentHTML` and `domProps.innerHTML` in `.ts`/`.vue` scripts, then verify it fires. CLAUDE.md bans HTML injection repository-wide; today only half of that is enforced.
 9. Confirm request bodies are capped at 64 KB.
@@ -70,7 +70,8 @@ Work through [security.md](../security.md) §13 item by item, recording evidence
 - [ ] The four visibility tests pass against production
 - [ ] A privado entry returns 404, not 403, to a second account
 - [ ] `rating: 3.7` and `rating: 6` are rejected server-side
-- [ ] An OTP request for a non-allowlisted address is indistinguishable in status, body and timing
+- [ ] An activation or reset code request for a non-allowlisted address is indistinguishable in status, body and timing
+- [ ] A sign-in with an unknown identifier is indistinguishable in status, body and timing from one with a wrong password
 - [ ] No secret appears in the built client bundle
 - [ ] CSP present on every response
 - [ ] Session cookie httpOnly + Secure + SameSite=Lax
@@ -88,7 +89,7 @@ Plus: each rate limit verified by exceeding it and observing 429.
 - [ ] The secret grep over the client bundle finds nothing
 - [ ] A duplicate ISBN returns 409, not 500
 - [ ] A cross-origin POST with credentials is rejected
-- [ ] OTP codes appear in no log output
+- [ ] No password, hash or OTP code appears in log output
 - [ ] The four visibility tests pass against the production deployment
 - [ ] A written summary of the audit is added to the PR
 

@@ -35,6 +35,14 @@ six concurrent `-high` runs that emptied the hourly quota.
 Attempt 1 at medium → attempt 2 at medium → **attempt 3 at high** → the reviewer
 finishes it by hand.
 
+**The exception, owner's call on 2026-09-21: a task running alone may start at
+high.** The quota argument in §3 is about *concurrency*, not about effort — what
+emptied the hourly quota was six simultaneous `-high` runs, not one. When the
+queue holds a single task and nothing else is in flight, starting at high costs
+nothing that a correction round would not cost anyway, and a correction round
+also costs the reviewer a second review. TASK-027 was launched this way. The
+medium-first default still holds the moment two or more runs overlap.
+
 Still stop and ask when a finding genuinely needs the owner's judgement: cost, a
 scope change, or an external credential.
 
@@ -98,7 +106,8 @@ A **derailed** run is not an exhausted quota. Re-run the same model once before 
 
 | Model | Where | Notes |
 |---|---|---|
-| `gemini-3.8-flash-medium` | `agy --model` | **The default for attempts 1 and 2.** `-high` is not better as a default and burns the hourly quota far faster — six concurrent `-high` runs exhausted it mid-batch and cost three tasks their run. `-high` is reserved for **the third and last attempt** on a task that failed twice at medium (§1). Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
+| `gemini-3.8-flash-medium` | `agy --model` | **The default whenever two or more runs overlap.** `-high` burns the hourly quota far faster — six concurrent `-high` runs exhausted it mid-batch and cost three tasks their run. Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
+| `gemini-3.8-flash-high` | `agy --model ... --effort high` | **Attempt 3 on a task that failed twice at medium, or attempt 1 on a task running alone** (§1). The constraint was always concurrency, not effort. |
 | `claude-sonnet-4-6` | `agy --model` | Fallback. Much longer quota reset (hours). |
 | `grok-4.6` | `grok --always-approve --prompt-file` | Free on the owner's machine, and the only model in this chain whose CLI takes the prompt from a file — which sidesteps the shell-quoting damage that `-p "$(cat ...)"` does to backslashes and backticks. Logged in via grok.com. |
 | `opencode/muse-spark-1.3-contributor-free` | `opencode run --auto -m` | Last resort. **Free in exchange for Meta training on prompts and completions** — do not point it at anything sensitive. **Delete `.env` from the worktree before launching it and restore it afterwards** (see below). Strong at coding: it found the `ILIKE` wildcard escaping bug, a `UNION` duplicating rows, and a missing `UNIQUE (key, window_start)` that would have made OTP rate limiting fail silently. |
@@ -149,8 +158,10 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 `develop` at `f13f1fb`. Lint 0, typecheck 0, **393 tests passing**, `npm run build` clean.
 
-**Twenty-three of the twenty-six tasks are merged.** `npm run test` now requires a
+**Twenty-three of the twenty-seven tasks are merged.** `npm run test` now requires a
 current bundle and says so if it is missing — run `npm run build` first.
+
+**[027](tasks/027-password-sign-in.md) is new and not started.** It moves the daily sign-in from a one-time email code to `handle`-or-email + password, keeping the code for activation and reset. It rewrites shipped auth code, so it is not a delegatable greenfield task — see the decision note below.
 
 | Merged | |
 |---|---|
@@ -163,7 +174,7 @@ current bundle and says so if it is missing — run `npm run build` first.
 | 009 | Catalog services, ISBN normalisation, two POST endpoints |
 | 010 | Local search over the generated column |
 | 019 | The 86 books, 60 authors, 86 editions, 86 reading logs |
-| 007 | Email OTP sign-in, allowlist gate, Postgres rate limiting |
+| 007 | Email OTP sign-in, allowlist gate, Postgres rate limiting *(sign-in half superseded by 027, not yet implemented)* |
 | 008 | Profile creation, handle rules, the `/app/**` profile gate |
 | 013 | Log a book: create, edit, delete, with draft persistence |
 | 011 | Manual add-book flow |
@@ -180,9 +191,14 @@ current bundle and says so if it is missing — run `npm run build` first.
 
 ### Waiting
 
-Nothing is in flight, and **the delegatable queue is empty**. The three that
-remain are the owner's: 022 is blocked on repository visibility, 023 needs a
-Vercel account, 024 depends on 023.
+Nothing is in flight. **The delegatable queue holds one task: [027](tasks/027-password-sign-in.md).**
+It is not greenfield — it rewrites merged auth code, and its security criteria
+(identical failure bodies, comparable timing, revoking other sessions) are the
+kind an agent reports as passing without having checked. Delegate it only with
+the diff read line by line, or take it yourself.
+
+The other three are the owner's: 022 is blocked on repository visibility,
+023 needs a Vercel account, 024 depends on 023.
 
 **An agent run can also derail, not just fail.** The TASK-013 correction round returned exit 0 with a report block replaced by unrelated prose scraped from somewhere else, having made a single one-line edit. The worktree diff is the only thing that tells you this; the exit code and the report both said nothing was wrong. Diff before reading anything else.
 
@@ -339,6 +355,25 @@ because every one of them looked fine in a diff.
 6. **TASK-022 vs. repository visibility.** `Dtma20/meus-livros` is public. A `pg_dump` artifact inherits that visibility and contains every member's email address. Make the repository private, or put the backup workflow in a separate private repository. Until this is decided, 022 should not run even once.
 7. **The OTP email is sent without awaiting it, and Vercel may not let it finish.** This is the deliberate trade against the enumeration-timing requirement: awaiting SMTP makes an invited address answer measurably slower than an uninvited one. On a long-lived server the send completes; on Vercel's serverless runtime, work started after the response is not guaranteed to run, and neither h3 1.15 nor Nitro's Vercel preset exposes `waitUntil` (it exists only in the Cloudflare presets). Three ways out, in increasing cost: accept the risk and watch for missing codes; await the send and accept the timing signal; or move OTP delivery to a route that is allowed to be slow. **Decide this before TASK-023, not after** — the symptom is a code that silently never arrives.
 
+### Decision taken after the merge window — sign-in moves to a password
+
+**2026-09-21. The daily sign-in becomes `handle` or email + password; the six-digit code is kept for first-access activation and password reset.** Recorded in [architecture.md](architecture.md) §3.5, specified in [tasks/027](tasks/027-password-sign-in.md).
+
+Two things forced it, and neither is a dislike of OTP:
+
+1. **The app switch.** A member taps a link in WhatsApp, lands in Android's WebView, and to sign in has to leave for a mail client, wait on Gmail, copy six digits and come back — to a WebView that may have reloaded. That is the activation funnel's most fragile step, and with a 30-day session it recurs on every expiry, not just at registration. A password is returned by the phone's password manager behind a fingerprint.
+2. **Gmail SMTP was on the critical path of every sign-in.** It is a free-tier sender with no verified domain. Demoting it to activation-and-reset removes it from the path that has to work every time.
+
+**What this does to the open problems below:** item 7 — the fire-and-forget SMTP send that Vercel may not let finish — stops being a per-sign-in risk and becomes a per-activation and per-reset one. It does not go away, and it must still be decided before TASK-023; a code that silently never arrives during first access is worse than one that never arrives during a routine sign-in, because there is no signed-in state to fall back to.
+
+**What it does not change:** OAuth stays ruled out on the `403 disallowed_useragent` finding. The allowlist keeps its role. The email-OTP plugin stays installed — it is the reset mechanism and the documented fallback.
+
+**The cost, so nobody rediscovers it as a surprise:** account recovery becomes a flow we own, brute force becomes a real threat against a long-lived secret (hence the mandatory sign-in rate limit in [security.md](security.md) §8), and a third account state appears — *invited but not activated*.
+
 ### Next
 
-TASK-008, profile creation — it is what turns a verified identity into a `users` row, and without it nobody but the owner can do anything. Then 013.
+[TASK-027](tasks/027-password-sign-in.md), password sign-in. It is the last
+functional change before the owner-blocked deployment tasks, and it should land
+**before** 023 rather than after: the WhatsApp-WebView acceptance criterion and
+the Vercel fire-and-forget SMTP question (item 7 above) are the same question
+asked twice, and 027 changes how much each one costs.

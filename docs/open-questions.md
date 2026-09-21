@@ -92,7 +92,7 @@ Listed plainly so nobody treats them as established.
 | Reading is a weekly-to-monthly behaviour | 86 books over 13 years ≈ 6.6/year, recently 12–16 | Retention targets and the whole analytics frame are miscalibrated |
 | A community-built catalog beats Open Library here | Measured: 40% coverage, 8.4 s latency | If manual add has too much friction, logging fails at the first step. **`search_misses` is the instrument** |
 | ~1,500 works makes `ILIKE` fast enough | Arithmetic, not measurement | Trivially fixable with a `tsvector` column |
-| Email OTP is acceptable friction | Google OAuth verifiably fails in WhatsApp's WebView | If a 6-digit code is too much friction, add OAuth *as a second option* — never as the only one |
+| A password is acceptable friction, and less than a code per sign-in | Google OAuth verifiably fails in WhatsApp's WebView; a per-sign-in code forces an app switch out of that same WebView | If members forget passwords faster than the reset flow absorbs, the fallback is the *previous* design — OTP as a second sign-in option beside the password, not instead of it. Measurable from the reset-request count |
 | Vercel Hobby's non-commercial terms cover this | Free, ad-free, 30 friends | **If it is ever monetised, Vercel Pro is mandatory.** Not a grey area |
 | Neon free compute suffices | 100 CU-h vs an estimated 10–20 | Visible in the dashboard long before it bites |
 | `publico` as the default will not be widely overridden | Inference | If many entries go `privado`, the two-level model is fighting the social loop and a "só membros" tier deserves reconsideration |
@@ -124,7 +124,7 @@ The discovery documents are historical context. Four of their recommendations we
 | Discovery said | We do | Evidence |
 |---|---|---|
 | Supabase | **Neon** | Supabase free pauses after 7 days and needs a *manual dashboard restore*; Neon resumes automatically in <1 s |
-| Google OAuth as primary sign-in | **Email OTP** | Google returns `403 disallowed_useragent` in WhatsApp's Android WebView — it breaks in the distribution channel |
+| Google OAuth as primary sign-in | **Password (`handle` or email), with email OTP for activation and reset** | Google returns `403 disallowed_useragent` in WhatsApp's Android WebView — it breaks in the distribution channel. OTP-per-sign-in replaced it, then was itself narrowed: it forced an app switch out of that WebView on every session expiry, and put Gmail delivery on the critical path of every sign-in |
 | RLS enforces visibility | **Server-side helper** | RLS is mandatory when a browser talks to PostgREST. Nothing does here; it would be a second authorization model for zero added safety |
 | Open Library as the catalog, with manual add as a fallback | **Community catalog; Open Library as optional enrichment** | 40% coverage of Brazilian editions, 8.4 s average search latency |
 

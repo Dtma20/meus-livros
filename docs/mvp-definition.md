@@ -26,7 +26,7 @@ Each item below breaks the loop if absent.
 
 | # | Feature | Why the loop breaks without it |
 |---|---|---|
-| 1 | **Email-OTP sign-in gated by an allowlist** | No identity, no author, no profile, nothing attributable. Google OAuth cannot be used: it returns `403 disallowed_useragent` inside WhatsApp's Android WebView — it fails in the exact channel |
+| 1 | **Password sign-in (`handle` or email), activation gated by an allowlist and a one-time email code** | No identity, no author, no profile, nothing attributable. Google OAuth cannot be used: it returns `403 disallowed_useragent` inside WhatsApp's Android WebView — it fails in the exact channel. A one-time code per sign-in also failed there, more quietly: it forces an app switch out of the WebView every time a session expires |
 | 2 | **Schema: `users`, `works`, `editions`, `authors`, `genres`, `reading_logs`** | The only thing genuinely expensive to change later. `reading_logs` as the atomic unit gives dated entries and re-reads for free |
 | 3 | **Local catalog search + prominent manual add** | The first action of every new user is "log the book I just finished". Open Library holds only 40% of Brazilian editions and averages 8.4 s, so it cannot serve this. Manual add is a primary path |
 | 4 | **Log a book: date, half-star rating, optional plain-text review; editable, deletable** | The core creative act, and the only content-generating feature. Everything else is a view over its output |
@@ -86,7 +86,9 @@ Cut deliberately. Each would be defensible at a different scale; none is defensi
 - The four visibility integration tests pass
 - A `privado` entry returns **404**, not 403, to a second user
 - Rating validation rejects `3.7` and `6` server-side
-- OTP requests for non-allowlisted addresses are indistinguishable from allowlisted ones
+- Activation and reset code requests for non-allowlisted addresses are indistinguishable from allowlisted ones
+- A sign-in with an unknown identifier and one with a wrong password are indistinguishable
+- Passwords are scrypt-hashed by better-auth; no password, hash or code reaches a log
 - No secret in the client bundle (verified by grepping the build output)
 - CSP present; session cookie httpOnly + Secure + SameSite=Lax
 
@@ -110,7 +112,7 @@ Cut deliberately. Each would be defensible at a different scale; none is defensi
 ### Reliability
 
 - Open Library down → the product works, degraded to local + manual
-- Resend down → sign-in fails; existing sessions (30 days) keep working
+- Gmail SMTP down → **sign-in still works**; only first-access activation and password reset fail. Existing sessions (30 days) are untouched
 - Neon cold resume < 1 s
 - A restore from `pg_dump` has been performed successfully at least once
 

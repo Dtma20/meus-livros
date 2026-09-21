@@ -18,7 +18,7 @@ flowchart TB
     end
 
     A -->|"postgres.js over TLS<br/>Drizzle ORM"| N[("Neon Postgres<br/>free tier · sa-east-1")]
-    A -->|"OTP emails only"| R["Gmail SMTP (nodemailer)"]
+    A -->|"activation + password-reset<br/>codes only"| R["Gmail SMTP (nodemailer)"]
     A -.->|"optional enrichment<br/>2s timeout, never blocking"| OL["Open Library API"]
     B -.->|"direct hotlink, no proxy"| C["covers.openlibrary.org"]
 
@@ -111,24 +111,58 @@ Drizzle wins on three concrete things this project needs: TypeScript types deriv
 
 **Connection note:** serverless functions must not hold a pool. Configure `postgres(url, { max: 1 })` and let Neon's pooled connection string do the pooling. Use the **pooled** endpoint for the app and the **direct** endpoint for migrations and `pg_dump`.
 
-### 3.5 Authentication — better-auth with email OTP
+### 3.5 Authentication — better-auth, password sign-in behind an OTP gate
 
-**Recommendation: better-auth, email one-time codes delivered by Gmail SMTP (via nodemailer). No OAuth in the MVP.**
+**Recommendation: better-auth. Daily sign-in is `handle` or email + password. Email one-time codes stay, narrowed to two moments — first-access activation and password reset. No OAuth in the MVP.**
 
-This overturns the discovery documents, which specified Google OAuth as primary. The reason is decisive:
+This decision has been reversed twice, for two unrelated reasons. Keep them apart.
+
+**Why not OAuth — unchanged, and still decisive:**
 
 > **Google returns `403: disallowed_useragent` for OAuth initiated inside an embedded WebView**, a policy in force since 2017 and fully enforced since 2021. WhatsApp's Android in-app browser is such a WebView. Brazil is overwhelmingly Android.
 
-The distribution channel is WhatsApp. Sign-in that fails inside WhatsApp fails at the exact moment of activation. The workarounds — user-agent sniffing, an "abra no navegador" interstitial, `intent://` links to Chrome — are three pieces of fragile machinery guarding a path that a 6-digit email code simply does not have.
+The distribution channel is WhatsApp. Sign-in that fails inside WhatsApp fails at the exact moment of activation. Nothing about the password decision reopens this.
 
-Email OTP works in every browser, embedded or not. It also collapses the registration gate into the same field: **the allowlist is a table of emails, and the login identifier is an email.** One concept.
+**Why OTP stopped being the daily path.** Email OTP works in every browser, embedded or not. What it cannot do is work *without leaving the browser*:
+
+| Step | Email OTP | Password |
+|---|---|---|
+| Tap a `/entrada/{id}` link in WhatsApp | WebView opens | WebView opens |
+| Enter identifier | email, typed | handle or email, autofilled |
+| **Leave the app** | switch to the mail client, wait for delivery, copy six digits, switch back — and the WebView may have reloaded the page meanwhile | — |
+| Enter secret | six digits, typed | filled by the OS password manager behind fingerprint or Face ID |
+| Failure modes on the critical path | Gmail delivery, spam/promotions classification, SMTP latency, WebView reload on app switch | none; the secret never leaves the device |
+
+The app switch is the most fragile step in the activation funnel, and with a 30-day session it recurs on every expiry — not only at registration. A password moves it off the critical path: after the first sign-in, Google Password Manager, iCloud Keychain and Samsung Pass all offer the credential back behind biometrics.
+
+The second gain is architectural. Under OTP, **Gmail SMTP sits on the critical path of every sign-in** — a free-tier dependency, with no custom domain, whose deliverability rides on Gmail's reputation (see the sending-provider note below, which is why that is not fixable cheaply). Under a password it becomes a rare path: once at activation, and occasionally at reset.
+
+**Why this is a small change and not a new subsystem.** better-auth's own migration (`0002_better_auth.sql`) already creates `account.password`; better-auth hashes with scrypt by default, so no hashing code is written here. `users.handle` already exists, unique, with its `^[a-z0-9_]{3,20}$` constraint. The credential itself needs no schema migration.
+
+**The three flows, and which one owns the invite gate:**
+
+| Flow | Identifier | Secret | `allowed_emails` checked? |
+|---|---|---|---|
+| Activation (first access) | email | 6-digit OTP, then the user sets a password | **Yes — this is the gate** |
+| Sign-in (the daily path) | `handle` **or** email | password | No; an account exists only because activation passed |
+| Password reset | email | 6-digit OTP, then a new password | Yes, the same check as activation |
+
+The allowlist keeps exactly the role it had. What widens is the *daily* identifier: `handle` is a lookup in `users`, not a second identity concept.
+
+**What this costs, stated plainly:**
+
+1. **Account recovery becomes a feature we own.** OTP had none to build — the mailbox *was* the credential. A password needs a reset path. It is the same OTP machinery aimed at a different moment, so the cost is a flow, not a mechanism.
+2. **Brute force becomes a real threat.** The only guessable secret used to be a six-digit code that died after five attempts and ten minutes. A password is long-lived. This is why the sign-in rate limit in [security.md](security.md) §8 is mandatory rather than an optimisation, and why a failed sign-in must not distinguish "no such account" from "wrong password".
+3. **A third account state appears.** An allowlisted address can now be *invited but not yet activated*. OTP had only invited / not invited. Every place that reasoned over two states has to handle three.
 
 | Alternative | Why not |
 |---|---|
+| Keep OTP as the only path | The app switch above, on every session expiry, inside a WebView that may reload |
+| Password only, deleting OTP entirely | Nothing would then validate the allowlist at first access, and a forgotten password would need the maintainer to run SQL by hand. The OTP code already exists and is already rate-limited; removing it buys nothing and costs the recovery path |
 | Google OAuth | Fails in the WhatsApp WebView. Also needs a Google Cloud project and a published consent screen (unpublished apps expire refresh tokens every 7 days) |
-| Magic links | Same idea, worse ergonomics: the link opens in a different browser than the one that requested it, orphaning the session. A 6-digit code is copy-pasteable |
-| Supabase Auth | Moot once Supabase is out. Its built-in mailer is also capped at 2 messages/hour project-wide |
-| Roll our own sessions | No |
+| Magic links | The link opens in a different browser than the one that requested it, orphaning the session |
+| Passkeys | The right destination, the wrong decade for this cohort. Cross-device sync is still uneven on the Android versions this group runs, and the fallback is a password anyway |
+| Roll our own sessions or password hashing | No |
 
 **Sending-provider reversal (Resend → Gmail SMTP):**
 
@@ -137,9 +171,9 @@ The original specification named Resend. It was reversed after real sends failed
 1. `The gmail.com domain is not verified` — Resend requires a DNS-verified sending domain (SPF/DKIM). The maintainer owns no domain for this project and sends from an `@gmail.com` address, whose DNS belongs to Google.
 2. `You can only send testing emails to your own email address` — without a verified domain, Resend blocks every recipient except the account holder.
 
-The product authenticates directly against **Gmail SMTP via `nodemailer`**, using a Google app password (`GMAIL_APP_PASSWORD`). Because Google’s own infrastructure does the sending, SPF and DKIM pass naturally. A personal Gmail account allows 500 messages/day — ample for a cohort of ~30.
+The product authenticates directly against **Gmail SMTP via `nodemailer`**, using a Google app password (`GMAIL_APP_PASSWORD`). Because Google's own infrastructure does the sending, SPF and DKIM pass naturally. A personal Gmail account allows 500 messages/day — ample for a cohort of ~30, and far more so now that email is off the daily path.
 
-**The cost of this choice, stated plainly:** with no dedicated domain, deliverability rides on Gmail’s reputation and a code can land in the recipient’s promotions tab or spam folder. If the project ever acquires a domain, moving to a dedicated transactional provider is worth revisiting.
+**The cost of this choice, stated plainly:** with no dedicated domain, deliverability rides on Gmail's reputation and a code can land in the recipient's promotions tab or spam folder. Moving sign-in to a password does not fix that — it demotes it, from a per-sign-in risk to a per-activation and per-reset one. If the project ever acquires a domain, moving to a dedicated transactional provider is worth revisiting.
 
 ### 3.6 Authorization — server code, not RLS
 
@@ -240,6 +274,6 @@ The last nine are *product* deferrals from [mvp-definition.md](mvp-definition.md
 | SSR with no cache | p95 TTFB > 800ms | Add ISR on the four public routes, with on-demand revalidation |
 | No follows | ~200 users | Add a `follows` table and a feed filter; purely additive |
 | No merge tooling for duplicate works | ~50 duplicates | Build a merge UI; until then, hand-written SQL |
-| Gmail SMTP (500 emails/dia) | ~500 sign-ins/dia | Domínio próprio + provedor transacional dedicado (ex: Resend com DNS configurado) |
+| Gmail SMTP (500 e-mails/dia) | ~500 ativações + redefinições de senha por dia. O login diário não envia e-mail | Domínio próprio + provedor transacional dedicado (ex: Resend com DNS configurado) |
 
 None of these is engineered around today. Each is a monitored number with a known response.

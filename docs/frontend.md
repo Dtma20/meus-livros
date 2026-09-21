@@ -6,7 +6,7 @@ Nuxt 4, Vue 3 `<script setup>`, TypeScript. No component library, no CSS framewo
 
 ## 1. Routes
 
-Six route shapes. Four are public and carry Open Graph tags; two are authenticated.
+Eleven route shapes. Four carry Open Graph tags; four are authenticated; three are the sign-in flows.
 
 | Route | Auth | Rendering | Indexable | Purpose |
 |---|---|---|---|---|
@@ -14,7 +14,9 @@ Six route shapes. Four are public and carry Open Graph tags; two are authenticat
 | `/@[handle]` | optional | SSR + **OG** | — | Profile: poster grid, filters, stat counters, map |
 | `/livro/[slug]` | optional | SSR + **OG** | — | Work page: metadata + everyone's visible entries |
 | `/entrada/[id]` | optional | SSR + **OG** | — | **The review permalink. The object pasted into WhatsApp** |
-| `/entrar` | public | SSR | no | Email OTP sign-in |
+| `/entrar` | public | SSR | no | Sign-in: `handle` or email + password |
+| `/entrar/ativar` | public | SSR | no | First access: email → 6-digit code → choose a password |
+| `/entrar/senha` | public | SSR | no | Forgot password: email → 6-digit code → new password |
 | `/app/bem-vindo` | session | SSR | no | Choose handle + display name (first sign-in only) |
 | `/app/novo` | session | SSR | no | Log a book |
 | `/app/entrada/[id]/editar` | session + owner | SSR | no | Edit an entry |

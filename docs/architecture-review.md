@@ -34,7 +34,9 @@ Several things were removed on that basis. They are listed here so nobody adds t
 | **Soft deletes** | Auditability | Hard deletes plus `pg_dump`. Soft deletes put `WHERE deleted_at IS NULL` on every query forever |
 | **A 15-event analytics taxonomy** | Product insight | One `search_misses` table. Most proposed events are already columns: `signed_up` is `users.created_at`, `book_logged` is `reading_logs.created_at` |
 | **`ui-avatars.com`** | Placeholder covers | Inline SVG data URI. Ten lines, no third party, works offline and inside WhatsApp's WebView |
-| **Google OAuth + a WebView interstitial + `intent://` links** | Sign-in | Email OTP. Three pieces of fragile machinery replaced by one that simply works everywhere |
+| **Google OAuth + a WebView interstitial + `intent://` links** | Sign-in | A password, with an email code for activation and reset. Three pieces of fragile machinery replaced by the one credential every phone already stores |
+| **Passkeys / WebAuthn** | Sign-in without a password | A password. Cross-device passkey sync is still uneven on the Android versions this cohort runs, and the fallback for every gap is a password anyway — so passkeys add a second path without removing the first |
+| **A password-strength meter and a breach-corpus check** | Password quality | A length floor and a five-entry deny-list. `zxcvbn` is ~400 KB into the client bundle to police a cohort of thirty |
 | **A keep-alive cron + monitoring for that cron** | Keeping the DB awake | Choosing Neon. One decision deleted four moving parts |
 
 ---
@@ -75,7 +77,7 @@ Raw `postgres.js` would work. Drizzle earns its place on migration tooling — v
 
 ### better-auth rather than hand-rolled sessions
 
-Never hand-roll auth. The alternative — a cookie, a sessions table, OTP generation, expiry, rate limiting, revocation — is a week of work and the highest-consequence code in the app.
+Never hand-roll auth. The alternative — a cookie, a sessions table, scrypt parameters, OTP generation, expiry, rate limiting, revocation, "log out my other devices" — is more than a week of work and the highest-consequence code in the app. The move from a one-time code to a password made this pay for itself a second time: `account.password` and the hashing already existed.
 
 ### `search_misses`
 
@@ -114,7 +116,8 @@ Each is a monitored number with a known, pre-decided response. None is built tod
 | Logs > ~100k | Cursor pagination everywhere, cached aggregates | No |
 | > ~50 duplicate works | A merge UI and `merged_into_id` | No |
 | Public registration | **Moderation tooling first. Hard gate** | No |
-| > 100 sign-ins/day | Resend paid, or add OAuth as a second option | No |
+| > 100 activations or resets/day | A domain plus a paid transactional sender | No |
+| Members lock themselves out faster than reset absorbs | Re-add OTP as a *second* sign-in option beside the password | No — the plugin is still installed |
 | Hand-reading logs stops working | Sentry | No |
 
 **Nothing on this list requires rewriting the application.** That is the actual test of whether an architecture is appropriately simple: not that it scales, but that each ceiling has a local fix.
@@ -127,7 +130,7 @@ Each is a monitored number with a known, pre-decided response. None is built tod
 |---|---|---|
 | Neon → any managed Postgres | Yes | A connection string |
 | Vercel → Netlify / Cloudflare / a VPS | Yes | Nitro preset change + env vars |
-| Resend → any SMTP | Yes | One better-auth adapter function |
+| Gmail SMTP → any other sender | Yes | One `nodemailer` transport, behind `setTransport()` |
 | Open Library → Google Books | Yes | One service file. It is already isolated behind `/api/search/externo` and is non-blocking by design |
 | Drizzle → Kysely / raw SQL | Mostly | Queries rewrite; the schema and migrations survive |
 | better-auth → anything else | Painful | Owns its own tables. Accepted — this is why it was not hand-rolled |
