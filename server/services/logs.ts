@@ -156,7 +156,14 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
         slug: works.slug,
         first_published_year: works.first_published_year,
         cover_url: sql<string | null>`(
-          SELECT e.cover_url FROM editions e WHERE e.work_id = works.id AND e.cover_url IS NOT NULL LIMIT 1
+          -- ORDER BY is what makes this deterministic. LIMIT 1 without it
+          -- returns whatever row the plan yields first, so SSR and a client
+          -- refetch can disagree on which cover this work has -- including the
+          -- Open Graph image, which is read once by a crawler that never
+          -- revisits.
+          SELECT e.cover_url FROM editions e
+          WHERE e.work_id = works.id AND e.cover_url IS NOT NULL
+          ORDER BY e.created_at, e.id LIMIT 1
         )`,
       },
       edition: {
