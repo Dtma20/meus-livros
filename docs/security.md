@@ -52,19 +52,26 @@ No entities, no other markup, no formatting. The reviews are plain Portuguese pr
 | Cover URLs | **Validated on write**: must parse as a URL with an `https:` scheme. This blocks `javascript:` and `data:` in `<img src>` |
 | Error messages | Never echo raw input back into HTML |
 
-**Content-Security-Policy**, set in Nuxt's route rules:
+**Content-Security-Policy**, set in Nuxt's route rules. Implemented 2026-09-21; what ships is below, and it differs from what this section asked for in two places. Both differences were measured against the real build, and the policy as originally written could not ship:
 
 ```
 default-src 'self';
-img-src 'self' https://covers.openlibrary.org data:;
-script-src 'self';
+img-src 'self' https: data:;
+script-src 'self' 'unsafe-inline';
 style-src 'self' 'unsafe-inline';
+object-src 'none';
 frame-ancestors 'none';
 base-uri 'self';
 form-action 'self'
 ```
 
-`img-src` is deliberately narrow. If arbitrary `cover_url` values are ever allowed from outside Open Library, this must widen — and widening it is a reviewable event, which is the point.
+**`script-src` carries `'unsafe-inline'`, and `script-src 'self'` breaks the application.** Nuxt's production HTML ships an inline `<script type="importmap">` and an inline bootstrap `<script>` — confirmed by serving the real build and reading the markup. Without `'unsafe-inline'` the importmap is refused, module resolution fails, and the page renders from SSR but never hydrates: it looks correct and is dead. Nonces are the right answer and need a module this project has not taken on. What the directive still buys was verified in a browser: an injected `<script src="https://example.com/…">` is refused with `script-src-elem`. And the XSS route it would arrive through is already shut — `v-html` is banned repo-wide and ESLint-enforced, and reviews are plain text through `{{ }}`.
+
+**`img-src` is `https:`, not the single Open Library host.** This section predicted the widening — and by the time it was implemented the condition had already been true for months without anyone noticing: `coverUrlSchema` accepts any `https:` host, and the real corpus draws 47 of its 86 covers from **eleven** of them. Shipping the narrow policy would have blanked those 47 covers on the first deploy, with no error in any log. Pinning the eleven was rejected: any member can add a book, so a new host becomes a silently broken cover until someone edits `nuxt.config.ts`. What `https:` concedes is real and small inside an invite-only group — a member could point a cover at their own server and learn who viewed that book — and the write-side `https:` validation remains the actual control.
+
+**Restoring `img-src 'self'` means proxying covers through the app.** That is the honest path back, and it would also collapse the twelve TLS handshakes a profile page currently opens. It is infrastructure this MVP does not need, and it is the natural companion to the moderation tooling that gates opening registration.
+
+The lesson for the next directive written here: a policy written before the code exists is a hypothesis. Serve the build and read the markup before committing it to a document that someone will later apply verbatim.
 
 ---
 
@@ -252,10 +259,10 @@ Registration is invite-only and the cohort knows each other offline, so the ordi
 - [ ] A sign-in with an unknown handle and one with a wrong password return the same body and comparable timing
 - [ ] Changing a password without supplying the current one is rejected
 - [ ] A password change deletes the user's other sessions and keeps the current one
-- [ ] No password, hash or OTP value appears anywhere in log output
+- [x] No password, hash or OTP value appears anywhere in log output — and email addresses are redacted too, which the SMTP failure path was not doing
 - [ ] No secret appears in `runtimeConfig.public` or in any client bundle (grep the build output)
-- [ ] CSP header present on every response
+- [x] CSP header present on every response — verified in a browser: header served on `/(.*)`, the page hydrates, a third-party cover loads, and an injected external script is refused with `script-src-elem`
 - [ ] Session cookie is httpOnly, Secure, SameSite=Lax
-- [ ] `cover_url` rejects `javascript:` and `data:` schemes
+- [x] `cover_url` rejects `javascript:` and `data:` schemes — one predicate now, in `shared/schemas/work.ts`; there were three and two were laxer
 - [ ] A 500 response contains no stack trace in production
 - [ ] `pg_dump` backup has been restored once, successfully, into a scratch database
