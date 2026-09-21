@@ -30,47 +30,74 @@ async function assembleWorkDetails(
   work: WorkBaseRow,
   viewer: Viewer,
 ): Promise<WorkWithDetails> {
-  // 1. Authors in assigned display order
-  const authorsList = await db
-    .select({
-      id: authors.id,
-      name: authors.name,
-      slug: authors.slug,
-      country_code: authors.country_code,
-      country_label: authors.country_label,
-    })
-    .from(work_authors)
-    .innerJoin(authors, eq(authors.id, work_authors.author_id))
-    .where(eq(work_authors.work_id, work.id))
-    .orderBy(work_authors.position)
+  // Four independent reads, all keyed by a work.id known before the first of
+  // them. Serialised they were five sequential round trips per page, and the
+  // crawler that builds the WhatsApp preview reads the first response.
+  // With max: 1 in postgres.js, pipelining dispatches all four queries
+  // without waiting for each response, eliminating three round-trip latencies.
+  const [authorsList, genresList, editionsList, logsList] = await Promise.all([
+    // 1. Authors in assigned display order
+    db
+      .select({
+        id: authors.id,
+        name: authors.name,
+        slug: authors.slug,
+        country_code: authors.country_code,
+        country_label: authors.country_label,
+      })
+      .from(work_authors)
+      .innerJoin(authors, eq(authors.id, work_authors.author_id))
+      .where(eq(work_authors.work_id, work.id))
+      .orderBy(work_authors.position),
 
-  // 2. Genres
-  const genresList = await db
-    .select({
-      id: genres.id,
-      slug: genres.slug,
-      label_pt: genres.label_pt,
-    })
-    .from(work_genres)
-    .innerJoin(genres, eq(genres.id, work_genres.genre_id))
-    .where(eq(work_genres.work_id, work.id))
-    .orderBy(genres.id)
+    // 2. Genres
+    db
+      .select({
+        id: genres.id,
+        slug: genres.slug,
+        label_pt: genres.label_pt,
+      })
+      .from(work_genres)
+      .innerJoin(genres, eq(genres.id, work_genres.genre_id))
+      .where(eq(work_genres.work_id, work.id))
+      .orderBy(genres.id),
 
-  // 3. Editions
-  const editionsList = await db
-    .select({
-      id: editions.id,
-      isbn13: editions.isbn13,
-      publisher: editions.publisher,
-      page_count: editions.page_count,
-      published_year: editions.published_year,
-      language: editions.language,
-      cover_url: editions.cover_url,
-      ol_cover_id: editions.ol_cover_id,
-    })
-    .from(editions)
-    .where(eq(editions.work_id, work.id))
-    .orderBy(editions.published_year, editions.created_at)
+    // 3. Editions
+    db
+      .select({
+        id: editions.id,
+        isbn13: editions.isbn13,
+        publisher: editions.publisher,
+        page_count: editions.page_count,
+        published_year: editions.published_year,
+        language: editions.language,
+        cover_url: editions.cover_url,
+        ol_cover_id: editions.ol_cover_id,
+      })
+      .from(editions)
+      .where(eq(editions.work_id, work.id))
+      .orderBy(editions.published_year, editions.created_at),
+
+    // 4. Visible reading logs for this work, newest first
+    // Enforces visibleLogs(viewer) with innerJoin on users
+    db
+      .select({
+        id: reading_logs.id,
+        rating: reading_logs.rating,
+        review: reading_logs.review,
+        finished_on: reading_logs.finished_on,
+        created_at: reading_logs.created_at,
+        user: {
+          id: users.id,
+          handle: users.handle,
+          display_name: users.display_name,
+        },
+      })
+      .from(reading_logs)
+      .innerJoin(users, eq(users.id, reading_logs.user_id))
+      .where(and(eq(reading_logs.work_id, work.id), visibleLogs(viewer)))
+      .orderBy(desc(reading_logs.created_at)),
+  ])
 
   // Best available cover from editions
   const bestCoverEdition = editionsList.find((e) => e.cover_url)
@@ -89,26 +116,6 @@ async function assembleWorkDetails(
       coverUrl = `https://covers.openlibrary.org/b/isbn/${clean}-L.jpg?default=false`
     }
   }
-
-  // 4. Visible reading logs for this work, newest first
-  // Enforces visibleLogs(viewer) with innerJoin on users
-  const logsList = await db
-    .select({
-      id: reading_logs.id,
-      rating: reading_logs.rating,
-      review: reading_logs.review,
-      finished_on: reading_logs.finished_on,
-      created_at: reading_logs.created_at,
-      user: {
-        id: users.id,
-        handle: users.handle,
-        display_name: users.display_name,
-      },
-    })
-    .from(reading_logs)
-    .innerJoin(users, eq(users.id, reading_logs.user_id))
-    .where(and(eq(reading_logs.work_id, work.id), visibleLogs(viewer)))
-    .orderBy(desc(reading_logs.created_at))
 
   // Aggregate stats: strictly over visible logs
   const logCount = logsList.length
