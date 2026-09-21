@@ -38,7 +38,6 @@ function createSampleLog(overrides: {
   return {
     id: overrides.id ?? `log-${Math.random().toString(36).slice(2)}`,
     rating: 4,
-    review: null,
     started_on: null,
     finished_on: '2024-01-01',
     finished_precision: 'dia',

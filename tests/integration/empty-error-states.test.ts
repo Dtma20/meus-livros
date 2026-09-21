@@ -33,7 +33,6 @@ function createSampleLog(overrides: Partial<ProfileLogItem> & {
   return {
     id: overrides.id ?? `log-${Math.random().toString(36).slice(2)}`,
     rating: overrides.rating !== undefined ? overrides.rating : 4,
-    review: overrides.review ?? 'Ótimo livro',
     started_on: null,
     finished_on: '2024-01-01',
     finished_precision: 'dia',
@@ -52,7 +51,6 @@ function createSampleLog(overrides: Partial<ProfileLogItem> & {
     edition: {
       id: 'ed-1',
       isbn13: '9788598078397',
-      publisher: 'Editora',
       page_count: 250,
       published_year: 2020,
       cover_url: null,
