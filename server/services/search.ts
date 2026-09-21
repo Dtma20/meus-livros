@@ -59,10 +59,8 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
   // literal the backslash is written doubled: '\\' renders as '\' in SQL.)
   const escaped = escapeLikeWildcards(term)
 
-  // Single-pass query: one scan of works with an author join, DISTINCT to
-  // collapse multi-author duplicates (the ranking flags depend only on the
-  // work itself). A UNION of title-matches + author-matches would emit the
-  // same work twice with different flags.
+  // Single-pass query: one scan of works using EXISTS for author match to avoid
+  // fan-out from multi-author works and avoid needing DISTINCT in matched.
   const rows = await db.execute<{
     id: string
     slug: string
@@ -84,7 +82,7 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
         f_unaccent(lower(${escaped})) AS pattern
     ),
     matched AS (
-      SELECT DISTINCT
+      SELECT
         w.id,
         w.slug,
         w.title,
@@ -92,10 +90,13 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
         (w.search_text = (SELECT norm FROM q)) AS exact_title_match,
         (w.search_text LIKE (SELECT pattern FROM q) || '%' ESCAPE '\\') AS title_prefix_match
       FROM works w
-      LEFT JOIN work_authors wa ON wa.work_id = w.id
-      LEFT JOIN authors a ON a.id = wa.author_id
       WHERE w.search_text ILIKE '%' || (SELECT pattern FROM q) || '%' ESCAPE '\\'
-        OR f_unaccent(lower(a.name)) ILIKE '%' || (SELECT pattern FROM q) || '%' ESCAPE '\\'
+        OR EXISTS (
+          SELECT 1 FROM work_authors wa
+          JOIN authors a ON a.id = wa.author_id
+          WHERE wa.work_id = w.id
+            AND f_unaccent(lower(a.name)) ILIKE '%' || (SELECT pattern FROM q) || '%' ESCAPE '\\'
+        )
     ),
     ranked AS (
       SELECT
@@ -105,7 +106,9 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
         m.first_published_year,
         m.exact_title_match,
         m.title_prefix_match,
-        COUNT(DISTINCT rl.id)::int AS log_count
+        -- DISTINCT is not needed: matched produces exactly one row per work,
+        -- so each rl.id appears at most once per group.
+        COUNT(rl.id)::int AS log_count
       FROM matched m
       LEFT JOIN (reading_logs rl JOIN users ru ON ru.id = rl.user_id)
         ON rl.work_id = m.id
@@ -117,7 +120,7 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
       ORDER BY
         m.exact_title_match DESC,
         m.title_prefix_match DESC,
-        COUNT(DISTINCT rl.id) DESC,
+        COUNT(rl.id) DESC,
         m.title ASC
       LIMIT ${LIMIT}
     )
