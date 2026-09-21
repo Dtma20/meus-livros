@@ -103,8 +103,14 @@ describe('isValidCoverUrl', () => {
     expect(isValidCoverUrl('https://covers.example.com/img.jpg')).toBe(true)
   })
 
-  it('accepts http URLs', () => {
-    expect(isValidCoverUrl('http://covers.example.com/img.jpg')).toBe(true)
+  // Was `accepts http URLs`, asserting true. security.md §4 states one rule
+  // for cover URLs — "must parse as a URL with an `https:` scheme" — and the
+  // write path has always enforced it, so no stored value can be `http:`
+  // anyway: all 47 covers in the real corpus are https. The assertion was
+  // encoding a third, laxer rule for the Open Graph image path, where an
+  // `http:` image on an https page is mixed content.
+  it('rejects http URLs', () => {
+    expect(isValidCoverUrl('http://covers.example.com/img.jpg')).toBe(false)
   })
 
   it('rejects empty, null, or non-string', () => {

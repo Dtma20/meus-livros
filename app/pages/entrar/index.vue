@@ -75,6 +75,7 @@
 </template>
 
 <script setup lang="ts">
+import { getSafeRedirectUrl } from '~/utils/redirect'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AuthSessionState } from '~/middleware/auth'
@@ -88,13 +89,6 @@ const senha = ref('')
 const showPassword = ref(false)
 const errorMessage = ref('')
 const loading = ref(false)
-
-function getSafeRedirectUrl(nextParam: unknown): string {
-  if (typeof nextParam === 'string' && nextParam.startsWith('/') && !nextParam.startsWith('//')) {
-    return nextParam
-  }
-  return '/'
-}
 
 async function handleSignIn() {
   errorMessage.value = ''

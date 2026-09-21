@@ -1,3 +1,4 @@
+import { isHttpsCoverUrl } from '~~/shared/schemas/work'
 import type { BookFormat, DatePrecision, LogWithDetails } from '~~/shared/schemas/log'
 
 /**
@@ -45,15 +46,7 @@ export function buildOgDescription(
  * Validates if a URL is a valid absolute HTTP or HTTPS URL.
  */
 export function isValidCoverUrl(url: string | null | undefined): boolean {
-  if (!url || typeof url !== 'string') return false
-  const trimmed = url.trim()
-  if (!trimmed) return false
-  try {
-    const parsed = new URL(trimmed)
-    return parsed.protocol === 'https:' || parsed.protocol === 'http:'
-  } catch {
-    return false
-  }
+  return isHttpsCoverUrl(url)
 }
 
 /**

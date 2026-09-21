@@ -12,16 +12,37 @@ import { z } from 'zod'
  * rejected too — the only data URI the product renders is the placeholder that
  * BookCover generates itself.
  */
+/**
+ * The one cover-URL rule, for the write path and both read paths.
+ *
+ * There were three, and all three disagreed: this schema required `https:`,
+ * `BookCover.vue` also allowed `data:`, and `app/utils/entry.ts` — which feeds
+ * the Open Graph image — also allowed `http:`, with a unit test asserting that
+ * as intended. `security.md` §4 states one rule for all of them: "must parse as
+ * a URL with an `https:` scheme. This blocks `javascript:` and `data:` in
+ * `<img src>`." Three predicates for one documented rule means two of them are
+ * wrong and nobody knows which.
+ *
+ * `data:` is not needed by the placeholder BookCover generates: that value is
+ * returned straight to `<img src>` and never passes through here. The CSP does
+ * allow `data:` in `img-src` for exactly that reason.
+ */
+export function isHttpsCoverUrl(url: string | null | undefined): boolean {
+  if (typeof url !== 'string') return false
+  const trimmed = url.trim()
+  if (!trimmed) return false
+  try {
+    return new URL(trimmed).protocol === 'https:'
+  }
+  catch {
+    return false
+  }
+}
+
 export const coverUrlSchema = z
   .string()
   .max(2000)
-  .refine((value) => {
-    try {
-      return new URL(value).protocol === 'https:'
-    } catch {
-      return false
-    }
-  }, { message: 'A URL da capa precisa começar com https://' })
+  .refine(isHttpsCoverUrl, { message: 'A URL da capa precisa começar com https://' })
 
 /**
  * Signed year. The corpus contains -500 (Esopo), so a positive-only check

@@ -10,6 +10,7 @@
 </template>
 
 <script setup lang="ts">
+import { isHttpsCoverUrl } from '~~/shared/schemas/work'
 import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
@@ -75,25 +76,13 @@ function generatePlaceholderSvg(title?: string | null): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 }
 
-function isValidCoverUrl(url: string | null | undefined): boolean {
-  if (!url || typeof url !== 'string') return false
-  const trimmed = url.trim()
-  if (!trimmed) return false
-  try {
-    const parsed = new URL(trimmed)
-    return parsed.protocol === 'https:' || parsed.protocol === 'data:'
-  } catch {
-    return false
-  }
-}
-
 const currentSrc = computed(() => {
   if (failed.value) {
     return generatePlaceholderSvg(props.title)
   }
 
   if (props.coverUrl) {
-    if (isValidCoverUrl(props.coverUrl)) {
+    if (isHttpsCoverUrl(props.coverUrl)) {
       return props.coverUrl.trim()
     }
     return generatePlaceholderSvg(props.title)
