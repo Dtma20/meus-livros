@@ -156,10 +156,38 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `f13f1fb`. Lint 0, typecheck 0, **393 tests passing**, `npm run build` clean.
+`develop` at `834d0a3`. Lint 0, typecheck 0, **393 tests passing**, `npm run build` clean.
 
 **Twenty-three of the twenty-seven tasks are merged.** `npm run test` now requires a
 current bundle and says so if it is missing — run `npm run build` first.
+
+### The performance round, 2026-09-21
+
+A performance audit produced thirteen surgical fixes, delegated nine-wide and then
+four-wide to `gemini-3.8-flash-medium`, partitioned by **file ownership** so the runs
+could not collide. The measured wins:
+
+| Fix | Number |
+|---|---|
+| `review`/`publisher` dropped from the profile response | **59,721 bytes** of dead payload per profile load, 64% of it |
+| `/api/users/me` stopped validating the session twice | 4 sequential round trips → 2 |
+| `searchWorks` uses `EXISTS` and `COUNT(rl.id)` | p95 query cost **207–382 ms → 87.6 ms**, limit 150 |
+| `typeCheck: false` in `nuxt.config.ts` | build **167 s → 63 s** |
+| `nodemailer` behind a dynamic import | 1.4 MB and 62 ms off every serverless cold start |
+| `Promise.all` in `works.ts` and `profiles.ts` | 4 round trips saved per page |
+| `timeout` + `retry: 0` on every client fetch | an unbounded promise is now a bounded one |
+
+Two of the thirteen were corrections to the audit's own specification, not to the
+agents' work: `connect_timeout` had been specified at 10 s, equal to Vercel Hobby's
+own function cap and therefore never able to fire first (now 7 s); and the task that
+removed `ProfileLogItem.review` named its test fixtures from a grep that had only
+covered two of the four files that type against it.
+
+Deliberately **not** done, and recorded so nobody redoes the argument: `pg_trgm`, a
+GIN index, and a generated column on `authors` were all rejected for the search fix.
+The bottleneck was query shape, not the leading-wildcard `ILIKE`, and query shape is
+free. An index costs a migration applied by hand. If the p95 ever regresses past 150
+with the shape already fixed, that is when the extension earns its place.
 
 **[027](tasks/027-password-sign-in.md) is new and not started.** It moves the daily sign-in from a one-time email code to `handle`-or-email + password, keeping the code for activation and reset. It rewrites shipped auth code, so it is not a delegatable greenfield task — see the decision note below.
 
@@ -322,6 +350,44 @@ because every one of them looked fine in a diff.
   classes bound to the same tokens satisfy the acceptance criterion — which says
   "derive from CSS tokens" — without either. A requirement written before the
   SSR constraint was felt is not binding; say so in `DECISOES` and move on.
+- **Never run `npm run build` in the checkout where the owner's dev server is
+  running.** `nuxt build` and `nuxt dev` both write `.nuxt`. The reviewer built
+  in the main checkout seven seconds after a dev server came up in it, Nuxt
+  swapped the server bundle underneath an in-flight `POST /api/users`, and the
+  request died without a response — the owner watched a button read "Salvando…"
+  forever. The worktrees exist precisely to stop this; verify in one of them.
+  A dedicated `ml-verify` worktree with its own `node_modules` costs one
+  `npm install` and removes the whole class.
+- **`$fetch` has no timeout by default, and a promise that never settles never
+  reaches `finally`.** A request lost without the server answering or closing
+  leaves a loading flag `true` for good: no error, no retry, no way out but a
+  reload. This is not a slow-network annoyance, it is a dead UI, and the cohort
+  opens the site inside WhatsApp's WebView on mobile. Every client fetch needs
+  an explicit `timeout`.
+- **…and `timeout` alone doubles the wait on a GET.** ofetch retries
+  non-payload methods once, and with `timeout` set it does not classify the
+  timeout abort as an abort (`name === "AbortError" && !context.options.timeout`
+  in its `onError`). So a 15 s timeout on a GET waits 30 s. Pass `retry: 0`
+  alongside it. Mutations are already at zero retries via `isPayloadMethod`,
+  and must stay there — a blind retry on `POST` duplicates the record.
+- **Naming the files a task may touch is only as good as the grep behind it.**
+  The task that removed `ProfileLogItem.review` listed four files, from a grep
+  that had covered two. Two more fixtures typed against the interface, and
+  `develop` merged with three type errors. Before writing a file allowlist into
+  a prompt, grep the whole tree for every symbol the task removes — the same
+  lesson as "look for its twin", arriving from the other direction.
+- **A piped npm script reports the exit code of the pipe.** Chaining
+  `npm run typecheck 2>&1 | tail -8 && npm run build` runs the build even when
+  typecheck failed, because `tail` succeeded. The suite already had a rule about
+  not trusting `$?`; it applies to the reviewer's own shell plumbing too.
+- **Integration failures move around, and the pass/fail line is not the
+  evidence.** Four full runs in one afternoon failed four different sets —
+  search p95, then auth+feed+catalog+search, then nothing, then routes+axe —
+  and the last of them passed a test that had failed three times. Every one of
+  the moving failures was the 5 s default timeout measuring Neon. Before
+  blaming a diff, run the failing files alone; and when a threshold test passes,
+  force it to print the number, because passing at 149 and passing at 87 are
+  different facts.
 
 ### Decisions taken during implementation
 
