@@ -50,15 +50,8 @@
         <g
           v-for="(paths, isoCode) in WORLD_MAP_PATHS"
           :key="isoCode"
-          :class="[
-            'country-group',
-            getTierClass(isoCode),
-            {
-              'has-books': getCount(isoCode) > 0,
-              'is-selected': isCodeSelected(isoCode),
-              'is-dimmed': hasActiveSelection && !isCodeSelected(isoCode),
-            },
-          ]"
+          v-memo="[groupClasses[isoCode]]"
+          :class="groupClasses[isoCode]"
           aria-hidden="true"
           @click="onCountryClick(isoCode)"
           @mouseenter="onCountryHover(isoCode)"
@@ -126,23 +119,30 @@ const maxCount = computed(() => {
   return Math.max(0, ...counts)
 })
 
-function getTierClass(isoCode: string): string {
-  const count = getCount(isoCode)
-  const tier = getMapColorTier(count, maxCount.value)
-  return `tier-${tier}`
-}
-
-function isCodeSelected(isoCode: string): boolean {
-  if (!props.selectedCountry) return false
-  return getCountryName(isoCode) === props.selectedCountry
-}
+// 239 groups / 881 paths. Computed once per dependency change instead of ~5
+// function calls per group per render: hovering writes `hoveredCountry`, which
+// re-runs this component's whole render function even though only the status
+// line reads it.
+const groupClasses = computed<Record<string, string[]>>(() => {
+  const max = maxCount.value
+  const selected = props.selectedCountry
+  const out: Record<string, string[]> = {}
+  for (const isoCode of Object.keys(WORLD_MAP_PATHS)) {
+    const count = getCount(isoCode)
+    const isSelected = Boolean(selected) && getCountryName(isoCode) === selected
+    const classes = ['country-group', `tier-${getMapColorTier(count, max)}`]
+    if (count > 0) classes.push('has-books')
+    if (isSelected) classes.push('is-selected')
+    else if (selected) classes.push('is-dimmed')
+    out[isoCode] = classes
+  }
+  return out
+})
 
 function isSelectedName(name: string): boolean {
   if (!props.selectedCountry) return false
   return props.selectedCountry === name
 }
-
-const hasActiveSelection = computed(() => Boolean(props.selectedCountry))
 
 const totalMappedCountries = computed(() => {
   let count = 0
