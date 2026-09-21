@@ -6,7 +6,7 @@ import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { isForbiddenPassword } from '../../shared/schemas/auth'
 import { db } from '../db'
 import { allowed_emails, users } from '../db/schema'
-import { getEmailFrom, getTransport } from '../utils/email'
+import { getEmailFrom, getTransport, redactEmail } from '../utils/email'
 import {
   checkOtpRequestLimit,
   checkPasswordChangeLimit,
@@ -139,7 +139,9 @@ export const auth = betterAuth({
           })
           .catch((err: unknown) => {
             const message = err instanceof Error ? err.message : String(err)
-            console.error(`[auth] Falha ao enviar e-mail OTP para ${email}: ${message}`)
+            // Redacted: security.md keeps addresses out of logs beyond the
+            // first character, and this line runs for every invited member.
+            console.error(`[auth] Falha ao enviar e-mail OTP para ${redactEmail(email)}: ${message}`)
           })
       },
     }),

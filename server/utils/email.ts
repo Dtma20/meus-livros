@@ -40,3 +40,22 @@ export async function getTransport(): Promise<Transporter> {
   }
   return _transport
 }
+
+/**
+ * `d***@***` — an email address reduced to what a log may carry.
+ *
+ * `security.md` §"Logs redact email addresses beyond the first character and
+ * never contain passwords, password hashes, OTP codes or session tokens."
+ * The SMTP failure log in `services/auth.ts` wrote the whole address, which
+ * put every invited member's email into whatever collects stdout on Vercel.
+ * The first character plus the shape is enough to correlate a complaint with a
+ * log line, which is the only reason the address was there.
+ */
+export function redactEmail(email: string): string {
+  const trimmed = email.trim()
+  if (!trimmed) return '***'
+  const at = trimmed.indexOf('@')
+  const local = at === -1 ? trimmed : trimmed.slice(0, at)
+  const first = local.slice(0, 1)
+  return first ? `${first}***@***` : '***@***'
+}
