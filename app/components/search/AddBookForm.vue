@@ -652,6 +652,9 @@ watch(authorInput, (val) => {
     try {
       const data = await $fetch<{ works: SearchResult[] }>(
         `/api/search?q=${encodeURIComponent(term)}`,
+        {
+          timeout: 15_000,
+        },
       )
       const matchingAuthors: string[] = []
       const termLower = term.toLowerCase()
@@ -671,7 +674,11 @@ watch(authorInput, (val) => {
       authorSuggestions.value = matchingAuthors.slice(0, 5)
       showAuthorSuggestions.value = authorSuggestions.value.length > 0
       highlightedSuggestionIndex.value = -1
-    } catch {
+    } catch (err: unknown) {
+      const name = (err as { name?: string })?.name
+      if (name === 'AbortError' || name === 'TimeoutError') {
+        serverError.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      }
       authorSuggestions.value = []
       showAuthorSuggestions.value = false
     }
@@ -1123,6 +1130,11 @@ async function handleSubmit(force = false): Promise<void> {
     const url = force ? '/api/works?forcar=1' : '/api/works'
     const res = await $fetch<{ id: string; slug: string }>(url, {
       method: 'POST',
+      // Without a timeout this promise can never settle: a request lost
+      // without the server answering or closing leaves `finally` unreached,
+      // `submitting` stuck true, and the button reading "Cadastrando..." forever
+      // with no error and no way out but a reload. Observed in the wild.
+      timeout: 15_000,
       body: payload,
     })
 
@@ -1133,6 +1145,11 @@ async function handleSubmit(force = false): Promise<void> {
     const sep = target.includes('?') ? '&' : '?'
     await navigateTo(`${target}${sep}work_id=${res.id}`)
   } catch (err: unknown) {
+    const name = (err as { name?: string })?.name
+    if (name === 'AbortError' || name === 'TimeoutError') {
+      serverError.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      return
+    }
     const e = err as {
       status?: number
       statusCode?: number

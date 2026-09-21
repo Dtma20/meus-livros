@@ -171,6 +171,11 @@ async function performLookup(): Promise<void> {
   try {
     const data = await $fetch<ExternalSearchResponse>(
       `/api/search/externo?q=${encodeURIComponent(q)}`,
+      {
+        // Open Library lookup via /api/search/externo is non-critical enrichment.
+        // Capped at 10s to fail gracefully and let users proceed with manual entry.
+        timeout: 10_000,
+      },
     )
 
     hasSearched.value = true
@@ -187,6 +192,12 @@ async function performLookup(): Promise<void> {
   } catch (err: unknown) {
     hasSearched.value = true
     unavailable.value = true
+    const name = (err as { name?: string })?.name
+    if (name === 'AbortError' || name === 'TimeoutError') {
+      customErrorMessage.value =
+        'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      return
+    }
     const e = err as {
       status?: number
       statusCode?: number

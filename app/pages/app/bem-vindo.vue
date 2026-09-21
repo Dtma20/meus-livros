@@ -123,7 +123,9 @@ onMounted(async () => {
   }
 
   try {
-    const me = await $fetch<AuthSessionUser | null>('/api/users/me')
+    const me = await $fetch<AuthSessionUser | null>('/api/users/me', {
+      timeout: 15_000,
+    })
     if (me?.handle) {
       session.value = {
         user: { ...me, hasProfile: true },
@@ -132,7 +134,12 @@ onMounted(async () => {
       }
       await navigateTo('/app/novo')
     }
-  } catch {
+  } catch (err: unknown) {
+    const name = (err as { name?: string })?.name
+    if (name === 'AbortError' || name === 'TimeoutError') {
+      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      return
+    }
     // Unauthenticated handled by middleware
   }
 })
@@ -191,6 +198,11 @@ async function handleSubmit() {
   try {
     const res = await $fetch<{ id: string; handle: string; display_name: string }>('/api/users', {
       method: 'POST',
+      // Without a timeout this promise can never settle: a request lost
+      // without the server answering or closing leaves `finally` unreached,
+      // `loading` stuck true, and the button reading "Salvando..." forever
+      // with no error and no way out but a reload. Observed in the wild.
+      timeout: 15_000,
       body: {
         handle: handle.value,
         display_name: displayName.value,
@@ -211,6 +223,11 @@ async function handleSubmit() {
 
     await navigateTo('/app/novo')
   } catch (err: unknown) {
+    const name = (err as { name?: string })?.name
+    if (name === 'AbortError' || name === 'TimeoutError') {
+      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      return
+    }
     const fetchErr = err as { data?: { error?: string; message?: string; suggestions?: string[] }; statusCode?: number }
     if (fetchErr.data?.suggestions && Array.isArray(fetchErr.data.suggestions)) {
       suggestions.value = fetchErr.data.suggestions

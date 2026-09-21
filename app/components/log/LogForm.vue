@@ -392,9 +392,17 @@ async function toggleEditionPicker(): Promise<void> {
     try {
       const res = await $fetch<{ editions: LogEdition[] }>(
         `/api/works/${selectedWork.value.id}/editions`,
+        {
+          timeout: 15_000,
+        },
       )
       editionsList.value = res.editions
-    } catch {
+    } catch (err: unknown) {
+      const name = (err as { name?: string })?.name
+      if (name === 'AbortError' || name === 'TimeoutError') {
+        errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+        return
+      }
       // Catalog enrichment fallback
     } finally {
       loadingEditions.value = false
@@ -540,18 +548,29 @@ async function handleSubmit(): Promise<void> {
     if (props.mode === 'edit' && props.initialLog) {
       await $fetch(`/api/logs/${props.initialLog.id}`, {
         method: 'PATCH',
+        // Without a timeout this promise can never settle: a request lost
+        // without the server answering or closing leaves `finally` unreached,
+        // `submitting` stuck true, and the button reading "Salvando..." forever
+        // with no error and no way out but a reload. Observed in the wild.
+        timeout: 15_000,
         body: payload,
       })
       void navigateTo(`/entrada/${props.initialLog.id}`)
     } else {
       const res = await $fetch<{ id: string }>('/api/logs', {
         method: 'POST',
+        timeout: 15_000,
         body: payload,
       })
       clearDraft()
       void navigateTo(`/entrada/${res.id}`)
     }
   } catch (err: unknown) {
+    const name = (err as { name?: string })?.name
+    if (name === 'AbortError' || name === 'TimeoutError') {
+      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      return
+    }
     // Retain typed input — NEVER clear on failed save!
     const fetchErr = err as { data?: { message?: string } }
     errorMessage.value = fetchErr.data?.message ?? 'Não foi possível salvar o registro de leitura.'
@@ -572,9 +591,15 @@ async function handleDelete(): Promise<void> {
   try {
     await $fetch(`/api/logs/${props.initialLog.id}`, {
       method: 'DELETE',
+      timeout: 15_000,
     })
     void navigateTo('/app')
   } catch (err: unknown) {
+    const name = (err as { name?: string })?.name
+    if (name === 'AbortError' || name === 'TimeoutError') {
+      errorMessage.value = 'A conexão demorou demais. Verifique sua internet e tente de novo.'
+      return
+    }
     const fetchErr = err as { data?: { message?: string } }
     errorMessage.value = fetchErr.data?.message ?? 'Não foi possível excluir a entrada.'
   } finally {
