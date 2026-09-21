@@ -63,7 +63,7 @@
       <!-- Strip of up to 10 most recent entries -->
       <div v-else class="feed-list">
         <article
-          v-for="entry in entries"
+          v-for="(entry, i) in entries"
           :key="entry.id"
           class="feed-row"
         >
@@ -80,6 +80,7 @@
                 :cover-url="entry.edition?.cover_url || entry.work.cover_url"
                 :ol-cover-id="entry.edition?.ol_cover_id"
                 :isbn13="entry.edition?.isbn13"
+                :loading="i < 2 ? 'eager' : 'lazy'"
               />
             </NuxtLink>
           </div>

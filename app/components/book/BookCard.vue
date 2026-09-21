@@ -7,6 +7,7 @@
         :cover-url="coverUrl"
         :ol-cover-id="olCoverId"
         :isbn13="isbn13"
+        :loading="loading"
       />
     </div>
     <div v-if="rating" class="info">
@@ -28,6 +29,8 @@ const props = defineProps<{
   olCoverId?: number | string | null
   isbn13?: string | null
   href?: string | null
+  /** 'eager' for above-the-fold cards. Forwarded to the <img>. */
+  loading?: 'lazy' | 'eager'
 }>()
 
 const altText = computed(() => {
