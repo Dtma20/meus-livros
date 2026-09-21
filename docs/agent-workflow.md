@@ -147,9 +147,9 @@ A run can exit **0 having done nothing** — quota exhaustion prints an error an
 
 ## 5. Current state
 
-`develop` at `fd01bcc`. Lint 0, typecheck 0, **369 tests passing**, `npm run build` clean.
+`develop` at `5a8b373`. Lint 0, typecheck 0, **388 tests passing**, `npm run build` clean.
 
-**Twenty-two of the twenty-six tasks are merged.** `npm run test` now requires a
+**Twenty-three of the twenty-six tasks are merged.** `npm run test` now requires a
 current bundle and says so if it is missing — run `npm run build` first.
 
 | Merged | |
@@ -176,10 +176,13 @@ current bundle and says so if it is missing — run `npm run build` first.
 | 012 | Optional Open Library lookup during manual book entry |
 | 020 | Empty, error and loading states across every list and page |
 | 021 | Accessibility pass: `<a>` cards, alt text, focus rings, skip link, `lang`, axe suite |
+| 025 | Reading map: vendored public-domain geometry, desktop-only chunk, click to filter |
 
 ### Waiting
 
-Nothing is in flight. **025 (reading map) is the only delegatable task left** — unblocked, and the task file calls it optional. 022, 023 and 024 are the owner's: 022 is blocked on repository visibility, 023 needs a Vercel account, 024 depends on 023.
+Nothing is in flight, and **the delegatable queue is empty**. The three that
+remain are the owner's: 022 is blocked on repository visibility, 023 needs a
+Vercel account, 024 depends on 023.
 
 **An agent run can also derail, not just fail.** The TASK-013 correction round returned exit 0 with a report block replaced by unrelated prose scraped from somewhere else, having made a single one-line edit. The worktree diff is the only thing that tells you this; the exit code and the report both said nothing was wrong. Diff before reading anything else.
 
@@ -277,6 +280,24 @@ because every one of them looked fine in a diff.
   `package.json`** and filed it under `FORA DE ESCOPO NOTADO`. The two files
   disagreed, which `npm ci` refuses — and `npm ci` is what Vercel runs. Check the
   lockfile whenever `DEPS ADICIONADAS` is not "nenhuma".
+- **A green suite says nothing about what the page weighs.** TASK-025 passed
+  lint, typecheck, build and 387 tests while doubling the profile page: 59.5 KB
+  gzipped to 115.9 KB, inline and therefore re-sent on every visit, for a map
+  that was `display: none` below the breakpoint. Nobody's criterion caught it
+  because no criterion measured it. Serve the bundle and measure the routes a
+  task touches, the way §9 of `CLAUDE.md` asks.
+- **A `defineAsyncComponent` buys nothing while a util still imports the heavy
+  thing.** `app/utils/reading-map.ts` imported the map geometry to test
+  membership, and the page imports that util, so 133 KB rode into the page chunk
+  no matter how the component was loaded. The lazy import only worked once that
+  edge was cut. Before splitting a chunk, `grep` for every importer of what you
+  are trying to move.
+- **`getComputedStyle` does not exist on the server.** TASK-025's own
+  requirement 4 asked for it to read the colour scale; following it literally
+  means an uncoloured first paint or an `onMounted` repaint that flashes. CSS
+  classes bound to the same tokens satisfy the acceptance criterion — which says
+  "derive from CSS tokens" — without either. A requirement written before the
+  SSR constraint was felt is not binding; say so in `DECISOES` and move on.
 
 ### Decisions taken during implementation
 
