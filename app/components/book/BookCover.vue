@@ -3,6 +3,7 @@
     :src="currentSrc"
     :alt="alt"
     :loading="loading ?? 'lazy'"
+    :fetchpriority="loading === 'eager' ? 'high' : undefined"
     class="book-cover"
     @error="onError"
   >

@@ -94,7 +94,11 @@
         <!-- Poster grid of books and footer (only rendered when books match) -->
         <template v-else>
           <BookGrid>
-            <div v-for="log in sortedBooks" :key="log.id" class="book-card-item">
+            <!--
+              .book-grid is 6 columns at its widest, so the first 6 are the first row.
+              Below 601px the reading map is hidden and card 0 is the LCP element.
+            -->
+            <div v-for="(log, i) in sortedBooks" :key="log.id" class="book-card-item">
               <span
                 v-if="log.visibility === 'privado'"
                 class="private-badge"
@@ -110,6 +114,7 @@
                 :ol-cover-id="log.edition?.ol_cover_id"
                 :isbn13="log.edition?.isbn13"
                 :href="`/entrada/${log.id}`"
+                :loading="i < 6 ? 'eager' : 'lazy'"
               />
             </div>
           </BookGrid>
