@@ -1,8 +1,7 @@
 import { createError, toWebRequest } from 'h3'
 import { auth } from '../../services/auth'
-import { getUserById } from '../../services/users'
+import { getUserByEmail } from '../../services/users'
 import { defineApiHandler } from '../../utils/api'
-import { getSessionUser } from '../../utils/session'
 
 /**
  * GET /api/users/me
@@ -37,13 +36,13 @@ export default defineApiHandler(async (event) => {
     })
   }
 
-  // 2. Check if a profile exists in the `users` table
-  const sessionUser = await getSessionUser(event)
-  if (!sessionUser) {
-    return null
-  }
-
-  const user = await getUserById(sessionUser.id)
+  // One lookup, keyed by the email the session above already proved.
+  // getSessionUser() would validate the same cookie a second time and
+  // getUserById() would then re-fetch by id the row it just found by email:
+  // four round trips for a question that takes two. A verified identity with
+  // no `users` row still answers 200 null -- that is what "no profile yet"
+  // means, and it is why the 401 above is decided on `email`, not on this row.
+  const user = await getUserByEmail(email)
   if (!user) {
     return null
   }
