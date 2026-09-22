@@ -7,7 +7,8 @@
     <header class="site-header">
       <div class="header-inner">
         <NuxtLink to="/" class="site-title">
-          Meus Livros
+          <AppLogo :size="28" />
+          <span>Meus Livros</span>
         </NuxtLink>
         <nav class="site-nav" aria-label="Navegação principal">
           <slot name="nav">
@@ -34,7 +35,7 @@
 </template>
 
 <script setup lang="ts">
-// Default layout
+import AppLogo from '~/components/ui/AppLogo.vue'
 </script>
 
 <style scoped>
@@ -86,10 +87,14 @@
 }
 
 .site-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: var(--font-size-xl);
   font-weight: bold;
   color: #fff;
   text-decoration: none;
+  transition: color 0.2s ease;
 }
 
 .site-title:hover {

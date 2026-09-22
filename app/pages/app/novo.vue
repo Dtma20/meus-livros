@@ -46,6 +46,10 @@ definePageMeta({
 })
 
 const activeTab = ref<'manual' | 'json'>('manual')
+
+useSeoMeta({
+  title: () => (activeTab.value === 'json' ? 'Importar JSON' : 'Registrar livro'),
+})
 </script>
 
 <style scoped>

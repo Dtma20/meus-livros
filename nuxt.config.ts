@@ -6,14 +6,9 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'pt-BR'
       },
-      // Covers come from third-party hosts, so the LCP image pays DNS+TCP+TLS
-      // before its first byte. These two serve 72 of the 86 covers in the real
-      // corpus (openlibrary is BookCover's fallback for the 39 works without a
-      // cover_url of their own); the remaining ten hosts have one or two covers
-      // each and are not worth a hint. Deliberately not `preload`: which cover
-      // comes first is per-profile data, and an unused preload is a wasted
-      // request.
+      title: 'Meus Livros',
       link: [
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
         { rel: 'preconnect', href: 'https://covers.openlibrary.org', crossorigin: '' },
         { rel: 'preconnect', href: 'https://m.media-amazon.com', crossorigin: '' },
       ]

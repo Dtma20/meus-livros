@@ -38,6 +38,10 @@ definePageMeta({
 const route = useRoute()
 const id = computed(() => route.params.id as string)
 
+useSeoMeta({
+  title: () => (log.value ? `Editar: ${log.value.work.title}` : 'Editar registro'),
+})
+
 // Not awaited: a top-level await makes <script setup> async, the page needs a
 // Suspense boundary to render at all, and the `v-if="pending"` branch below
 // becomes dead code. The refs arrive immediately and the template shows the

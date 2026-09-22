@@ -106,6 +106,10 @@ definePageMeta({
   middleware: 'auth',
 })
 
+useSeoMeta({
+  title: 'Criar perfil',
+})
+
 const displayName = ref('')
 const handle = ref('')
 const handleTouched = ref(false)

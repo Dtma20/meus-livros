@@ -5,7 +5,12 @@
 </template>
 
 <script setup lang="ts">
-// Root application component
+useHead({
+  titleTemplate: (chunk?: string) => {
+    if (!chunk || chunk === 'Meus Livros') return 'Meus Livros'
+    return chunk.includes('Meus Livros') ? chunk : `${chunk} — Meus Livros`
+  },
+})
 </script>
 
 <style>

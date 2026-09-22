@@ -231,6 +231,10 @@ definePageMeta({
   middleware: 'auth',
 })
 
+useSeoMeta({
+  title: 'Editar perfil',
+})
+
 const session = useState<AuthSessionState>('auth:session')
 
 const handle = ref(session.value?.user?.handle ?? '')

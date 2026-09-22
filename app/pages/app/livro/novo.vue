@@ -19,6 +19,10 @@ definePageMeta({
   middleware: 'auth',
 })
 
+useSeoMeta({
+  title: 'Adicionar livro ao catálogo',
+})
+
 const route = useRoute()
 const router = useRouter()
 

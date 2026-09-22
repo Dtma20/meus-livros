@@ -1,6 +1,9 @@
 <template>
   <div class="login-container">
     <div class="login-card">
+      <div class="login-logo-header">
+        <AppLogo :size="44" badge />
+      </div>
       <h1 class="login-title">
         Primeiro acesso
       </h1>
@@ -159,6 +162,11 @@ import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/sha
 
 const route = useRoute()
 const router = useRouter()
+
+useSeoMeta({
+  title: 'Ativar acesso',
+})
+
 const session = useState<AuthSessionState>('auth:session', () => ({
   user: null,
   fetched: false,
@@ -345,6 +353,12 @@ function changeEmail() {
   width: 100%;
   max-width: 420px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.login-logo-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-4);
 }
 
 .login-title {

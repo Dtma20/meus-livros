@@ -1,6 +1,9 @@
 <template>
   <div class="login-container">
     <div class="login-card">
+      <div class="login-logo-header">
+        <AppLogo :size="44" badge />
+      </div>
       <h1 class="login-title">
         Entrar
       </h1>
@@ -75,6 +78,7 @@
 </template>
 
 <script setup lang="ts">
+import AppLogo from '~/components/ui/AppLogo.vue'
 import { getSafeRedirectUrl } from '~/utils/redirect'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -83,6 +87,10 @@ import { signInSchema } from '~~/shared/schemas/auth'
 
 const route = useRoute()
 const router = useRouter()
+
+useSeoMeta({
+  title: 'Entrar',
+})
 const session = useState<AuthSessionState>('auth:session', () => ({
   user: null,
   fetched: false,
@@ -151,6 +159,12 @@ async function handleSignIn() {
   width: 100%;
   max-width: 420px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.login-logo-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-4);
 }
 
 .login-title {

@@ -338,6 +338,11 @@ const formatText = computed(() => {
 })
 
 // Open Graph & Head tags
+const pageTitle = computed(() => {
+  if (!logData.value) return 'Entrada não encontrada'
+  return `${logData.value.work.title} por @${logData.value.user.handle}`
+})
+
 const ogTitle = computed(() => {
   if (!logData.value) return 'Entrada — Meus Livros'
   return buildOgTitle(logData.value.work.title, logData.value.user.handle, logData.value.rating)
@@ -359,7 +364,7 @@ const ogImage = computed(() => {
 
 if (typeof useSeoMeta === 'function') {
   useSeoMeta({
-    title: () => ogTitle.value,
+    title: () => pageTitle.value,
     ogTitle: () => ogTitle.value,
     description: () => ogDescription.value,
     ogDescription: () => ogDescription.value,

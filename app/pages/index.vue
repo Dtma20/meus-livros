@@ -3,6 +3,9 @@
     <!-- Anonymous state: stranger landing -->
     <div v-if="!isAuthenticated" class="landing-hero">
       <div class="landing-card">
+        <div class="landing-logo-container">
+          <AppLogo :size="56" badge />
+        </div>
         <div class="landing-badge">Início</div>
         <h1 class="landing-title">Meus Livros</h1>
         <p class="landing-tagline">
@@ -222,6 +225,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import AppLogo from '~/components/ui/AppLogo.vue'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReadingCarousel from '~/components/dashboard/ReadingCarousel.vue'
@@ -342,7 +346,7 @@ function formatAuthors(authors?: { name: string }[]): string {
 
 // Open Graph / SEO metadata
 useSeoMeta({
-  title: 'Meus Livros',
+  title: () => (session.value?.user ? 'Minha Leitura' : 'Meus Livros'),
   ogTitle: 'Meus Livros',
   description: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
   ogDescription: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
@@ -388,6 +392,12 @@ useHead({
   padding: var(--space-8);
   text-align: center;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.landing-logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-4);
 }
 
 .landing-badge {
