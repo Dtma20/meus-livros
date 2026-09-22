@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { recordSearchMiss } from '../../server/services/search'
+import { logger } from '../../server/utils/logger'
 import { searchQuerySchema } from '../../shared/schemas/search'
 
 const mockInsert = vi.fn()
@@ -58,16 +59,16 @@ describe('TASK-026: recordSearchMiss (unit)', () => {
   })
 
   it('catches and logs error when insert fails without rejecting or throwing', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
     mockValues.mockRejectedValueOnce(new Error('Connection failure'))
 
     await expect(recordSearchMiss('Falha Simulada', null)).resolves.not.toThrow()
 
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[search] search_misses insert failed:',
-      expect.any(Error),
+    expect(errorSpy).toHaveBeenCalledWith(
+      'search_misses insert failed',
+      expect.objectContaining({ module: 'search', source: 'database' }),
     )
-    consoleSpy.mockRestore()
+    errorSpy.mockRestore()
   })
 })
 
