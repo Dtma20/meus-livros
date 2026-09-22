@@ -184,15 +184,13 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     expect(works.length).toBe(0)
   })
 
-  it('% and _ in the query are literals, not wildcards', async () => {
-    // Unescaped, `pop%lar` would match `Popular` via the % wildcard and
-    // `pop_lar` via the _ wildcard. Escaped, both match nothing: no title
-    // contains those literal strings.
-    const withPct = await search.searchWorks(`${MARKER} pop%lar`, null)
-    expect(withPct.map((w) => w.id)).not.toContain(workPopularId)
-    const withUnd = await search.searchWorks(`${MARKER} pop_lar`, null)
-    expect(withUnd.map((w) => w.id)).not.toContain(workPopularId)
-  })
+  // NOTE: there is deliberately no "symbols match nothing" test here. With
+  // the fuzzy branches restored (spec: queries like `harry_potter` must keep
+  // trigram matching), a `%`/`_` query legitimately matches similar titles
+  // via similarity — that is fuzzy, not a wildcard. Wildcard injection
+  // itself stays closed by escaping + bound parameters, covered in
+  // tests/unit/search-escape.test.ts. The O_Retorno test below pins the
+  // required fuzzy behavior.
 
   it('returns at most 20 results', async () => {
     // Use a term common to all our marker works.
