@@ -122,6 +122,10 @@
 
     <!-- Timeline of Blocks -->
     <div class="blocks-list">
+      <p v-if="deleteError" class="field-error-msg" role="alert">
+        {{ deleteError }}
+      </p>
+
       <div v-if="blocks.length === 0 && !showAddForm" class="empty-blocks-note">
         <p>Nenhum trecho com anotação registrado para esta leitura.</p>
         <button
@@ -262,6 +266,7 @@ const formEndPage = ref<number | null>(null)
 const formComment = ref('')
 const formReadAt = ref('')
 const formError = ref('')
+const deleteError = ref('')
 const saving = ref(false)
 
 function getTodayString(): string {
@@ -368,15 +373,19 @@ async function confirmDelete(block: ReadingBlockView): Promise<void> {
   const confirmed = window.confirm(`Deseja excluir o registro das páginas ${block.start_page} a ${block.end_page}?`)
   if (!confirmed) return
 
+  deleteError.value = ''
   try {
     const res = await fetch(`/api/logs/${props.logId}/blocks/${block.id}`, {
       method: 'DELETE',
     })
-    if (!res.ok) throw new Error('Falha ao excluir.')
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.message || 'Não foi possível excluir o trecho.')
+    }
     blocks.value = blocks.value.filter((b) => b.id !== block.id)
     updateLocalProgress()
-  } catch {
-    // Falha silenciosa de exclusão tratada localmente
+  } catch (err: unknown) {
+    deleteError.value = err instanceof Error ? err.message : 'Não foi possível excluir o trecho. Tente novamente.'
   }
 }
 
