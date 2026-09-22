@@ -196,5 +196,6 @@ export interface WorkWithDetails {
   logs: WorkLogView[]
   log_count: number
   average_rating: number | null
+  created_by?: string | null
 }
 

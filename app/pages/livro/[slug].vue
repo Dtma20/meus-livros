@@ -82,6 +82,13 @@
           </div>
         </header>
 
+        <div v-if="userLog" class="user-logged-banner">
+          <span>Você já registrou este livro na sua biblioteca.</span>
+          <NuxtLink :to="`/entrada/${userLog.id}`" class="user-logged-link">
+            Ver ou gerenciar leitura →
+          </NuxtLink>
+        </div>
+
         <section v-if="hasEditionsToShow" class="editions-section">
           <h2 class="section-title">Edições cadastradas</h2>
           <ul class="editions-list">
@@ -141,27 +148,67 @@
             </li>
           </ul>
         </section>
+
+        <div v-if="canDeleteWork" class="work-creator-actions">
+          <button
+            type="button"
+            class="delete-work-btn"
+            :disabled="isDeletingWork"
+            @click="handleDeleteWork"
+          >
+            <svg
+              class="btn-icon"
+              viewBox="0 0 24 24"
+              width="14"
+              height="14"
+              stroke="currentColor"
+              stroke-width="2"
+              fill="none"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+            <span>{{ isDeletingWork ? 'Excluindo livro...' : 'Excluir livro do catálogo' }}</span>
+          </button>
+          <p v-if="deleteWorkError" class="delete-error-msg" role="alert">
+            {{ deleteWorkError }}
+          </p>
+        </div>
       </article>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import type { WorkAuthorView, WorkWithDetails } from '~~/shared/schemas/work'
 import { formatCountry, formatLanguage, formatPublicationYear } from '~~/shared/schemas/work'
+
+definePageMeta({
+  middleware: 'home-layout',
+})
 
 const route = useRoute()
 const slug = computed(() => (route.params.slug as string) || '')
 
 const requestFetch = useRequestFetch()
 const requestUrl = useRequestURL()
+
+const session = typeof useState === 'function'
+  ? useState<{ user?: { id?: string } | null }>('auth:session', () => ({ user: null }))
+  : ref({ user: null })
+
+const nuxtApp = typeof useNuxtApp === 'function' ? useNuxtApp() : null
 
 // Awaited on purpose. This page exists to be server-rendered: the crawler that
 // builds the WhatsApp preview reads the first response and runs no JavaScript,
@@ -257,6 +304,50 @@ useHead({
     },
   ],
 })
+
+const userLog = computed(() => {
+  if (!work.value || !session.value?.user?.id) return null
+  return work.value.logs.find((l) => l.user.id === session.value?.user?.id) ?? null
+})
+
+const canDeleteWork = computed(() => {
+  if (!work.value || !session.value?.user?.id) return false
+  return work.value.created_by === session.value.user.id && work.value.log_count === 0
+})
+
+const isDeletingWork = ref(false)
+const deleteWorkError = ref('')
+
+async function handleDeleteWork(): Promise<void> {
+  if (!work.value) return
+  if (!confirm('Tem certeza que deseja excluir este livro do catálogo? Esta ação removerá a obra e suas edições.')) {
+    return
+  }
+
+  isDeletingWork.value = true
+  deleteWorkError.value = ''
+
+  try {
+    await $fetch(`/api/works/${work.value.id}`, {
+      method: 'DELETE',
+      timeout: 15_000,
+    })
+    if (nuxtApp) {
+      void nuxtApp.runWithContext(() => navigateTo('/'))
+    } else {
+      void navigateTo('/')
+    }
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      deleteWorkError.value = TIMEOUT_MESSAGE
+      return
+    }
+    const fetchErr = err as { data?: { message?: string } }
+    deleteWorkError.value = fetchErr.data?.message ?? 'Não foi possível excluir o livro do catálogo.'
+  } finally {
+    isDeletingWork.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -525,5 +616,84 @@ useHead({
 
 .entry-link:hover {
   text-decoration: underline;
+}
+
+.user-logged-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--card-bg);
+  border: 1px solid var(--input-bg);
+  border-radius: var(--radius-sm);
+  margin-top: var(--space-6);
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+}
+
+.user-logged-link {
+  color: var(--highlight);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.user-logged-link:hover {
+  text-decoration: underline;
+}
+
+.work-creator-actions {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--input-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.delete-work-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  color: var(--text-color);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  min-height: 44px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+}
+
+.delete-work-btn:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.delete-work-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--danger);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.delete-work-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+.delete-error-msg {
+  color: var(--danger);
+  font-size: var(--font-size-sm);
+  margin: 0;
 }
 </style>

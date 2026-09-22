@@ -8,7 +8,6 @@
       <EmptyState
         v-if="is404"
         heading-tag="h1"
-        icon="🔍"
         title="Perfil não encontrado"
         :message="`O perfil @${handle} não foi encontrado ou é privado.`"
         action-label="Voltar ao início"
@@ -26,7 +25,12 @@
     <div v-else class="profile-content">
       <header class="profile-header">
         <h1 class="display-name">{{ profile.user.display_name }}</h1>
-        <div class="handle">@{{ profile.user.handle }}</div>
+        <div class="handle-row">
+          <span class="handle">@{{ profile.user.handle }}</span>
+          <NuxtLink v-if="isOwner" to="/app/perfil" class="btn-edit-profile">
+            Editar perfil
+          </NuxtLink>
+        </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
 
         <!-- Global stats: always reflect total visible collection -->
@@ -41,7 +45,6 @@
       <div v-if="logs.length === 0" class="empty-collection">
         <EmptyState
           v-if="isOwner"
-          icon="📚"
           title="Você ainda não registrou nenhum livro."
           message="Assim que registrar seus primeiros livros, eles aparecerão aqui."
           action-label="Registrar livro"
@@ -49,13 +52,67 @@
         />
         <EmptyState
           v-else
-          icon="📚"
           title="Ainda não registrou nenhum livro."
           message="Assim que registrar seus primeiros livros, eles aparecerão aqui."
         />
       </div>
 
       <template v-else>
+        <!-- Visibility switcher for owner -->
+        <div v-if="isOwner" class="visibility-bar">
+          <div class="visibility-nav" role="tablist" aria-label="Filtrar por visibilidade">
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="visibilityFilter === 'todos'"
+              class="visibility-tab"
+              :class="{ active: visibilityFilter === 'todos' }"
+              @click="setVisibilityFilter('todos')"
+            >
+              Todos <span class="tab-count">{{ visibilityCounts.todos }}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="visibilityFilter === 'publico'"
+              class="visibility-tab"
+              :class="{ active: visibilityFilter === 'publico' }"
+              @click="setVisibilityFilter('publico')"
+            >
+              Públicos <span class="tab-count">{{ visibilityCounts.publico }}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="visibilityFilter === 'privado'"
+              class="visibility-tab"
+              :class="{ active: visibilityFilter === 'privado' }"
+              @click="setVisibilityFilter('privado')"
+            >
+              Privados <span class="tab-count">{{ visibilityCounts.privado }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty state when chosen visibility has zero books -->
+        <div v-if="displayedLogs.length === 0" class="empty-visibility-results">
+          <EmptyState
+            v-if="visibilityFilter === 'privado'"
+            title="Nenhum livro privado."
+            message="Livros marcados como privados ao registrar ou editar aparecerão aqui."
+            action-label="Registrar livro"
+            action-href="/app/novo"
+          />
+          <EmptyState
+            v-else-if="visibilityFilter === 'publico'"
+            title="Nenhum livro público."
+            message="Livros marcados como públicos aparecerão aqui para outros leitores."
+            action-label="Registrar livro"
+            action-href="/app/novo"
+          />
+        </div>
+
+        <template v-else>
         <!-- Reading map of countries -->
         <ClientOnly>
           <ReadingMap
@@ -83,7 +140,6 @@
         <!-- Empty state when active filters match zero books -->
         <div v-if="hasActiveFilters && sortedBooks.length === 0" class="empty-filter-results">
           <EmptyState
-            icon="🔍"
             title="Nenhum livro com esses filtros."
             :message="`Filtros ativos: ${activeFiltersDescription}.`"
             action-label="Limpar filtros"
@@ -140,8 +196,9 @@
           </footer>
         </template>
       </template>
-    </div>
+    </template>
   </div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -161,10 +218,16 @@ import type { AuthSessionUser } from '~/middleware/auth'
 
 const ReadingMap = defineAsyncComponent(() => import('~/components/profile/ReadingMap.vue'))
 
+definePageMeta({
+  middleware: 'home-layout',
+})
+
 const route = useRoute()
 const handle = computed(() => (route.params.handle as string) || '')
 
 const requestFetch = useRequestFetch()
+const event = import.meta.server && typeof useRequestEvent === 'function' ? useRequestEvent() : null
+const reqUrl = typeof useRequestURL === 'function' ? useRequestURL() : null
 
 const session = typeof useState === 'function'
   ? useState<{ user?: AuthSessionUser | null }>('auth:session', () => ({ user: null }))
@@ -216,27 +279,22 @@ const is404 = computed(() => {
 })
 
 // In SSR, set HTTP response status if fetch failed
-if (import.meta.server) {
-  const event = useRequestEvent()
-  if (event && error.value) {
-    const err = error.value as { statusCode?: number; status?: number } | null | undefined
-    const status = err?.statusCode || err?.status || 500
-    setResponseStatus(event, status)
-  }
+if (event && error.value) {
+  const err = error.value as { statusCode?: number; status?: number } | null | undefined
+  const status = err?.statusCode || err?.status || 500
+  setResponseStatus(event, status)
 }
 
 // Open Graph / SEO metadata
-const reqUrl = useRequestURL()
-
 const firstCover = computed(() => {
   const items = profile.value?.logs || []
   for (const l of items) {
     const url = l.work.cover_url || l.edition?.cover_url
     if (url) {
-      return url.startsWith('http') ? url : `${reqUrl.origin}${url}`
+      return url.startsWith('http') ? url : `${reqUrl?.origin ?? ''}${url}`
     }
   }
-  return `${reqUrl.origin}/favicon.ico`
+  return `${reqUrl?.origin ?? ''}/favicon.ico`
 })
 
 useSeoMeta({
@@ -258,7 +316,7 @@ useSeoMeta({
     (profile.value
       ? `Biblioteca de leituras de ${profile.value.user.display_name}. ${profile.value.stats.totalBooks} livros registrados.`
       : ''),
-  ogUrl: () => reqUrl.href,
+  ogUrl: () => reqUrl?.href ?? '',
   ogType: 'profile',
   ogImage: () => firstCover.value,
   twitterCard: 'summary_large_image',
@@ -274,8 +332,33 @@ useSeoMeta({
   twitterImage: () => firstCover.value,
 })
 
+type VisibilityFilter = 'todos' | 'publico' | 'privado'
+const visibilityFilter = ref<VisibilityFilter>('todos')
+
 const logs = computed(() => profile.value?.logs || [])
-const readingMapData = computed(() => aggregateReadingMapData(logs.value))
+
+const visibilityCounts = computed(() => {
+  const all = logs.value.length
+  let pub = 0
+  let priv = 0
+  for (const item of logs.value) {
+    if (item.visibility === 'privado') {
+      priv++
+    } else {
+      pub++
+    }
+  }
+  return { todos: all, publico: pub, privado: priv }
+})
+
+const displayedLogs = computed(() => {
+  if (!isOwner.value || visibilityFilter.value === 'todos') {
+    return logs.value
+  }
+  return logs.value.filter((log) => log.visibility === visibilityFilter.value)
+})
+
+const readingMapData = computed(() => aggregateReadingMapData(displayedLogs.value))
 
 const showMap = ref(false)
 let mediaQueryList: MediaQueryList | null = null
@@ -310,7 +393,12 @@ const {
   sortedBooks,
   globalStats,
   filteredStats,
-} = useBookFilters(logs)
+} = useBookFilters(displayedLogs)
+
+function setVisibilityFilter(filter: VisibilityFilter) {
+  visibilityFilter.value = filter
+  resetFilters()
+}
 
 const activeFiltersDescription = computed(() => {
   const parts: string[] = []
@@ -346,10 +434,110 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
   line-height: var(--line-height-tight, 1.2);
 }
 
+.handle-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3, 12px);
+  margin-bottom: var(--space-3, 12px);
+  flex-wrap: wrap;
+}
+
 .handle {
   color: var(--highlight, #40bcf4);
   font-size: var(--font-size-base, 1rem);
-  margin-bottom: var(--space-3, 12px);
+}
+
+.btn-edit-profile {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2, 8px);
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--text-color, #9ab);
+  background-color: var(--card-bg, #232a31);
+  border: 1px solid var(--input-bg, #2c3440);
+  border-radius: var(--radius-sm, 4px);
+  text-decoration: none;
+  line-height: var(--line-height-normal, 1.5);
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+  min-height: 28px;
+}
+
+.btn-edit-profile:hover {
+  color: #fff;
+  border-color: var(--highlight, #40bcf4);
+}
+
+.btn-edit-profile:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #40bcf4);
+  outline-offset: var(--focus-ring-offset, 2px);
+}
+
+.visibility-bar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-6, 24px);
+}
+
+.visibility-nav {
+  display: inline-flex;
+  background-color: var(--card-bg, #232a31);
+  padding: var(--space-1, 4px);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--input-bg, #2c3440);
+  gap: var(--space-1, 4px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.visibility-tab {
+  background: none;
+  border: none;
+  color: var(--text-color, #9ab);
+  font-size: var(--font-size-sm, 0.875rem);
+  font-family: inherit;
+  font-weight: 500;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  min-height: 36px;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.visibility-tab:hover:not(.active) {
+  color: #fff;
+}
+
+.visibility-tab.active {
+  background-color: var(--highlight, #40bcf4);
+  color: #14181c;
+  font-weight: 700;
+}
+
+.visibility-tab:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #40bcf4);
+  outline-offset: var(--focus-ring-offset, 2px);
+}
+
+.tab-count {
+  font-size: var(--font-size-xs, 0.75rem);
+  padding: 1px 6px;
+  border-radius: var(--radius-full, 9999px);
+  background-color: rgba(0, 0, 0, 0.25);
+  color: inherit;
+}
+
+.visibility-tab.active .tab-count {
+  background-color: rgba(20, 24, 28, 0.2);
+  color: #14181c;
+  font-weight: 700;
+}
+
+.empty-visibility-results {
+  margin: var(--space-8, 32px) 0;
 }
 
 .bio {
@@ -433,6 +621,13 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
   }
   .paginometer {
     gap: var(--space-5, 20px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-edit-profile,
+  .visibility-tab {
+    transition: none;
   }
 }
 </style>

@@ -1,7 +1,7 @@
 import { and, eq, gt, inArray, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import { db } from '../db'
-import { authors, editions, genres, work_authors, work_genres, works } from '../db/schema'
+import { authors, editions, genres, reading_logs, work_authors, work_genres, works } from '../db/schema'
 import { normalizeIsbn } from '../utils/isbn'
 import { slugify, uniqueSlug } from '../utils/slug'
 import type { EditionInput, WorkInput } from '../../shared/schemas/work'
@@ -294,4 +294,44 @@ export async function createEdition(
   }
 
   return insertEdition(conn, workId, input, userId)
+}
+
+/**
+ * Deletes a work from the catalogue if created by the user and without reading logs.
+ *
+ * Rules:
+ * - Creator check in the query: non-creator receives 404 (never 403).
+ * - A work with existing reading logs cannot be deleted (returns 400).
+ * - Cascades to work_authors, work_genres, and editions via DB foreign keys.
+ */
+export async function deleteWork(workId: string, userId: string): Promise<void> {
+  const [work] = await db
+    .select({ id: works.id, created_by: works.created_by })
+    .from(works)
+    .where(eq(works.id, workId))
+    .limit(1)
+
+  if (!work || work.created_by !== userId) {
+    throw createError({
+      statusCode: 404,
+      data: { error: 'nao_encontrado', message: 'Obra não encontrada.' },
+    })
+  }
+
+  const [logCount] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(reading_logs)
+    .where(eq(reading_logs.work_id, workId))
+
+  if ((logCount?.n ?? 0) > 0) {
+    throw createError({
+      statusCode: 400,
+      data: {
+        error: 'requisicao_invalida',
+        message: 'Não é possível excluir um livro que já possui registros de leitura.',
+      },
+    })
+  }
+
+  await db.delete(works).where(eq(works.id, workId))
 }
