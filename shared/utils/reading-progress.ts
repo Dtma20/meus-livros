@@ -77,9 +77,14 @@ export function calculateReadingProgress(
   const pagesRead = merged.reduce((acc, cur) => acc + (cur.end_page - cur.start_page + 1), 0)
   const currentPage = valid.reduce((max, cur) => Math.max(max, cur.end_page), 0)
 
+  // isComplete deriva do valor bruto: o arredondamento do percentual
+  // atravessaria o limiar (399/400 = 99,75% arredonda para 100).
+  const isComplete = safeTotalPages ? pagesRead >= safeTotalPages : false
+
   let percentage: number | null = null
   if (safeTotalPages) {
-    percentage = Math.min(100, Math.round((pagesRead / safeTotalPages) * 100))
+    // floor: 100% só aparece quando o livro realmente acabou.
+    percentage = Math.min(100, Math.floor((pagesRead / safeTotalPages) * 100))
   }
 
   return {
@@ -87,7 +92,7 @@ export function calculateReadingProgress(
     currentPage,
     totalPages: safeTotalPages,
     percentage,
-    isComplete: percentage === 100,
+    isComplete,
     intervals: merged,
   }
 }

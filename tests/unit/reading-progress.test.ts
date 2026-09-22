@@ -66,11 +66,18 @@ describe('calculateReadingProgress unit tests', () => {
     const res = calculateReadingProgress(intervals, 400, false)
     expect(res.pagesRead).toBe(71)
     expect(res.currentPage).toBe(120)
-    expect(res.percentage).toBe(18) // 71 / 400 = 17.75% -> 18%
+    expect(res.percentage).toBe(17) // 71 / 400 = 17.75% -> 17%
     expect(res.intervals).toEqual([
       { start_page: 1, end_page: 50 },
       { start_page: 100, end_page: 120 },
     ])
+  })
+
+  it('does not mark complete when one page remains (399/400)', () => {
+    const res = calculateReadingProgress([{ start_page: 1, end_page: 399 }], 400, false)
+    expect(res.pagesRead).toBe(399)
+    expect(res.percentage).toBe(99)
+    expect(res.isComplete).toBe(false)
   })
 
   it('returns 100% when isFinished is true', () => {
