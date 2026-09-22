@@ -262,7 +262,7 @@ function clearSelection() {
 }
 
 .country-count {
-  color: var(--highlight, #40bcf4);
+  color: var(--highlight, #f59e0b);
 }
 
 .map-summary {
@@ -289,32 +289,29 @@ function clearSelection() {
 }
 
 .clear-filter-btn:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #40bcf4);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
-.map-svg-wrapper {
+.map-container {
   width: 100%;
-  overflow: hidden;
-  border-radius: var(--radius-sm, 4px);
-  background-color: var(--bg-color, #14181c);
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  overflow-x: auto;
+  border-radius: var(--radius-md, 8px);
+  background-color: var(--card-bg, #232a31);
+  padding: var(--space-3, 12px);
+  box-sizing: border-box;
 }
 
 .world-map-svg {
   width: 100%;
   height: auto;
   display: block;
-  max-height: 480px;
 }
 
-.country-group path {
+.country-path {
   stroke: var(--card-bg, #232a31);
-  stroke-width: 0.6px;
-  stroke-linejoin: round;
-  transition: fill 0.15s ease, opacity 0.15s ease;
+  stroke-width: 0.5px;
+  transition: fill 0.2s, stroke 0.2s;
 }
 
 .tier-0 path {
@@ -322,19 +319,19 @@ function clearSelection() {
 }
 
 .tier-1 path {
-  fill: color-mix(in srgb, var(--star-color, #0083e0) 40%, var(--card-bg, #232a31));
+  fill: color-mix(in srgb, var(--star-color, #f59e0b) 40%, var(--card-bg, #232a31));
 }
 
 .tier-2 path {
-  fill: color-mix(in srgb, var(--star-color, #0083e0) 75%, var(--card-bg, #232a31));
+  fill: color-mix(in srgb, var(--star-color, #f59e0b) 75%, var(--card-bg, #232a31));
 }
 
 .tier-3 path {
-  fill: var(--star-color, #0083e0);
+  fill: var(--star-color, #f59e0b);
 }
 
 .tier-4 path {
-  fill: var(--highlight, #40bcf4);
+  fill: var(--highlight, #fbbf24);
 }
 
 .has-books {
@@ -347,7 +344,7 @@ function clearSelection() {
 }
 
 .is-selected path {
-  fill: var(--highlight, #40bcf4);
+  fill: var(--highlight, #f59e0b);
   stroke: var(--poster-border, #fff);
   stroke-width: 1.8px;
 }

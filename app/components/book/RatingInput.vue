@@ -277,7 +277,7 @@ function onKeydown(e: KeyboardEvent): void {
 }
 
 .star-filled {
-  fill: var(--star-color, #0083e0);
+  fill: var(--star-color, #f59e0b);
 }
 
 .rating-meta {

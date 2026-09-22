@@ -83,7 +83,7 @@ const cardAriaLabel = computed(() => {
 }
 
 .card:focus-visible {
-  outline: 2px solid var(--highlight, #40bcf4);
+  outline: 2px solid var(--highlight, #f59e0b);
   outline-offset: 4px;
   border-radius: var(--radius-sm, 4px);
 }

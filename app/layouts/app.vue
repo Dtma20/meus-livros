@@ -33,12 +33,16 @@ const profileLink = computed(() => {
   text-decoration: none;
   font-size: var(--font-size-sm);
   min-height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
-  transition: color 0.2s;
+  background-color: transparent;
+  transition: background-color 0.25s ease 0.05s, color 0.25s ease 0.05s;
 }
 
 .nav-link:hover {
+  background-color: var(--card-bg);
   color: var(--highlight);
 }
 

@@ -6,10 +6,10 @@
 
 <script setup lang="ts">
 useHead({
-  titleTemplate: (chunk?: string) => {
-    if (!chunk || chunk === 'Meus Livros') return 'Meus Livros'
-    return chunk.includes('Meus Livros') ? chunk : `${chunk} — Meus Livros`
-  },
+  // Each page sets its own title verbatim. No site-name suffix: the tab is
+  // already the route, and repeating the brand on every one of them reads as
+  // noise.
+  titleTemplate: (chunk?: string) => chunk || 'Meus Livros',
 })
 </script>
 
@@ -20,6 +20,14 @@ body {
   font-family: var(--font-sans);
   margin: 0;
   overflow-y: scroll;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.015em;
 }
 
 /* Global accessible focus indicator for keyboard users */

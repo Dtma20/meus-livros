@@ -287,7 +287,7 @@ const pageUrl = computed(() => {
 })
 
 useSeoMeta({
-  title: () => (work.value ? `${work.value.title} — Meus Livros` : 'Livro — Meus Livros'),
+  title: () => work.value?.title || 'Livro',
   ogTitle: () => work.value?.title ?? '',
   description: () => ogDescription.value,
   ogDescription: () => ogDescription.value,

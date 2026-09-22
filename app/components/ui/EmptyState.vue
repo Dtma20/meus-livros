@@ -114,7 +114,7 @@ defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--highlight, #40bcf4);
+  background-color: var(--highlight, #f59e0b);
   color: #000;
   font-weight: bold;
   font-size: var(--font-size-sm, 0.875rem);

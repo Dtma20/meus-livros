@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
   <!-- Subtle dark background squircle -->
   <rect width="48" height="48" rx="12" fill="#14181c"/>
-  <rect x="1" y="1" width="46" height="46" rx="11" stroke="#2c3440" stroke-width="1.5"/>
+  <rect x="1" y="1" width="46" height="46" rx="11" stroke="#332a20" stroke-width="1.5"/>
 
   <!-- Left page shadow & body -->
   <path d="M24 37C18.5 34.5 12 34.5 8 36V13C12 11.5 18.5 11.5 24 14V37Z" fill="url(#leftPageGrad)"/>
@@ -20,28 +20,28 @@
   <path d="M27 29.5C29 28.5 32.5 28.2 36 29" stroke="#ffffff" stroke-opacity="0.35" stroke-width="1.5" stroke-linecap="round"/>
 
   <!-- Spine / Center crease shadow -->
-  <line x1="24" y1="13.5" x2="24" y2="37" stroke="#0f172a" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="24" y1="13.5" x2="24" y2="37" stroke="#1e1b18" stroke-width="1.2" stroke-linecap="round"/>
 
-  <!-- Cute bookmark ribbon in amber -->
+  <!-- Cute bookmark ribbon in crimson -->
   <path d="M22.5 13V24L24 22.5L25.5 24V13H22.5Z" fill="url(#ribbonGrad)"/>
 
   <!-- Cute sparkle on top right corner -->
-  <path d="M37 6.5C37 8.5 38.5 9 39.5 9.5C38.5 10 37 10.5 37 12.5C37 10.5 35.5 10 34.5 9.5C35.5 9 37 8.5 37 6.5Z" fill="#fde047"/>
+  <path d="M37 6.5C37 8.5 38.5 9 39.5 9.5C38.5 10 37 10.5 37 12.5C37 10.5 35.5 10 34.5 9.5C35.5 9 37 8.5 37 6.5Z" fill="#fef08a"/>
   <circle cx="37" cy="9.5" r="0.75" fill="#ffffff"/>
 
   <!-- Gradients -->
   <defs>
     <linearGradient id="leftPageGrad" x1="8" y1="12" x2="24" y2="37" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#38bdf8"/>
-      <stop offset="1" stop-color="#0284c7"/>
+      <stop stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#d97706"/>
     </linearGradient>
     <linearGradient id="rightPageGrad" x1="40" y1="12" x2="24" y2="37" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#60a5fa"/>
-      <stop offset="1" stop-color="#2563eb"/>
+      <stop stop-color="#f59e0b"/>
+      <stop offset="1" stop-color="#b45309"/>
     </linearGradient>
     <linearGradient id="ribbonGrad" x1="24" y1="13" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#fbbf24"/>
-      <stop offset="1" stop-color="#f59e0b"/>
+      <stop stop-color="#f43f5e"/>
+      <stop offset="1" stop-color="#be123c"/>
     </linearGradient>
   </defs>
 </svg>

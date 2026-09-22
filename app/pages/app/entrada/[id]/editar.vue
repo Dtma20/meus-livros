@@ -38,10 +38,6 @@ definePageMeta({
 const route = useRoute()
 const id = computed(() => route.params.id as string)
 
-useSeoMeta({
-  title: () => (log.value ? `Editar: ${log.value.work.title}` : 'Editar registro'),
-})
-
 // Not awaited: a top-level await makes <script setup> async, the page needs a
 // Suspense boundary to render at all, and the `v-if="pending"` branch below
 // becomes dead code. The refs arrive immediately and the template shows the
@@ -61,6 +57,16 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
       retry: 0,
     }),
 )
+
+// Declared after useAsyncData on purpose. The title getter reads `log`, and
+// unhead evaluates it synchronously on the first watchEffect run — with the
+// call placed above, `log` is still in its temporal dead zone, the getter
+// throws, and unhead's own `entry` is left undefined. The resulting
+// "entry is undefined" TypeError aborts setup before useAsyncData ever runs,
+// so the page renders its not-found branch and no request is made.
+useSeoMeta({
+  title: () => (log.value ? `Editar: ${log.value.work.title}` : 'Editar registro'),
+})
 </script>
 
 <style scoped>

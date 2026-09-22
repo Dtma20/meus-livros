@@ -123,7 +123,7 @@ defineEmits<{
 }
 
 .error-btn:focus-visible {
-  outline: 2px solid var(--highlight, #40bcf4);
+  outline: 2px solid var(--highlight, #f59e0b);
   outline-offset: 2px;
 }
 

@@ -113,16 +113,16 @@
       <!-- Gradients -->
       <defs>
         <linearGradient id="logoLeftPageGrad" x1="8" y1="12" x2="24" y2="37" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#38bdf8" />
-          <stop offset="1" stop-color="#0284c7" />
+          <stop stop-color="#fbbf24" />
+          <stop offset="1" stop-color="#d97706" />
         </linearGradient>
         <linearGradient id="logoRightPageGrad" x1="40" y1="12" x2="24" y2="37" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#60a5fa" />
-          <stop offset="1" stop-color="#2563eb" />
+          <stop stop-color="#f59e0b" />
+          <stop offset="1" stop-color="#b45309" />
         </linearGradient>
         <linearGradient id="logoRibbonGrad" x1="24" y1="13" x2="24" y2="24.5" gradientUnits="userSpaceOnUse">
-          <stop stop-color="#fbbf24" />
-          <stop offset="1" stop-color="#f59e0b" />
+          <stop stop-color="#f43f5e" />
+          <stop offset="1" stop-color="#be123c" />
         </linearGradient>
       </defs>
     </svg>
@@ -168,13 +168,12 @@ const resolvedSize = computed(() => {
 .app-logo-icon {
   display: block;
   flex-shrink: 0;
-  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  filter: drop-shadow(0 2px 6px rgba(64, 188, 244, 0.2));
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
 }
 
 .with-badge .logo-badge-bg {
-  fill: #1e2630;
-  stroke: #2c3747;
+  fill: #1a1e24;
+  stroke: #332a20;
   stroke-width: 1.5;
 }
 
@@ -183,29 +182,5 @@ const resolvedSize = computed(() => {
   color: #fff;
   letter-spacing: -0.01em;
   font-size: var(--font-size-xl);
-}
-
-/* Subtle playful animation on parent link hover */
-:global(a:hover) .app-logo-icon,
-.app-logo-wrapper:hover .app-logo-icon {
-  transform: translateY(-1px) scale(1.05);
-  filter: drop-shadow(0 4px 10px rgba(64, 188, 244, 0.35));
-}
-
-:global(a:hover) .logo-sparkle,
-.app-logo-wrapper:hover .logo-sparkle {
-  transform-origin: 37px 9.5px;
-  animation: logo-twinkle 0.8s ease-in-out infinite alternate;
-}
-
-@keyframes logo-twinkle {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.85;
-  }
-  100% {
-    transform: scale(1.2);
-    opacity: 1;
-  }
 }
 </style>

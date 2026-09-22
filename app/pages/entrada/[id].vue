@@ -340,7 +340,7 @@ const formatText = computed(() => {
 // Open Graph & Head tags
 const pageTitle = computed(() => {
   if (!logData.value) return 'Entrada não encontrada'
-  return `${logData.value.work.title} por @${logData.value.user.handle}`
+  return logData.value.work.title
 })
 
 const ogTitle = computed(() => {

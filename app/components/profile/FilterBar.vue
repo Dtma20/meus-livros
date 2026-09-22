@@ -137,7 +137,7 @@ defineEmits<{
 
 .filter-select:focus {
   outline: none;
-  border-color: var(--highlight, #40bcf4);
+  border-color: var(--highlight, #f59e0b);
 }
 
 .reset-btn {
@@ -158,7 +158,7 @@ defineEmits<{
 }
 
 .reset-btn:focus-visible {
-  outline: 2px solid var(--highlight, #40bcf4);
+  outline: 2px solid var(--highlight, #f59e0b);
   outline-offset: 2px;
 }
 

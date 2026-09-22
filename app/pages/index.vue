@@ -346,7 +346,7 @@ function formatAuthors(authors?: { name: string }[]): string {
 
 // Open Graph / SEO metadata
 useSeoMeta({
-  title: () => (session.value?.user ? 'Minha Leitura' : 'Meus Livros'),
+  title: 'Meus Livros',
   ogTitle: 'Meus Livros',
   description: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
   ogDescription: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
@@ -489,8 +489,6 @@ useHead({
 /* Authenticated dashboard */
 .dashboard-container {
   width: 100%;
-  max-width: 860px;
-  margin: 0 auto;
 }
 
 .dashboard-header {
@@ -504,8 +502,10 @@ useHead({
 }
 
 .dashboard-title {
+  font-family: var(--font-serif);
   font-size: var(--font-size-2xl);
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: #fff;
   margin: 0 0 var(--space-1) 0;
   line-height: var(--line-height-tight);
@@ -536,8 +536,10 @@ useHead({
 }
 
 .section-title {
+  font-family: var(--font-serif);
   font-size: var(--font-size-xl);
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: #fff;
   margin: 0;
 }
@@ -599,8 +601,10 @@ useHead({
 }
 
 .in-progress-title {
-  font-size: var(--font-size-base);
-  font-weight: 700;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: #fff;
   text-decoration: none;
   line-height: var(--line-height-tight);
@@ -785,8 +789,10 @@ useHead({
 }
 
 .feed-work-title {
-  font-size: var(--font-size-base);
-  font-weight: 700;
+  font-family: var(--font-serif);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: #fff;
   text-decoration: none;
   line-height: var(--line-height-tight);

@@ -54,13 +54,12 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 }
 
 .header-inner {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: var(--space-4) var(--space-5);
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-3) var(--space-8);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
   gap: var(--space-3);
 }
 
@@ -90,14 +89,20 @@ import AppLogo from '~/components/ui/AppLogo.vue'
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-xl);
-  font-weight: bold;
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: #fff;
   text-decoration: none;
-  transition: color 0.2s ease;
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  background-color: transparent;
+  transition: background-color 0.25s ease 0.05s, color 0.25s ease 0.05s;
 }
 
 .site-title:hover {
+  background-color: var(--card-bg);
   color: var(--highlight);
 }
 
@@ -110,7 +115,7 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 .site-nav {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -119,19 +124,24 @@ import AppLogo from '~/components/ui/AppLogo.vue'
   text-decoration: none;
   font-size: var(--font-size-sm);
   min-height: 28px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
-  transition: color 0.2s;
+  background-color: transparent;
+  transition: background-color 0.25s ease 0.05s, color 0.25s ease 0.05s;
 }
 
 .nav-link:hover {
+  background-color: var(--card-bg);
   color: var(--highlight);
 }
 
+/* Full-bleed, on the same side padding as .header-inner, so the content edge
+   lines up with the logo and the nav instead of stopping short of them. */
 .container {
-  max-width: 960px;
   margin: 0 auto;
-  padding: var(--space-5);
+  padding: var(--space-5) var(--space-8);
   padding-bottom: var(--space-16);
   flex: 1;
   width: 100%;
@@ -149,9 +159,8 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 }
 
 .footer-inner {
-  max-width: 960px;
   margin: 0 auto;
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-8);
   text-align: center;
 }
 
@@ -169,6 +178,10 @@ import AppLogo from '~/components/ui/AppLogo.vue'
   .container {
     padding: var(--space-4);
     padding-bottom: var(--space-10);
+  }
+
+  .footer-inner {
+    padding: 0 var(--space-4);
   }
 
   .site-nav {

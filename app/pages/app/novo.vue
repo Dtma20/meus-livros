@@ -84,34 +84,52 @@ useSeoMeta({
   margin-bottom: var(--space-6);
 }
 
+/* Same segmented control as .visibility-nav on the profile page. */
 .tabs-nav {
-  display: flex;
-  gap: var(--space-2, 8px);
+  display: inline-flex;
+  background-color: var(--card-bg, #232a31);
+  padding: var(--space-1, 4px);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--input-bg, #2c3440);
+  gap: var(--space-1, 4px);
+  flex-wrap: wrap;
   margin-bottom: var(--space-6, 24px);
-  border-bottom: 1px solid var(--input-bg, #2c3440);
-  padding-bottom: var(--space-2, 8px);
 }
 
 .tab-btn {
-  background: transparent;
+  background: none;
   border: none;
   color: var(--text-color, #9ab);
   font-family: inherit;
-  font-size: var(--font-size-base, 1rem);
+  font-size: var(--font-size-sm, 0.875rem);
   font-weight: 500;
-  padding: 8px 16px;
-  cursor: pointer;
+  padding: var(--space-2, 8px) var(--space-3, 12px);
   border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
   transition: color 0.2s, background-color 0.2s;
 }
 
-.tab-btn:hover {
+.tab-btn:hover:not(.active) {
   color: #fff;
-  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .tab-btn.active {
-  color: #fff;
-  background-color: var(--input-bg, #2c3440);
+  background-color: var(--highlight, #f59e0b);
+  color: #14181c;
+  font-weight: 700;
+}
+
+.tab-btn:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline-offset: var(--focus-ring-offset, 2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-btn {
+    transition: none;
+  }
 }
 </style>
