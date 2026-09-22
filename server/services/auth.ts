@@ -90,7 +90,17 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 30, // 30 days
     updateAge: 60 * 60 * 24, // roll every 24 h
     cookieCache: {
-      enabled: false, // always validate against DB → sessions are revocable
+      // Signed session data rides in the cookie, so a request that hits a warm
+      // cache skips the `session` table round trip to Neon. The profile lookup
+      // in getSessionUserByHeaders still runs — this halves the auth queries
+      // per request, it does not remove them.
+      //
+      // The cost: revocation is no longer instant. A session revoked by
+      // revokeSessionsOnPasswordReset or by change-password's
+      // revokeOtherSessions stays usable until its cached copy expires. 5 min
+      // is the ceiling on that window.
+      enabled: true,
+      maxAge: 5 * 60,
     },
   },
 
