@@ -83,6 +83,10 @@ import { signInSchema } from '~~/shared/schemas/auth'
 
 const route = useRoute()
 const router = useRouter()
+const session = useState<AuthSessionState>('auth:session', () => ({
+  user: null,
+  fetched: false,
+}))
 
 const identificador = ref('')
 const senha = ref('')
@@ -119,7 +123,6 @@ async function handleSignIn() {
     }
 
     // Invalidate cached auth session so middleware fetches fresh profile
-    const session = useState<AuthSessionState>('auth:session')
     session.value = { user: null, fetched: false }
 
     const redirectPath = getSafeRedirectUrl(route.query.next)

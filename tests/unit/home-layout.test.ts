@@ -97,4 +97,21 @@ describe('home-layout middleware', () => {
     expect(stored.hasProfile).toBe(true)
     expect(stored.fetched).toBe(true)
   })
+
+  it('is declared as middleware on public pages (index, entrada, livro, @handle)', async () => {
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const pages = [
+      '../../app/pages/index.vue',
+      '../../app/pages/entrada/[id].vue',
+      '../../app/pages/livro/[slug].vue',
+      '../../app/pages/@[handle].vue',
+    ]
+
+    for (const pageRel of pages) {
+      const filePath = path.resolve(__dirname, pageRel)
+      const content = fs.readFileSync(filePath, 'utf-8')
+      expect(content).toContain("middleware: 'home-layout'")
+    }
+  })
 })

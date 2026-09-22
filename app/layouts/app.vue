@@ -4,7 +4,7 @@
       <NuxtLink to="/app/novo" class="nav-link">
         Registrar livro
       </NuxtLink>
-      <NuxtLink to="/app/perfil" class="nav-link">
+      <NuxtLink :to="profileLink" class="nav-link">
         Perfil
       </NuxtLink>
       <NuxtLink to="/entrar" class="nav-link">
@@ -16,7 +16,15 @@
 </template>
 
 <script setup lang="ts">
-// Authenticated shell layout
+import { computed } from 'vue'
+import type { AuthSessionState } from '~/middleware/auth'
+
+const session = useState<AuthSessionState>('auth:session')
+
+const profileLink = computed(() => {
+  const handle = session.value?.user?.handle
+  return handle ? `/@${handle}` : '/app/perfil'
+})
 </script>
 
 <style scoped>

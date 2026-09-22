@@ -3,7 +3,6 @@
     <div class="error-page-container">
       <EmptyState
         v-if="is404"
-        icon="🔍"
         title="Não encontramos essa página."
         action-label="Ir para o início"
         action-href="/"

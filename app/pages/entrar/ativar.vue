@@ -159,6 +159,10 @@ import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/sha
 
 const route = useRoute()
 const router = useRouter()
+const session = useState<AuthSessionState>('auth:session', () => ({
+  user: null,
+  fetched: false,
+}))
 
 const step = ref<'email' | 'otp'>('email')
 const email = ref('')
@@ -305,7 +309,6 @@ async function handleActivate() {
     }
 
     // Invalidate cached auth session so middleware fetches fresh profile
-    const session = useState<AuthSessionState>('auth:session')
     session.value = { user: null, fetched: false }
 
     const redirectPath = getSafeRedirectUrl(route.query.next)

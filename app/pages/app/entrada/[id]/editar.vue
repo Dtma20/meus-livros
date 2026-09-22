@@ -12,7 +12,7 @@
 
       <div v-else-if="error || !log" class="error-state">
         <p class="error-text">Registro não encontrado ou você não tem permissão para editá-lo.</p>
-        <NuxtLink to="/app" class="back-link">← Voltar para o início</NuxtLink>
+        <NuxtLink to="/" class="back-link">← Voltar para o início</NuxtLink>
       </div>
 
       <LogForm

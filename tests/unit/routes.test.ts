@@ -164,6 +164,32 @@ describe('Layout: app.vue', () => {
     expect(wrapper.text()).toContain('Dados bibliográficos parcialmente do Open Library')
     wrapper.unmount()
   })
+
+  it('links Perfil to /@handle when authenticated user has handle in session', () => {
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    const prevUseState = globalScope.useState
+    globalScope.useState = (key: string, init?: () => unknown) => {
+      if (key === 'auth:session') {
+        return { value: { user: { handle: 'diogo' }, hasProfile: true, fetched: true } }
+      }
+      return { value: init ? init() : null }
+    }
+
+    const wrapper = mount(AppLayout)
+    const navLinks = wrapper.findAll('nav.site-nav a')
+    const linkData = navLinks.map((a) => ({
+      href: a.getAttribute('href'),
+      text: a.textContent?.trim()
+    }))
+
+    expect(linkData).toEqual([
+      { href: '/app/novo', text: 'Registrar livro' },
+      { href: '/@diogo', text: 'Perfil' },
+      { href: '/entrar', text: 'Sair' }
+    ])
+    wrapper.unmount()
+    globalScope.useState = prevUseState
+  })
 })
 
 describe('Error page: error.vue', () => {

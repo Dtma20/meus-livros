@@ -46,7 +46,7 @@ withDefaults(
   {
     title: 'Algo deu errado. Tente de novo.',
     message: '',
-    icon: '⚠️',
+    icon: '',
     actionLabel: 'Tentar de novo',
     headingTag: 'h2',
   },
