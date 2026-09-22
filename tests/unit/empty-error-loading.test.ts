@@ -195,4 +195,49 @@ describe('SearchBox.vue - Empty state on search miss', () => {
     wrapper.unmount()
     global.fetch = originalFetch
   })
+
+  it('renders cover preview in search results dropdown for found works', async () => {
+    const originalFetch = global.fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        works: [
+          {
+            id: 'work-1',
+            slug: 'dom-casmurro',
+            title: 'Dom Casmurro',
+            authors: [{ name: 'Machado de Assis', slug: 'machado-de-assis' }],
+            first_published_year: 1899,
+            cover_url: 'https://covers.openlibrary.org/b/id/647501-M.jpg',
+            ol_cover_id: 647501,
+            source: 'externo',
+          },
+        ],
+      }),
+    } as unknown as Response)
+
+    const wrapper = mount(SearchBox, { navigateOnSelect: false })
+
+    const input = wrapper.find<HTMLInputElement>('input')
+    if (!input) throw new Error('input element not found')
+
+    input.dispatchEvent(new Event('focus'))
+    input.value = 'Dom Casmurro'
+    input.dispatchEvent(new Event('input'))
+
+    // Wait for debounced search (250ms)
+    await new Promise((resolve) => setTimeout(resolve, 350))
+    await nextTick()
+
+    const resultCover = wrapper.find('.result-cover')
+    expect(resultCover).not.toBeNull()
+
+    const img = resultCover?.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img?.getAttribute('src')).toBe('https://covers.openlibrary.org/b/id/647501-M.jpg')
+
+    wrapper.unmount()
+    global.fetch = originalFetch
+  })
 })
+

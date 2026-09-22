@@ -46,6 +46,15 @@
           @mousedown.prevent="selectWork(work)"
           @mouseover="activeIndex = index"
         >
+          <div class="result-cover">
+            <BookCover
+              :title="work.title"
+              :cover-url="work.cover_url"
+              :ol-cover-id="work.ol_cover_id"
+              :alt="`Capa de ${work.title}`"
+              loading="lazy"
+            />
+          </div>
           <div class="result-content">
             <span class="result-title">{{ work.title }}</span>
             <span v-if="work.authors.length" class="result-author">
@@ -95,6 +104,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import BookCover from '../book/BookCover.vue'
 import type { SearchResult } from '../../../shared/schemas/search'
 
 const props = withDefaults(
@@ -171,12 +181,30 @@ async function fetchResults(term: string): Promise<void> {
   // Abort the previous in-flight request before issuing a new one.
   abortController?.abort()
   abortController = new AbortController()
+  const signal = abortController.signal
 
   loading.value = true
+
+  // Fast path: fetch local catalog first so existing books appear instantaneously (< 50ms)
+  fetch(`/api/search?q=${encodeURIComponent(term)}&local=true`, { signal })
+    .then(async (res) => {
+      if (!res.ok || signal.aborted) return
+      const data = (await res.json()) as { works: SearchResult[] }
+      if (signal.aborted) return
+      // If we got local results and full search hasn't settled yet, show them immediately
+      if (data.works && data.works.length > 0 && loading.value) {
+        results.value = data.works
+        searched.value = true
+        lastQuery.value = term
+      }
+    })
+    .catch(() => {})
+
+  // Full path: hybrid search (local prioritized + Open Library complement)
   try {
     const res = await fetch(
       `/api/search?q=${encodeURIComponent(term)}`,
-      { signal: abortController.signal },
+      { signal },
     )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json() as { works: SearchResult[] }
@@ -186,8 +214,10 @@ async function fetchResults(term: string): Promise<void> {
     activeIndex.value = -1
   } catch (err) {
     if ((err as { name?: string }).name === 'AbortError') return
-    results.value = []
-    searched.value = false
+    if (results.value.length === 0) {
+      results.value = []
+      searched.value = false
+    }
   } finally {
     loading.value = false
   }
@@ -436,9 +466,8 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
 .search-result {
   display: flex;
   flex-direction: row;
-  justify-content: space-between;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-3);
   cursor: pointer;
   border-radius: 0;
@@ -448,6 +477,27 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
 .search-result:hover,
 .search-result.is-active {
   background: var(--input-bg);
+}
+
+.result-cover {
+  width: 32px;
+  height: 48px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background-color: var(--input-bg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-cover :deep(img),
+.result-cover :deep(.book-cover) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .result-content {

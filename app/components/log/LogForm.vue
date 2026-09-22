@@ -21,6 +21,7 @@
             :alt="`Capa de ${selectedWork.title}, de ${formatAuthors(selectedWork.authors)}`"
             :title="selectedWork.title"
             :cover-url="selectedWork.cover_url"
+            :ol-cover-id="selectedWork.ol_cover_id"
           />
         </div>
         <div class="selected-book-meta">
@@ -344,6 +345,7 @@ interface SelectedWorkState {
   authors: Array<{ name: string; slug?: string }>
   first_published_year?: number | null
   cover_url?: string | null
+  ol_cover_id?: number | null
 }
 
 const selectedWork = ref<SelectedWorkState | null>(null)
@@ -389,6 +391,7 @@ function onWorkSelected(work: SearchResult): void {
     authors: work.authors,
     first_published_year: work.first_published_year,
     cover_url: work.cover_url,
+    ol_cover_id: work.ol_cover_id,
   }
   editionId.value = null
   editionsList.value = []

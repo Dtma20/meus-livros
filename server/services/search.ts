@@ -218,8 +218,13 @@ export async function searchHybridWorks(
   const term = query.trim()
   if (term.length < 2) return []
 
-  // 1. Local search (fast, prioritised)
-  const localWorks = await searchWorks(term, viewer)
+  // Run local search and Open Library in parallel to eliminate sequential latency
+  const [localRes, extRespResult] = await Promise.allSettled([
+    searchWorks(term, viewer),
+    searchOpenLibrary(term),
+  ])
+
+  const localWorks = localRes.status === 'fulfilled' ? localRes.value : []
   const localResults: SearchResult[] = localWorks.map((w) => ({
     id: w.id,
     slug: w.slug,
@@ -231,11 +236,10 @@ export async function searchHybridWorks(
     source: 'local',
   }))
 
-  // 2. Open Library online lookup (automatic complement)
   let externalResults: SearchResult[] = []
   try {
-    const extResp = await searchOpenLibrary(term)
-    if (extResp.results && extResp.results.length > 0) {
+    const extResp = extRespResult.status === 'fulfilled' ? extRespResult.value : null
+    if (extResp?.results && extResp.results.length > 0) {
       const localTitles = new Set(localWorks.map((w) => slugify(w.title)))
       const localOlKeys = new Set<string>()
 
