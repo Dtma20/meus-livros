@@ -25,93 +25,194 @@
       </div>
     </div>
 
-    <!-- Authenticated state: member feed -->
-    <div v-else class="feed-container">
-      <header class="feed-header">
-        <div class="feed-header-text">
-          <h1 class="feed-title">Início</h1>
-          <p class="feed-subtitle">Leituras recentes</p>
+    <!-- Authenticated state: reading dashboard & community feed -->
+    <div v-else class="dashboard-container">
+      <header class="dashboard-header">
+        <div class="dashboard-header-text">
+          <h1 class="dashboard-title">Minha Leitura</h1>
+          <p class="dashboard-subtitle">Acompanhe seu progresso e as atividades do grupo</p>
         </div>
         <NuxtLink to="/app/novo" class="btn-primary btn-register">
           Registrar livro
         </NuxtLink>
       </header>
 
-      <!-- Loading state while feed is fetching -->
-      <div v-if="pending" class="feed-loading">
+      <!-- Loading state while dashboard/feed is fetching -->
+      <div v-if="pending" class="dashboard-loading">
         <LoadingSkeleton :count="4" />
       </div>
 
-      <!-- Error state when feed fails to load -->
+      <!-- Error state when data fails to load -->
       <ErrorState
         v-else-if="hasFeedError"
         title="Algo deu errado. Tente de novo."
-        message="Não foi possível carregar as leituras recentes."
+        message="Não foi possível carregar suas leituras."
         action-label="Tentar de novo"
         @retry="refresh"
       />
 
-      <!-- Empty state when no visible logs exist -->
-      <EmptyState
-        v-else-if="entries.length === 0"
-        icon="📚"
-        title="Ninguém registrou nada ainda. Seja o primeiro."
-        action-label="Registrar livro"
-        action-href="/app/novo"
-      />
+      <div v-else class="dashboard-content">
+        <!-- 1. LENDO ATUALMENTE SECTION -->
+        <section class="dashboard-section in-progress-section">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Lendo atualmente</h2>
+              <p class="section-subtitle">
+                {{ inProgressBooks.length }} {{ inProgressBooks.length === 1 ? 'leitura em andamento' : 'leituras em andamento' }}
+              </p>
+            </div>
+          </div>
 
-      <!-- Strip of up to 10 most recent entries -->
-      <div v-else class="feed-list">
-        <article
-          v-for="(entry, i) in entries"
-          :key="entry.id"
-          class="feed-row"
-        >
-          <div class="feed-cover-col">
-            <NuxtLink
-              :to="`/entrada/${entry.id}`"
-              class="feed-cover-link"
-              tabindex="-1"
-              aria-hidden="true"
-            >
-              <BookCover
-                :alt="formatAuthors(entry.work.authors) ? `Capa de ${entry.work.title}, de ${formatAuthors(entry.work.authors)}` : `Capa de ${entry.work.title}`"
-                :title="entry.work.title"
-                :cover-url="entry.edition?.cover_url || entry.work.cover_url"
-                :ol-cover-id="entry.edition?.ol_cover_id"
-                :isbn13="entry.edition?.isbn13"
-                :loading="i < 2 ? 'eager' : 'lazy'"
-              />
+          <div v-if="inProgressBooks.length === 0" class="empty-in-progress">
+            <p class="empty-in-progress-text">Você não tem nenhuma leitura em andamento no momento.</p>
+            <NuxtLink to="/app/novo" class="btn-secondary-link">
+              Começar a ler um livro →
             </NuxtLink>
           </div>
 
-          <div class="feed-body-col">
-            <div class="feed-row-header">
-              <NuxtLink :to="`/entrada/${entry.id}`" class="feed-work-title">
-                {{ entry.work.title }}
-              </NuxtLink>
-              <span class="feed-relative-date" :title="formatFullDate(entry.created_at)">
-                {{ formatRelativeDate(entry.created_at) }}
-              </span>
-            </div>
-
-            <div class="feed-meta">
-              <span class="feed-reader">
-                por
-                <NuxtLink :to="`/@${entry.user.handle}`" class="feed-user-link">
-                  @{{ entry.user.handle }}
+          <div v-else class="in-progress-grid">
+            <article
+              v-for="book in inProgressBooks"
+              :key="book.id"
+              class="in-progress-card"
+            >
+              <div class="in-progress-cover-col">
+                <NuxtLink
+                  :to="`/entrada/${book.id}`"
+                  class="in-progress-cover-link"
+                  tabindex="-1"
+                  aria-hidden="true"
+                >
+                  <BookCover
+                    :alt="`Capa de ${book.work.title}`"
+                    :title="book.work.title"
+                    :cover-url="book.work.cover_url"
+                    loading="lazy"
+                  />
                 </NuxtLink>
-              </span>
-              <div v-if="entry.rating" class="feed-rating">
-                <StarRating :rating="entry.rating" />
               </div>
-            </div>
 
-            <p v-if="entry.review_excerpt" class="feed-review-excerpt">
-              {{ entry.review_excerpt }}
-            </p>
+              <div class="in-progress-info-col">
+                <div class="in-progress-meta">
+                  <NuxtLink :to="`/entrada/${book.id}`" class="in-progress-title">
+                    {{ book.work.title }}
+                  </NuxtLink>
+                  <p v-if="formatAuthors(book.work.authors)" class="in-progress-author">
+                    {{ formatAuthors(book.work.authors) }}
+                  </p>
+                </div>
+
+                <!-- Progress indicators -->
+                <div class="in-progress-stats">
+                  <div class="progress-bar-wrap" role="progressbar" :aria-valuenow="book.percentage ?? (book.total_pages ? Math.min(100, Math.round((book.pages_read / book.total_pages) * 100)) : 0)" aria-valuemin="0" aria-valuemax="100">
+                    <div
+                      class="progress-bar-fill"
+                      :style="{ width: `${book.percentage ?? (book.total_pages ? Math.min(100, Math.round((book.pages_read / book.total_pages) * 100)) : 0)}%` }"
+                    />
+                  </div>
+                  <div class="progress-details">
+                    <span v-if="book.percentage !== null" class="progress-percent">
+                      {{ book.percentage }}% concluído
+                    </span>
+                    <span class="progress-pages">
+                      <template v-if="book.total_pages">
+                        {{ book.pages_read }} de {{ book.total_pages }} páginas lidas
+                      </template>
+                      <template v-else-if="book.pages_read > 0">
+                        {{ book.pages_read }} páginas lidas
+                      </template>
+                      <template v-else>
+                        Nenhum bloco registrado ainda
+                      </template>
+                    </span>
+                  </div>
+                </div>
+
+                <div class="in-progress-actions">
+                  <NuxtLink :to="`/entrada/${book.id}`" class="btn-continue-reading">
+                    Continuar lendo →
+                  </NuxtLink>
+                </div>
+              </div>
+            </article>
           </div>
-        </article>
+        </section>
+
+        <!-- 2. LIVROS JÁ LIDOS CAROUSEL -->
+        <ReadingCarousel
+          v-if="completedBooks.length > 0"
+          :books="completedBooks"
+        />
+
+        <!-- 3. FEED / ATIVIDADE DO GRUPO -->
+        <section class="dashboard-section feed-section">
+          <div class="section-header">
+            <div>
+              <h2 class="section-title">Atividade recente do grupo</h2>
+              <p class="section-subtitle">Últimas leituras registradas pelos membros</p>
+            </div>
+          </div>
+
+          <EmptyState
+            v-if="entries.length === 0"
+            title="Ninguém registrou nada ainda. Seja o primeiro."
+            action-label="Registrar livro"
+            action-href="/app/novo"
+          />
+
+          <div v-else class="feed-list">
+            <article
+              v-for="(entry, i) in entries"
+              :key="entry.id"
+              class="feed-row"
+            >
+              <div class="feed-cover-col">
+                <NuxtLink
+                  :to="`/entrada/${entry.id}`"
+                  class="feed-cover-link"
+                  tabindex="-1"
+                  aria-hidden="true"
+                >
+                  <BookCover
+                    :alt="formatAuthors(entry.work.authors) ? `Capa de ${entry.work.title}, de ${formatAuthors(entry.work.authors)}` : `Capa de ${entry.work.title}`"
+                    :title="entry.work.title"
+                    :cover-url="entry.edition?.cover_url || entry.work.cover_url"
+                    :ol-cover-id="entry.edition?.ol_cover_id"
+                    :isbn13="entry.edition?.isbn13"
+                    :loading="i < 2 ? 'eager' : 'lazy'"
+                  />
+                </NuxtLink>
+              </div>
+
+              <div class="feed-body-col">
+                <div class="feed-row-header">
+                  <NuxtLink :to="`/entrada/${entry.id}`" class="feed-work-title">
+                    {{ entry.work.title }}
+                  </NuxtLink>
+                  <span class="feed-relative-date" :title="formatFullDate(entry.created_at)">
+                    {{ formatRelativeDate(entry.created_at) }}
+                  </span>
+                </div>
+
+                <div class="feed-meta">
+                  <span class="feed-reader">
+                    por
+                    <NuxtLink :to="`/@${entry.user.handle}`" class="feed-user-link">
+                      @{{ entry.user.handle }}
+                    </NuxtLink>
+                  </span>
+                  <div v-if="entry.rating" class="feed-rating">
+                    <StarRating :rating="entry.rating" />
+                  </div>
+                </div>
+
+                <p v-if="entry.review_excerpt" class="feed-review-excerpt">
+                  {{ entry.review_excerpt }}
+                </p>
+              </div>
+            </article>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -121,15 +222,23 @@
 import { computed } from 'vue'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
+import ReadingCarousel from '~/components/dashboard/ReadingCarousel.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { formatFullDate, formatRelativeDate } from '~/utils/date'
 import type { AuthSessionState } from '~/middleware/auth'
 import type { FeedEntry, FeedResponse } from '~~/shared/schemas/feed'
+import type {
+  DashboardCompletedBook,
+  DashboardInProgressBook,
+  DashboardResponse,
+} from '~~/shared/schemas/dashboard'
 
 interface HomeAsyncData {
   authenticated: boolean
+  inProgress: DashboardInProgressBook[]
+  completed: DashboardCompletedBook[]
   entries: FeedEntry[]
   hasFeedError: boolean
   redirectTo?: string
@@ -143,6 +252,9 @@ definePageMeta({
 })
 
 const requestFetch = useRequestFetch()
+const reqUrl = typeof useRequestURL === 'function' ? useRequestURL() : null
+const origin = computed(() => reqUrl?.origin || 'http://localhost:3000')
+const nuxtApp = typeof useNuxtApp === 'function' ? useNuxtApp() : null
 
 // The `home-layout` middleware has already resolved `/api/users/me` into the
 // shared `auth:session` state, on whichever side is rendering. Reading it here
@@ -155,13 +267,15 @@ const session = useState<AuthSessionState>('auth:session', () => ({
 // Server-rendered with useAsyncData. Three states of the session:
 // 1. no user: unauthenticated stranger -> landing, and no book data in the payload.
 // 2. user without profile: verified identity with no `users` row -> /app/bem-vindo.
-// 3. user with profile: member -> fetch the feed.
-const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('home-feed', async () => {
+// 3. user with profile: member -> fetch the dashboard and feed.
+const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('home-dashboard', async () => {
   const current = session.value
 
   if (!current?.user) {
     return {
       authenticated: false,
+      inProgress: [],
+      completed: [],
       entries: [],
       hasFeedError: false,
     }
@@ -172,6 +286,8 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
   if (!hasProfile) {
     return {
       authenticated: false,
+      inProgress: [],
+      completed: [],
       entries: [],
       hasFeedError: false,
       redirectTo: '/app/bem-vindo',
@@ -179,9 +295,15 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
   }
 
   try {
-    const feed = await requestFetch<FeedResponse>('/api/feed/recentes')
+    const [dashboard, feed] = await Promise.all([
+      requestFetch<DashboardResponse>('/api/dashboard').catch(() => ({ inProgress: [], completed: [] })),
+      requestFetch<FeedResponse>('/api/feed/recentes').catch(() => ({ entries: [] })),
+    ])
+
     return {
       authenticated: true,
+      inProgress: dashboard?.inProgress ?? [],
+      completed: dashboard?.completed ?? [],
       entries: feed?.entries ?? [],
       hasFeedError: false,
     }
@@ -189,6 +311,8 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
   catch {
     return {
       authenticated: true,
+      inProgress: [],
+      completed: [],
       entries: [],
       hasFeedError: true,
     }
@@ -196,10 +320,16 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
 })
 
 if (pageData.value?.redirectTo) {
-  await navigateTo(pageData.value.redirectTo)
+  if (nuxtApp) {
+    await nuxtApp.runWithContext(() => navigateTo(pageData.value!.redirectTo))
+  } else {
+    await navigateTo(pageData.value.redirectTo)
+  }
 }
 
 const isAuthenticated = computed(() => Boolean(pageData.value?.authenticated))
+const inProgressBooks = computed(() => pageData.value?.inProgress ?? [])
+const completedBooks = computed(() => pageData.value?.completed ?? [])
 const entries = computed(() => pageData.value?.entries ?? [])
 const hasFeedError = computed(() => Boolean(pageData.value?.hasFeedError))
 
@@ -209,11 +339,8 @@ function formatAuthors(authors?: { name: string }[]): string {
 }
 
 // Open Graph / SEO metadata
-const reqUrl = useRequestURL()
-const origin = computed(() => reqUrl?.origin || 'http://localhost:3000')
-
 useSeoMeta({
-  title: 'Início — Meus Livros',
+  title: 'Meus Livros',
   ogTitle: 'Meus Livros',
   description: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
   ogDescription: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
@@ -347,14 +474,14 @@ useHead({
   font-size: var(--font-size-sm);
 }
 
-/* Authenticated feed */
-.feed-container {
+/* Authenticated dashboard */
+.dashboard-container {
   width: 100%;
-  max-width: 760px;
+  max-width: 860px;
   margin: 0 auto;
 }
 
-.feed-header {
+.dashboard-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -364,7 +491,7 @@ useHead({
   border-bottom: 1px solid var(--input-bg);
 }
 
-.feed-title {
+.dashboard-title {
   font-size: var(--font-size-2xl);
   font-weight: 700;
   color: #fff;
@@ -372,10 +499,203 @@ useHead({
   line-height: var(--line-height-tight);
 }
 
-.feed-subtitle {
+.dashboard-subtitle {
   font-size: var(--font-size-sm);
   color: var(--text-color);
   margin: 0;
+}
+
+.dashboard-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.dashboard-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: var(--space-4);
+}
+
+.section-title {
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+}
+
+.section-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  margin: var(--space-1) 0 0;
+}
+
+/* In-progress section & cards */
+.in-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: var(--space-4);
+}
+
+.in-progress-card {
+  display: flex;
+  gap: var(--space-4);
+  background-color: var(--card-bg);
+  border: 1px solid var(--input-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  transition: border-color 0.2s;
+}
+
+.in-progress-card:hover {
+  border-color: var(--highlight);
+}
+
+.in-progress-cover-col {
+  width: 75px;
+  min-width: 75px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--input-bg);
+  background-color: #1e2328;
+  flex-shrink: 0;
+}
+
+.in-progress-cover-link {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.in-progress-info-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+}
+
+.in-progress-meta {
+  margin-bottom: var(--space-2);
+}
+
+.in-progress-title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: #fff;
+  text-decoration: none;
+  line-height: var(--line-height-tight);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.in-progress-title:hover {
+  color: var(--highlight);
+}
+
+.in-progress-author {
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+  margin: var(--space-1) 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.in-progress-stats {
+  margin: var(--space-2) 0;
+}
+
+.progress-bar-wrap {
+  width: 100%;
+  height: 6px;
+  background-color: var(--input-bg);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--highlight);
+  border-radius: var(--radius-full);
+  transition: width 0.3s ease;
+}
+
+.progress-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-xs);
+}
+
+.progress-percent {
+  font-weight: 700;
+  color: var(--highlight);
+}
+
+.progress-pages {
+  color: var(--text-color);
+  opacity: 0.85;
+}
+
+.in-progress-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.btn-continue-reading {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--highlight);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.btn-continue-reading:hover {
+  text-decoration: underline;
+  opacity: 0.9;
+}
+
+.empty-in-progress {
+  padding: var(--space-6) var(--space-4);
+  background-color: var(--card-bg);
+  border: 1px dashed var(--input-bg);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.empty-in-progress-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  margin: 0 0 var(--space-3) 0;
+}
+
+.btn-secondary-link {
+  display: inline-block;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--highlight);
+  text-decoration: none;
+}
+
+.btn-secondary-link:hover {
+  text-decoration: underline;
+}
+
+/* Feed section */
+.feed-section {
+  margin-top: var(--space-2);
 }
 
 .feed-error-state {
@@ -520,13 +840,29 @@ useHead({
     padding: var(--space-6) var(--space-4);
   }
 
+  .dashboard-header,
   .feed-header {
     margin-bottom: var(--space-4);
     padding-bottom: var(--space-3);
   }
 
+  .dashboard-title,
   .feed-title {
     font-size: var(--font-size-xl);
+  }
+
+  .in-progress-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .in-progress-card {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .in-progress-cover-col {
+    width: 60px;
+    min-width: 60px;
   }
 
   .feed-row {
