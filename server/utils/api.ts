@@ -20,17 +20,13 @@ export interface ApiError {
 }
 
 function resolveRequestId(event: H3Event): string {
-  try {
-    const existing =
-      (event.context?.requestId as string | undefined) ||
-      (event.node?.req?.headers ? getRequestHeader(event, 'x-request-id') : undefined) ||
-      (event.node?.req?.headers ? getRequestHeader(event, 'x-correlation-id') : undefined)
+  const existing =
+    (event.context?.requestId as string | undefined) ||
+    getRequestHeader(event, 'x-request-id') ||
+    getRequestHeader(event, 'x-correlation-id')
 
-    if (existing && typeof existing === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(existing)) {
-      return existing
-    }
-  } catch {
-    // Safe fallback for partially mocked test events
+  if (existing && typeof existing === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(existing)) {
+    return existing
   }
 
   const generated = crypto.randomUUID()
@@ -38,16 +34,6 @@ function resolveRequestId(event: H3Event): string {
     event.context.requestId = generated
   }
   return generated
-}
-
-function safeSetResponseStatus(event: H3Event, code: number): void {
-  try {
-    setResponseStatus(event, code)
-  } catch {
-    if (event.node?.res) {
-      event.node.res.statusCode = code
-    }
-  }
 }
 
 function isPostgresError(err: unknown): err is Error & { code: string; detail?: string; constraint_name?: string } {
@@ -65,12 +51,8 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
   return defineEventHandler(async (event) => {
     const startTime = (event.context?.startTime as number | undefined) ?? performance.now()
     const requestId = resolveRequestId(event)
-    try {
-      if (event.node?.res && typeof (event.node.res as { setHeader?: unknown }).setHeader === 'function') {
-        setResponseHeader(event, 'x-request-id', requestId)
-      }
-    } catch {
-      // Safe fallback
+    if (event.node?.res && typeof (event.node.res as { setHeader?: unknown }).setHeader === 'function') {
+      setResponseHeader(event, 'x-request-id', requestId)
     }
 
     const method = (event.method || event.node?.req?.method || 'UNKNOWN').toUpperCase()
@@ -121,7 +103,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
       // 1. Handled H3 Errors (thrown intentionally by services / validations)
       if (isError(caught)) {
         const statusCode = caught.statusCode || 500
-        safeSetResponseStatus(event, statusCode)
+        setResponseStatus(event, statusCode)
 
         const data = (caught.data as ApiError | undefined) ?? {
           error: statusCode >= 500 ? 'erro_inesperado' : 'erro_requisicao',
@@ -173,7 +155,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
 
         if (caught.code === '23505') {
           // Unique violation
-          safeSetResponseStatus(event, 409)
+          setResponseStatus(event, 409)
           return {
             error: 'conflito',
             message: 'O registro já existe no sistema.',
@@ -183,7 +165,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
 
         if (caught.code === '23503') {
           // Foreign key violation
-          safeSetResponseStatus(event, 400)
+          setResponseStatus(event, 400)
           return {
             error: 'referencia_invalida',
             message: 'Referência a recurso inexistente.',
@@ -193,7 +175,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
 
         if (caught.code === '57014') {
           // Query canceled / statement timeout
-          safeSetResponseStatus(event, 504)
+          setResponseStatus(event, 504)
           return {
             error: 'tempo_esgotado',
             message: 'A operação no banco de dados demorou demais.',
@@ -202,7 +184,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         }
 
         // Generic database error fallback (never leak SQL or table names)
-        safeSetResponseStatus(event, 500)
+        setResponseStatus(event, 500)
         return {
           error: 'erro_banco',
           message: 'Erro interno ao consultar dados.',
@@ -218,7 +200,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         error: caught instanceof Error ? caught : new Error(String(caught)),
       })
 
-      safeSetResponseStatus(event, 500)
+      setResponseStatus(event, 500)
       return {
         error: 'erro_inesperado',
         message: 'Não foi possível completar a operação.',
