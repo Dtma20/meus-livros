@@ -24,21 +24,34 @@
 
     <div v-else class="profile-content">
       <header class="profile-header">
-        <h1 class="display-name">{{ profile.user.display_name }}</h1>
-        <div class="handle-row">
-          <span class="handle">@{{ profile.user.handle }}</span>
-          <NuxtLink v-if="isOwner" to="/app/perfil" class="btn-edit-profile">
-            Editar perfil
-          </NuxtLink>
-          <a
-            v-if="isOwner"
-            href="/api/library/export"
-            download="meus-livros-export.json"
-            class="btn-edit-profile btn-export-profile"
-            title="Exportar biblioteca em JSON"
-          >
-            Exportar JSON
-          </a>
+        <div class="identity">
+          <div class="name-row">
+            <h1 class="display-name">{{ profile.user.display_name }}</h1>
+            <button
+              type="button"
+              class="handle"
+              :title="copied ? 'Link copiado' : 'Copiar link do perfil'"
+              @click="copyProfileLink(profile.user.handle)"
+            >
+              @{{ profile.user.handle }}
+            </button>
+          </div>
+          <p class="copy-feedback" role="status" aria-live="polite">
+            {{ copyFeedback }}
+          </p>
+          <div v-if="isOwner" class="profile-actions">
+            <NuxtLink to="/app/perfil" class="btn-edit-profile">
+              Editar perfil
+            </NuxtLink>
+            <a
+              href="/api/library/export"
+              download="meus-livros-export.json"
+              class="btn-edit-profile btn-export-profile"
+              title="Exportar biblioteca em JSON"
+            >
+              Exportar JSON
+            </a>
+          </div>
         </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
 
@@ -211,7 +224,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import BookCard from '~/components/book/BookCard.vue'
 import BookGrid from '~/components/book/BookGrid.vue'
@@ -307,10 +320,7 @@ const firstCover = computed(() => {
 })
 
 useSeoMeta({
-  title: () =>
-    profile.value
-      ? `${profile.value.user.display_name} (@${profile.value.user.handle}) — Meus Livros`
-      : 'Perfil — Meus Livros',
+  title: () => profile.value?.user.display_name || 'Perfil',
   ogTitle: () =>
     profile.value
       ? `${profile.value.user.display_name} (@${profile.value.user.handle})`
@@ -423,6 +433,64 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
   if (!authorsList || authorsList.length === 0) return ''
   return authorsList.map((a) => a.name).join(', ')
 }
+
+const copied = ref(false)
+const copyFeedback = ref('')
+let copyTimer: ReturnType<typeof setTimeout> | null = null
+
+function writeToClipboard(text: string): Promise<void> {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    return navigator.clipboard.writeText(text)
+  }
+  // execCommand is the only path left on non-secure origins (the LAN address
+  // the cohort uses to test on their phones is plain http).
+  return new Promise((resolve, reject) => {
+    try {
+      const field = document.createElement('textarea')
+      field.value = text
+      field.setAttribute('readonly', '')
+      field.style.position = 'fixed'
+      field.style.opacity = '0'
+      document.body.appendChild(field)
+      field.select()
+      const ok = document.execCommand('copy')
+      document.body.removeChild(field)
+      if (ok) {
+        resolve()
+      }
+      else {
+        reject(new Error('copy_failed'))
+      }
+    }
+    catch (err) {
+      reject(err instanceof Error ? err : new Error('copy_failed'))
+    }
+  })
+}
+
+async function copyProfileLink(userHandle: string) {
+  const link = `${window.location.origin}/@${userHandle}`
+
+  try {
+    await writeToClipboard(link)
+    copied.value = true
+    copyFeedback.value = 'Link do perfil copiado!'
+  }
+  catch {
+    copied.value = false
+    copyFeedback.value = `Não foi possível copiar. Link: ${link}`
+  }
+
+  if (copyTimer) clearTimeout(copyTimer)
+  copyTimer = setTimeout(() => {
+    copied.value = false
+    copyFeedback.value = ''
+  }, 3000)
+}
+
+onBeforeUnmount(() => {
+  if (copyTimer) clearTimeout(copyTimer)
+})
 </script>
 
 <style scoped>
@@ -435,33 +503,84 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
   margin-bottom: var(--space-8, 32px);
 }
 
+/* Shrink-wraps the name + handle line so the actions row below can stretch to
+   exactly that width. */
+.identity {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.name-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--space-3, 12px);
+  flex-wrap: wrap;
+}
+
 .display-name {
   font-size: var(--font-size-3xl, 2rem);
   font-weight: 700;
-  margin: 0 0 var(--space-1, 4px) 0;
+  margin: 0;
   color: #fff;
   line-height: var(--line-height-tight, 1.2);
 }
 
-.handle-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3, 12px);
-  margin-bottom: var(--space-3, 12px);
-  flex-wrap: wrap;
+.handle {
+  font-family: inherit;
+  font-size: var(--font-size-3xl, 2rem);
+  font-weight: 700;
+  line-height: var(--line-height-tight, 1.2);
+  color: var(--highlight, #f59e0b);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: opacity 0.2s;
 }
 
-.handle {
-  color: var(--highlight, #40bcf4);
-  font-size: var(--font-size-base, 1rem);
+.handle:hover {
+  opacity: 0.8;
+}
+
+.handle:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline-offset: var(--focus-ring-offset, 2px);
+  border-radius: var(--radius-sm, 4px);
+}
+
+/* Reserves its own line height so the row below does not shift when the
+   confirmation appears. */
+.copy-feedback {
+  margin: var(--space-1, 4px) 0 0 0;
+  min-height: 1.25em;
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--text-color, #9ab);
+}
+
+.profile-actions {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3, 12px);
+  justify-content: center;
+  margin-top: var(--space-5, 20px);
+  margin-bottom: var(--space-6, 24px);
+}
+
+/* Each button takes an equal share, so the pair spans the name-row width. */
+.profile-actions > * {
+  flex: 1 1 0;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .btn-edit-profile {
   display: inline-flex;
   align-items: center;
-  padding: 2px var(--space-2, 8px);
-  font-size: var(--font-size-xs, 0.75rem);
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  font-size: var(--font-size-sm, 0.875rem);
   color: var(--text-color, #9ab);
   background-color: var(--card-bg, #232a31);
   border: 1px solid var(--input-bg, #2c3440);
@@ -469,16 +588,16 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
   text-decoration: none;
   line-height: var(--line-height-normal, 1.5);
   transition: color 0.2s, border-color 0.2s, background-color 0.2s;
-  min-height: 28px;
+  min-height: 36px;
 }
 
 .btn-edit-profile:hover {
   color: #fff;
-  border-color: var(--highlight, #40bcf4);
+  border-color: var(--highlight, #f59e0b);
 }
 
 .btn-edit-profile:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #40bcf4);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
@@ -521,13 +640,13 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
 }
 
 .visibility-tab.active {
-  background-color: var(--highlight, #40bcf4);
+  background-color: var(--highlight, #f59e0b);
   color: #14181c;
   font-weight: 700;
 }
 
 .visibility-tab:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #40bcf4);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
@@ -566,6 +685,12 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
   margin-bottom: var(--space-6, 24px);
 }
 
+/* The actions row already carries the gap below it. */
+.identity:has(.profile-actions) + .stats,
+.identity:has(.profile-actions) + .bio + .stats {
+  margin-top: 0;
+}
+
 .book-card-item {
   position: relative;
 }
@@ -576,8 +701,8 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
   right: 6px;
   z-index: 2;
   background-color: rgba(0, 0, 0, 0.85);
-  color: var(--highlight, #40bcf4);
-  border: 1px solid var(--highlight, #40bcf4);
+  color: var(--highlight, #f59e0b);
+  border: 1px solid var(--highlight, #f59e0b);
   font-size: var(--font-size-xs, 0.75rem);
   padding: 2px 6px;
   border-radius: var(--radius-sm, 4px);
@@ -614,7 +739,7 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
 .filter-indicator {
   display: block;
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--highlight, #40bcf4);
+  color: var(--highlight, #f59e0b);
   margin-top: 2px;
 }
 
@@ -625,6 +750,14 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
 }
 
 @media (max-width: 600px) {
+  /* A short display name would otherwise squeeze the two nowrap buttons past
+     the viewport edge. */
+  .identity {
+    width: 100%;
+  }
+  .profile-actions {
+    flex-wrap: wrap;
+  }
   .stats {
     gap: var(--space-5, 20px);
   }
@@ -635,6 +768,7 @@ function formatAuthors(authorsList?: Array<{ name: string }>): string {
 
 @media (prefers-reduced-motion: reduce) {
   .btn-edit-profile,
+  .handle,
   .visibility-tab {
     transition: none;
   }
