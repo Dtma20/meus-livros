@@ -379,8 +379,10 @@ async function confirmDelete(block: ReadingBlockView): Promise<void> {
       method: 'DELETE',
     })
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.message || 'Não foi possível excluir o trecho.')
+      // Um 502 da plataforma ou um 500 vazio não devolvem JSON, e deixar o
+      // parser estourar mostraria a mensagem do navegador, em inglês.
+      const body = await res.json().catch(() => null) as { message?: string } | null
+      throw new Error(body?.message || 'Não foi possível excluir o trecho.')
     }
     blocks.value = blocks.value.filter((b) => b.id !== block.id)
     updateLocalProgress()
