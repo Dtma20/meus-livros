@@ -84,20 +84,13 @@ export async function createBlock(
   const [log] = await db
     .select({ id: reading_logs.id, user_id: reading_logs.user_id })
     .from(reading_logs)
-    .where(eq(reading_logs.id, logId))
+    .where(and(eq(reading_logs.id, logId), eq(reading_logs.user_id, userId)))
     .limit(1)
 
   if (!log) {
     throw createError({
       statusCode: 404,
       data: { error: 'nao_encontrado', message: 'Registro de leitura não encontrado.' },
-    })
-  }
-
-  if (log.user_id !== userId) {
-    throw createError({
-      statusCode: 403,
-      data: { error: 'proibido', message: 'Apenas o leitor pode adicionar blocos a esta leitura.' },
     })
   }
 
@@ -137,20 +130,13 @@ export async function updateBlock(
   const [existing] = await db
     .select()
     .from(reading_blocks)
-    .where(eq(reading_blocks.id, blockId))
+    .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
     .limit(1)
 
   if (!existing) {
     throw createError({
       statusCode: 404,
       data: { error: 'nao_encontrado', message: 'Bloco de leitura não encontrado.' },
-    })
-  }
-
-  if (existing.user_id !== userId) {
-    throw createError({
-      statusCode: 403,
-      data: { error: 'proibido', message: 'Você não tem permissão para editar este bloco.' },
     })
   }
 
@@ -173,7 +159,7 @@ export async function updateBlock(
       read_at: input.read_at ?? existing.read_at,
       updated_at: new Date(),
     })
-    .where(eq(reading_blocks.id, blockId))
+    .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
     .returning()
 
   // Touch the reading log's updated_at
@@ -199,7 +185,7 @@ export async function deleteBlock(
   const [existing] = await db
     .select({ id: reading_blocks.id, user_id: reading_blocks.user_id, log_id: reading_blocks.log_id })
     .from(reading_blocks)
-    .where(eq(reading_blocks.id, blockId))
+    .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
     .limit(1)
 
   if (!existing) {
@@ -209,14 +195,9 @@ export async function deleteBlock(
     })
   }
 
-  if (existing.user_id !== userId) {
-    throw createError({
-      statusCode: 403,
-      data: { error: 'proibido', message: 'Você não tem permissão para excluir este bloco.' },
-    })
-  }
-
-  await db.delete(reading_blocks).where(eq(reading_blocks.id, blockId))
+  await db
+    .delete(reading_blocks)
+    .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
 
   await db
     .update(reading_logs)

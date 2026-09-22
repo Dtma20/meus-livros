@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatSourceLabel,
+  formatImportError,
   GENRE_SLUG_MAP,
   IDIOMA_ISO_REVERSE,
   ISO_IDIOMA,
@@ -55,11 +56,25 @@ describe('library-transfer unit tests', () => {
       expect(livroJsonSchema.safeParse({ title: '', author: 'Autor' }).success).toBe(false)
     })
 
-    it('rejects invalid rating range (> 5 or < 0)', () => {
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 6 }).success).toBe(false)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: -1 }).success).toBe(false)
+    it('accepts only half-star ratings from 0.5 to 5', () => {
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 3.7 }).success).toBe(false)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 0 }).success).toBe(false)
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 4.5 }).success).toBe(true)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 6 }).success).toBe(false)
     })
+
+    it('accepts only https cover URLs', () => {
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'javascript:alert(1)' }).success).toBe(false)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'http://exemplo.com/a.jpg' }).success).toBe(false)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'https://exemplo.com/a.jpg' }).success).toBe(true)
+    })
+  })
+
+  it('formats import errors without database details', () => {
+    const message = formatImportError(7, 'Livro de teste')
+
+    expect(message).toBe('Livro #7 ("Livro de teste"): não foi possível importar.')
+    expect(message).not.toMatch(/constraint|violates|column|relation/i)
   })
 
   describe('parseAuthors helper', () => {

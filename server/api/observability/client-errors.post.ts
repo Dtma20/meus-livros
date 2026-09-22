@@ -1,7 +1,9 @@
-import { getRequestIP, readBody, setResponseStatus } from 'h3'
+import { readBody, setResponseStatus } from 'h3'
 import { z } from 'zod'
 import { checkRateLimit } from '../../services/rate-limit'
 import { defineApiHandler, parseOrThrow } from '../../utils/api'
+import { sanitizeClientErrorMessage } from '../../utils/client-error'
+import { getClientIp } from '../../utils/client-ip'
 import { logger } from '../../utils/logger'
 
 const clientErrorSchema = z.object({
@@ -15,7 +17,7 @@ const clientErrorSchema = z.object({
 })
 
 export default defineApiHandler(async (event) => {
-  const ip = getRequestIP(event) || '127.0.0.1'
+  const ip = getClientIp(event)
 
   // Protect ingestion endpoint from flooding (max 30 error reports per IP per hour)
   const allowed = await checkRateLimit(`client-errors:ip:${ip}`, 30)
@@ -26,8 +28,9 @@ export default defineApiHandler(async (event) => {
 
   const rawBody = await readBody(event)
   const input = parseOrThrow(clientErrorSchema, rawBody)
+  const safeMessage = sanitizeClientErrorMessage(input.message)
 
-  logger.error(`[client] Erro capturado no frontend: ${input.message}`, {
+  logger.error(`[client] Erro capturado no frontend: ${safeMessage}`, {
     module: 'client',
     source: 'client',
     requestId: input.requestId || (event.context?.requestId as string | undefined),
@@ -38,7 +41,7 @@ export default defineApiHandler(async (event) => {
     },
     error: {
       name: input.name || 'ClientError',
-      message: input.message,
+       message: safeMessage,
       stack: input.stack,
     },
   })

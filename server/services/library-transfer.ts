@@ -97,6 +97,10 @@ export function formatSourceLabel(format?: string | null): string {
   return 'Físico'
 }
 
+export function formatImportError(bookIndex: number, title: string): string {
+  return `Livro #${bookIndex} ("${title}"): não foi possível importar.`
+}
+
 /**
  * Exporta toda a biblioteca de leituras de um usuário no formato JSON.
  */
@@ -467,7 +471,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           stack: err instanceof Error ? err.stack : undefined,
         },
       })
-      errors.push(`Livro #${bookIndex} ("${book.title}"): ${msg}`)
+      errors.push(formatImportError(bookIndex, book.title))
       skippedCount++
     }
   }

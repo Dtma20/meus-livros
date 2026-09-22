@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { coverUrlSchema } from './work'
+import { ratingSchema, reviewSchema } from './log'
 
 export const livroJsonSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório.').max(500),
@@ -9,14 +11,14 @@ export const livroJsonSchema = z.object({
   publisher: z.string().max(255).optional().nullable(),
   pages: z.number().int().positive().optional().nullable(),
   read_in: z.union([z.number().int(), z.string()]).optional().nullable(),
-  rate: z.number().min(0).max(5).optional().nullable(),
-  review: z.string().max(50000).optional().nullable(),
+  rate: ratingSchema.optional().nullable(),
+  review: reviewSchema.optional().nullable(),
   source: z.string().max(50).optional().nullable(),
   series_name: z.string().max(255).optional().nullable(),
   series_number: z.string().max(50).optional().nullable(),
   genre: z.array(z.string().max(50)).optional().default([]),
   isbn: z.string().max(50).optional().nullable(),
-  cover_url: z.string().url().max(2000).optional().nullable(),
+  cover_url: coverUrlSchema.optional().nullable(),
 })
 
 export type LivroJson = z.infer<typeof livroJsonSchema>

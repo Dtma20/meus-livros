@@ -5,6 +5,7 @@ import { and, eq, isNotNull } from 'drizzle-orm'
 import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { isForbiddenPassword } from '../../shared/schemas/auth'
 import { db } from '../db'
+import { getClientIp } from '../utils/client-ip'
 import { allowed_emails, users } from '../db/schema'
 import { getEmailFrom, getTransport, redactEmail } from '../utils/email'
 import { logger } from '../utils/logger'
@@ -285,14 +286,6 @@ export async function getSessionUserByHeaders(headers: Headers): Promise<Session
   }
 }
 
-function getClientIp(request: Request): string {
-  return (
-    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
-    '127.0.0.1'
-  )
-}
-
 /**
  * Handles incoming authentication requests with:
  *   1. Rate limiting on OTP send (5/email/hr, 20/IP/hr) -> 429
@@ -324,7 +317,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     }
 
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
-    const ip = getClientIp(request)
+    const ip = getClientIp(request.headers)
 
     // Rate limit check
     const rateLimitExceeded = await checkOtpRequestLimit(email, ip)
@@ -482,7 +475,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     const rawIdentifier = typeof body.identificador === 'string' ? body.identificador : ''
     const password = typeof body.senha === 'string' ? body.senha : ''
 
-    const ip = getClientIp(request)
+    const ip = getClientIp(request.headers)
 
     // Rate limit check counted BEFORE identifier resolution
     const rateLimitExceeded = await checkSignInLimit(rawIdentifier, ip)
@@ -540,7 +533,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     }
 
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
-    const ip = getClientIp(request)
+    const ip = getClientIp(request.headers)
 
     // Rate limit check
     const rateLimitExceeded = await checkOtpRequestLimit(email, ip)

@@ -28,6 +28,10 @@ const SENSITIVE_KEY_PATTERNS = [
 const EMAIL_REGEX = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g
 const MAX_STRING_LENGTH = 4000
 
+function redactEmails(value: string): string {
+  return value.replace(EMAIL_REGEX, (email) => redactEmail(email))
+}
+
 export type LogOutputHandler = (entry: LogEntry, formatted: string) => void
 
 /**
@@ -58,8 +62,8 @@ export function sanitizeLogData(data: unknown, depth = 0, seen = new WeakSet()):
   if (data instanceof Error) {
     return {
       name: data.name,
-      message: data.message.replace(EMAIL_REGEX, (email) => redactEmail(email)),
-      stack: data.stack?.replace(EMAIL_REGEX, (email) => redactEmail(email)),
+      message: redactEmails(data.message),
+      stack: data.stack ? redactEmails(data.stack) : undefined,
     }
   }
 
@@ -91,20 +95,24 @@ export function parseError(err: unknown): LogErrorInfo {
     const errorObj = err as Error & { code?: string | number; statusCode?: number; details?: unknown }
     return {
       name: err.name,
-      message: err.message,
+      message: redactEmails(err.message),
       code: errorObj.code ?? errorObj.statusCode,
-      stack: err.stack,
+      stack: err.stack ? redactEmails(err.stack) : undefined,
       details: errorObj.details ? (sanitizeLogData(errorObj.details) as Record<string, unknown>) : undefined,
     }
   }
 
   if (typeof err === 'object' && err !== null) {
     const record = err as Record<string, unknown>
+    const rawMessage = typeof record.message === 'string'
+      ? record.message
+      : JSON.stringify(sanitizeLogData(err)) ?? 'ObjectError'
     return {
       name: String(record.name ?? 'ObjectError'),
-      message: String(record.message ?? JSON.stringify(sanitizeLogData(err))),
+      message: redactEmails(rawMessage),
       code: typeof record.code === 'string' || typeof record.code === 'number' ? record.code : undefined,
-      stack: typeof record.stack === 'string' ? record.stack : undefined,
+      stack: typeof record.stack === 'string' ? redactEmails(record.stack) : undefined,
+      details: 'details' in record ? sanitizeLogData(record.details) : undefined,
     }
   }
 

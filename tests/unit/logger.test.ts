@@ -4,6 +4,21 @@ import { Logger, sanitizeLogData } from '../../server/utils/logger'
 
 describe('Logger unit tests', () => {
   describe('Sanitization of sensitive data', () => {
+    it('redacts emails in Error messages and stacks', () => {
+      const entries: LogEntry[] = []
+      const testLogger = new Logger({
+        minLevel: 'DEBUG',
+        outputHandler: (entry) => entries.push(entry),
+      })
+
+      testLogger.error('falhou', { error: new Error('Invalid recipient <alguem@gmail.com>') })
+
+      expect(entries[0]?.error?.message).toContain('a***@***')
+      expect(entries[0]?.error?.message).not.toContain('alguem@gmail.com')
+      expect(entries[0]?.error?.stack).toContain('a***@***')
+      expect(entries[0]?.error?.stack).not.toContain('alguem@gmail.com')
+    })
+
     it('redacts sensitive keys: password, token, secret, otp, cookie, auth', () => {
       const sensitiveData = {
         username: 'leitor123',
