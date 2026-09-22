@@ -97,7 +97,7 @@ describe('Open Library service unit tests', () => {
   describe('searchOpenLibrary', () => {
     it('returns empty results immediately for queries shorter than 2 characters', async () => {
       const fetchFn = vi.fn()
-      const res = await searchOpenLibrary('a', { fetchFn })
+      const res = await searchOpenLibrary('a', { fetchFn, maxRetries: 0 })
 
       expect(res).toEqual({ results: [] })
       expect(fetchFn).not.toHaveBeenCalled()
@@ -122,7 +122,7 @@ describe('Open Library service unit tests', () => {
         )
       }) as unknown as typeof fetch
 
-      await searchOpenLibrary('Machado de Assis', { fetchFn })
+      await searchOpenLibrary('Machado de Assis', { fetchFn, maxRetries: 0 })
 
       expect(fetchFn).toHaveBeenCalledTimes(1)
       const headers = capturedHeaders as Record<string, string>
@@ -151,7 +151,7 @@ describe('Open Library service unit tests', () => {
         )
       }) as unknown as typeof fetch
 
-      const res = await searchOpenLibrary('Alienista', { fetchFn })
+      const res = await searchOpenLibrary('Alienista', { fetchFn, maxRetries: 0 })
 
       expect(res.indisponivel).toBeUndefined()
       expect(res.results).toHaveLength(1)
@@ -179,6 +179,7 @@ describe('Open Library service unit tests', () => {
 
       const res = await searchOpenLibrary('Histórias da meia-noite Machado', {
         fetchFn,
+        maxRetries: 0,
       })
 
       expect(res.results).toEqual([])
@@ -191,7 +192,7 @@ describe('Open Library service unit tests', () => {
         return new Response('Internal Server Error', { status: 500 })
       }) as unknown as typeof fetch
 
-      const res = await searchOpenLibrary('Dom Casmurro', { fetchFn })
+      const res = await searchOpenLibrary('Dom Casmurro', { fetchFn, maxRetries: 0 })
 
       expect(res).toEqual({ results: [], indisponivel: true })
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -209,7 +210,7 @@ describe('Open Library service unit tests', () => {
         })
       }) as unknown as typeof fetch
 
-      const res = await searchOpenLibrary('Dom Casmurro', { fetchFn })
+      const res = await searchOpenLibrary('Dom Casmurro', { fetchFn, maxRetries: 0 })
 
       expect(res).toEqual({ results: [], indisponivel: true })
       expect(consoleSpy).toHaveBeenCalledWith(
@@ -237,6 +238,7 @@ describe('Open Library service unit tests', () => {
       const res = await searchOpenLibrary('Slow Query', {
         fetchFn,
         timeoutMs: 20,
+        maxRetries: 0,
       })
 
       expect(res).toEqual({ results: [], indisponivel: true })

@@ -170,7 +170,7 @@ export async function searchOpenLibrary(
   const fetchFn = options.fetchFn ?? globalThis.fetch
   const userAgent = options.userAgent ?? OPEN_LIBRARY_USER_AGENT
   const requestId = options.requestId
-  const maxRetries = options.maxRetries ?? (options.timeoutMs && options.timeoutMs <= 100 ? 0 : (options.fetchFn ? 0 : 1))
+  const maxRetries = options.maxRetries ?? 1
 
   const url = `${OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(
     trimmedQuery,
@@ -178,14 +178,18 @@ export async function searchOpenLibrary(
 
   const startTime = performance.now()
 
+  // Orçamento total, não por tentativa: um único AbortController cobre todas
+  // as tentativas, então uma Open Library travada custa no máximo timeoutMs
+  // ao usuário — nunca timeoutMs por tentativa mais o backoff entre elas.
+  const controller = new AbortController()
+  const timer = setTimeout(() => {
+    controller.abort()
+  }, timeoutMs)
+
   try {
     const result = await withRetry(
       async (attempt) => {
         const attemptStart = performance.now()
-        const controller = new AbortController()
-        const timer = setTimeout(() => {
-          controller.abort()
-        }, timeoutMs)
 
         try {
           const response = await fetchFn(url, {
@@ -268,13 +272,10 @@ export async function searchOpenLibrary(
             controller.signal.aborted ||
             (err instanceof Error && err.name === 'AbortError')
 
-          // If retryable and attempts remain, rethrow to withRetry
-          if ((isAbort || (err instanceof Error && 'statusCode' in err)) && attempt <= maxRetries) {
-            throw err
-          }
-
-          const attemptDuration = Math.round(performance.now() - attemptStart)
+          // O deadline é compartilhado entre as tentativas: se ele estourou,
+          // tentar de novo abortaria na hora. Não há o que repetir.
           if (isAbort) {
+            const attemptDuration = Math.round(performance.now() - attemptStart)
             logger.error(`[open-library] timeout de ${timeoutMs}ms excedido na consulta à Open Library`, {
               module: 'open-library',
               source: 'external_api',
@@ -284,21 +285,27 @@ export async function searchOpenLibrary(
               context: { query: trimmedQuery, timeoutMs },
               error: err as Error,
             })
-          } else {
-            logger.error('[open-library] erro inesperado ao consultar Open Library:', {
-              module: 'open-library',
-              source: 'external_api',
-              requestId,
-              durationMs: attemptDuration,
-              attempt,
-              context: { query: trimmedQuery, _rawError: err },
-              error: err as Error,
-            })
+            return { results: [], indisponivel: true }
           }
 
+          // Erro 5xx com tentativas restantes: relança para o withRetry,
+          // ainda dentro do mesmo deadline.
+          if (err instanceof Error && 'statusCode' in err && attempt <= maxRetries) {
+            throw err
+          }
+
+          const attemptDuration = Math.round(performance.now() - attemptStart)
+          logger.error('[open-library] erro inesperado ao consultar Open Library:', {
+            module: 'open-library',
+            source: 'external_api',
+            requestId,
+            durationMs: attemptDuration,
+            attempt,
+            context: { query: trimmedQuery, _rawError: err },
+            error: err as Error,
+          })
+
           return { results: [], indisponivel: true }
-        } finally {
-          clearTimeout(timer)
         }
       },
       {
@@ -337,5 +344,7 @@ export async function searchOpenLibrary(
     }
 
     return { results: [], indisponivel: true }
+  } finally {
+    clearTimeout(timer)
   }
 }
