@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { LANGUAGES } from '../../shared/constants/languages'
 import type { ExternalBookResult, ExternalSearchResponse } from '../../shared/schemas/search'
 
-export const OPEN_LIBRARY_TIMEOUT_MS = 2000
+export const OPEN_LIBRARY_TIMEOUT_MS = 4000
 export const OPEN_LIBRARY_SEARCH_URL = 'https://openlibrary.org/search.json'
 export const OPEN_LIBRARY_USER_AGENT =
   'MeusLivros/0.1.0 (https://github.com/Dtma20/meus-livros; contato@meuslivros.app)'

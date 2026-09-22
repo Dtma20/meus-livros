@@ -38,20 +38,28 @@
         <li
           v-for="(work, index) in results"
           :id="itemId(index)"
-          :key="work.id"
+          :key="work.id || work.ol_work_key || index"
           class="search-result"
-          :class="{ 'is-active': index === activeIndex }"
+          :class="{ 'is-active': index === activeIndex, 'is-external': work.source === 'externo' }"
           role="option"
           :aria-selected="index === activeIndex"
           @mousedown.prevent="selectWork(work)"
           @mouseover="activeIndex = index"
         >
-          <span class="result-title">{{ work.title }}</span>
-          <span v-if="work.authors.length" class="result-author">
-            {{ work.authors.map((a) => a.name).join(', ') }}
-          </span>
-          <span v-if="work.first_published_year" class="result-year">
-            {{ work.first_published_year }}
+          <div class="result-content">
+            <span class="result-title">{{ work.title }}</span>
+            <span v-if="work.authors.length" class="result-author">
+              {{ work.authors.map((a) => a.name).join(', ') }}
+            </span>
+            <span v-if="work.first_published_year" class="result-year">
+              {{ work.first_published_year }}
+            </span>
+          </div>
+          <span
+            class="result-badge"
+            :class="work.source === 'externo' ? 'badge-external' : 'badge-local'"
+          >
+            {{ work.source === 'externo' ? 'Open Library' : 'No acervo' }}
           </span>
         </li>
       </template>
@@ -266,9 +274,40 @@ function onBlur(): void {
 // ---------------------------------------------------------------------------
 // Selection
 // ---------------------------------------------------------------------------
-function selectWork(work: SearchResult): void {
+async function selectWork(work: SearchResult): Promise<void> {
+  if (work.source === 'externo' && !work.id) {
+    loading.value = true
+    try {
+      const res = await fetch('/api/works/import-external', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ol_work_key: work.ol_work_key,
+          title: work.title,
+          authors: work.authors.map((a) => a.name),
+          first_publish_year: work.first_published_year,
+          cover_url: work.cover_url,
+          ol_cover_id: work.ol_cover_id,
+          language: work.language,
+        }),
+      })
+      if (res.ok) {
+        const imported = (await res.json()) as { id: string; slug: string; title: string }
+        work = { ...work, id: imported.id, slug: imported.slug, source: 'local' }
+      } else {
+        goToAdd('online')
+        return
+      }
+    } catch {
+      goToAdd('online')
+      return
+    } finally {
+      loading.value = false
+    }
+  }
+
   emit('select', work)
-  if (props.navigateOnSelect) {
+  if (props.navigateOnSelect && work.slug) {
     void navigateTo(`/livro/${work.slug}`)
   }
 }
@@ -396,8 +435,10 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
 /* Individual result */
 .search-result {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   cursor: pointer;
   border-radius: 0;
@@ -407,6 +448,36 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
 .search-result:hover,
 .search-result.is-active {
   background: var(--input-bg);
+}
+
+.result-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.result-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.badge-local {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.badge-external {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.3);
 }
 
 .result-title {

@@ -12,15 +12,19 @@ export const searchQuerySchema = z.object({
 
 export type SearchQuery = z.infer<typeof searchQuerySchema>
 
-/** One result item as returned by the API. */
+/** One result item as returned by the API (local or external). */
 export const searchResultSchema = z.object({
-  id: z.string().uuid(),
-  slug: z.string(),
+  id: z.string().optional(),
+  slug: z.string().optional(),
   title: z.string(),
-  authors: z.array(z.object({ name: z.string(), slug: z.string() })),
-  first_published_year: z.number().int().nullable(),
-  cover_url: z.string().nullable(),
-  log_count: z.number().int(),
+  authors: z.array(z.object({ name: z.string(), slug: z.string().optional() })),
+  first_published_year: z.number().int().nullable().optional(),
+  cover_url: z.string().nullable().optional(),
+  log_count: z.number().int().optional().default(0),
+  source: z.enum(['local', 'externo']).optional().default('local'),
+  ol_work_key: z.string().optional(),
+  ol_cover_id: z.number().int().nullable().optional(),
+  language: z.string().nullable().optional(),
 })
 
 export const searchResponseSchema = z.object({

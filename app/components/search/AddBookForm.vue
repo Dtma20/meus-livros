@@ -35,7 +35,7 @@
               :disabled="submitting"
               @click="useExistingDuplicate"
             >
-              ✓ É este livro
+              É este livro
             </button>
             <button
               type="button"

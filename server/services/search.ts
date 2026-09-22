@@ -1,7 +1,10 @@
-import { sql } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 import { db } from '../db'
 import type { Viewer } from './visibility'
-import { search_misses } from '../db/schema'
+import { search_misses, works } from '../db/schema'
+import { slugify } from '../utils/slug'
+import { searchOpenLibrary } from './open-library'
+import type { SearchResult } from '../../shared/schemas/search'
 
 /**
  * Maximum results returned by a single search call.
@@ -54,6 +57,13 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
   const term = query.trim()
   if (term.length < 2) return []
 
+  // Clean tokens for multi-word matching
+  const tokens = term
+    .replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, ' ')
+    .split(/\s+/)
+    .map((t) => t.trim().toLowerCase())
+    .filter((t) => t.length >= 2)
+
   // Escaped in JS, bound as a parameter; every LIKE/ILIKE below declares
   // ESCAPE '\' so the backslashes are honoured. (In the sql template
   // literal the backslash is written doubled: '\\' renders as '\' in SQL.)
@@ -88,7 +98,8 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
         w.title,
         w.first_published_year,
         (w.search_text = (SELECT norm FROM q)) AS exact_title_match,
-        (w.search_text LIKE (SELECT pattern FROM q) || '%' ESCAPE '\\') AS title_prefix_match
+        (w.search_text LIKE (SELECT pattern FROM q) || '%' ESCAPE '\\') AS title_prefix_match,
+        similarity(w.search_text, (SELECT norm FROM q)) AS title_similarity
       FROM works w
       WHERE w.search_text ILIKE '%' || (SELECT pattern FROM q) || '%' ESCAPE '\\'
         OR EXISTS (
@@ -97,6 +108,24 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
           WHERE wa.work_id = w.id
             AND f_unaccent(lower(a.name)) ILIKE '%' || (SELECT pattern FROM q) || '%' ESCAPE '\\'
         )
+        OR similarity(w.search_text, (SELECT norm FROM q)) > 0.25
+        OR word_similarity((SELECT norm FROM q), w.search_text) > 0.35
+        ${
+          tokens.length >= 2
+            ? sql`OR (
+                SELECT bool_and(
+                  w.search_text ILIKE '%' || f_unaccent(lower(t)) || '%'
+                  OR EXISTS (
+                    SELECT 1 FROM work_authors wa2
+                    JOIN authors a2 ON a2.id = wa2.author_id
+                    WHERE wa2.work_id = w.id
+                      AND f_unaccent(lower(a2.name)) ILIKE '%' || f_unaccent(lower(t)) || '%'
+                  )
+                )
+                FROM unnest(${tokens}::text[]) as t
+              )`
+            : sql``
+        }
     ),
     ranked AS (
       SELECT
@@ -106,6 +135,7 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
         m.first_published_year,
         m.exact_title_match,
         m.title_prefix_match,
+        m.title_similarity,
         -- DISTINCT is not needed: matched produces exactly one row per work,
         -- so each rl.id appears at most once per group.
         COUNT(rl.id)::int AS log_count
@@ -116,10 +146,11 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
              (${viewer?.id ?? null}::uuid IS NOT NULL AND rl.user_id = ${viewer?.id ?? null}::uuid)
              OR (rl.visibility = 'publico' AND ru.profile_visibility = 'publico')
            )
-      GROUP BY m.id, m.slug, m.title, m.first_published_year, m.exact_title_match, m.title_prefix_match
+      GROUP BY m.id, m.slug, m.title, m.first_published_year, m.exact_title_match, m.title_prefix_match, m.title_similarity
       ORDER BY
         m.exact_title_match DESC,
         m.title_prefix_match DESC,
+        m.title_similarity DESC,
         COUNT(rl.id) DESC,
         m.title ASC
       LIMIT ${LIMIT}
@@ -149,10 +180,11 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
     FROM ranked r
     LEFT JOIN work_authors wa ON wa.work_id = r.id
     LEFT JOIN authors a ON a.id = wa.author_id
-    GROUP BY r.id, r.slug, r.title, r.first_published_year, r.exact_title_match, r.title_prefix_match, r.log_count
+    GROUP BY r.id, r.slug, r.title, r.first_published_year, r.exact_title_match, r.title_prefix_match, r.title_similarity, r.log_count
     ORDER BY
       r.exact_title_match DESC,
       r.title_prefix_match DESC,
+      r.title_similarity DESC,
       r.log_count DESC,
       r.title ASC
   `)
@@ -168,6 +200,76 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
       ? (JSON.parse(row.authors_json) as { name: string; slug: string }[])
       : (row.authors_json as { name: string; slug: string }[])),
   }))
+}
+
+/**
+ * Searches the local catalogue first and seamlessly complements with Open Library
+ * results, with local results prioritized at the top and deduplication applied.
+ */
+export async function searchHybridWorks(
+  query: string,
+  viewer: Viewer,
+): Promise<SearchResult[]> {
+  const term = query.trim()
+  if (term.length < 2) return []
+
+  // 1. Local search (fast, prioritised)
+  const localWorks = await searchWorks(term, viewer)
+  const localResults: SearchResult[] = localWorks.map((w) => ({
+    id: w.id,
+    slug: w.slug,
+    title: w.title,
+    authors: w.authors,
+    first_published_year: w.first_published_year,
+    cover_url: w.cover_url,
+    log_count: w.log_count,
+    source: 'local',
+  }))
+
+  // 2. Open Library online lookup (automatic complement)
+  let externalResults: SearchResult[] = []
+  try {
+    const extResp = await searchOpenLibrary(term)
+    if (extResp.results && extResp.results.length > 0) {
+      const localTitles = new Set(localWorks.map((w) => slugify(w.title)))
+      const localOlKeys = new Set<string>()
+
+      const extKeys = extResp.results.map((r) => r.ol_work_key).filter(Boolean)
+      if (extKeys.length > 0) {
+        const found = await db
+          .select({ ol_work_key: works.ol_work_key })
+          .from(works)
+          .where(inArray(works.ol_work_key, extKeys))
+        for (const f of found) {
+          if (f.ol_work_key) localOlKeys.add(f.ol_work_key)
+        }
+      }
+
+      externalResults = extResp.results
+        .filter((r) => {
+          if (r.ol_work_key && localOlKeys.has(r.ol_work_key)) return false
+          const titleSlug = slugify(r.title)
+          if (localTitles.has(titleSlug)) return false
+          return true
+        })
+        .slice(0, 10)
+        .map((r) => ({
+          title: r.title,
+          authors: r.authors.map((name) => ({ name, slug: slugify(name) })),
+          first_published_year: r.first_publish_year,
+          cover_url: r.cover_url,
+          ol_cover_id: r.ol_cover_id,
+          ol_work_key: r.ol_work_key,
+          language: r.language,
+          log_count: 0,
+          source: 'externo',
+        }))
+    }
+  } catch (err) {
+    console.error('[search] Erro ao buscar Open Library na busca híbrida:', err)
+  }
+
+  return [...localResults, ...externalResults]
 }
 
 /**
