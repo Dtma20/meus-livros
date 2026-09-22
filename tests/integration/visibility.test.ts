@@ -47,11 +47,12 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
     // Create User A (profile_visibility = 'publico')
     const emailA = `${MARKER}-a@example.com`
     createdEmails.push(emailA)
+    const rnd = Math.random().toString(36).slice(2, 8)
     const [userA] = await db
       .insert(schema.users)
       .values({
         email: emailA,
-        handle: `ua_${Date.now() % 10000000}`,
+        handle: `ua_${rnd}`,
         display_name: 'Usuário A (Público)',
         profile_visibility: 'publico',
       })
@@ -64,7 +65,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
       .insert(schema.users)
       .values({
         email: emailB,
-        handle: `ub_${Date.now() % 10000000}`,
+        handle: `ub_${rnd}`,
         display_name: 'Usuário B (Público)',
         profile_visibility: 'publico',
       })
@@ -77,7 +78,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
       .insert(schema.users)
       .values({
         email: emailC,
-        handle: `uc_${Date.now() % 10000000}`,
+        handle: `uc_${rnd}`,
         display_name: 'Usuário C (Privado)',
         profile_visibility: 'privado',
       })
