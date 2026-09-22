@@ -28,6 +28,7 @@ const WORK: SearchResult = {
   first_published_year: 1999,
   cover_url: null,
   log_count: 0,
+  source: 'local',
 }
 
 let LogForm: unknown

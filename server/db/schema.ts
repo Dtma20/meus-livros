@@ -204,9 +204,35 @@ export const search_misses = pgTable('search_misses', {
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 })
 
+// 11. reading_blocks
+export const reading_blocks = pgTable(
+  'reading_blocks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    log_id: uuid('log_id')
+      .notNull()
+      .references(() => reading_logs.id, { onDelete: 'cascade' }),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    start_page: integer('start_page').notNull(),
+    end_page: integer('end_page').notNull(),
+    comment: text('comment'),
+    read_at: date('read_at').notNull().default(sql`CURRENT_DATE`),
+    created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('pages_valid', sql`${table.start_page} > 0 AND ${table.end_page} >= ${table.start_page}`),
+    index('reading_blocks_log_idx').on(table.log_id, table.read_at.desc(), table.created_at.desc()),
+    index('reading_blocks_user_idx').on(table.user_id),
+  ],
+)
+
 // Drizzle Relations
 export const usersRelations = relations(users, ({ many }) => ({
   reading_logs: many(reading_logs),
+  reading_blocks: many(reading_blocks),
   allowed_emails: many(allowed_emails),
   authored_works: many(works),
   authored_authors: many(authors),
@@ -278,7 +304,7 @@ export const workGenresRelations = relations(work_genres, ({ one }) => ({
   }),
 }))
 
-export const readingLogsRelations = relations(reading_logs, ({ one }) => ({
+export const readingLogsRelations = relations(reading_logs, ({ one, many }) => ({
   user: one(users, {
     fields: [reading_logs.user_id],
     references: [users.id],
@@ -290,6 +316,18 @@ export const readingLogsRelations = relations(reading_logs, ({ one }) => ({
   edition: one(editions, {
     fields: [reading_logs.edition_id],
     references: [editions.id],
+  }),
+  blocks: many(reading_blocks),
+}))
+
+export const readingBlocksRelations = relations(reading_blocks, ({ one }) => ({
+  log: one(reading_logs, {
+    fields: [reading_blocks.log_id],
+    references: [reading_logs.id],
+  }),
+  user: one(users, {
+    fields: [reading_blocks.user_id],
+    references: [users.id],
   }),
 }))
 

@@ -22,6 +22,13 @@
       "when": 1789952574000,
       "tag": "0002_better_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790044000000,
+      "tag": "0003_pg_trgm_and_reading_blocks",
+      "breakpoints": true
     }
   ]
 }

@@ -29,9 +29,15 @@
       <!-- Header: Library owner context -->
       <header class="entry-header">
         <NuxtLink :to="`/@${logData.user.handle}`" class="reader-link">
-          <span class="reader-prefix">Biblioteca de</span>
-          <strong class="reader-name">{{ logData.user.display_name }}</strong>
-          <span class="reader-handle">@{{ logData.user.handle }}</span>
+          <template v-if="isOwner">
+            <span class="reader-prefix">Sua biblioteca </span>
+            <span class="reader-handle">@{{ logData.user.handle }}</span>
+          </template>
+          <template v-else>
+            <span class="reader-prefix">Biblioteca de </span>
+            <strong class="reader-name">{{ logData.user.display_name }} </strong>
+            <span class="reader-handle">@{{ logData.user.handle }}</span>
+          </template>
         </NuxtLink>
 
         <span
@@ -39,7 +45,7 @@
           class="private-badge"
           title="Esta entrada é visível apenas para você"
         >
-          🔒 Registro privado
+          Registro privado
         </span>
       </header>
 
@@ -73,7 +79,7 @@
 
           <div class="metadata-pills">
             <span v-if="readingDateText" class="meta-pill">
-              📅 {{ readingDateText }}
+              {{ readingDateText }}
             </span>
             <span v-if="formatText" class="meta-pill">
               {{ formatText }}
@@ -95,7 +101,37 @@
               :aria-label="copied ? 'Link copiado para a área de transferência' : 'Compartilhar esta entrada'"
               @click="handleShare"
             >
-              <span class="share-icon" aria-hidden="true">{{ copied ? '✓' : '🔗' }}</span>
+              <svg
+                v-if="!copied"
+                class="btn-icon"
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+              <svg
+                v-else
+                class="btn-icon"
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                stroke="currentColor"
+                stroke-width="2.5"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
               <span>{{ copied ? 'Link copiado!' : 'Compartilhar' }}</span>
             </button>
 
@@ -104,11 +140,65 @@
               :to="`/app/entrada/${logData.id}/editar`"
               class="edit-btn"
             >
-              ✏️ Editar
+              <svg
+                class="btn-icon"
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+              </svg>
+              <span>Editar</span>
             </NuxtLink>
+
+            <button
+              v-if="isOwner"
+              type="button"
+              class="delete-btn"
+              :disabled="isDeleting"
+              aria-label="Remover este livro da sua biblioteca"
+              @click="handleDeleteEntry"
+            >
+              <svg
+                class="btn-icon"
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>{{ isDeleting ? 'Removendo...' : 'Remover' }}</span>
+            </button>
           </div>
+
+          <p v-if="deleteError" class="delete-error-msg" role="alert">
+            {{ deleteError }}
+          </p>
         </div>
       </div>
+
+      <!-- Reading Progress & Blocks Section -->
+      <ReadingBlocksSection
+        :log-id="logData.id"
+        :initial-blocks="logData.blocks || []"
+        :initial-progress="logData.progress"
+        :is-owner="isOwner"
+        :edition-page-count="logData.edition?.page_count"
+        :is-finished="Boolean(logData.finished_on)"
+      />
 
       <!-- Review Section -->
       <section class="review-section">
@@ -118,7 +208,7 @@
         </div>
         <div v-else class="review-empty">
           <p class="review-empty-text">
-            {{ logData.user.display_name }} não escreveu uma resenha para este livro.
+            {{ isOwner ? 'Você não escreveu uma resenha para este livro.' : `${logData.user.display_name} não escreveu uma resenha para este livro.` }}
           </p>
         </div>
       </section>
@@ -126,7 +216,7 @@
       <!-- Footer Navigation -->
       <footer class="entry-footer">
         <NuxtLink :to="`/@${logData.user.handle}`" class="footer-link">
-          ← Outras leituras de {{ logData.user.display_name }}
+          {{ isOwner ? '← Voltar para a sua biblioteca' : `← Outras leituras de ${logData.user.display_name}` }}
         </NuxtLink>
         <NuxtLink :to="`/livro/${logData.work.slug}`" class="footer-link">
           Ver todas as edições de {{ logData.work.title }} →
@@ -139,9 +229,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { setResponseHeader } from 'h3'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
+import ReadingBlocksSection from '~/components/log/ReadingBlocksSection.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
@@ -153,6 +245,11 @@ import {
   resolveEntryOgImageUrl,
 } from '~/utils/entry'
 import type { LogWithDetails } from '~~/shared/schemas/log'
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
+
+definePageMeta({
+  middleware: 'home-layout',
+})
 
 const route = useRoute()
 const id = computed(() => {
@@ -164,36 +261,36 @@ const requestFetch = useRequestFetch()
 const reqUrl = typeof useRequestURL === 'function' ? useRequestURL() : null
 const origin = computed(() => reqUrl?.origin || 'http://localhost:3000')
 
+const event = import.meta.server && typeof useRequestEvent === 'function' ? useRequestEvent() : null
+const sessionCookie = typeof useCookie === 'function' ? useCookie('better-auth.session_token') : null
+
+const session = typeof useState === 'function'
+  ? useState<{ user?: { id?: string; handle?: string } | null }>('auth:session', () => ({ user: null }))
+  : ref({ user: null })
+
+const nuxtApp = typeof useNuxtApp === 'function' ? useNuxtApp() : null
+
 const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
   `entry-${id.value}`,
   async () => {
     try {
       const result = await requestFetch<LogWithDetails>(`/api/logs/${id.value}` as string)
-      if (import.meta.server) {
-        const event = typeof useRequestEvent === 'function' ? useRequestEvent() : null
-        if (event) {
-          const cookieToken = typeof useCookie === 'function'
-            ? useCookie('better-auth.session_token').value
-            : null
-          const hasSession = Boolean(cookieToken)
-          if (hasSession || result.visibility === 'privado') {
-            setResponseHeader(event, 'Cache-Control', 'private, no-store')
-          } else {
-            setResponseHeader(event, 'Cache-Control', 'public, max-age=60, s-maxage=60')
-          }
+      if (event) {
+        const hasSession = Boolean(sessionCookie?.value)
+        if (hasSession || result.visibility === 'privado') {
+          setResponseHeader(event, 'Cache-Control', 'private, no-store')
+        } else {
+          setResponseHeader(event, 'Cache-Control', 'public, max-age=60, s-maxage=60')
         }
       }
       return result
     } catch (err: unknown) {
-      if (import.meta.server) {
-        const event = typeof useRequestEvent === 'function' ? useRequestEvent() : null
-        if (event) {
-          const status = (err as { statusCode?: number; status?: number })?.statusCode
-            || (err as { statusCode?: number; status?: number })?.status
-            || 404
-          setResponseStatus(event, status)
-          setResponseHeader(event, 'Cache-Control', 'private, no-store')
-        }
+      if (event) {
+        const status = (err as { statusCode?: number; status?: number })?.statusCode
+          || (err as { statusCode?: number; status?: number })?.status
+          || 404
+        setResponseStatus(event, status)
+        setResponseHeader(event, 'Cache-Control', 'private, no-store')
       }
       throw err
     }
@@ -209,14 +306,15 @@ const is404 = computed(() => {
   return status === 404 || (!logData.value && !isPending.value)
 })
 
-// Check if viewer owns this log
-const session = typeof useState === 'function'
-  ? useState<{ user?: { id?: string } | null }>('auth:session', () => ({ user: null }))
-  : ref({ user: null })
-
 const isOwner = computed(() => {
-  if (!logData.value || !session.value?.user?.id) return false
-  return logData.value.user_id === session.value.user.id
+  if (!logData.value || !session.value?.user) return false
+  if (session.value.user.id && logData.value.user_id) {
+    return session.value.user.id === logData.value.user_id
+  }
+  if (session.value.user.handle && logData.value.user?.handle) {
+    return session.value.user.handle.toLowerCase() === logData.value.user.handle.toLowerCase()
+  }
+  return false
 })
 
 // Metadata values
@@ -232,6 +330,9 @@ const authorsText = computed(() => {
 
 const readingDateText = computed(() => {
   if (!logData.value) return ''
+  if (!logData.value.finished_on) {
+    return 'Lendo atualmente'
+  }
   return formatReadingDate(logData.value.finished_on, logData.value.finished_precision)
 })
 
@@ -320,6 +421,42 @@ async function handleShare() {
     } catch {
       // Ignore clipboard error
     }
+  }
+}
+
+// Delete affordance for entry owner
+const isDeleting = ref(false)
+const deleteError = ref('')
+
+async function handleDeleteEntry(): Promise<void> {
+  if (!logData.value) return
+  if (!confirm('Tem certeza que deseja remover este livro da sua biblioteca? Esta ação não pode ser desfeita.')) {
+    return
+  }
+
+  isDeleting.value = true
+  deleteError.value = ''
+
+  try {
+    await $fetch(`/api/logs/${id.value}`, {
+      method: 'DELETE',
+      timeout: 15_000,
+    })
+    const dest = logData.value?.user?.handle ? `/@${logData.value.user.handle}` : '/'
+    if (nuxtApp) {
+      void nuxtApp.runWithContext(() => navigateTo(dest))
+    } else {
+      void navigateTo(dest)
+    }
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      deleteError.value = TIMEOUT_MESSAGE
+      return
+    }
+    const fetchErr = err as { data?: { message?: string } }
+    deleteError.value = fetchErr.data?.message ?? 'Não foi possível remover o livro da biblioteca.'
+  } finally {
+    isDeleting.value = false
   }
 }
 </script>
@@ -559,8 +696,9 @@ async function handleShare() {
   color: #3fb950;
 }
 
-.share-icon {
-  font-size: 1rem;
+.btn-icon {
+  flex-shrink: 0;
+  vertical-align: middle;
 }
 
 .edit-btn {
@@ -584,6 +722,46 @@ async function handleShare() {
 .edit-btn:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
+}
+
+.delete-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  color: var(--text-color);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  min-height: 44px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+}
+
+.delete-btn:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: rgba(239, 68, 68, 0.3);
+  background-color: rgba(239, 68, 68, 0.08);
+}
+
+.delete-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--danger);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.delete-error-msg {
+  color: var(--danger);
+  font-size: var(--font-size-sm);
+  margin-top: var(--space-2);
+  margin-bottom: 0;
 }
 
 .review-section {

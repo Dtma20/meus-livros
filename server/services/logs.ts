@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import type {
   LogEditionView,
@@ -6,8 +6,9 @@ import type {
   LogWithDetails,
   UpdateLogInput,
 } from '../../shared/schemas/log'
+import { calculateReadingProgress } from '../../shared/utils/reading-progress'
 import { db } from '../db'
-import { authors, editions, reading_logs, users, work_authors, works } from '../db/schema'
+import { authors, editions, reading_blocks, reading_logs, users, work_authors, works } from '../db/schema'
 import { checkRateLimit } from './rate-limit'
 import { visibleLogs, type Viewer } from './visibility'
 
@@ -206,6 +207,42 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
     .where(eq(work_authors.work_id, row.work.id))
     .orderBy(work_authors.position)
 
+  // Fetch reading blocks in reverse chronological order
+  const blocksList = await db
+    .select({
+      id: reading_blocks.id,
+      log_id: reading_blocks.log_id,
+      user_id: reading_blocks.user_id,
+      start_page: reading_blocks.start_page,
+      end_page: reading_blocks.end_page,
+      comment: reading_blocks.comment,
+      read_at: reading_blocks.read_at,
+      created_at: reading_blocks.created_at,
+      updated_at: reading_blocks.updated_at,
+    })
+    .from(reading_blocks)
+    .where(eq(reading_blocks.log_id, row.id))
+    .orderBy(desc(reading_blocks.read_at), desc(reading_blocks.created_at))
+
+  const intervals = blocksList.map((b) => ({
+    start_page: b.start_page,
+    end_page: b.end_page,
+  }))
+
+  const calc = calculateReadingProgress(
+    intervals,
+    row.edition?.page_count ?? null,
+    Boolean(row.finished_on),
+  )
+
+  const progress = {
+    pages_read: calc.pagesRead,
+    current_page: calc.currentPage,
+    total_pages: calc.totalPages,
+    percentage: calc.percentage,
+    is_complete: calc.isComplete,
+  }
+
   return {
     id: row.id,
     user_id: row.user_id,
@@ -226,6 +263,8 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
       authors: authorsList,
     },
     edition: row.edition_id ? row.edition : null,
+    blocks: blocksList,
+    progress,
   }
 }
 

@@ -6,6 +6,7 @@ import type {
   editions,
   genreKindEnum,
   genres,
+  reading_blocks,
   reading_logs,
   search_misses,
   users,
@@ -48,6 +49,9 @@ export type NewWorkGenre = typeof work_genres.$inferInsert
 
 export type ReadingLog = typeof reading_logs.$inferSelect
 export type NewReadingLog = typeof reading_logs.$inferInsert
+
+export type ReadingBlock = typeof reading_blocks.$inferSelect
+export type NewReadingBlock = typeof reading_blocks.$inferInsert
 
 export type SearchMiss = typeof search_misses.$inferSelect
 export type NewSearchMiss = typeof search_misses.$inferInsert

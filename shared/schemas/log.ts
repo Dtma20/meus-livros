@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { ReadingBlockView, ReadingProgressView } from './reading-block'
 
 /**
  * Returns today's date in YYYY-MM-DD format according to America/Sao_Paulo timezone.
@@ -173,6 +174,8 @@ export interface LogWithDetails {
   user: LogUserView
   work: LogWorkView
   edition: LogEditionView | null
+  blocks?: ReadingBlockView[]
+  progress?: ReadingProgressView
 }
 
 export type LogInput = z.infer<typeof logInputSchema>

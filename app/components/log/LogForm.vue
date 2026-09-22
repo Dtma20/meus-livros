@@ -43,8 +43,24 @@
       </div>
 
       <form class="log-form" @submit.prevent="handleSubmit">
+        <!-- Currently Reading Toggle -->
+        <div class="form-group reading-status-group">
+          <label class="status-checkbox-label">
+            <input
+              v-model="isCurrentlyReading"
+              type="checkbox"
+              class="status-checkbox"
+              :disabled="submitting || deleting"
+            >
+            <span class="status-checkbox-content">
+              <span class="status-checkbox-title">Estou lendo este livro atualmente</span>
+              <span class="status-checkbox-desc">Deixe a data de término em aberto e acompanhe o progresso da leitura por trechos.</span>
+            </span>
+          </label>
+        </div>
+
         <!-- Rating -->
-        <div class="form-group">
+        <div v-if="!isCurrentlyReading" class="form-group">
           <span id="log-rating-label" class="form-label">Sua avaliação</span>
           <RatingInput
             v-model="rating"
@@ -53,7 +69,7 @@
         </div>
 
         <!-- Finished date & precision -->
-        <div class="form-row">
+        <div v-if="!isCurrentlyReading" class="form-row">
           <div class="form-group flex-1">
             <label for="log-finished-on" class="form-label">Data de término</label>
             <input
@@ -138,7 +154,7 @@
               :disabled="submitting || deleting"
               @click="toggleFormat('fisico')"
             >
-              📖 Físico
+              Físico
             </button>
             <button
               type="button"
@@ -148,7 +164,7 @@
               :disabled="submitting || deleting"
               @click="toggleFormat('ebook')"
             >
-              📱 Ebook
+              Ebook
             </button>
             <button
               type="button"
@@ -158,7 +174,7 @@
               :disabled="submitting || deleting"
               @click="toggleFormat('audio')"
             >
-              🎧 Áudio
+              Áudio
             </button>
           </div>
         </div>
@@ -279,7 +295,7 @@
             :disabled="submitting || deleting"
             @click="handleDelete"
           >
-            {{ deleting ? 'Apagando...' : 'Excluir entrada' }}
+            {{ deleting ? 'Removendo...' : 'Remover da biblioteca' }}
           </button>
         </div>
       </form>
@@ -294,7 +310,7 @@ import BookCover from '../book/BookCover.vue'
 import RatingInput from '../book/RatingInput.vue'
 import SearchBox from '../search/SearchBox.vue'
 import type { LogEditionView as LogEdition, LogWithDetails } from '~~/shared/schemas/log'
-import type { SearchResult } from '../../../shared/schemas/search'
+import type { SearchResult } from '~~/shared/schemas/search'
 
 const props = withDefaults(
   defineProps<{
@@ -332,6 +348,7 @@ interface SelectedWorkState {
 
 const selectedWork = ref<SelectedWorkState | null>(null)
 const editionId = ref<string | null>(null)
+const isCurrentlyReading = ref(false)
 const rating = ref<number | null>(null)
 const review = ref('')
 const finishedOn = ref(getBrowserLocalDate())
@@ -364,6 +381,7 @@ function toggleFormat(val: 'fisico' | 'ebook' | 'audio'): void {
 }
 
 function onWorkSelected(work: SearchResult): void {
+  if (!work.id || !work.slug) return
   selectedWork.value = {
     id: work.id,
     title: work.title,
@@ -506,8 +524,9 @@ onMounted(() => {
     finishedPrecision.value = log.finished_precision
     format.value = log.format
     visibility.value = log.visibility
+    isCurrentlyReading.value = !log.finished_on
   } else {
-    if (props.initialWork) {
+    if (props.initialWork && props.initialWork.id && props.initialWork.slug) {
       selectedWork.value = {
         id: props.initialWork.id,
         title: props.initialWork.title,
@@ -536,10 +555,12 @@ async function handleSubmit(): Promise<void> {
   const payload = {
     work_id: selectedWork.value.id,
     edition_id: editionId.value || undefined,
-    rating: rating.value != null ? rating.value : undefined,
+    rating: isCurrentlyReading.value ? null : (rating.value != null ? rating.value : undefined),
     review: review.value ? review.value : undefined,
-    started_on: showStartDate.value && startedOn.value ? startedOn.value : undefined,
-    finished_on: finishedOn.value || undefined,
+    started_on: isCurrentlyReading.value
+      ? (startedOn.value || getBrowserLocalDate())
+      : (showStartDate.value && startedOn.value ? startedOn.value : undefined),
+    finished_on: isCurrentlyReading.value ? null : (finishedOn.value || undefined),
     finished_precision: finishedPrecision.value,
     format: format.value || undefined,
     visibility: visibility.value,
@@ -581,7 +602,7 @@ async function handleSubmit(): Promise<void> {
 
 async function handleDelete(): Promise<void> {
   if (!props.initialLog) return
-  if (!confirm('Tem certeza que deseja excluir esta entrada? Esta ação não pode ser desfeita.')) {
+  if (!confirm('Tem certeza que deseja remover este livro da sua biblioteca? Esta ação não pode ser desfeita.')) {
     return
   }
 
@@ -593,14 +614,15 @@ async function handleDelete(): Promise<void> {
       method: 'DELETE',
       timeout: 15_000,
     })
-    void navigateTo('/app')
+    const dest = props.initialLog.user?.handle ? `/@${props.initialLog.user.handle}` : '/'
+    void navigateTo(dest)
   } catch (err: unknown) {
     if (isTimeoutOrAbort(err)) {
       errorMessage.value = TIMEOUT_MESSAGE
       return
     }
     const fetchErr = err as { data?: { message?: string } }
-    errorMessage.value = fetchErr.data?.message ?? 'Não foi possível excluir a entrada.'
+    errorMessage.value = fetchErr.data?.message ?? 'Não foi possível remover o livro da biblioteca.'
   } finally {
     deleting.value = false
   }
@@ -1036,5 +1058,46 @@ async function handleDelete(): Promise<void> {
   .radio-card {
     transition: none;
   }
+}
+
+.reading-status-group {
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--input-bg);
+  border-radius: var(--radius-md);
+}
+
+.status-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.status-checkbox {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--highlight);
+}
+
+.status-checkbox-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.status-checkbox-title {
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.status-checkbox-desc {
+  color: var(--text-color);
+  font-size: var(--font-size-xs);
+  opacity: 0.8;
 }
 </style>
