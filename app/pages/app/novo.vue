@@ -6,18 +6,46 @@
         Registre uma nova leitura concluída com sua nota, data e resenha.
       </p>
 
-      <LogForm mode="create" />
+      <div class="tabs-nav" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          class="tab-btn"
+          :class="{ active: activeTab === 'manual' }"
+          :aria-selected="activeTab === 'manual'"
+          @click="activeTab = 'manual'"
+        >
+          Registrar livro
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="tab-btn"
+          :class="{ active: activeTab === 'json' }"
+          :aria-selected="activeTab === 'json'"
+          @click="activeTab = 'json'"
+        >
+          Importar JSON
+        </button>
+      </div>
+
+      <LogForm v-if="activeTab === 'manual'" mode="create" />
+      <JsonImportSection v-else />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import LogForm from '~/components/log/LogForm.vue'
+import JsonImportSection from '~/components/log/JsonImportSection.vue'
 
 definePageMeta({
   layout: 'app',
   middleware: 'auth',
 })
+
+const activeTab = ref<'manual' | 'json'>('manual')
 </script>
 
 <style scoped>
@@ -50,5 +78,36 @@ definePageMeta({
   font-size: var(--font-size-sm);
   margin-top: 0;
   margin-bottom: var(--space-6);
+}
+
+.tabs-nav {
+  display: flex;
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-6, 24px);
+  border-bottom: 1px solid var(--input-bg, #2c3440);
+  padding-bottom: var(--space-2, 8px);
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-color, #9ab);
+  font-family: inherit;
+  font-size: var(--font-size-base, 1rem);
+  font-weight: 500;
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: var(--radius-sm, 4px);
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.tab-btn:hover {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.tab-btn.active {
+  color: #fff;
+  background-color: var(--input-bg, #2c3440);
 }
 </style>

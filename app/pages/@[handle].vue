@@ -30,6 +30,15 @@
           <NuxtLink v-if="isOwner" to="/app/perfil" class="btn-edit-profile">
             Editar perfil
           </NuxtLink>
+          <a
+            v-if="isOwner"
+            href="/api/library/export"
+            download="meus-livros-export.json"
+            class="btn-edit-profile btn-export-profile"
+            title="Exportar biblioteca em JSON"
+          >
+            Exportar JSON
+          </a>
         </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
 
