@@ -45,6 +45,8 @@
             <BookCover
               :title="book.work.title"
               :cover-url="book.work.cover_url"
+              :isbn13="book.work.isbn13"
+              :ol-cover-id="book.work.ol_cover_id"
               :alt="`Capa de ${book.work.title}`"
               loading="lazy"
             />

@@ -26,6 +26,8 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
         cover_url: sql<string | null>`(
           SELECT e.cover_url FROM editions e WHERE e.work_id = works.id AND e.cover_url IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
         )`,
+        isbn13: editions.isbn13,
+        ol_cover_id: editions.ol_cover_id,
       },
     })
     .from(reading_logs)
@@ -51,6 +53,8 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
         cover_url: sql<string | null>`(
           SELECT e.cover_url FROM editions e WHERE e.work_id = works.id AND e.cover_url IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
         )`,
+        isbn13: editions.isbn13,
+        ol_cover_id: editions.ol_cover_id,
       },
     })
     .from(reading_logs)

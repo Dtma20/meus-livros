@@ -10,6 +10,8 @@ export interface DashboardWorkView {
   slug: string
   first_published_year: number | null
   cover_url: string | null
+  isbn13?: string | null
+  ol_cover_id?: number | null
   authors: DashboardAuthorView[]
 }
 
