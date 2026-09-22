@@ -58,8 +58,6 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
   const term = query.trim()
   if (term.length < 2) return []
 
-  const hasWildcardChars = term.includes('%') || term.includes('_')
-
   // Clean tokens for multi-word matching
   const tokens = term
     .replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, ' ')
@@ -111,28 +109,26 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
           WHERE wa.work_id = w.id
             AND f_unaccent(lower(a.name)) ILIKE '%' || (SELECT pattern FROM q) || '%' ESCAPE '\\'
         )
+        -- Sem guarda para % ou _: similarity/word_similarity comparam
+        -- trigramas contra um parâmetro vinculado, e os tokens já saem
+        -- sem % e _ do regex de limpeza acima. Desligar o fuzzy aqui
+        -- zerava a busca aproximada para queries como "harry_potter".
+        OR similarity(w.search_text, (SELECT norm FROM q)) > 0.25
+        OR word_similarity((SELECT norm FROM q), w.search_text) > 0.35
         ${
-          !hasWildcardChars
-            ? sql`
-                OR similarity(w.search_text, (SELECT norm FROM q)) > 0.25
-                OR word_similarity((SELECT norm FROM q), w.search_text) > 0.35
-                ${
-                  tokens.length >= 2
-                    ? sql`OR (
-                        SELECT bool_and(
-                          w.search_text ILIKE '%' || f_unaccent(lower(t)) || '%'
-                          OR EXISTS (
-                            SELECT 1 FROM work_authors wa2
-                            JOIN authors a2 ON a2.id = wa2.author_id
-                            WHERE wa2.work_id = w.id
-                              AND f_unaccent(lower(a2.name)) ILIKE '%' || f_unaccent(lower(t)) || '%'
-                          )
-                        )
-                        FROM unnest(ARRAY[${sql.join(tokens.map((t) => sql`${t}`), sql`, `)}]::text[]) as t
-                      )`
-                    : sql``
-                }
-              `
+          tokens.length >= 2
+            ? sql`OR (
+                SELECT bool_and(
+                  w.search_text ILIKE '%' || f_unaccent(lower(t)) || '%'
+                  OR EXISTS (
+                    SELECT 1 FROM work_authors wa2
+                    JOIN authors a2 ON a2.id = wa2.author_id
+                    WHERE wa2.work_id = w.id
+                      AND f_unaccent(lower(a2.name)) ILIKE '%' || f_unaccent(lower(t)) || '%'
+                  )
+                )
+                FROM unnest(ARRAY[${sql.join(tokens.map((t) => sql`${t}`), sql`, `)}]::text[]) as t
+              )`
             : sql``
         }
     ),
@@ -311,6 +307,5 @@ export async function recordSearchMiss(query: string, userId: string | null = nu
       source: 'database',
       error: err as Error,
     })
-    console.error('[search] search_misses insert failed:', err)
   }
 }

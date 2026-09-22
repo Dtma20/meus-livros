@@ -352,6 +352,11 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     expect(rows[0]!.user_id).toBeNull()
   }, 20_000)
 
+  it('a query containing _ still finds a similar title via fuzzy matching', async () => {
+    const results = await search.searchWorks(`${MARKER} O_Retorno do Rei`, null)
+    expect(results.map((r) => r.title)).toContain(`${MARKER} O Retorno do Rei`)
+  }, 20_000)
+
   it('a simulated insert failure does not affect or throw in recordSearchMiss', async () => {
     // Calling with an invalid foreign key UUID simulates a DB failure;
     // recordSearchMiss catches and logs it without throwing or rejecting.
