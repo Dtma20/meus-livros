@@ -5,6 +5,7 @@ import EmptyState from '../../app/components/ui/EmptyState.vue'
 import ErrorState from '../../app/components/ui/ErrorState.vue'
 import LoadingSkeleton from '../../app/components/ui/LoadingSkeleton.vue'
 import SearchBox from '../../app/components/search/SearchBox.vue'
+import JsonImportSection from '../../app/components/log/JsonImportSection.vue'
 
 // SearchBox reaches for three Nuxt auto-imports that a bare createApp does not
 // provide: useId for the listbox ids, plus navigateTo and useRoute in goToAdd.
@@ -22,6 +23,10 @@ function mount<T extends Component>(component: T, props: Record<string, unknown>
   const container = document.createElement('div')
   document.body.appendChild(container)
   const app = createApp(component, props)
+  app.component('NuxtLink', {
+    props: ['to'],
+    template: '<a><slot /></a>',
+  })
   const vm = app.mount(container)
 
   return {
@@ -240,4 +245,29 @@ describe('SearchBox.vue - Empty state on search miss', () => {
     global.fetch = originalFetch
   })
 })
+
+describe('JsonImportSection.vue - Format Guide', () => {
+  it('renders JSON format description, sample code, and field documentation', () => {
+    const wrapper = mount(JsonImportSection)
+
+    expect(wrapper.text()).toContain('Estrutura esperada do arquivo JSON')
+    expect(wrapper.text()).toContain('title')
+    expect(wrapper.text()).toContain('author')
+    expect(wrapper.text()).toContain('Obrigatório')
+    expect(wrapper.text()).toContain('Opcional')
+    expect(wrapper.text()).toContain('Dom Casmurro')
+    expect(wrapper.text()).toContain('Machado de Assis')
+
+    const details = wrapper.find('details.json-format-guide')
+    expect(details).not.toBeNull()
+    expect(details?.getAttribute('open')).toBe('')
+
+    const copyBtn = wrapper.find('.btn-copy-template')
+    expect(copyBtn).not.toBeNull()
+    expect(copyBtn?.textContent?.trim()).toContain('Copiar modelo')
+
+    wrapper.unmount()
+  })
+})
+
 

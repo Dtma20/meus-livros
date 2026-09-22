@@ -43,7 +43,6 @@
           <button type="button" class="btn-select-file" @click="triggerFileInput">
             Selecionar arquivo do computador
           </button>
-          <span class="file-hint">Formato compatível com o backup de livros (livros.json)</span>
         </div>
       </div>
 
@@ -98,6 +97,166 @@
           </button>
         </div>
       </div>
+
+      <!-- Guia / Descrição do formato JSON esperado -->
+      <details
+        class="json-format-guide"
+        :open="isGuideOpen"
+        @toggle="isGuideOpen = ($event.target as HTMLDetailsElement).open"
+      >
+        <summary class="guide-summary">
+          <div class="guide-summary-title">
+            <span>Estrutura esperada do arquivo JSON</span>
+          </div>
+          <span class="guide-chevron" aria-hidden="true">▾</span>
+        </summary>
+
+        <div class="guide-body">
+          <p class="guide-text">
+            O arquivo deve conter uma lista de livros no formato JSON, seja como uma lista direta <code>[ ... ]</code> ou encapsulado em um objeto <code>{ "books": [ ... ] }</code>. Apenas <strong>title</strong> e <strong>author</strong> são obrigatórios.
+          </p>
+
+          <div class="guide-box">
+            <div class="guide-box-header">
+              <span class="guide-box-title">Exemplo de modelo:</span>
+              <button
+                type="button"
+                class="btn-copy-template"
+                @click="copyTemplate"
+              >
+                {{ copied ? '✓ Copiado!' : 'Copiar modelo' }}
+              </button>
+            </div>
+            <pre class="guide-code"><code>{{ sampleJson }}</code></pre>
+          </div>
+
+          <div class="guide-fields-group">
+            <h4 class="guide-fields-title">Campos aceitos:</h4>
+            <ul class="fields-list">
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">title</code>
+                  <span class="badge-req">Obrigatório</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">Título da obra (ex: <em>"Dom Casmurro"</em>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">author</code>
+                  <span class="badge-req">Obrigatório</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">Nome do autor principal (ex: <em>"Machado de Assis"</em>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">year</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">inteiro</span>
+                </div>
+                <div class="field-desc">Ano da primeira publicação (ex: <code>1899</code>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">pages</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">inteiro</span>
+                </div>
+                <div class="field-desc">Quantidade de páginas (ex: <code>256</code>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">publisher</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">Editora (ex: <em>"Editora Garnier"</em>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">isbn</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">Código ISBN-10 ou ISBN-13 (ex: <em>"9788572323710"</em>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">genre</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">lista de texto</span>
+                </div>
+                <div class="field-desc">Gêneros literários (ex: <code>["Romance", "Literatura Brasileira"]</code>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">rate</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">número (0.5 a 5.0)</span>
+                </div>
+                <div class="field-desc">Avaliação da leitura em incrementos de 0.5 (ex: <code>4.5</code>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">read_in</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">data ou ano</span>
+                </div>
+                <div class="field-desc">Data da leitura (ex: <em>"2024-03-15"</em> ou ano <code>2024</code>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">review</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">Sua resenha, notas ou anotações de leitura</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">series_name</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">Nome da série ou coleção (ex: <em>"Trilogia Realista"</em>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">series_number</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">Número do volume na série (ex: <em>"3"</em>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">country</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">País de origem do autor (ex: <em>"Brasil"</em>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">original_language</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">texto</span>
+                </div>
+                <div class="field-desc">Idioma original da obra (ex: <em>"Português"</em>)</div>
+              </li>
+              <li class="field-item">
+                <div class="field-head">
+                  <code class="field-name">cover_url</code>
+                  <span class="badge-opt">Opcional</span>
+                  <span class="field-type">URL</span>
+                </div>
+                <div class="field-desc">Link direto para imagem de capa (https://...)</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </details>
     </div>
   </div>
 </template>
@@ -117,6 +276,44 @@ const previewBooks = ref<LivroJson[]>([])
 const totalParsedBooks = ref(0)
 
 const successSummary = ref<{ imported: number; skipped: number } | null>(null)
+
+const isGuideOpen = ref(true)
+const copied = ref(false)
+let copyTimeout: ReturnType<typeof setTimeout> | null = null
+
+const sampleJson = JSON.stringify(
+  [
+    {
+      title: 'Dom Casmurro',
+      author: 'Machado de Assis',
+      year: 1899,
+      pages: 256,
+      publisher: 'Editora Garnier',
+      isbn: '9788572323710',
+      genre: ['Romance', 'Literatura Brasileira'],
+      rate: 4.5,
+      read_in: '2024-03-15',
+      review: 'Uma das maiores obras da literatura brasileira.',
+    },
+  ],
+  null,
+  2,
+)
+
+async function copyTemplate() {
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(sampleJson)
+      copied.value = true
+      if (copyTimeout) clearTimeout(copyTimeout)
+      copyTimeout = setTimeout(() => {
+        copied.value = false
+      }, 2000)
+    } catch {
+      // Ignora restrições do navegador sobre clipboard
+    }
+  }
+}
 
 function triggerFileInput() {
   fileInputRef.value?.click()
@@ -174,6 +371,7 @@ function readFile(file: File) {
       allParsedBooks.value = validBooks
       totalParsedBooks.value = validBooks.length
       previewBooks.value = validBooks.slice(0, 5)
+      isGuideOpen.value = false
     } catch {
       parseError.value = 'Não foi possível ler o arquivo. Verifique se a sintaxe do JSON está correta.'
     }
@@ -217,6 +415,7 @@ function reset() {
   previewBooks.value = []
   totalParsedBooks.value = 0
   successSummary.value = null
+  isGuideOpen.value = true
   if (fileInputRef.value) {
     fileInputRef.value.value = ''
   }
@@ -442,5 +641,205 @@ function reset() {
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
   text-decoration: none;
+}
+
+/* Guia de Formato JSON */
+.json-format-guide {
+  margin-top: var(--space-6, 24px);
+  background-color: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--input-bg, #2c3440);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.json-format-guide:hover {
+  border-color: rgba(154, 171, 187, 0.3);
+}
+
+.guide-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  background-color: rgba(0, 0, 0, 0.2);
+  user-select: none;
+  list-style: none;
+}
+
+.guide-summary::-webkit-details-marker {
+  display: none;
+}
+
+.guide-summary-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 600;
+  color: #fff;
+}
+
+.guide-icon {
+  font-size: 1rem;
+}
+
+.guide-chevron {
+  font-size: 0.875rem;
+  color: var(--text-color, #9ab);
+  transition: transform 0.2s ease;
+}
+
+details[open] .guide-chevron {
+  transform: rotate(180deg);
+}
+
+.guide-body {
+  padding: 16px;
+  border-top: 1px solid var(--input-bg, #2c3440);
+}
+
+.guide-text {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--text-color, #9ab);
+  line-height: var(--line-height-normal, 1.5);
+  margin: 0 0 14px 0;
+}
+
+.guide-text code,
+.field-head code {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 2px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.8em;
+  color: #e6edf3;
+}
+
+.guide-box {
+  background-color: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--input-bg, #2c3440);
+  border-radius: var(--radius-sm, 4px);
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.guide-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.guide-box-title {
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--text-color, #9ab);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.btn-copy-template {
+  background: var(--card-bg, #232a31);
+  border: 1px solid var(--input-bg, #2c3440);
+  color: var(--highlight, #f59e0b);
+  padding: 3px 8px;
+  font-size: var(--font-size-xs, 0.75rem);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-copy-template:hover {
+  background-color: var(--input-bg, #2c3440);
+}
+
+.guide-code {
+  margin: 0;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #a5d6ff;
+  line-height: 1.4;
+  overflow-x: auto;
+  max-height: 200px;
+}
+
+.guide-fields-group {
+  margin-top: 16px;
+}
+
+.guide-fields-title {
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: 600;
+  color: var(--text-color, #9ab);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 10px 0;
+}
+
+.fields-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-item {
+  background-color: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm, 4px);
+  padding: 8px 10px;
+}
+
+.field-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.field-name {
+  font-weight: 600;
+  color: #fff !important;
+}
+
+.badge-req {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-opt {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background-color: rgba(154, 171, 187, 0.1);
+  color: var(--text-color, #9ab);
+  border: 1px solid rgba(154, 171, 187, 0.2);
+}
+
+.field-type {
+  font-size: 0.6875rem;
+  color: #6e7681;
+  margin-left: auto;
+}
+
+.field-desc {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--text-color, #9ab);
+  line-height: 1.35;
+}
+
+.field-desc em {
+  color: #fff;
+  font-style: normal;
 }
 </style>
