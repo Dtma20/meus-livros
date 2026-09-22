@@ -55,10 +55,14 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [owner] = await db.execute(sql<{ user_id: string; n: number }>`
       SELECT user_id, count(*)::int as n FROM reading_logs GROUP BY user_id HAVING count(*) >= 86 ORDER BY count(*) DESC LIMIT 1
     `)
-    // Banco vazio é falha real de ambiente, não skip: sem o corpus migrado
-    // estes testes passariam em silêncio sem verificar nada.
+    // Corpus ausente é falha real de ambiente, não skip: sem ele estes testes
+    // passariam em silêncio sem verificar nada. A condição é "nenhum usuário
+    // com 86 logs ou mais", não "tabela vazia" — a mensagem precisa dizer isso,
+    // senão manda procurar no lugar errado quando a tabela tem registros.
     if (!owner) {
-      throw new Error('reading_logs está vazia. Rode scripts/migrate-livros.ts primeiro.')
+      throw new Error(
+        'Nenhum usuário com 86 ou mais reading_logs: o corpus de livros.json não está neste banco. Rode scripts/migrate-livros.ts primeiro.',
+      )
     }
     ownerId = String(owner.user_id)
   })
