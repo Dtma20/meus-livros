@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { LivroJson } from '../../shared/schemas/export-import'
+import { livroJsonSchema, type LivroJson } from '../../shared/schemas/export-import'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-transfer-${Date.now()}`
@@ -12,7 +12,7 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
   let sqlOp: typeof import('drizzle-orm')
 
   let testUserId: string
-  const createdWorkIds: string[] = []
+  let roundtripUserId: string | null = null
 
   beforeAll(async () => {
     const dbModule = await import('../../server/db')
@@ -37,27 +37,35 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
   })
 
   afterAll(async () => {
-    if (testUserId) {
-      // 1. Limpar reading logs do usuário
-      await db
-        .delete(schema.reading_logs)
-        .where(sqlOp.eq(schema.reading_logs.user_id, testUserId))
+    try {
+      const userIds = [testUserId, roundtripUserId].filter((id): id is string => Boolean(id))
+      if (userIds.length > 0) {
+        // Derivar tudo a partir de created_by / user_id: a limpeza não depende
+        // de IDs coletados no meio do teste, então vale mesmo se o it falhar.
+        await db
+          .delete(schema.reading_logs)
+          .where(sqlOp.inArray(schema.reading_logs.user_id, userIds))
 
-      // 2. Limpar works criados
-      if (createdWorkIds.length > 0) {
+        await db
+          .delete(schema.editions)
+          .where(sqlOp.inArray(schema.editions.created_by, userIds))
+
         await db
           .delete(schema.works)
-          .where(sqlOp.inArray(schema.works.id, createdWorkIds))
+          .where(sqlOp.inArray(schema.works.created_by, userIds))
+
+        await db
+          .delete(schema.authors)
+          .where(sqlOp.inArray(schema.authors.created_by, userIds))
+
+        await db
+          .delete(schema.users)
+          .where(sqlOp.inArray(schema.users.id, userIds))
       }
-
-      // 3. Limpar usuário
-      await db
-        .delete(schema.users)
-        .where(sqlOp.eq(schema.users.id, testUserId))
-    }
-
-    if (client) {
-      await client.end()
+    } finally {
+      if (client) {
+        await client.end()
+      }
     }
   })
 
@@ -89,11 +97,18 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
         source: 'Kindle',
         genre: ['Romance'],
       },
+      {
+        // Leitura em andamento: sem páginas, editora, isbn nem ano de leitura.
+        title: `${MARKER} Livro Em Andamento`,
+        author: 'Autora Paciente',
+        source: 'Físico',
+        genre: ['Novela'],
+      },
     ]
 
     // 1. Executar importação
     const result = await transferService.importUserLibrary(testUserId, sampleBooks)
-    expect(result.importedCount).toBe(2)
+    expect(result.importedCount).toBe(3)
     expect(result.skippedCount).toBe(0)
     expect(result.errors.length).toBe(0)
 
@@ -109,14 +124,11 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
       .from(schema.reading_logs)
       .where(sqlOp.eq(schema.reading_logs.user_id, testUserId))
 
-    expect(userLogs.length).toBe(2)
-    for (const log of userLogs) {
-      createdWorkIds.push(log.workId)
-    }
+    expect(userLogs.length).toBe(3)
 
     // 3. Executar exportação
     const exportedBooks = await transferService.exportUserLibrary(testUserId)
-    expect(exportedBooks.length).toBe(2)
+    expect(exportedBooks.length).toBe(3)
 
     // Validar primeiro livro exportado
     const book1 = exportedBooks.find((b) => b.title === `${MARKER} Livro Completo`)
@@ -138,5 +150,34 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(book2?.rate).toBe(5)
     expect(book2?.source).toBe('Kindle')
     expect(book2?.genre).toContain('Romance')
+
+    // O livro em andamento exporta nulos que o import aceita de volta.
+    const inProgress = exportedBooks.find((b) => b.title === `${MARKER} Livro Em Andamento`)
+    expect(inProgress).toBeDefined()
+    expect(inProgress?.pages).toBeNull()
+    expect(inProgress?.publisher).toBeNull()
+    expect(inProgress?.isbn).toBeNull()
+    expect(inProgress?.read_in).toBeNull()
+
+    // 4. Fechar o ciclo: o export passa no schema e reimporta sem perdas.
+    const reparsed = livroJsonSchema.array().safeParse(exportedBooks)
+    expect(reparsed.success).toBe(true)
+
+    const [roundtripUser] = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}-roundtrip@example.com`,
+        handle: `rt_${Date.now()}`.slice(0, 20),
+        display_name: 'Usuário Roundtrip',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+    if (!roundtripUser) throw new Error('Falha ao criar usuário de round-trip.')
+    roundtripUserId = roundtripUser.id
+
+    const roundtrip = await transferService.importUserLibrary(roundtripUserId, exportedBooks)
+    expect(roundtrip.errors).toEqual([])
+    expect(roundtrip.skippedCount).toBe(0)
+    expect(roundtrip.importedCount).toBe(exportedBooks.length)
   })
 })
