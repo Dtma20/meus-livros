@@ -40,17 +40,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
    * exactly what happened once the auth suite landed. The migration script's
    * own post-insert checks filter by `created_by`; these do the same.
    */
-  let ownerId: string | null = null
-
-  const itCorpus = (name: string, fn: () => Promise<void>) => {
-    it(name, async (ctx) => {
-      if (!ownerId) {
-        ctx.skip()
-        return
-      }
-      await fn()
-    })
-  }
+  let ownerId = ''
 
   beforeAll(async () => {
     const dbModule = await import('../../server/db')
@@ -65,9 +55,12 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     const [owner] = await db.execute(sql<{ user_id: string; n: number }>`
       SELECT user_id, count(*)::int as n FROM reading_logs GROUP BY user_id HAVING count(*) >= 86 ORDER BY count(*) DESC LIMIT 1
     `)
-    if (owner) {
-      ownerId = String(owner.user_id)
+    // Banco vazio é falha real de ambiente, não skip: sem o corpus migrado
+    // estes testes passariam em silêncio sem verificar nada.
+    if (!owner) {
+      throw new Error('reading_logs está vazia. Rode scripts/migrate-livros.ts primeiro.')
     }
+    ownerId = String(owner.user_id)
   })
 
   afterAll(async () => {
@@ -76,7 +69,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     }
   })
 
-  itCorpus('works = 86, editions = 86, reading_logs = 86', async () => {
+  it('works = 86, editions = 86, reading_logs = 86', async () => {
     const [wc] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.works).where(sql`${schema.works.created_by} = ${ownerId}`)
     const [ec] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.editions).where(sql`${schema.editions.created_by} = ${ownerId}`)
     const [lc] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.reading_logs).where(sql`${schema.reading_logs.user_id} = ${ownerId}`)
@@ -86,7 +79,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(lc?.n).toBe(86)
   })
 
-  itCorpus('authors count is exactly 60 (multi-author books split correctly)', async () => {
+  it('authors count is exactly 60 (multi-author books split correctly)', async () => {
     // 59 raw author strings. Multi-author records are 'Pierre Weil, Roland Tompakow' and
     // 'Karl Marx, Friedrich Engels'. Friedrich Engels also authored 'Do socialismo utópico...',
     // so splitting both records yields 60 unique authors. migration.md predicted
@@ -98,7 +91,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(ac?.n).toBe(60)
   })
 
-  itCorpus('reading_logs with non-null review = 56', async () => {
+  it('reading_logs with non-null review = 56', async () => {
     const [rc] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.reading_logs)
@@ -106,7 +99,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(rc?.n).toBe(56)
   })
 
-  itCorpus('reading_logs with non-null rating = 85', async () => {
+  it('reading_logs with non-null rating = 85', async () => {
     const [rc] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.reading_logs)
@@ -114,7 +107,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(rc?.n).toBe(85)
   })
 
-  itCorpus('no review contains HTML (<)', async () => {
+  it('no review contains HTML (<)', async () => {
     const [hc] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(schema.reading_logs)
@@ -122,7 +115,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(hc?.n).toBe(0)
   })
 
-  itCorpus('min(first_published_year) = -500', async () => {
+  it('min(first_published_year) = -500', async () => {
     const [row] = await db
       .select({ y: sql<number>`min(${schema.works.first_published_year})` })
       .from(schema.works)
@@ -130,7 +123,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(row?.y).toBe(-500)
   })
 
-  itCorpus('every reading_log has a non-null edition_id that belongs to its work_id', async () => {
+  it('every reading_log has a non-null edition_id that belongs to its work_id', async () => {
     // Count logs where edition_id is null
     const [nullEditions] = await db
       .select({ n: sql<number>`count(*)::int` })
@@ -147,7 +140,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(mismatch?.n).toBe(0)
   })
 
-  itCorpus('sum(page_count) equals sum of pages in livros.json', async () => {
+  it('sum(page_count) equals sum of pages in livros.json', async () => {
     const raw = fs.readFileSync(path.resolve(process.cwd(), 'legacy/livros.json'), 'utf-8')
     const livros: Array<{ pages: number }> = JSON.parse(raw)
     const expectedSum = livros.reduce((acc, b) => acc + b.pages, 0)
@@ -159,7 +152,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(row?.s).toBe(expectedSum)
   })
 
-  itCorpus('work_genres count equals sum of genre-array lengths', async () => {
+  it('work_genres count equals sum of genre-array lengths', async () => {
     const raw = fs.readFileSync(path.resolve(process.cwd(), 'legacy/livros.json'), 'utf-8')
     const livros: Array<{ genre: string[] }> = JSON.parse(raw)
 
@@ -176,7 +169,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(row?.n).toBe(expectedGenreLinks)
   })
 
-  itCorpus('spot check: O retorno do rei — series O Senhor dos Anéis #3, read 2026', async () => {
+  it('spot check: O retorno do rei — series O Senhor dos Anéis #3, read 2026', async () => {
     const rows = await db
       .select({
         title: schema.works.title,
@@ -199,7 +192,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     }
   })
 
-  itCorpus('spot check: review with paragraph breaks preserves newlines without HTML', async () => {
+  it('spot check: review with paragraph breaks preserves newlines without HTML', async () => {
     const rows = await db
       .select({
         title: schema.works.title,
@@ -216,7 +209,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(row.review).toContain('\n')
   })
 
-  itCorpus('spot check: Pollyanna omnibus keeps series_number = "1-2"', async () => {
+  it('spot check: Pollyanna omnibus keeps series_number = "1-2"', async () => {
     const rows = await db
       .select({ series_number: schema.works.series_number })
       .from(schema.works)
@@ -226,7 +219,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(rows[0]?.series_number).toBe('1-2')
   })
 
-  itCorpus('spot check: Robots prequel keeps series_number = "0.1"', async () => {
+  it('spot check: Robots prequel keeps series_number = "0.1"', async () => {
     const rows = await db
       .select({ series_number: schema.works.series_number })
       .from(schema.works)
@@ -236,7 +229,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(rows[0]?.series_number).toBe('0.1')
   })
 
-  itCorpus('spot check: unrated book has rating IS NULL, not 0', async () => {
+  it('spot check: unrated book has rating IS NULL, not 0', async () => {
     const rows = await db
       .select({ rating: schema.reading_logs.rating })
       .from(schema.reading_logs)
@@ -246,7 +239,7 @@ describe.skipIf(!hasDatabaseUrl)('Migration: livros.json data integrity', () => 
     expect(rows[0]?.rating).toBeNull()
   })
 
-  itCorpus('ordering by finished_on DESC, created_at DESC matches reading order', async () => {
+  it('ordering by finished_on DESC, created_at DESC matches reading order', async () => {
     const logs = await db
       .select({
         finished_on: schema.reading_logs.finished_on,

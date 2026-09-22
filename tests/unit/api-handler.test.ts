@@ -54,6 +54,28 @@ describe('API Handler (defineApiHandler)', () => {
     expect(event.node.res.getHeader('x-request-id')).toBe('custom-request-id-999')
   })
 
+  it('preserves a valid x-request-id header from the incoming request', async () => {
+    const event = createMockEvent()
+    event.node.req.headers['x-request-id'] = 'header-request-id-123'
+    const handler = defineApiHandler(async () => ({ ok: true }))
+
+    await handler(event)
+
+    expect(event.node.res.getHeader('x-request-id')).toBe('header-request-id-123')
+  })
+
+  it('discards a malformed x-request-id header and generates a fresh id', async () => {
+    const event = createMockEvent()
+    event.node.req.headers['x-request-id'] = '../../etc/passwd\ninjected'
+    const handler = defineApiHandler(async () => ({ ok: true }))
+
+    await handler(event)
+
+    const requestId = event.node.res.getHeader('x-request-id') as string
+    expect(requestId).not.toBe('../../etc/passwd\ninjected')
+    expect(requestId).toMatch(/^[A-Za-z0-9_-]{1,64}$/)
+  })
+
   it('captures handled H3Error (e.g. 404) and returns documented shape with requestId', async () => {
     const event = createMockEvent()
     const handler = defineApiHandler(async () => {

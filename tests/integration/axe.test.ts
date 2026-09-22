@@ -46,6 +46,8 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
     })
 
     const profileRes = await httpGet(`${baseUrl}/@dtma23`)
+    // A rota quebrada (500) nunca pode passar em silêncio via fallback do banco.
+    expect(profileRes.status).toBe(200)
     const match = profileRes.body.match(/href="(\/entrada\/[^"]+)"/)
     if (match && match[1]) {
       entryPath = match[1]
