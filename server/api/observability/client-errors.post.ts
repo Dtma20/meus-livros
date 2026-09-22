@@ -2,7 +2,7 @@ import { readBody, setResponseStatus } from 'h3'
 import { z } from 'zod'
 import { checkRateLimit } from '../../services/rate-limit'
 import { defineApiHandler, parseOrThrow } from '../../utils/api'
-import { sanitizeClientErrorMessage } from '../../utils/client-error'
+import { sanitizeClientErrorMessage, sanitizeClientErrorStack } from '../../utils/client-error'
 import { getClientIp } from '../../utils/client-ip'
 import { logger } from '../../utils/logger'
 
@@ -29,6 +29,7 @@ export default defineApiHandler(async (event) => {
   const rawBody = await readBody(event)
   const input = parseOrThrow(clientErrorSchema, rawBody)
   const safeMessage = sanitizeClientErrorMessage(input.message)
+  const safeStack = input.stack ? sanitizeClientErrorStack(input.stack) : undefined
 
   logger.error(`[client] Erro capturado no frontend: ${safeMessage}`, {
     module: 'client',
@@ -41,8 +42,8 @@ export default defineApiHandler(async (event) => {
     },
     error: {
       name: input.name || 'ClientError',
-       message: safeMessage,
-      stack: input.stack,
+      message: safeMessage,
+      stack: safeStack,
     },
   })
 
