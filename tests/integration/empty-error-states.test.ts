@@ -166,6 +166,9 @@ describe('TASK-020 Integration: Forced 500 error handling', () => {
     let capturedStatusCode: number | undefined
     const mockEvent = {
       node: {
+        req: {
+          headers: {},
+        },
         res: {
           get statusCode(): number | undefined {
             return capturedStatusCode
