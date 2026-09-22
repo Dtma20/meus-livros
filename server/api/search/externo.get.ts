@@ -39,5 +39,6 @@ export default defineApiHandler(async (event) => {
     })
   }
 
+  // Enriquecimento pt-BR roda dentro de searchOpenLibrary (sempre).
   return await searchOpenLibrary(q)
 })

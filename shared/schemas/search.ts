@@ -25,6 +25,9 @@ export const searchResultSchema = z.object({
   ol_work_key: z.string().optional(),
   ol_cover_id: z.number().int().nullable().optional(),
   language: z.string().nullable().optional(),
+  // Only ever set on external results — a local work's pages live on its
+  // editions, not on the search row.
+  page_count: z.number().int().nullable().optional(),
 })
 
 export const searchResponseSchema = z.object({
@@ -43,6 +46,7 @@ export const externalBookResultSchema = z.object({
   cover_url: z.string().nullable(),
   ol_cover_id: z.number().int().nullable(),
   language: z.string().nullable(),
+  page_count: z.number().int().nullable(),
 })
 
 export const externalSearchResponseSchema = z.object({

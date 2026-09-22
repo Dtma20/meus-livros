@@ -189,7 +189,16 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
     .from(reading_logs)
     .innerJoin(users, eq(users.id, reading_logs.user_id))
     .innerJoin(works, eq(works.id, reading_logs.work_id))
-    .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
+    // edition_id is intentionally nullable ("Edição padrão do catálogo" = null).
+    // When null, fall back to the work's first edition so page_count, cover and
+    // publisher still render. edition_id itself stays null in the response.
+    .leftJoin(
+      editions,
+      sql`editions.id = COALESCE(
+        ${reading_logs.edition_id},
+        (SELECT e2.id FROM editions e2 WHERE e2.work_id = ${reading_logs.work_id} ORDER BY e2.created_at, e2.id LIMIT 1)
+      )`,
+    )
     .where(and(eq(reading_logs.id, id), visibleLogs(viewer)))
     .limit(1)
 
@@ -271,7 +280,10 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
       ...row.work,
       authors: authorsList,
     },
-    edition: row.edition_id ? row.edition : null,
+    // Return the joined edition (which may be the work's first edition when
+    // edition_id is null). edition_id itself stays null so LogForm still shows
+    // "Edição padrão do catálogo".
+    edition: row.edition,
     blocks: blocksList,
     progress,
   }

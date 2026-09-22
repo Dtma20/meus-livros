@@ -124,7 +124,15 @@ export async function getProfileByHandle(
     .from(reading_logs)
     .innerJoin(users, eq(users.id, reading_logs.user_id))
     .innerJoin(works, eq(works.id, reading_logs.work_id))
-    .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
+    // edition_id intentionally nullable; fall back to first edition so page_count
+    // feeds totalPages/averagePages stats and the edition pill.
+    .leftJoin(
+      editions,
+      sql`editions.id = COALESCE(
+        ${reading_logs.edition_id},
+        (SELECT e2.id FROM editions e2 WHERE e2.work_id = ${reading_logs.work_id} ORDER BY e2.created_at, e2.id LIMIT 1)
+      )`,
+    )
     .where(and(eq(reading_logs.user_id, userRow.id), visibleLogs(viewer)))
     .orderBy(sql`${reading_logs.finished_on} DESC NULLS LAST, ${reading_logs.created_at} DESC`)
 
@@ -234,7 +242,8 @@ export async function getProfileByHandle(
       authors: authorsByWorkId.get(row.work.id) ?? [],
       genres: genresByWorkId.get(row.work.id) ?? [],
     },
-    edition: row.edition_id ? row.edition : null,
+    // Joined edition may be the work's first edition when edition_id is null.
+    edition: row.edition,
   }))
 
   // 6. Compute stats over the visible logs

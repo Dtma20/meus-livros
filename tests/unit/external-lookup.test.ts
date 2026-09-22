@@ -164,6 +164,7 @@ describe('ExternalLookup component', () => {
       cover_url: 'https://covers.openlibrary.org/b/id/8225261-M.jpg',
       ol_cover_id: 8225261,
       language: 'pt',
+      page_count: 256,
     }
 
     mockFetch.mockResolvedValueOnce({ results: [sampleResult] })
@@ -212,6 +213,7 @@ describe('AddBookForm with ExternalLookup integration', () => {
       cover_url: 'https://covers.openlibrary.org/b/id/8225261-M.jpg',
       ol_cover_id: 8225261,
       language: 'pt',
+      page_count: 256,
     }
 
     mockFetch.mockImplementation(async (url: string) => {
@@ -281,6 +283,7 @@ describe('AddBookForm with ExternalLookup integration', () => {
       cover_url: 'https://covers.openlibrary.org/b/id/8225261-M.jpg',
       ol_cover_id: 8225261,
       language: 'pt',
+      page_count: 256,
     }
 
     mockFetch.mockImplementation(async (url: string) => {

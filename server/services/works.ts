@@ -239,6 +239,7 @@ export interface ImportExternalWorkInput {
   cover_url?: string | null
   ol_cover_id?: number | null
   language?: string | null
+  page_count?: number | null
 }
 
 export async function importExternalWork(
@@ -305,13 +306,14 @@ export async function importExternalWork(
         .onConflictDoNothing()
     }
 
-    if (input.cover_url || input.ol_cover_id || input.first_publish_year) {
+    if (input.cover_url || input.ol_cover_id || input.first_publish_year || input.page_count) {
       await tx.insert(editions).values({
         work_id: work.id,
         cover_url: input.cover_url ?? null,
         ol_cover_id: input.ol_cover_id ?? null,
         published_year: input.first_publish_year ?? null,
         language: input.language?.toLowerCase() ?? null,
+        page_count: input.page_count ?? null,
         created_by: userId,
       })
     }

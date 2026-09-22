@@ -38,6 +38,28 @@ Also: A Arte da Guerra (Principis), Sapiens (L&PM), 1984 (Antofágica)
 
 Confirmed zero-result cases include *Harry Potter e a câmara secreta*, *Harry Potter e o cálice de fogo*, *Histórias da meia-noite* (Machado de Assis — a canonical Brazilian work), *Breve romance de sonho* and *Pollyanna e Pollyanna moça*.
 
+### `number_of_pages_median` — added 2026-09-22
+
+Run against the first 30 records of `livros.json`, one search per book, top result only.
+
+| Result | Count |
+|---|---|
+| Returned ≥ 1 result | 25 / 30 |
+| Top result carries `number_of_pages_median` | **25 / 25 — 100% of hits** |
+
+Coverage is total when a record exists. Accuracy is not:
+
+| | |
+|---|---|
+| Within 10% of the real page count | 10 / 25 — 40% |
+| Median relative error | **14.7%** |
+
+The field is the median across every edition Open Library knows for the work, almost all of them anglophone. *Harry Potter e a Pedra filosofal*: OL 302, the Rocco edition 224. *Ordem da fênix*: OL 870, real 704.
+
+**Consequence:** it prefills an empty page-count field and never overwrites a typed one. It is a starting guess, not a source.
+
+---
+
 ### Latency — the decisive number
 
 | | |
@@ -78,7 +100,7 @@ The 86 migrated books seed this from day one — the first friend to sign up sea
 | `works.original_language` | Local, OL-suggested | |
 | `works.ol_work_key` | OL | The only field OL owns outright; the join key for later enrichment |
 | `editions.isbn13` | Local | Normalised on write |
-| `editions.publisher` / `page_count` | Local, OL-suggested | OL's Brazilian publisher data is absent 60% of the time |
+| `editions.publisher` / `page_count` | Local, OL-suggested | OL's Brazilian publisher data is absent 60% of the time. `page_count` comes from `number_of_pages_median` — 100% present when a record exists, 14.7% median error. See §1 |
 | `editions.cover_url` | Local | An absolute URL, whatever its origin |
 | `editions.ol_cover_id` | OL | Preferred over ISBN-keyed cover URLs — see §5 |
 | genres | **Local only** | OL `subjects` are a free-text mess in English. Never imported |
@@ -182,13 +204,44 @@ On manual creation, run rule 3 against local works and, if it hits, return `409`
 | **Open Library as the catalog** | **Rejected on measurement.** 40% coverage, 8.4 s average latency |
 | Google Books API | Likely better Brazilian coverage, but needs a key, has a daily quota, and its terms are more restrictive. **Worth measuring post-MVP** as an enrichment source alongside Open Library — recorded in [open-questions.md](open-questions.md) |
 | ISBNdb | Paid. Violates the zero-cost constraint |
+| **Wikidata for author country** | **Rejected on measurement.** 90% coverage, wrong semantics. See §11 |
 | Scraping a Brazilian retailer | Fragile, legally murky, and an ongoing maintenance burden |
 | Bulk-importing Open Library's dumps | 20M+ records against a 0.5 GB database, to fix a problem that manual entry already solves at this scale |
 | **Community catalog + manual add** | **Chosen.** Zero dependencies, zero cost, instant search, and it improves with use |
 
 ---
 
-## 11. What to watch after launch
+## 11. Wikidata for author country — rejected
+
+Measured 2026-09-22 against all 59 distinct authors in `livros.json`, via `wbsearchentities` then `P27` (country of citizenship).
+
+| Result | Count |
+|---|---|
+| QID resolved from the author name | 54 / 59 — 91% |
+| Has a `P27` claim | 53 / 59 — 90% |
+| First `P27` value agrees with `livros.json` after label folding | 45 / 53 |
+
+Coverage is excellent. The data is still wrong for this product, for two independent reasons.
+
+**`P27` is citizenship, not origin as a reader means it.** Ordering does not fix it — first and last value each fail a different set:
+
+```
+Clarice Lispector  → República Socialista Soviética Ucraniana   (ours: Brasil)
+Charles Bukowski   → Alemanha                                   (ours: EUA)
+Isaac Asimov       → Rússia bolchevique                          (ours: EUA)
+```
+
+Clarice was born in Ukraine and is the Brazilian author. No heuristic recovers that.
+
+**The labels are historical states.** "Reino da Prússia", "Império Austríaco", "Qi", "Os Reinos e Terras Representados no Conselho Imperial". `authors.country_code` is `char(2)`; ISO 3166 has no code for any of them. The one exact agreement of this kind was Sêneca → "Roma Antiga" — the same value CLAUDE.md lists as a landmine precisely because no ISO code exists for it.
+
+Latency was ~2 s per author across three sequential requests. A single SPARQL query would fix that, and it would not matter: the field would still be wrong.
+
+**Chosen instead:** author country stays manual, autocompleted from authors already in the local database. Same source as local search, zero external dependencies, and it is right because the cohort entered it.
+
+---
+
+## 12. What to watch after launch
 
 The `search_misses` table is the instrument. Two questions it answers:
 

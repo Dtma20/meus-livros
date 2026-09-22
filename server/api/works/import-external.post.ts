@@ -12,6 +12,7 @@ const importExternalSchema = z.object({
   cover_url: z.string().nullish(),
   ol_cover_id: z.number().int().nullish(),
   language: z.string().nullish(),
+  page_count: z.number().int().positive().max(50000).nullish(),
 })
 
 export default defineApiHandler(async (event) => {

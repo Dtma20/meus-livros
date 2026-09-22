@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import type {
   ReadingBlockInput,
@@ -24,7 +24,15 @@ export async function getBlocksForLog(
       edition_page_count: editions.page_count,
     })
     .from(reading_logs)
-    .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
+    // edition_id is intentionally nullable. When null, fall back to the work's
+    // first edition so page_count (and thus total_pages in progress) resolves.
+    .leftJoin(
+      editions,
+      sql`editions.id = COALESCE(
+        ${reading_logs.edition_id},
+        (SELECT e2.id FROM editions e2 WHERE e2.work_id = ${reading_logs.work_id} ORDER BY e2.created_at, e2.id LIMIT 1)
+      )`,
+    )
     .where(and(eq(reading_logs.id, logId), visibleLogs(viewer)))
     .limit(1)
 

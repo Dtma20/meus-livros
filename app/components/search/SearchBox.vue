@@ -319,6 +319,7 @@ async function selectWork(work: SearchResult): Promise<void> {
           cover_url: work.cover_url,
           ol_cover_id: work.ol_cover_id,
           language: work.language,
+          page_count: work.page_count ?? null,
         }),
       })
       if (res.ok) {
@@ -414,11 +415,6 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
 
 .search-input:focus {
   border-color: var(--highlight);
-}
-
-.search-input:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: 2px;
 }
 
 /* Hide the native clear (×) button in WebKit */

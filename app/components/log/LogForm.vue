@@ -786,11 +786,6 @@ async function handleDelete(): Promise<void> {
   box-shadow: 0 0 0 2px rgba(64, 188, 244, 0.2);
 }
 
-.form-input:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: 2px;
-}
-
 .form-select {
   cursor: pointer;
 }

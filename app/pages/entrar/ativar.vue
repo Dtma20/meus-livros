@@ -437,8 +437,6 @@ function changeEmail() {
 }
 
 .form-input:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
   border-color: var(--highlight);
 }
 

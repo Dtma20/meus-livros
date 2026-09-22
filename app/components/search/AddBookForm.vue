@@ -745,6 +745,23 @@ function handleExternalSelect(book: ExternalBookResult): void {
     })
   }
 
+  // Check Page count
+  if (
+    editionPageCount.value !== null &&
+    editionPageCount.value !== undefined &&
+    String(editionPageCount.value) !== '' &&
+    book.page_count !== null &&
+    book.page_count !== undefined &&
+    Number(editionPageCount.value) !== book.page_count
+  ) {
+    changes.push({
+      field: 'page_count',
+      label: 'Número de páginas',
+      current: String(editionPageCount.value),
+      incoming: String(book.page_count),
+    })
+  }
+
   // Check Cover URL
   if (
     editionCoverUrl.value.trim() &&
@@ -798,6 +815,18 @@ function applyExternalBook(book: ExternalBookResult, overwrite: boolean): void {
   if (book.language && (overwrite || !originalLanguage.value)) {
     originalLanguage.value = book.language
     showMoreDetails.value = true
+  }
+
+  // Page count. Open Library reports the median across the work's editions, so
+  // it is a hint, not the page count of the edition being recorded.
+  if (
+    book.page_count !== null &&
+    book.page_count !== undefined &&
+    (overwrite || editionPageCount.value === null || editionPageCount.value === undefined)
+  ) {
+    editionPageCount.value = book.page_count
+    showEdition.value = true
+    validateField('page_count')
   }
 
   // Open Library work key
@@ -1390,8 +1419,6 @@ function handleCancel(): void {
 }
 
 .form-input:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
   border-color: var(--highlight);
 }
 

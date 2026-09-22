@@ -270,6 +270,7 @@ export async function searchHybridWorks(
           ol_cover_id: r.ol_cover_id,
           ol_work_key: r.ol_work_key,
           language: r.language,
+          page_count: r.page_count,
           log_count: 0,
           source: 'externo',
         }))
