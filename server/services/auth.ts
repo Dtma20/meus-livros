@@ -7,6 +7,8 @@ import { isForbiddenPassword } from '../../shared/schemas/auth'
 import { db } from '../db'
 import { allowed_emails, users } from '../db/schema'
 import { getEmailFrom, getTransport, redactEmail } from '../utils/email'
+import { logger } from '../utils/logger'
+import { withRetry } from '../utils/retry'
 import {
   checkOtpRequestLimit,
   checkPasswordChangeLimit,
@@ -116,32 +118,61 @@ export const auth = betterAuth({
         const transport = await getTransport()
         const subject =
           type === 'sign-in' ? 'Seu código de acesso — Meus Livros' : 'Seu código — Meus Livros'
+        const emailRedacted = redactEmail(email)
 
         // Fire-and-forget: do not block the HTTP response on SMTP latency.
         // Catch any error so it does not result in an unhandled rejection.
         // Never log the OTP code.
-        transport
-          .sendMail({
-            from: getEmailFrom(),
-            to: email,
-            subject,
-            text: [
-              `Olá,`,
-              ``,
-              `Seu código de acesso é: ${otp}`,
-              ``,
-              `O código expira em 10 minutos e só pode ser usado uma vez.`,
-              ``,
-              `Se você não solicitou este código, ignore este e-mail.`,
-              ``,
-              `— Meus Livros`,
-            ].join('\n'),
+        const startTime = performance.now()
+        withRetry(
+          async () => {
+            return await transport.sendMail({
+              from: getEmailFrom(),
+              to: email,
+              subject,
+              text: [
+                `Olá,`,
+                ``,
+                `Seu código de acesso é: ${otp}`,
+                ``,
+                `O código expira em 10 minutos e só pode ser usado uma vez.`,
+                ``,
+                `Se você não solicitou este código, ignore este e-mail.`,
+                ``,
+                `— Meus Livros`,
+              ].join('\n'),
+            })
+          },
+          {
+            maxRetries: 2,
+            initialDelayMs: 300,
+            operationName: 'send_otp_email',
+            module: 'auth',
+          },
+        )
+          .then(() => {
+            const durationMs = Math.round(performance.now() - startTime)
+            logger.info(`[auth] E-mail OTP enviado com sucesso para ${emailRedacted}`, {
+              module: 'auth',
+              source: 'external_api',
+              operation: 'send_otp_email',
+              durationMs,
+              context: { type, email: emailRedacted },
+            })
           })
           .catch((err: unknown) => {
+            const durationMs = Math.round(performance.now() - startTime)
             const message = err instanceof Error ? err.message : String(err)
             // Redacted: security.md keeps addresses out of logs beyond the
             // first character, and this line runs for every invited member.
-            console.error(`[auth] Falha ao enviar e-mail OTP para ${redactEmail(email)}: ${message}`)
+            logger.error(`[auth] Falha ao enviar e-mail OTP para ${emailRedacted}: ${message}`, {
+              module: 'auth',
+              source: 'external_api',
+              operation: 'send_otp_email',
+              durationMs,
+              context: { type, email: emailRedacted },
+              error: err as Error,
+            })
           })
       },
     }),

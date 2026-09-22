@@ -286,10 +286,6 @@ const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
       return result
     } catch (err: unknown) {
       if (event) {
-        const status = (err as { statusCode?: number; status?: number })?.statusCode
-          || (err as { statusCode?: number; status?: number })?.status
-          || 404
-        setResponseStatus(event, status)
         setResponseHeader(event, 'Cache-Control', 'private, no-store')
       }
       throw err

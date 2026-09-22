@@ -9,6 +9,7 @@ import type {
 import { calculateReadingProgress } from '../../shared/utils/reading-progress'
 import { db } from '../db'
 import { authors, editions, reading_blocks, reading_logs, users, work_authors, works } from '../db/schema'
+import { logger } from '../utils/logger'
 import { checkRateLimit } from './rate-limit'
 import { visibleLogs, type Viewer } from './visibility'
 
@@ -118,6 +119,14 @@ export async function createLog(
       },
     })
   }
+
+  logger.info(`[logs] Registro de leitura criado: ${created.id}`, {
+    module: 'logs',
+    feature: 'reading_log',
+    operation: 'create_log',
+    userId,
+    context: { logId: created.id, workId: input.work_id, visibility: input.visibility ?? 'publico' },
+  })
 
   return { id: created.id }
 }
@@ -380,6 +389,14 @@ export async function updateLog(
     })
   }
 
+  logger.info(`[logs] Registro de leitura atualizado: ${id}`, {
+    module: 'logs',
+    feature: 'reading_log',
+    operation: 'update_log',
+    userId,
+    context: { logId: id },
+  })
+
   return { id: updated.id }
 }
 
@@ -405,6 +422,14 @@ export async function deleteLog(id: string, userId: string): Promise<void> {
       },
     })
   }
+
+  logger.info(`[logs] Registro de leitura excluído: ${id}`, {
+    module: 'logs',
+    feature: 'reading_log',
+    operation: 'delete_log',
+    userId,
+    context: { logId: id },
+  })
 }
 
 /**

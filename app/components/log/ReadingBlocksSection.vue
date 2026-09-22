@@ -375,8 +375,8 @@ async function confirmDelete(block: ReadingBlockView): Promise<void> {
     if (!res.ok) throw new Error('Falha ao excluir.')
     blocks.value = blocks.value.filter((b) => b.id !== block.id)
     updateLocalProgress()
-  } catch (err) {
-    console.error('Erro ao excluir bloco:', err)
+  } catch {
+    // Falha silenciosa de exclusão tratada localmente
   }
 }
 

@@ -3,6 +3,7 @@ import { createError } from 'h3'
 import { db } from '../db'
 import { authors, editions, genres, reading_logs, work_authors, work_genres, works } from '../db/schema'
 import { normalizeIsbn } from '../utils/isbn'
+import { logger } from '../utils/logger'
 import { slugify, uniqueSlug } from '../utils/slug'
 import type { EditionInput, WorkInput } from '../../shared/schemas/work'
 
@@ -251,7 +252,7 @@ export async function createWork(
         ol_work_key: input.ol_work_key ?? null,
         created_by: userId,
       })
-      .returning({ id: works.id, slug: works.slug })
+      .returning({ id: works.id, slug: works.slug, title: works.title })
 
     if (!work) throw new Error('A obra não pôde ser criada.')
 
@@ -275,6 +276,14 @@ export async function createWork(
       createdEdition = await insertEdition(tx, work.id, input.edition, userId)
     }
 
+    logger.info(`[catalog] Obra criada: ${work.title} (${work.id})`, {
+      module: 'catalog',
+      feature: 'book_catalog',
+      operation: 'create_work',
+      userId,
+      context: { workId: work.id, slug: work.slug, title: work.title },
+    })
+
     return { id: work.id, slug: work.slug, edition: createdEdition }
   })
 }
@@ -293,7 +302,15 @@ export async function createEdition(
     })
   }
 
-  return insertEdition(conn, workId, input, userId)
+  const result = await insertEdition(conn, workId, input, userId)
+  logger.info(`[catalog] Edição criada para a obra ${workId}: ${result.id}`, {
+    module: 'catalog',
+    feature: 'book_catalog',
+    operation: 'create_edition',
+    userId,
+    context: { workId, editionId: result.id },
+  })
+  return result
 }
 
 /**
@@ -334,4 +351,11 @@ export async function deleteWork(workId: string, userId: string): Promise<void> 
   }
 
   await db.delete(works).where(eq(works.id, workId))
+  logger.info(`[catalog] Obra excluída: ${workId}`, {
+    module: 'catalog',
+    feature: 'book_catalog',
+    operation: 'delete_work',
+    userId,
+    context: { workId },
+  })
 }

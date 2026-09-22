@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger'
 import { inArray, sql } from 'drizzle-orm'
 import { db } from '../db'
 import type { Viewer } from './visibility'
@@ -57,6 +58,8 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
   const term = query.trim()
   if (term.length < 2) return []
 
+  const hasWildcardChars = term.includes('%') || term.includes('_')
+
   // Clean tokens for multi-word matching
   const tokens = term
     .replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, ' ')
@@ -108,22 +111,28 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
           WHERE wa.work_id = w.id
             AND f_unaccent(lower(a.name)) ILIKE '%' || (SELECT pattern FROM q) || '%' ESCAPE '\\'
         )
-        OR similarity(w.search_text, (SELECT norm FROM q)) > 0.25
-        OR word_similarity((SELECT norm FROM q), w.search_text) > 0.35
         ${
-          tokens.length >= 2
-            ? sql`OR (
-                SELECT bool_and(
-                  w.search_text ILIKE '%' || f_unaccent(lower(t)) || '%'
-                  OR EXISTS (
-                    SELECT 1 FROM work_authors wa2
-                    JOIN authors a2 ON a2.id = wa2.author_id
-                    WHERE wa2.work_id = w.id
-                      AND f_unaccent(lower(a2.name)) ILIKE '%' || f_unaccent(lower(t)) || '%'
-                  )
-                )
-                FROM unnest(${tokens}::text[]) as t
-              )`
+          !hasWildcardChars
+            ? sql`
+                OR similarity(w.search_text, (SELECT norm FROM q)) > 0.25
+                OR word_similarity((SELECT norm FROM q), w.search_text) > 0.35
+                ${
+                  tokens.length >= 2
+                    ? sql`OR (
+                        SELECT bool_and(
+                          w.search_text ILIKE '%' || f_unaccent(lower(t)) || '%'
+                          OR EXISTS (
+                            SELECT 1 FROM work_authors wa2
+                            JOIN authors a2 ON a2.id = wa2.author_id
+                            WHERE wa2.work_id = w.id
+                              AND f_unaccent(lower(a2.name)) ILIKE '%' || f_unaccent(lower(t)) || '%'
+                          )
+                        )
+                        FROM unnest(ARRAY[${sql.join(tokens.map((t) => sql`${t}`), sql`, `)}]::text[]) as t
+                      )`
+                    : sql``
+                }
+              `
             : sql``
         }
     ),
@@ -266,7 +275,12 @@ export async function searchHybridWorks(
         }))
     }
   } catch (err) {
-    console.error('[search] Erro ao buscar Open Library na busca híbrida:', err)
+    logger.warn('[search] Erro ao buscar Open Library na busca híbrida:', {
+      module: 'search',
+      source: 'external_api',
+      _rawError: err,
+      error: err as Error,
+    })
   }
 
   return [...localResults, ...externalResults]
@@ -292,6 +306,11 @@ export async function recordSearchMiss(query: string, userId: string | null = nu
       user_id: userId,
     })
   } catch (err: unknown) {
+    logger.error('search_misses insert failed', {
+      module: 'search',
+      source: 'database',
+      error: err as Error,
+    })
     console.error('[search] search_misses insert failed:', err)
   }
 }

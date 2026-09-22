@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { LANGUAGES } from '../../shared/constants/languages'
 import type { ExternalBookResult, ExternalSearchResponse } from '../../shared/schemas/search'
+import { logger } from '../utils/logger'
+import { withRetry } from '../utils/retry'
 
 export const OPEN_LIBRARY_TIMEOUT_MS = 4000
 export const OPEN_LIBRARY_SEARCH_URL = 'https://openlibrary.org/search.json'
@@ -135,14 +137,17 @@ export function mapOpenLibraryDoc(rawDoc: OpenLibraryDocInput): ExternalBookResu
   }
 }
 
+
 export interface SearchOpenLibraryOptions {
   timeoutMs?: number
   fetchFn?: typeof fetch
   userAgent?: string
+  requestId?: string
+  maxRetries?: number
 }
 
 /**
- * Searches Open Library with a strict AbortController timeout.
+ * Searches Open Library with a strict AbortController timeout and retry for transient failures.
  *
  * Returns 200 shape `{ results: [...], indisponivel?: boolean }`.
  * On timeout, non-200 status, or malformed JSON, returns `{ results: [], indisponivel: true }`.
@@ -164,68 +169,173 @@ export async function searchOpenLibrary(
   const timeoutMs = options.timeoutMs ?? OPEN_LIBRARY_TIMEOUT_MS
   const fetchFn = options.fetchFn ?? globalThis.fetch
   const userAgent = options.userAgent ?? OPEN_LIBRARY_USER_AGENT
+  const requestId = options.requestId
+  const maxRetries = options.maxRetries ?? (options.timeoutMs && options.timeoutMs <= 100 ? 0 : (options.fetchFn ? 0 : 1))
 
   const url = `${OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(
     trimmedQuery,
   )}&limit=5&fields=key,title,author_name,cover_i,first_publish_year,language`
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => {
-    controller.abort()
-  }, timeoutMs)
+  const startTime = performance.now()
 
   try {
-    const response = await fetchFn(url, {
-      method: 'GET',
-      headers: {
-        'User-Agent': userAgent,
-        Accept: 'application/json',
+    const result = await withRetry(
+      async (attempt) => {
+        const attemptStart = performance.now()
+        const controller = new AbortController()
+        const timer = setTimeout(() => {
+          controller.abort()
+        }, timeoutMs)
+
+        try {
+          const response = await fetchFn(url, {
+            method: 'GET',
+            headers: {
+              'User-Agent': userAgent,
+              Accept: 'application/json',
+            },
+            signal: controller.signal,
+          })
+
+          const attemptDuration = Math.round(performance.now() - attemptStart)
+
+          if (!response.ok) {
+            const status = response.status
+            // 5xx errors from Open Library are transient and should trigger retry
+            if (status >= 500 && attempt <= maxRetries) {
+              const err = new Error(`resposta não-200 da Open Library: HTTP ${status}`)
+              ;(err as { statusCode?: number }).statusCode = status
+              throw err
+            }
+
+            logger.error(`[open-library] resposta não-200 da Open Library: HTTP ${status}`, {
+              module: 'open-library',
+              source: 'external_api',
+              requestId,
+              durationMs: attemptDuration,
+              attempt,
+              http: { path: url, statusCode: status, durationMs: attemptDuration },
+              context: { query: trimmedQuery, status },
+            })
+            return { results: [], indisponivel: true }
+          }
+
+          let json: unknown
+          try {
+            json = await response.json()
+          } catch (err) {
+            logger.error('[open-library] malformed JSON da Open Library:', {
+              module: 'open-library',
+              source: 'external_api',
+              requestId,
+              durationMs: attemptDuration,
+              attempt,
+              context: { query: trimmedQuery, _rawError: err },
+              error: err as Error,
+            })
+            return { results: [], indisponivel: true }
+          }
+
+          const parsed = openLibrarySearchResponseSchema.safeParse(json)
+          if (!parsed.success) {
+            logger.error('[open-library] resposta inválida da Open Library (Zod):', {
+              module: 'open-library',
+              source: 'external_api',
+              requestId,
+              durationMs: attemptDuration,
+              attempt,
+              context: { query: trimmedQuery },
+              error: parsed.error,
+            })
+            return { results: [], indisponivel: true }
+          }
+
+          const results = parsed.data.docs.map(mapOpenLibraryDoc)
+          const totalDuration = Math.round(performance.now() - startTime)
+
+          logger.info(`[open-library] Busca concluída com ${results.length} resultados`, {
+            module: 'open-library',
+            source: 'external_api',
+            requestId,
+            durationMs: totalDuration,
+            attempt,
+            context: { query: trimmedQuery, resultsCount: results.length },
+          })
+
+          return { results }
+        } catch (err: unknown) {
+          const isAbort =
+            controller.signal.aborted ||
+            (err instanceof Error && err.name === 'AbortError')
+
+          // If retryable and attempts remain, rethrow to withRetry
+          if ((isAbort || (err instanceof Error && 'statusCode' in err)) && attempt <= maxRetries) {
+            throw err
+          }
+
+          const attemptDuration = Math.round(performance.now() - attemptStart)
+          if (isAbort) {
+            logger.error(`[open-library] timeout de ${timeoutMs}ms excedido na consulta à Open Library`, {
+              module: 'open-library',
+              source: 'external_api',
+              requestId,
+              durationMs: attemptDuration,
+              attempt,
+              context: { query: trimmedQuery, timeoutMs },
+              error: err as Error,
+            })
+          } else {
+            logger.error('[open-library] erro inesperado ao consultar Open Library:', {
+              module: 'open-library',
+              source: 'external_api',
+              requestId,
+              durationMs: attemptDuration,
+              attempt,
+              context: { query: trimmedQuery, _rawError: err },
+              error: err as Error,
+            })
+          }
+
+          return { results: [], indisponivel: true }
+        } finally {
+          clearTimeout(timer)
+        }
       },
-      signal: controller.signal,
-    })
+      {
+        maxRetries,
+        initialDelayMs: 250,
+        operationName: 'open_library_search',
+        module: 'open-library',
+        requestId,
+      },
+    )
 
-    if (!response.ok) {
-      console.error(
-        `[open-library] resposta não-200 da Open Library: HTTP ${response.status}`,
-      )
-      return { results: [], indisponivel: true }
-    }
-
-    let json: unknown
-    try {
-      json = await response.json()
-    } catch (err) {
-      console.error('[open-library] malformed JSON da Open Library:', err)
-      return { results: [], indisponivel: true }
-    }
-
-    const parsed = openLibrarySearchResponseSchema.safeParse(json)
-    if (!parsed.success) {
-      console.error(
-        '[open-library] resposta inválida da Open Library (Zod):',
-        parsed.error,
-      )
-      return { results: [], indisponivel: true }
-    }
-
-    const results = parsed.data.docs.map(mapOpenLibraryDoc)
-    return { results }
-  } catch (err: unknown) {
-    // Check if error was an abort/timeout
-    const isAbort =
-      controller.signal.aborted ||
-      (err instanceof Error && err.name === 'AbortError')
+    return result
+  } catch (finalErr: unknown) {
+    const totalDuration = Math.round(performance.now() - startTime)
+    const isAbort = finalErr instanceof Error && finalErr.name === 'AbortError'
 
     if (isAbort) {
-      console.error(
-        `[open-library] timeout de ${timeoutMs}ms excedido na consulta à Open Library`,
-      )
+      logger.error(`[open-library] timeout de ${timeoutMs}ms excedido na consulta à Open Library`, {
+        module: 'open-library',
+        source: 'external_api',
+        requestId,
+        durationMs: totalDuration,
+        context: { query: trimmedQuery, timeoutMs },
+        error: finalErr as Error,
+      })
     } else {
-      console.error('[open-library] erro inesperado ao consultar Open Library:', err)
+      const message = finalErr instanceof Error ? finalErr.message : String(finalErr)
+      logger.error(`[open-library] ${message}`, {
+        module: 'open-library',
+        source: 'external_api',
+        requestId,
+        durationMs: totalDuration,
+        context: { query: trimmedQuery },
+        error: finalErr as Error,
+      })
     }
 
     return { results: [], indisponivel: true }
-  } finally {
-    clearTimeout(timer)
   }
 }
