@@ -102,7 +102,7 @@ describe('AddBookForm component', () => {
         method: 'POST',
         body: expect.objectContaining({
           title: 'Memórias Póstumas de Brás Cubas',
-          authors: [{ name: 'Machado de Assis' }],
+          authors: [{ name: 'Machado de Assis', country_code: null, country_label: null }],
         }),
       }),
     )

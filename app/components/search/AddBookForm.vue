@@ -236,7 +236,7 @@
           <span class="disclosure-icon" aria-hidden="true">
             {{ showMoreDetails ? '−' : '+' }}
           </span>
-          <span>{{ showMoreDetails ? 'Ocultar detalhes da obra' : 'Adicionar detalhes (ano, idioma, gêneros, série)' }}</span>
+          <span>{{ showMoreDetails ? 'Ocultar detalhes da obra' : 'Adicionar detalhes (ano, idioma, país, gêneros, série)' }}</span>
         </button>
 
         <div v-if="showMoreDetails" id="more-details-content" class="disclosure-content">
@@ -311,6 +311,22 @@
               >
               <span id="series-number-hint" class="field-hint">Texto livre.</span>
             </div>
+          </div>
+
+          <!-- Author country (applied to every listed author) -->
+          <div class="form-group">
+            <label for="author-country" class="form-label">País de origem do autor</label>
+            <input
+              id="author-country"
+              v-model="authorCountry"
+              type="text"
+              class="form-input"
+              placeholder="ex: Brasil, EUA, Portugal, Roma Antiga"
+              maxlength="100"
+              :disabled="submitting"
+              aria-describedby="author-country-hint"
+            >
+            <span id="author-country-hint" class="field-hint">Aplicado a todos os autores informados. Texto livre.</span>
           </div>
 
           <!-- Genre Picker -->
@@ -496,6 +512,7 @@ const DRAFT_KEY = 'meus-livros:add-book-draft'
 const title = ref(props.initialTitle || '')
 const authors = ref<Array<{ name: string }>>([])
 const authorInput = ref('')
+const authorCountry = ref('')
 const firstPublishedYear = ref<number | null>(null)
 const originalLanguage = ref('')
 const genreIds = ref<number[]>([])
@@ -861,6 +878,39 @@ function cancelExternalBook(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Author country: free text label, ISO code resolved when known.
+// Unknown labels (e.g. 'Roma Antiga', which has no ISO code) persist with a
+// null code — the label is what the product renders (formatCountry).
+// ---------------------------------------------------------------------------
+const COUNTRY_CODE_MAP: Record<string, string> = {
+  'reino unido': 'GB',
+  'eua': 'US',
+  'estados unidos': 'US',
+  'brasil': 'BR',
+  'alemanha': 'DE',
+  'rússia': 'RU',
+  'russia': 'RU',
+  'frança': 'FR',
+  'franca': 'FR',
+  'portugal': 'PT',
+  'china': 'CN',
+  'israel': 'IL',
+  'áustria': 'AT',
+  'austria': 'AT',
+  'noruega': 'NO',
+  'colômbia': 'CO',
+  'colombia': 'CO',
+  'japão': 'JP',
+  'japao': 'JP',
+}
+
+function resolveCountryCode(label: string): string | null {
+  const key = label.trim().toLowerCase()
+  if (!key) return null
+  return COUNTRY_CODE_MAP[key] ?? null
+}
+
+// ---------------------------------------------------------------------------
 // Validation
 // ---------------------------------------------------------------------------
 function validateField(field: string): void {
@@ -959,6 +1009,12 @@ function validateAll(): boolean {
     delete errors.value.authors
   }
 
+  if (authorCountry.value.trim().length > 100) {
+    errors.value.author_country = 'O país do autor não pode ter mais de 100 caracteres.'
+  } else {
+    delete errors.value.author_country
+  }
+
   return Object.keys(errors.value).length === 0
 }
 
@@ -970,6 +1026,7 @@ function saveDraft(): void {
     const draft = {
       title: title.value,
       authors: authors.value,
+      authorCountry: authorCountry.value,
       firstPublishedYear: firstPublishedYear.value,
       originalLanguage: originalLanguage.value,
       genreIds: genreIds.value,
@@ -1000,6 +1057,9 @@ function restoreDraft(): void {
     if (!props.initialTitle && draft.title) title.value = draft.title
     if (Array.isArray(draft.authors) && draft.authors.length > 0) {
       authors.value = draft.authors
+    }
+    if (typeof draft.authorCountry === 'string') {
+      authorCountry.value = draft.authorCountry
     }
     if (draft.firstPublishedYear !== undefined) {
       firstPublishedYear.value = draft.firstPublishedYear
@@ -1060,6 +1120,7 @@ watch(
   [
     title,
     authors,
+    authorCountry,
     firstPublishedYear,
     originalLanguage,
     genreIds,
@@ -1103,9 +1164,15 @@ async function handleSubmit(force = false): Promise<void> {
   serverError.value = ''
   duplicateWork.value = null
 
+  const countryLabel = authorCountry.value.trim() || null
+
   const payload: WorkInput = {
     title: title.value.trim(),
-    authors: authors.value.map((a) => ({ name: a.name.trim() })),
+    authors: authors.value.map((a) => ({
+      name: a.name.trim(),
+      country_code: countryLabel ? resolveCountryCode(countryLabel) : null,
+      country_label: countryLabel,
+    })),
     genre_ids: genreIds.value,
   }
 
