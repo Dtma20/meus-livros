@@ -460,7 +460,7 @@ function formatBlockDate(dateStr: string): string {
 
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #6366f1, #a855f7);
+  background-color: var(--highlight);
   border-radius: var(--radius-full);
   transition: width 0.4s ease;
 }
