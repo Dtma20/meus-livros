@@ -66,6 +66,17 @@ export const editionInputSchema = z.object({
   ol_cover_id: z.number().int().positive().nullish(),
 })
 
+/**
+ * `genres.id` is `smallint`. Without an upper bound here, a body carrying
+ * `genre_ids: [99999]` reaches Postgres, the comparison overflows, and the
+ * caller gets a 500 where the honest answer is 400 — the id is not a genre.
+ */
+export const genreIdSchema = z
+  .number()
+  .int()
+  .min(1, { message: 'Gênero inválido.' })
+  .max(32767, { message: 'Gênero inválido.' })
+
 export const authorInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
   country_code: z.string().length(2).nullish(),
@@ -81,13 +92,78 @@ export const workInputSchema = z.object({
   // Text, never numeric: '1-2' and '0.1' are real values in the corpus.
   series_number: z.string().max(20).nullish(),
   ol_work_key: z.string().max(100).nullish(),
-  genre_ids: z.array(z.number().int()).max(10).default([]),
+  genre_ids: z.array(genreIdSchema).max(10).default([]),
   edition: editionInputSchema.nullish(),
 })
 
 export type WorkInput = z.infer<typeof workInputSchema>
 export type EditionInput = z.infer<typeof editionInputSchema>
 export type AuthorInput = z.infer<typeof authorInputSchema>
+
+/**
+ * PATCH semantics, and they are not the same as POST's.
+ *
+ * Every field is `.optional()`, so an absent key means "leave this alone" and
+ * an explicit `null` means "clear this". Zod preserves that distinction: a key
+ * missing from the body is missing from the parsed object, while `null` comes
+ * through as a present key. `hasField` below is the predicate the services use,
+ * and it is what keeps a form that only edits the title from blanking the
+ * series, the year and the language along with it.
+ *
+ * Two fields of `works` are deliberately not editable here:
+ *
+ * - `slug` — it is the permalink. Links to a work are pasted into WhatsApp,
+ *   which is this cohort's entire distribution channel, and a slug that
+ *   follows the title would break every link already sent. Titles get fixed;
+ *   the URL stays.
+ * - `ol_work_key` — an external identifier, not a human-entered fact. It is
+ *   set when a work is imported from Open Library and has no meaning a member
+ *   could correct by hand.
+ */
+export const workUpdateSchema = z
+  .object({
+    title: z.string().trim().min(1).max(300).optional(),
+    authors: z.array(authorInputSchema).min(1).max(5).optional(),
+    original_language: z.string().length(2).nullable().optional(),
+    first_published_year: publicationYearSchema.nullable().optional(),
+    series_name: z.string().max(200).nullable().optional(),
+    series_number: z.string().max(20).nullable().optional(),
+    genre_ids: z.array(genreIdSchema).max(10).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'Envie ao menos um campo para atualizar.',
+  })
+
+export const editionUpdateSchema = z
+  .object({
+    // Free text, as on create: normalised server side, and a value that is not
+    // an ISBN at all becomes null rather than an error.
+    isbn: z.string().max(40).nullable().optional(),
+    publisher: z.string().max(200).nullable().optional(),
+    page_count: z.number().int().positive().max(50000).nullable().optional(),
+    published_year: publicationYearSchema.nullable().optional(),
+    language: z.string().length(2).nullable().optional(),
+    cover_url: coverUrlSchema.nullable().optional(),
+    ol_cover_id: z.number().int().positive().nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'Envie ao menos um campo para atualizar.',
+  })
+
+export type WorkUpdateInput = z.infer<typeof workUpdateSchema>
+export type EditionUpdateInput = z.infer<typeof editionUpdateSchema>
+
+/**
+ * "Was this field sent?" for a PATCH body.
+ *
+ * `key in obj` alone would answer yes for a key whose value is `undefined`.
+ * JSON cannot carry `undefined`, so that cannot arrive over the wire — but
+ * these schemas are also parsed in tests and in the form, where it can, and a
+ * stray `undefined` writing NULL over a real publisher is a silent data loss.
+ */
+export function hasField<T extends object>(obj: T, key: PropertyKey): boolean {
+  return key in obj && (obj as Record<PropertyKey, unknown>)[key] !== undefined
+}
 
 /**
  * Formats publication year.

@@ -6,6 +6,20 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 describe('Route integration HTTP tests', () => {
   let child: ChildProcess
   let baseUrl: string
+  /**
+   * A work this file creates for itself, and deletes afterwards.
+   *
+   * It used to be the literal slug `1984`, which made the test a statement
+   * about one particular book being present rather than about the route
+   * rendering: any database without that row failed a route test for a data
+   * reason. Reading "whatever work happens to be there" is no better — the
+   * other integration files create and drop works throughout the run, so that
+   * version passes or fails depending on which file got there first.
+   *
+   * Owning the fixture is what makes this test independent of both.
+   */
+  const workMarker = `zz-teste-rota-${Date.now()}`
+  let realWork: { id: string; slug: string; title: string } | null = null
 
   beforeAll(async () => {
     // The bundle is built by tests/global-setup.ts, before any worker starts.
@@ -30,9 +44,31 @@ describe('Route integration HTTP tests', () => {
       })
       child.on('error', reject)
     })
+
+    const dbModule = await import('../../server/db')
+    const schemaModule = await import('../../server/db/schema')
+    const [row] = await dbModule.db
+      .insert(schemaModule.works)
+      .values({ slug: workMarker, title: `${workMarker} Obra` })
+      .returning({
+        id: schemaModule.works.id,
+        slug: schemaModule.works.slug,
+        title: schemaModule.works.title,
+      })
+    realWork = row ?? null
   }, 120000)
 
-  afterAll(() => {
+  afterAll(async () => {
+    if (realWork) {
+      const dbModule = await import('../../server/db')
+      const schemaModule = await import('../../server/db/schema')
+      const sqlOp = await import('drizzle-orm')
+      // No reading_logs point at it, so nothing blocks the delete; editions and
+      // work_authors would cascade if this file ever grew them.
+      await dbModule.db
+        .delete(schemaModule.works)
+        .where(sqlOp.eq(schemaModule.works.id, realWork.id))
+    }
     if (child) {
       child.kill()
     }
@@ -73,10 +109,15 @@ describe('Route integration HTTP tests', () => {
   })
 
   it('GET /livro/<slug real> returns 200 and server-renders the title', async () => {
-    const res = await fetch(`${baseUrl}/livro/1984`, { redirect: 'manual' })
+    // A missing fixture is a broken setup, not a passing test.
+    expect(realWork).not.toBeNull()
+
+    const res = await fetch(`${baseUrl}/livro/${encodeURIComponent(realWork!.slug)}`, {
+      redirect: 'manual',
+    })
     expect(res.status).toBe(200)
     // Server-rendered, so the title is in the first response with no JavaScript run.
-    expect(await res.text()).toContain('1984')
+    expect(await res.text()).toContain(realWork!.title)
   })
 
   it('GET /entrada/<id> returns 200 and renders the entry page (not the stub)', async () => {

@@ -1,0 +1,144 @@
+/**
+ * Form primitives, global.
+ *
+ * These rules existed already, copied into `<style scoped>` blocks across the
+ * app: `.form-input` in 22 components, `.submit-btn` in 24, `.form-group` and
+ * `.error-message` in 7 each. Every copy was byte-identical to start with and
+ * had already drifted in focus colour and min-height by the time this file was
+ * written.
+ *
+ * Only the components added for work editing consume this file so far.
+ * Migrating the existing twenty-odd is a separate change: each one has to be
+ * read to see which of its local overrides were deliberate, and that does not
+ * belong in a diff about editing books.
+ */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-label {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.form-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+  opacity: 0.75;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  background-color: var(--input-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  color: #fff;
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
+  width: 100%;
+  /* Not var(--target-min-size): that token is 44px and these two must not
+     drift apart silently, but a future retune of tap targets should move
+     both together. */
+  min-height: var(--target-min-size);
+}
+
+.form-textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: var(--highlight);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+}
+
+.form-input[aria-invalid='true'],
+.form-select[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.error-message {
+  font-size: var(--font-size-sm);
+  color: var(--danger);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 600px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-base);
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: var(--target-min-size);
+  box-sizing: border-box;
+  transition: opacity 0.2s, background-color 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-primary {
+  background-color: var(--highlight);
+  color: #14181c;
+}
+
+.btn-secondary {
+  background-color: var(--input-bg);
+  color: #fff;
+}
+
+.btn-danger {
+  background-color: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: var(--danger);
+  color: #fff;
+  opacity: 1;
+}
+
+.btn:focus-visible,
+.form-input:focus-visible,
+.form-select:focus-visible,
+.form-textarea:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
