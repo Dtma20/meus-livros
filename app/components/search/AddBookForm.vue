@@ -469,6 +469,16 @@
             <span v-if="errors.cover_url" id="cover-url-error" class="field-error" role="alert">
               {{ errors.cover_url }}
             </span>
+            <div v-if="editionCoverUrl.trim()" class="cover-preview">
+              <div class="cover-preview-thumb">
+                <BookCover
+                  :alt="title.trim() ? `Pré-visualização da capa de ${title.trim()}` : 'Pré-visualização da capa informada'"
+                  :title="title.trim() || 'Capa'"
+                  :cover-url="editionCoverUrl.trim()"
+                />
+              </div>
+              <p class="field-hint">Pré-visualização da URL informada. Se a imagem não carregar, exibimos as iniciais do título.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1536,6 +1546,28 @@ function handleCancel(): void {
   color: var(--danger);
   font-weight: 500;
   margin: 0;
+}
+
+.cover-preview {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-top: var(--space-2);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+}
+
+.cover-preview-thumb {
+  width: 60px;
+  min-width: 60px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--input-bg);
+  background-color: #1e2328;
+  flex-shrink: 0;
 }
 
 /* Author Tags & Autocomplete */
