@@ -294,6 +294,60 @@ describe('AddBookForm component', () => {
     second.unmount()
   })
 
+  it('sends author country and edition language in the payload', async () => {
+    const form = await mountForm()
+
+    const titleEl = form.titleInput()!
+    titleEl.value = 'A Hora da Estrela'
+    titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const authorEl = form.authorInput()!
+    authorEl.value = 'Clarice Lispector'
+    authorEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    form.addAuthorBtn()!.click()
+    await nextTick()
+    await nextTick()
+
+    // Expand both disclosures
+    const disclosures = form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle')
+    disclosures.forEach((d) => d.click())
+    await nextTick()
+
+    const countryEl = form.host.querySelector<HTMLInputElement>('#author-country')!
+    expect(countryEl).toBeTruthy()
+    countryEl.value = 'Brasil'
+    countryEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const langEl = form.host.querySelector<HTMLSelectElement>('#edition-language')!
+    expect(langEl).toBeTruthy()
+    langEl.value = 'pt'
+    langEl.dispatchEvent(new Event('change', { bubbles: true }))
+    await nextTick()
+
+    form.submitBtn()!.click()
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/works',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({
+          title: 'A Hora da Estrela',
+          authors: [{ name: 'Clarice Lispector', country_code: 'BR', country_label: 'Brasil' }],
+          edition: expect.objectContaining({ language: 'pt' }),
+        }),
+      }),
+    )
+
+    form.unmount()
+  })
+
   it('every input in the form has an associated label', async () => {
     const form = await mountForm()
 

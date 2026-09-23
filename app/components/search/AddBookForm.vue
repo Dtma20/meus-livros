@@ -352,7 +352,7 @@
           <span class="disclosure-icon" aria-hidden="true">
             {{ showEdition ? '−' : '+' }}
           </span>
-          <span>{{ showEdition ? 'Ocultar detalhes da edição' : 'Adicionar detalhes desta edição (ISBN, editora, páginas, capa)' }}</span>
+          <span>{{ showEdition ? 'Ocultar detalhes da edição' : 'Adicionar detalhes desta edição (ISBN, editora, páginas, idioma, capa)' }}</span>
         </button>
 
         <div v-if="showEdition" id="edition-details-content" class="disclosure-content">
@@ -427,6 +427,26 @@
                 {{ errors.published_year }}
               </span>
             </div>
+          </div>
+
+          <!-- Edition Language -->
+          <div class="form-group">
+            <label for="edition-language" class="form-label">Idioma desta edição</label>
+            <select
+              id="edition-language"
+              v-model="editionLanguage"
+              class="form-input form-select"
+              :disabled="submitting"
+            >
+              <option value="">Selecione o idioma...</option>
+              <option
+                v-for="lang in LANGUAGES"
+                :key="lang.code"
+                :value="lang.code"
+              >
+                {{ lang.label }}
+              </option>
+            </select>
           </div>
 
           <!-- Cover URL -->
@@ -536,6 +556,7 @@ const editionIsbn = ref('')
 const editionPublisher = ref('')
 const editionPageCount = ref<number | null>(null)
 const editionPublishedYear = ref<number | null>(null)
+const editionLanguage = ref('')
 const editionCoverUrl = ref('')
 
 // State & UI feedback
@@ -1038,6 +1059,7 @@ function saveDraft(): void {
       editionPublisher: editionPublisher.value,
       editionPageCount: editionPageCount.value,
       editionPublishedYear: editionPublishedYear.value,
+      editionLanguage: editionLanguage.value,
       editionCoverUrl: editionCoverUrl.value,
       olWorkKey: olWorkKey.value,
       olCoverId: olCoverId.value,
@@ -1094,6 +1116,9 @@ function restoreDraft(): void {
     if (draft.editionPublishedYear !== undefined) {
       editionPublishedYear.value = draft.editionPublishedYear
     }
+    if (typeof draft.editionLanguage === 'string') {
+      editionLanguage.value = draft.editionLanguage
+    }
     if (draft.editionCoverUrl !== undefined) {
       editionCoverUrl.value = draft.editionCoverUrl
     }
@@ -1132,6 +1157,7 @@ watch(
     editionPublisher,
     editionPageCount,
     editionPublishedYear,
+    editionLanguage,
     editionCoverUrl,
     olWorkKey,
     olCoverId,
@@ -1205,6 +1231,7 @@ async function handleSubmit(force = false): Promise<void> {
       editionPublisher.value.trim() ||
       editionPageCount.value ||
       editionPublishedYear.value ||
+      editionLanguage.value ||
       editionCoverUrl.value.trim() ||
       olCoverId.value,
   )
@@ -1217,6 +1244,7 @@ async function handleSubmit(force = false): Promise<void> {
       published_year: editionPublishedYear.value
         ? Number(editionPublishedYear.value)
         : null,
+      language: editionLanguage.value || null,
       cover_url: editionCoverUrl.value.trim() || null,
       ol_cover_id: olCoverId.value ? Number(olCoverId.value) : null,
     }
