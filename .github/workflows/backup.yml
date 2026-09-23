@@ -1,0 +1,135 @@
+name: Backup do banco
+
+# TASK-022. Every three days at 06:00 UTC (03:00 America/Sao_Paulo), plus a
+# manual trigger so a backup can be taken before anything risky.
+#
+# WHY THE DUMP IS ENCRYPTED, when TASK-022 only asked for an artifact:
+#
+# This repository is PUBLIC. Workflow artifacts inherit repository visibility,
+# so a plain dump uploaded here is readable by anyone who can open the Actions
+# tab. The dump is not just book data — it carries `account.password` (password
+# hashes, crackable offline), `session.token` (live sessions, no cracking
+# needed — whoever holds one is signed in as that member until it expires),
+# `verification` (pending OTP codes), `users`/`ba_user`/`allowed_emails` (every
+# member's address) and every `reading_logs` row marked `privado`.
+#
+# TASK-022 §Security anticipated exactly this and said to move the workflow to
+# a private repository if this one is public. Encrypting instead achieves the
+# same protection without splitting the project across two repositories, and it
+# keeps holding after a future change of visibility — including someone making
+# a private repo public years from now, which is the failure this guards.
+#
+# The encryption is asymmetric on purpose: this workflow holds only a PUBLIC
+# key, so it can write a backup and can never read one. There is no decryption
+# key in GitHub secrets to leak, and an attacker with full Actions access still
+# cannot read a single past backup.
+
+on:
+  schedule:
+    # Not '0 6 */3 * *' from the task text: `*/3` on day-of-month restarts at
+    # the 1st, so the 31st and the 1st are consecutive days and February leaves
+    # a six-day gap. Twice a week at fixed days is an honest, even cadence.
+    - cron: '0 6 * * 1,4'
+  workflow_dispatch:
+
+# The dump is read-only work. Nothing here needs write access to the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar se a chave pública de backup existe
+        run: |
+          if [ ! -f .github/backup-key.pub.asc ]; then
+            echo "::error::.github/backup-key.pub.asc não existe. Sem ela o dump seria enviado em texto claro para um repositório público. Veja docs/runbook-restore.md, seção 'Configuração inicial'."
+            exit 1
+          fi
+
+      - name: Importar a chave pública
+        run: |
+          set -euo pipefail
+          gpg --batch --import .github/backup-key.pub.asc
+
+          # The recipient is the fingerprint, not the user id: a key whose uid
+          # someone edits later still encrypts to the same fingerprint, and an
+          # ambiguous uid would make gpg pick one silently.
+          FPR="$(gpg --batch --with-colons --list-keys | awk -F: '/^fpr:/ {print $10; exit}')"
+          if [ -z "$FPR" ]; then
+            echo "::error::Nenhuma chave encontrada após importar .github/backup-key.pub.asc."
+            exit 1
+          fi
+          echo "Destinatário: $FPR"
+          echo "BACKUP_RECIPIENT=$FPR" >> "$GITHUB_ENV"
+
+      - name: Gerar o dump
+        env:
+          # The DIRECT endpoint, never the pooled one: pg_dump needs session
+          # state that the transaction pooler does not preserve.
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DATABASE_URL_DIRECT:-}" ]; then
+            echo "::error::O segredo DATABASE_URL_DIRECT não está configurado."
+            exit 1
+          fi
+
+          # pg_dump runs inside the postgres:17 image rather than from the
+          # runner's apt packages. The server is PostgreSQL 17.11 and a client
+          # older than the server refuses outright:
+          #   "server version: 17.11; pg_dump version: 16.x ... aborting"
+          # ubuntu-latest currently ships 16, so the default client would fail
+          # every run. Pinning the image also means a runner image upgrade
+          # cannot silently change the dump format.
+          #
+          # The URL is passed through the environment, never on the command
+          # line, so it does not appear in `ps` or in any log line.
+          docker run --rm \
+            -e PGCONNSTR="$DATABASE_URL_DIRECT" \
+            -v "$PWD:/out" \
+            postgres:17-alpine \
+            sh -c 'pg_dump --format=plain --no-owner --no-privileges "$PGCONNSTR" | gzip -9 > /out/dump.sql.gz'
+
+      - name: Conferir que o dump não está vazio
+        run: |
+          set -euo pipefail
+          SIZE=$(stat -c%s dump.sql.gz)
+          echo "Tamanho do dump: ${SIZE} bytes"
+          # TASK-022 §6: assert before uploading, so a broken run fails loudly
+          # instead of leaving a plausible-looking empty artifact behind.
+          if [ "$SIZE" -lt 10240 ]; then
+            echo "::error::O dump tem ${SIZE} bytes (mínimo 10240). Falhando em vez de enviar um artefato inútil."
+            exit 1
+          fi
+          # A gzip that does not survive its own integrity check is not a backup.
+          gzip -t dump.sql.gz
+
+      - name: Criptografar
+        run: |
+          set -euo pipefail
+          gpg --batch --yes --trust-model always \
+              --recipient "$BACKUP_RECIPIENT" \
+              --output "dump-$(date -u +%F).sql.gz.gpg" \
+              --encrypt dump.sql.gz
+          # The cleartext must not reach the upload step.
+          shred -u dump.sql.gz 2>/dev/null || rm -f dump.sql.gz
+          ls -l dump-*.sql.gz.gpg
+
+      - name: Enviar o artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: dump-*.sql.gz.gpg
+          retention-days: 90
+          if-no-files-found: error
