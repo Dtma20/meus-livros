@@ -236,7 +236,7 @@
           <span class="disclosure-icon" aria-hidden="true">
             {{ showMoreDetails ? '−' : '+' }}
           </span>
-          <span>{{ showMoreDetails ? 'Ocultar detalhes da obra' : 'Adicionar detalhes (ano, idioma, gêneros, série)' }}</span>
+          <span>{{ showMoreDetails ? 'Ocultar detalhes da obra' : 'Adicionar detalhes (ano, idioma, país, gêneros, série)' }}</span>
         </button>
 
         <div v-if="showMoreDetails" id="more-details-content" class="disclosure-content">
@@ -313,6 +313,25 @@
             </div>
           </div>
 
+          <!-- Author country (applied to every listed author) -->
+          <div class="form-group">
+            <label for="author-country" class="form-label">País de origem do autor</label>
+            <input
+              id="author-country"
+              v-model="authorCountry"
+              type="text"
+              class="form-input"
+              placeholder="ex: Brasil, EUA, Portugal, Roma Antiga"
+              maxlength="100"
+              :disabled="submitting"
+              aria-describedby="author-country-hint"
+            >
+            <span id="author-country-hint" class="field-hint">Preenchido ao cadastrar o autor. Autores já cadastrados mantêm o país atual.</span>
+            <span v-if="errors.author_country" id="author-country-error" class="field-error" role="alert">
+              {{ errors.author_country }}
+            </span>
+          </div>
+
           <!-- Genre Picker -->
           <div class="form-group">
             <span id="genre-picker-label" class="form-label">Gêneros (até 4)</span>
@@ -336,7 +355,7 @@
           <span class="disclosure-icon" aria-hidden="true">
             {{ showEdition ? '−' : '+' }}
           </span>
-          <span>{{ showEdition ? 'Ocultar detalhes da edição' : 'Adicionar detalhes desta edição (ISBN, editora, páginas, capa)' }}</span>
+          <span>{{ showEdition ? 'Ocultar detalhes da edição' : 'Adicionar detalhes desta edição (ISBN, editora, páginas, idioma, capa)' }}</span>
         </button>
 
         <div v-if="showEdition" id="edition-details-content" class="disclosure-content">
@@ -413,6 +432,26 @@
             </div>
           </div>
 
+          <!-- Edition Language -->
+          <div class="form-group">
+            <label for="edition-language" class="form-label">Idioma desta edição</label>
+            <select
+              id="edition-language"
+              v-model="editionLanguage"
+              class="form-input form-select"
+              :disabled="submitting"
+            >
+              <option value="">Selecione o idioma...</option>
+              <option
+                v-for="lang in LANGUAGES"
+                :key="lang.code"
+                :value="lang.code"
+              >
+                {{ lang.label }}
+              </option>
+            </select>
+          </div>
+
           <!-- Cover URL -->
           <div class="form-group">
             <label for="edition-cover-url" class="form-label">URL da imagem da capa</label>
@@ -427,12 +466,22 @@
               :disabled="submitting"
               :aria-invalid="errors.cover_url ? 'true' : undefined"
               :aria-describedby="errors.cover_url ? 'cover-url-hint cover-url-error' : 'cover-url-hint'"
-              @blur="validateField('cover_url')"
+              @blur="validateField('cover_url'); previewCoverUrl = editionCoverUrl.trim()"
             >
             <span id="cover-url-hint" class="field-hint">A URL precisa começar obrigatoriamente com https://.</span>
             <span v-if="errors.cover_url" id="cover-url-error" class="field-error" role="alert">
               {{ errors.cover_url }}
             </span>
+            <div v-if="previewCoverUrl" class="cover-preview">
+              <div class="cover-preview-thumb">
+                <BookCover
+                  :alt="title.trim() ? `Pré-visualização da capa de ${title.trim()}` : 'Pré-visualização da capa informada'"
+                  :title="title.trim() || 'Capa'"
+                  :cover-url="previewCoverUrl"
+                />
+              </div>
+              <p class="field-hint">Pré-visualização da URL informada. Se a imagem não carregar, exibimos as iniciais do título.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -469,6 +518,7 @@ import BookCover from '../book/BookCover.vue'
 import ExternalLookup from './ExternalLookup.vue'
 import GenrePicker from './GenrePicker.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
+import { countryCodeFor, countryLabelFor } from '~~/shared/constants/countries'
 import type { ExternalBookResult, SearchResult } from '~~/shared/schemas/search'
 import { coverUrlSchema, publicationYearSchema, type WorkInput } from '~~/shared/schemas/work'
 
@@ -496,6 +546,7 @@ const DRAFT_KEY = 'meus-livros:add-book-draft'
 const title = ref(props.initialTitle || '')
 const authors = ref<Array<{ name: string }>>([])
 const authorInput = ref('')
+const authorCountry = ref('')
 const firstPublishedYear = ref<number | null>(null)
 const originalLanguage = ref('')
 const genreIds = ref<number[]>([])
@@ -519,7 +570,11 @@ const editionIsbn = ref('')
 const editionPublisher = ref('')
 const editionPageCount = ref<number | null>(null)
 const editionPublishedYear = ref<number | null>(null)
+const editionLanguage = ref('')
 const editionCoverUrl = ref('')
+// Committed on blur: rendering BookCover per keystroke fires one image request
+// per character typed. The payload always uses editionCoverUrl.
+const previewCoverUrl = ref('')
 
 // State & UI feedback
 const submitting = ref(false)
@@ -840,11 +895,13 @@ function applyExternalBook(book: ExternalBookResult, overwrite: boolean): void {
     if (overwrite || !editionCoverUrl.value.trim()) {
       editionCoverUrl.value =
         book.cover_url || `https://covers.openlibrary.org/b/id/${book.ol_cover_id}-M.jpg`
+      previewCoverUrl.value = editionCoverUrl.value.trim()
       showEdition.value = true
       validateField('cover_url')
     }
   } else if (book.cover_url && (overwrite || !editionCoverUrl.value.trim())) {
     editionCoverUrl.value = book.cover_url
+    previewCoverUrl.value = editionCoverUrl.value.trim()
     showEdition.value = true
     validateField('cover_url')
   }
@@ -859,6 +916,14 @@ function cancelExternalBook(): void {
   pendingExternalBook.value = null
   pendingChanges.value = []
 }
+
+// ---------------------------------------------------------------------------
+// Author country: free text resolved to ISO via shared/constants/countries.
+// The stored label is canonicalised through countryLabelFor when a code is
+// known, so the book page (which renders the label) agrees with the profile
+// and map (which derive the name from the code). Unknown labels (e.g.
+// 'Roma Antiga') persist as-is with a null code.
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -959,6 +1024,12 @@ function validateAll(): boolean {
     delete errors.value.authors
   }
 
+  if (authorCountry.value.trim().length > 100) {
+    errors.value.author_country = 'O país do autor não pode ter mais de 100 caracteres.'
+  } else {
+    delete errors.value.author_country
+  }
+
   return Object.keys(errors.value).length === 0
 }
 
@@ -970,6 +1041,7 @@ function saveDraft(): void {
     const draft = {
       title: title.value,
       authors: authors.value,
+      authorCountry: authorCountry.value,
       firstPublishedYear: firstPublishedYear.value,
       originalLanguage: originalLanguage.value,
       genreIds: genreIds.value,
@@ -981,6 +1053,7 @@ function saveDraft(): void {
       editionPublisher: editionPublisher.value,
       editionPageCount: editionPageCount.value,
       editionPublishedYear: editionPublishedYear.value,
+      editionLanguage: editionLanguage.value,
       editionCoverUrl: editionCoverUrl.value,
       olWorkKey: olWorkKey.value,
       olCoverId: olCoverId.value,
@@ -1000,6 +1073,9 @@ function restoreDraft(): void {
     if (!props.initialTitle && draft.title) title.value = draft.title
     if (Array.isArray(draft.authors) && draft.authors.length > 0) {
       authors.value = draft.authors
+    }
+    if (typeof draft.authorCountry === 'string') {
+      authorCountry.value = draft.authorCountry
     }
     if (draft.firstPublishedYear !== undefined) {
       firstPublishedYear.value = draft.firstPublishedYear
@@ -1034,8 +1110,12 @@ function restoreDraft(): void {
     if (draft.editionPublishedYear !== undefined) {
       editionPublishedYear.value = draft.editionPublishedYear
     }
+    if (typeof draft.editionLanguage === 'string') {
+      editionLanguage.value = draft.editionLanguage
+    }
     if (draft.editionCoverUrl !== undefined) {
       editionCoverUrl.value = draft.editionCoverUrl
+      previewCoverUrl.value = typeof draft.editionCoverUrl === 'string' ? draft.editionCoverUrl.trim() : ''
     }
     if (draft.olWorkKey !== undefined) {
       olWorkKey.value = draft.olWorkKey
@@ -1060,6 +1140,7 @@ watch(
   [
     title,
     authors,
+    authorCountry,
     firstPublishedYear,
     originalLanguage,
     genreIds,
@@ -1071,6 +1152,7 @@ watch(
     editionPublisher,
     editionPageCount,
     editionPublishedYear,
+    editionLanguage,
     editionCoverUrl,
     olWorkKey,
     olCoverId,
@@ -1103,9 +1185,21 @@ async function handleSubmit(force = false): Promise<void> {
   serverError.value = ''
   duplicateWork.value = null
 
+  const rawCountryLabel = authorCountry.value.trim() || null
+  const countryCode = countryCodeFor(rawCountryLabel)
+  // Canonical label so every surface agrees: the book page renders the label,
+  // the profile and map derive the name from the code via formatCountryName.
+  const countryLabel = rawCountryLabel
+    ? (countryCode ? countryLabelFor(countryCode) ?? rawCountryLabel : rawCountryLabel)
+    : null
+
   const payload: WorkInput = {
     title: title.value.trim(),
-    authors: authors.value.map((a) => ({ name: a.name.trim() })),
+    authors: authors.value.map((a) => ({
+      name: a.name.trim(),
+      country_code: countryCode,
+      country_label: countryLabel,
+    })),
     genre_ids: genreIds.value,
   }
 
@@ -1138,6 +1232,7 @@ async function handleSubmit(force = false): Promise<void> {
       editionPublisher.value.trim() ||
       editionPageCount.value ||
       editionPublishedYear.value ||
+      editionLanguage.value ||
       editionCoverUrl.value.trim() ||
       olCoverId.value,
   )
@@ -1150,6 +1245,7 @@ async function handleSubmit(force = false): Promise<void> {
       published_year: editionPublishedYear.value
         ? Number(editionPublishedYear.value)
         : null,
+      language: editionLanguage.value || null,
       cover_url: editionCoverUrl.value.trim() || null,
       ol_cover_id: olCoverId.value ? Number(olCoverId.value) : null,
     }
@@ -1441,6 +1537,28 @@ function handleCancel(): void {
   color: var(--danger);
   font-weight: 500;
   margin: 0;
+}
+
+.cover-preview {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin-top: var(--space-2);
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+}
+
+.cover-preview-thumb {
+  width: 60px;
+  min-width: 60px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--input-bg);
+  background-color: #1e2328;
+  flex-shrink: 0;
 }
 
 /* Author Tags & Autocomplete */

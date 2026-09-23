@@ -139,6 +139,19 @@ describe('country options', () => {
     expect(countryCodeFor('  Alemanha  ')).toBe('DE')
   })
 
+  it('ignores accents, so a name typed without them still resolves', () => {
+    expect(countryCodeFor('Italia')).toBe('IT')
+    expect(countryCodeFor('RUSSIA')).toBe('RU')
+    expect(countryCodeFor('japao')).toBe('JP')
+  })
+
+  it('resolves common names that are not the table label', () => {
+    // 'EUA' is what the legacy corpus uses; the migration depends on it.
+    expect(countryCodeFor('EUA')).toBe('US')
+    expect(countryCodeFor('Inglaterra')).toBe('GB')
+    expect(countryCodeFor('Holanda')).toBe('NL')
+  })
+
   it('accepts a code typed directly', () => {
     expect(countryCodeFor('br')).toBe('BR')
     expect(countryCodeFor('US')).toBe('US')

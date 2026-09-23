@@ -50,7 +50,7 @@ const file = `/**
  * map keys on it. \`authors.country_label\` stays free text alongside this list —
  * the corpus contains 'Roma Antiga', which has no ISO code and never will.
  *
- * Sorted by label in pt-BR. Regenerate with \`gen-countries.mjs\` only if the list
+ * Sorted by label in pt-BR. Regenerate with \`scripts/gen-countries.mjs\` only if the list
  * of countries itself changes, never to re-derive the spellings.
  */
 
@@ -64,7 +64,26 @@ ${body}
 ]
 
 const BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c.label]))
-const BY_LABEL = new Map(COUNTRIES.map((c) => [c.label.toLowerCase(), c.code]))
+
+/** Case- and accent-insensitive key: 'Rússia', 'russia' and 'RUSSIA' all meet. */
+function foldCountryLabel(label: string): string {
+  return label.trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+}
+
+const BY_LABEL = new Map(COUNTRIES.map((c) => [foldCountryLabel(c.label), c.code]))
+
+/**
+ * Names people type that are not the table's label. 'EUA' is the spelling the
+ * legacy corpus uses, so the migration depends on it resolving.
+ */
+const ALIASES: Record<string, string> = {
+  'eua': 'US',
+  'usa': 'US',
+  'uk': 'GB',
+  'inglaterra': 'GB',
+  'holanda': 'NL',
+  'coreia': 'KR',
+}
 
 /** The label for a code, or the code itself when it is not one we know. */
 export function countryLabelFor(code: string | null | undefined): string | null {
@@ -88,7 +107,8 @@ export function countryCodeFor(label: string | null | undefined): string | null 
   const upper = trimmed.toUpperCase()
   if (BY_CODE.has(upper)) return upper
 
-  return BY_LABEL.get(trimmed.toLowerCase()) ?? null
+  const key = foldCountryLabel(trimmed)
+  return BY_LABEL.get(key) ?? ALIASES[key] ?? null
 }
 `
 

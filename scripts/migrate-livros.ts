@@ -38,6 +38,7 @@ import {
 } from '../server/db/schema'
 import { createWork } from '../server/services/catalog'
 import { normalizeIsbn } from '../server/utils/isbn'
+import { countryCodeFor } from '../shared/constants/countries'
 import { writeGenerosTxt } from './seed-genres'
 
 // ---------------------------------------------------------------------------
@@ -66,23 +67,10 @@ export interface LivroJson {
 // ---------------------------------------------------------------------------
 // Mapping tables — every value from §4 and §5 of migration.md
 // ---------------------------------------------------------------------------
-
-export const ISO_PAIS: Record<string, string | null> = {
-  'Reino Unido': 'GB',
-  'EUA': 'US',
-  'Brasil': 'BR',
-  'Alemanha': 'DE',
-  'Rússia': 'RU',
-  'França': 'FR',
-  'Portugal': 'PT',
-  'China': 'CN',
-  'Israel': 'IL',
-  'Áustria': 'AT',
-  'Noruega': 'NO',
-  'Colômbia': 'CO',
-  'Japão': 'JP',
-  'Roma Antiga': null,
-}
+//
+// Country label → ISO code lives in shared/constants/countries.ts (single
+// source of truth, also used by the manual book form). 'Roma Antiga' has no
+// ISO code and resolves to null — it persists as a label-only country.
 
 export const ISO_IDIOMA: Record<string, string> = {
   'inglês': 'en',
@@ -202,8 +190,8 @@ export function validateLivros(livros: LivroJson[]): void {
     }
 
     // Country
-    if (!(livro.country in ISO_PAIS)) {
-      throw new Error(`${ctx}: país desconhecido "${livro.country}". Adicione ao ISO_PAIS.`)
+    if (countryCodeFor(livro.country) === null && livro.country !== 'Roma Antiga') {
+      throw new Error(`${ctx}: país desconhecido "${livro.country}". Adicione a shared/constants/countries.ts.`)
     }
 
     // Language (case-folded)
@@ -372,7 +360,7 @@ export async function main(): Promise<void> {
             title: livro.title,
             authors: authorNames.map((name) => ({
               name,
-              country_code: ISO_PAIS[livro.country] ?? null,
+              country_code: countryCodeFor(livro.country),
               country_label: livro.country,
             })),
             original_language: lang,

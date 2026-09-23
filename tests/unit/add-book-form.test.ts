@@ -102,7 +102,7 @@ describe('AddBookForm component', () => {
         method: 'POST',
         body: expect.objectContaining({
           title: 'Memórias Póstumas de Brás Cubas',
-          authors: [{ name: 'Machado de Assis' }],
+          authors: [{ name: 'Machado de Assis', country_code: null, country_label: null }],
         }),
       }),
     )
@@ -292,6 +292,165 @@ describe('AddBookForm component', () => {
     expect(second.text()).toContain('Autor do Rascunho')
 
     second.unmount()
+  })
+
+  it('sends author country and edition language in the payload', async () => {
+    const form = await mountForm()
+
+    const titleEl = form.titleInput()!
+    titleEl.value = 'A Hora da Estrela'
+    titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const authorEl = form.authorInput()!
+    authorEl.value = 'Clarice Lispector'
+    authorEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    form.addAuthorBtn()!.click()
+    await nextTick()
+    await nextTick()
+
+    // Expand both disclosures
+    const disclosures = form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle')
+    disclosures.forEach((d) => d.click())
+    await nextTick()
+
+    const countryEl = form.host.querySelector<HTMLInputElement>('#author-country')!
+    expect(countryEl).toBeTruthy()
+    countryEl.value = 'Brasil'
+    countryEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const langEl = form.host.querySelector<HTMLSelectElement>('#edition-language')!
+    expect(langEl).toBeTruthy()
+    langEl.value = 'pt'
+    langEl.dispatchEvent(new Event('change', { bubbles: true }))
+    await nextTick()
+
+    form.submitBtn()!.click()
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/works',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({
+          title: 'A Hora da Estrela',
+          authors: [{ name: 'Clarice Lispector', country_code: 'BR', country_label: 'Brasil' }],
+          edition: expect.objectContaining({ language: 'pt' }),
+        }),
+      }),
+    )
+
+    form.unmount()
+  })
+
+  it('keeps an unknown country label with a null code (e.g. Roma Antiga)', async () => {
+    const form = await mountForm()
+
+    const titleEl = form.titleInput()!
+    titleEl.value = 'Meditações'
+    titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const authorEl = form.authorInput()!
+    authorEl.value = 'Marco Aurélio'
+    authorEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    form.addAuthorBtn()!.click()
+    await nextTick()
+    await nextTick()
+
+    const disclosures = form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle')
+    disclosures.forEach((d) => d.click())
+    await nextTick()
+
+    const countryEl = form.host.querySelector<HTMLInputElement>('#author-country')!
+    countryEl.value = 'Roma Antiga'
+    countryEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    form.submitBtn()!.click()
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/works',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({
+          authors: [{ name: 'Marco Aurélio', country_code: null, country_label: 'Roma Antiga' }],
+        }),
+      }),
+    )
+
+    form.unmount()
+  })
+
+  it('restores author country and edition language from the draft', async () => {
+    const first = await mountForm()
+
+    const titleEl = first.titleInput()!
+    titleEl.value = 'Ensaio Sobre a Cegueira'
+    titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const authorEl = first.authorInput()!
+    authorEl.value = 'José Saramago'
+    authorEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    first.addAuthorBtn()!.click()
+    await nextTick()
+
+    const disclosures = first.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle')
+    disclosures.forEach((d) => d.click())
+    await nextTick()
+
+    const countryEl = first.host.querySelector<HTMLInputElement>('#author-country')!
+    countryEl.value = 'Portugal'
+    countryEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const langEl = first.host.querySelector<HTMLSelectElement>('#edition-language')!
+    langEl.value = 'pt'
+    langEl.dispatchEvent(new Event('change', { bubbles: true }))
+    await nextTick()
+
+    first.unmount()
+
+    const second = await mountForm()
+    // Disclosures reopen from the draft flags
+    expect(second.host.querySelector<HTMLInputElement>('#author-country')?.value).toBe('Portugal')
+    expect(second.host.querySelector<HTMLSelectElement>('#edition-language')?.value).toBe('pt')
+
+    second.unmount()
+  })
+
+  it('shows the cover preview only after blur, not while typing', async () => {
+    const form = await mountForm()
+
+    const disclosures = form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle')
+    disclosures.forEach((d) => d.click())
+    await nextTick()
+
+    const coverEl = form.host.querySelector<HTMLInputElement>('#edition-cover-url')!
+    coverEl.value = 'https://exemplo.com/capa.jpg'
+    coverEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    expect(form.host.querySelector('.cover-preview')).toBeNull()
+
+    coverEl.dispatchEvent(new Event('blur', { bubbles: true }))
+    await nextTick()
+
+    expect(form.host.querySelector('.cover-preview')).toBeTruthy()
+
+    form.unmount()
   })
 
   it('every input in the form has an associated label', async () => {
