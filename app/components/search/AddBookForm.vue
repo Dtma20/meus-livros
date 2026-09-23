@@ -326,7 +326,10 @@
               :disabled="submitting"
               aria-describedby="author-country-hint"
             >
-            <span id="author-country-hint" class="field-hint">Aplicado a todos os autores informados. Texto livre.</span>
+            <span id="author-country-hint" class="field-hint">Preenchido ao cadastrar o autor. Autores já cadastrados mantêm o país atual.</span>
+            <span v-if="errors.author_country" id="author-country-error" class="field-error" role="alert">
+              {{ errors.author_country }}
+            </span>
           </div>
 
           <!-- Genre Picker -->
@@ -463,18 +466,18 @@
               :disabled="submitting"
               :aria-invalid="errors.cover_url ? 'true' : undefined"
               :aria-describedby="errors.cover_url ? 'cover-url-hint cover-url-error' : 'cover-url-hint'"
-              @blur="validateField('cover_url')"
+              @blur="validateField('cover_url'); previewCoverUrl = editionCoverUrl.trim()"
             >
             <span id="cover-url-hint" class="field-hint">A URL precisa começar obrigatoriamente com https://.</span>
             <span v-if="errors.cover_url" id="cover-url-error" class="field-error" role="alert">
               {{ errors.cover_url }}
             </span>
-            <div v-if="editionCoverUrl.trim()" class="cover-preview">
+            <div v-if="previewCoverUrl" class="cover-preview">
               <div class="cover-preview-thumb">
                 <BookCover
                   :alt="title.trim() ? `Pré-visualização da capa de ${title.trim()}` : 'Pré-visualização da capa informada'"
                   :title="title.trim() || 'Capa'"
-                  :cover-url="editionCoverUrl.trim()"
+                  :cover-url="previewCoverUrl"
                 />
               </div>
               <p class="field-hint">Pré-visualização da URL informada. Se a imagem não carregar, exibimos as iniciais do título.</p>
@@ -515,6 +518,8 @@ import BookCover from '../book/BookCover.vue'
 import ExternalLookup from './ExternalLookup.vue'
 import GenrePicker from './GenrePicker.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
+import { resolveCountryCode } from '~~/shared/constants/countries'
+import { formatCountryName } from '~~/shared/schemas/profile'
 import type { ExternalBookResult, SearchResult } from '~~/shared/schemas/search'
 import { coverUrlSchema, publicationYearSchema, type WorkInput } from '~~/shared/schemas/work'
 
@@ -568,6 +573,9 @@ const editionPageCount = ref<number | null>(null)
 const editionPublishedYear = ref<number | null>(null)
 const editionLanguage = ref('')
 const editionCoverUrl = ref('')
+// Committed on blur: rendering BookCover per keystroke fires one image request
+// per character typed. The payload always uses editionCoverUrl.
+const previewCoverUrl = ref('')
 
 // State & UI feedback
 const submitting = ref(false)
@@ -888,11 +896,13 @@ function applyExternalBook(book: ExternalBookResult, overwrite: boolean): void {
     if (overwrite || !editionCoverUrl.value.trim()) {
       editionCoverUrl.value =
         book.cover_url || `https://covers.openlibrary.org/b/id/${book.ol_cover_id}-M.jpg`
+      previewCoverUrl.value = editionCoverUrl.value.trim()
       showEdition.value = true
       validateField('cover_url')
     }
   } else if (book.cover_url && (overwrite || !editionCoverUrl.value.trim())) {
     editionCoverUrl.value = book.cover_url
+    previewCoverUrl.value = editionCoverUrl.value.trim()
     showEdition.value = true
     validateField('cover_url')
   }
@@ -909,37 +919,12 @@ function cancelExternalBook(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Author country: free text label, ISO code resolved when known.
-// Unknown labels (e.g. 'Roma Antiga', which has no ISO code) persist with a
-// null code — the label is what the product renders (formatCountry).
+// Author country: free text resolved to ISO via shared/constants/countries.
+// The stored label is canonicalised through formatCountryName when a code is
+// known, so the book page (which renders the label) agrees with the profile
+// and map (which derive the name from the code). Unknown labels (e.g.
+// 'Roma Antiga') persist as-is with a null code.
 // ---------------------------------------------------------------------------
-const COUNTRY_CODE_MAP: Record<string, string> = {
-  'reino unido': 'GB',
-  'eua': 'US',
-  'estados unidos': 'US',
-  'brasil': 'BR',
-  'alemanha': 'DE',
-  'rússia': 'RU',
-  'russia': 'RU',
-  'frança': 'FR',
-  'franca': 'FR',
-  'portugal': 'PT',
-  'china': 'CN',
-  'israel': 'IL',
-  'áustria': 'AT',
-  'austria': 'AT',
-  'noruega': 'NO',
-  'colômbia': 'CO',
-  'colombia': 'CO',
-  'japão': 'JP',
-  'japao': 'JP',
-}
-
-function resolveCountryCode(label: string): string | null {
-  const key = label.trim().toLowerCase()
-  if (!key) return null
-  return COUNTRY_CODE_MAP[key] ?? null
-}
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -1131,6 +1116,7 @@ function restoreDraft(): void {
     }
     if (draft.editionCoverUrl !== undefined) {
       editionCoverUrl.value = draft.editionCoverUrl
+      previewCoverUrl.value = typeof draft.editionCoverUrl === 'string' ? draft.editionCoverUrl.trim() : ''
     }
     if (draft.olWorkKey !== undefined) {
       olWorkKey.value = draft.olWorkKey
@@ -1200,13 +1186,19 @@ async function handleSubmit(force = false): Promise<void> {
   serverError.value = ''
   duplicateWork.value = null
 
-  const countryLabel = authorCountry.value.trim() || null
+  const rawCountryLabel = authorCountry.value.trim() || null
+  const countryCode = rawCountryLabel ? resolveCountryCode(rawCountryLabel) : null
+  // Canonical label so every surface agrees: the book page renders the label,
+  // the profile and map derive the name from the code via formatCountryName.
+  const countryLabel = rawCountryLabel
+    ? (countryCode ? formatCountryName(countryCode) || rawCountryLabel : rawCountryLabel)
+    : null
 
   const payload: WorkInput = {
     title: title.value.trim(),
     authors: authors.value.map((a) => ({
       name: a.name.trim(),
-      country_code: countryLabel ? resolveCountryCode(countryLabel) : null,
+      country_code: countryCode,
       country_label: countryLabel,
     })),
     genre_ids: genreIds.value,
