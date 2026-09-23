@@ -21,6 +21,12 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
   let baseUrl: string
   let entryPath: string | null = null
   let tempEntryLogId: string | null = null
+  // Seeded by this file and dropped in afterAll: see routes.test.ts for why the
+  // literal slug `1984` — and reading whatever work happened to be there —
+  // both made this depend on something other than the page under test.
+  const workMarker = `zz-teste-axe-${Date.now()}`
+  let seededWorkId: string | null = null
+  let workPath: string | null = null
 
   beforeAll(async () => {
     const env = { ...process.env }
@@ -44,6 +50,19 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
       })
       child.on('error', reject)
     })
+
+    {
+      const dbModule = await import('../../server/db')
+      const schemaModule = await import('../../server/db/schema')
+      const [row] = await dbModule.db
+        .insert(schemaModule.works)
+        .values({ slug: workMarker, title: `${workMarker} Obra` })
+        .returning({ id: schemaModule.works.id, slug: schemaModule.works.slug })
+      if (row) {
+        seededWorkId = row.id
+        workPath = `/livro/${encodeURIComponent(row.slug)}`
+      }
+    }
 
     const profileRes = await httpGet(`${baseUrl}/@dtma23`)
     // A rota quebrada (500) nunca pode passar em silêncio via fallback do banco.
@@ -71,10 +90,8 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
           .where(sqlOp.eq(schemaModule.users.handle, 'dtma23'))
           .limit(1)
 
-        const [work] = await dbModule.db
-          .select({ id: schemaModule.works.id })
-          .from(schemaModule.works)
-          .limit(1)
+        // The work this file seeded, not whichever one another file left behind.
+        const work = seededWorkId ? { id: seededWorkId } : null
 
         if (user && work) {
           const [created] = await dbModule.db
@@ -105,6 +122,15 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
       await dbModule.db
         .delete(schemaModule.reading_logs)
         .where(sqlOp.eq(schemaModule.reading_logs.id, tempEntryLogId))
+    }
+    if (seededWorkId) {
+      const dbModule = await import('../../server/db')
+      const schemaModule = await import('../../server/db/schema')
+      const sqlOp = await import('drizzle-orm')
+      // After the log above, because reading_logs.work_id is RESTRICT.
+      await dbModule.db
+        .delete(schemaModule.works)
+        .where(sqlOp.eq(schemaModule.works.id, seededWorkId))
     }
     if (child) {
       child.kill()
@@ -149,8 +175,9 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
     await testRouteA11y('/@dtma23')
   })
 
-  it('reports zero critical a11y violations on GET /livro/1984 (work page)', async () => {
-    await testRouteA11y('/livro/1984')
+  it('reports zero critical a11y violations on GET /livro/<slug real> (work page)', async () => {
+    expect(workPath).toBeTruthy()
+    await testRouteA11y(workPath!)
   })
 
   it('reports zero critical a11y violations on GET /entrada/:id (real entry page)', async () => {

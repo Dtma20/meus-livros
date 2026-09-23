@@ -29,6 +29,13 @@
       "when": 1790044000000,
       "tag": "0003_pg_trgm_and_reading_blocks",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790104208549,
+      "tag": "0004_work_edit_audit",
+      "breakpoints": true
     }
   ]
 }

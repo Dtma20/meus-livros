@@ -86,6 +86,11 @@ export const works = pgTable('works', {
   ol_work_key: text('ol_work_key').unique(),
   created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  // The catalogue is shared: any member may edit any work, so who touched it
+  // last is the only accountability trail there is. Nullable because every row
+  // that existed before this column did has no honest value to put here.
+  updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }),
   // search_text: hand-written in migration (TASK-004)
   // works_search_idx: hand-written in migration (TASK-004)
 })
@@ -125,6 +130,8 @@ export const editions = pgTable(
     ol_cover_id: integer('ol_cover_id'),
     created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
     created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+    updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
+    updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }),
   },
   (table) => [
     check('page_count_positive', sql`${table.page_count} IS NULL OR ${table.page_count} > 0`),

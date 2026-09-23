@@ -149,6 +149,15 @@
           </ul>
         </section>
 
+        <div v-if="isSignedIn" class="work-edit-actions">
+          <NuxtLink :to="`/app/livro/${work.slug}/editar`" class="edit-work-link">
+            Editar este livro
+          </NuxtLink>
+          <p class="edit-work-note">
+            Qualquer pessoa do grupo pode corrigir título, autores, país, gêneros e edições.
+          </p>
+        </div>
+
         <div v-if="canDeleteWork" class="work-creator-actions">
           <button
             type="button"
@@ -310,6 +319,10 @@ const userLog = computed(() => {
   return work.value.logs.find((l) => l.user.id === session.value?.user?.id) ?? null
 })
 
+const isSignedIn = computed(() => Boolean(session.value?.user?.id))
+
+// Deleting stays restricted to the creator of a work nobody has logged.
+// Editing deliberately is not: see the module comment in services/catalog.ts.
 const canDeleteWork = computed(() => {
   if (!work.value || !session.value?.user?.id) return false
   return work.value.created_by === session.value.user.id && work.value.log_count === 0
@@ -643,10 +656,37 @@ async function handleDeleteWork(): Promise<void> {
   text-decoration: underline;
 }
 
-.work-creator-actions {
+.work-edit-actions {
   margin-top: var(--space-8);
   padding-top: var(--space-6);
   border-top: 1px solid var(--input-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.edit-work-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min-size);
+  color: var(--highlight);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.edit-work-link:hover {
+  text-decoration: underline;
+}
+
+.edit-work-note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+}
+
+.work-creator-actions {
+  margin-top: var(--space-6);
   display: flex;
   flex-direction: column;
   align-items: flex-start;

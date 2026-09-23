@@ -5,11 +5,25 @@ import { authors, editions, genres, reading_logs, work_authors, work_genres, wor
 import { normalizeIsbn } from '../utils/isbn'
 import { logger } from '../utils/logger'
 import { slugify, uniqueSlug } from '../utils/slug'
-import type { EditionInput, WorkInput } from '../../shared/schemas/work'
+import { hasField } from '../../shared/schemas/work'
+import type {
+  EditionInput,
+  EditionUpdateInput,
+  WorkInput,
+  WorkUpdateInput,
+} from '../../shared/schemas/work'
 
 /**
- * The catalogue is shared property: anyone with a session may add to it, no row
- * here carries visibility, and nothing here deletes.
+ * The catalogue is shared property: anyone with a session may add to it and
+ * anyone with a session may correct it. No row here carries visibility.
+ *
+ * Editing is deliberately not restricted to whoever created the row. A work is
+ * shared by everyone who logged it, so "only the creator may fix the title"
+ * means the typo is permanent for everybody the moment that member stops using
+ * the site — and a mistyped work cannot be deleted either, because `deleteWork`
+ * refuses once any reading log points at it. `updated_by` is the trade: an
+ * invite-only cohort of about thirty people who know each other offline does
+ * not need approval flows, it needs a name next to the change.
  */
 
 /** Works a single user may create per hour. */
@@ -357,5 +371,255 @@ export async function deleteWork(workId: string, userId: string): Promise<void> 
     operation: 'delete_work',
     userId,
     context: { workId },
+  })
+}
+
+/**
+ * Sets an author's country when it is still unknown.
+ *
+ * `findOrCreateAuthor` returns early on an existing row, so an author first
+ * created without a country — which is every author added through the add-book
+ * form, because that form has no country field — stays without one forever and
+ * no amount of editing books reaches it. The reading map is built entirely from
+ * `authors.country_code`, so those authors are permanently invisible on it.
+ *
+ * Only fills a blank. An author who already carries a country is left alone:
+ * one member editing one of their books must not silently rewrite a fact every
+ * other book by that author depends on. Replacing a country that is already
+ * set is an author-level edit and belongs on an author-level route.
+ */
+async function backfillAuthorCountry(
+  authorId: string,
+  country: { code?: string | null, label?: string | null },
+  conn: DbOrTx,
+): Promise<void> {
+  const code = country.code ?? null
+  const label = country.label ?? null
+  if (!code && !label) return
+
+  await conn
+    .update(authors)
+    .set({
+      ...(code ? { country_code: code } : {}),
+      ...(label ? { country_label: label } : {}),
+    })
+    .where(
+      and(
+        eq(authors.id, authorId),
+        // The guard is in the WHERE clause rather than in an if-statement after
+        // a read: two members saving two books by the same author at the same
+        // moment would both see a blank and both write.
+        sql`${authors.country_code} IS NULL AND ${authors.country_label} IS NULL`,
+      ),
+    )
+}
+
+/**
+ * Applies a partial update to a work.
+ *
+ * Absent keys are left untouched; an explicit `null` clears the column. See
+ * `workUpdateSchema` for why that distinction is load-bearing.
+ *
+ * `authors` and `genre_ids` are full replacements, not merges: both are lists
+ * the form renders in their entirety, so what was sent is the complete
+ * intended state. Array order is authorship order, preserved as `position`.
+ */
+export async function updateWork(
+  workId: string,
+  input: WorkUpdateInput,
+  userId: string,
+): Promise<{ id: string, slug: string }> {
+  const [work] = await db
+    .select({ id: works.id, slug: works.slug, title: works.title })
+    .from(works)
+    .where(eq(works.id, workId))
+    .limit(1)
+
+  if (!work) {
+    throw createError({
+      statusCode: 404,
+      data: { error: 'nao_encontrado', message: 'Obra não encontrada.' },
+    })
+  }
+
+  const genreIds = hasField(input, 'genre_ids') ? [...new Set(input.genre_ids ?? [])] : null
+  if (genreIds && genreIds.length > 0) {
+    const found = await db
+      .select({ id: genres.id })
+      .from(genres)
+      .where(inArray(genres.id, genreIds))
+    if (found.length !== genreIds.length) {
+      throw badRequest('Um ou mais gêneros informados não existem.')
+    }
+  }
+
+  return db.transaction(async (tx) => {
+    // `slug` is absent from this object on purpose: it is the permalink, and a
+    // corrected title must not break links already pasted into WhatsApp.
+    const patch: Partial<typeof works.$inferInsert> = {
+      updated_by: userId,
+      updated_at: new Date(),
+    }
+    if (hasField(input, 'title')) patch.title = input.title
+    if (hasField(input, 'original_language')) {
+      patch.original_language = input.original_language?.toLowerCase() ?? null
+    }
+    if (hasField(input, 'first_published_year')) {
+      patch.first_published_year = input.first_published_year ?? null
+    }
+    if (hasField(input, 'series_name')) patch.series_name = input.series_name ?? null
+    if (hasField(input, 'series_number')) patch.series_number = input.series_number ?? null
+
+    await tx.update(works).set(patch).where(eq(works.id, workId))
+
+    if (hasField(input, 'authors') && input.authors) {
+      const authorIds: string[] = []
+      for (const author of input.authors) {
+        const authorId = await findOrCreateAuthor(
+          author.name,
+          userId,
+          { code: author.country_code, label: author.country_label },
+          tx,
+        )
+        await backfillAuthorCountry(
+          authorId,
+          { code: author.country_code, label: author.country_label },
+          tx,
+        )
+        authorIds.push(authorId)
+      }
+
+      // Replace rather than merge. Deleting first is what lets an author be
+      // removed and what lets the rest be renumbered: `position` is part of the
+      // payload, not of the primary key, so an upsert would leave a dropped
+      // author behind and reorderings half-applied.
+      await tx.delete(work_authors).where(eq(work_authors.work_id, workId))
+      if (authorIds.length > 0) {
+        await tx
+          .insert(work_authors)
+          .values(
+            authorIds.map((author_id, position) => ({ work_id: workId, author_id, position })),
+          )
+          .onConflictDoNothing()
+      }
+    }
+
+    if (genreIds) {
+      await tx.delete(work_genres).where(eq(work_genres.work_id, workId))
+      if (genreIds.length > 0) {
+        await tx
+          .insert(work_genres)
+          .values(genreIds.map((genre_id) => ({ work_id: workId, genre_id })))
+          .onConflictDoNothing()
+      }
+    }
+
+    logger.info(`[catalog] Obra atualizada: ${work.title} (${workId})`, {
+      module: 'catalog',
+      feature: 'book_catalog',
+      operation: 'update_work',
+      userId,
+      context: { workId, slug: work.slug, fields: Object.keys(input) },
+    })
+
+    return { id: work.id, slug: work.slug }
+  })
+}
+
+/**
+ * Applies a partial update to an edition.
+ *
+ * `isbn` arrives as free text and is normalised exactly as on create, so the
+ * partial unique index keeps meaning something. Clearing it — sending `null` —
+ * is legal and repeatable: that index is partial precisely so that "no ISBN" is
+ * not a collision.
+ */
+export async function updateEdition(
+  editionId: string,
+  input: EditionUpdateInput,
+  userId: string,
+): Promise<{ id: string, work_id: string }> {
+  const [edition] = await db
+    .select({ id: editions.id, work_id: editions.work_id })
+    .from(editions)
+    .where(eq(editions.id, editionId))
+    .limit(1)
+
+  if (!edition) {
+    throw createError({
+      statusCode: 404,
+      data: { error: 'nao_encontrado', message: 'Edição não encontrada.' },
+    })
+  }
+
+  const patch: Partial<typeof editions.$inferInsert> = {
+    updated_by: userId,
+    updated_at: new Date(),
+  }
+  let isbn13: string | null = null
+  if (hasField(input, 'isbn')) {
+    isbn13 = normalizeIsbn(input.isbn ?? null)
+    patch.isbn13 = isbn13
+  }
+  if (hasField(input, 'publisher')) patch.publisher = input.publisher ?? null
+  if (hasField(input, 'page_count')) patch.page_count = input.page_count ?? null
+  if (hasField(input, 'published_year')) patch.published_year = input.published_year ?? null
+  if (hasField(input, 'language')) patch.language = input.language?.toLowerCase() ?? null
+  if (hasField(input, 'cover_url')) patch.cover_url = input.cover_url ?? null
+  if (hasField(input, 'ol_cover_id')) patch.ol_cover_id = input.ol_cover_id ?? null
+
+  try {
+    await db.update(editions).set(patch).where(eq(editions.id, editionId))
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      throw conflict('Já existe uma edição cadastrada com este ISBN.', { isbn13 })
+    }
+    throw error
+  }
+
+  logger.info(`[catalog] Edição atualizada: ${editionId}`, {
+    module: 'catalog',
+    feature: 'book_catalog',
+    operation: 'update_edition',
+    userId,
+    context: { editionId, workId: edition.work_id, fields: Object.keys(input) },
+  })
+
+  return { id: edition.id, work_id: edition.work_id }
+}
+
+/**
+ * Deletes an edition.
+ *
+ * Safe while reading logs point at it: `reading_logs.edition_id` is
+ * `ON DELETE set null`, and a null `edition_id` is the ordinary state for most
+ * logs anyway — picking an edition is optional by design. The log keeps its
+ * rating, review and dates; it only stops claiming which printing was read.
+ *
+ * No "last edition" guard, for the same reason: a work with no editions is
+ * legal, and it is what every work created without edition details already is.
+ */
+export async function deleteEdition(editionId: string, userId: string): Promise<void> {
+  const [edition] = await db
+    .select({ id: editions.id, work_id: editions.work_id })
+    .from(editions)
+    .where(eq(editions.id, editionId))
+    .limit(1)
+
+  if (!edition) {
+    throw createError({
+      statusCode: 404,
+      data: { error: 'nao_encontrado', message: 'Edição não encontrada.' },
+    })
+  }
+
+  await db.delete(editions).where(eq(editions.id, editionId))
+
+  logger.info(`[catalog] Edição excluída: ${editionId}`, {
+    module: 'catalog',
+    feature: 'book_catalog',
+    operation: 'delete_edition',
+    userId,
+    context: { editionId, workId: edition.work_id },
   })
 }
