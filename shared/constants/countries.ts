@@ -1,81 +1,326 @@
 /**
- * Resolves a free-text country name in Portuguese to an ISO 3166-1 alpha-2 code.
+ * ISO 3166-1 alpha-2 countries, labelled in pt-BR.
  *
- * Single source of truth for label → code. `scripts/migrate-livros.ts` maps the
- * frozen 86-record corpus through this; `AddBookForm.vue` maps whatever a member
- * types. Matching is case- and accent-insensitive, so "Rússia", "russia" and
- * "RUSSIA" all resolve to "RU".
+ * **Frozen on purpose. Do not rebuild this from `Intl.DisplayNames` at runtime.**
  *
- * Unknown labels (e.g. "Roma Antiga", which has no ISO code) resolve to null.
- * Callers persist the raw label in that case — it is what the product renders
- * via `formatCountryName`, and the reading map lists it as unmapped rather
- * than dropping it.
+ * The first version of this file did exactly that, and it broke hydration: Node's
+ * ICU and Chrome's ICU disagree on several pt-BR region names — Node says
+ * "Hong Kong, RAE da China" where Chrome says "Hong Kong", "Macau, RAE da China"
+ * against "Macau", "Territórios palestinos" against "Palestina". Different labels
+ * sort differently, so the server and the client rendered the 249 `<option>`
+ * elements in different orders and every one of them mismatched. A table that
+ * changes with the runtime's ICU version is also a table `countryCodeFor` cannot
+ * resolve reliably.
+ *
+ * Codes are what gets stored: `authors.country_code` is `char(2)` and the reading
+ * map keys on it. `authors.country_label` stays free text alongside this list —
+ * the corpus contains 'Roma Antiga', which has no ISO code and never will.
+ *
+ * Sorted by label in pt-BR. Regenerate with `scripts/gen-countries.mjs` only if the list
+ * of countries itself changes, never to re-derive the spellings.
  */
-const COUNTRY_LABEL_TO_CODE: Record<string, string> = {
-  // Américas
-  'brasil': 'BR',
+
+export interface CountryOption {
+  code: string
+  label: string
+}
+
+export const COUNTRIES: readonly CountryOption[] = [
+  { code: 'AF', label: 'Afeganistão' },
+  { code: 'ZA', label: 'África do Sul' },
+  { code: 'AL', label: 'Albânia' },
+  { code: 'DE', label: 'Alemanha' },
+  { code: 'AD', label: 'Andorra' },
+  { code: 'AO', label: 'Angola' },
+  { code: 'AI', label: 'Anguila' },
+  { code: 'AQ', label: 'Antártida' },
+  { code: 'AG', label: 'Antígua e Barbuda' },
+  { code: 'SA', label: 'Arábia Saudita' },
+  { code: 'DZ', label: 'Argélia' },
+  { code: 'AR', label: 'Argentina' },
+  { code: 'AM', label: 'Armênia' },
+  { code: 'AW', label: 'Aruba' },
+  { code: 'AU', label: 'Austrália' },
+  { code: 'AT', label: 'Áustria' },
+  { code: 'AZ', label: 'Azerbaijão' },
+  { code: 'BS', label: 'Bahamas' },
+  { code: 'BD', label: 'Bangladesh' },
+  { code: 'BB', label: 'Barbados' },
+  { code: 'BH', label: 'Barein' },
+  { code: 'BE', label: 'Bélgica' },
+  { code: 'BZ', label: 'Belize' },
+  { code: 'BJ', label: 'Benin' },
+  { code: 'BM', label: 'Bermudas' },
+  { code: 'BY', label: 'Bielorrússia' },
+  { code: 'BO', label: 'Bolívia' },
+  { code: 'BA', label: 'Bósnia e Herzegovina' },
+  { code: 'BW', label: 'Botsuana' },
+  { code: 'BR', label: 'Brasil' },
+  { code: 'BN', label: 'Brunei' },
+  { code: 'BG', label: 'Bulgária' },
+  { code: 'BF', label: 'Burquina Faso' },
+  { code: 'BI', label: 'Burundi' },
+  { code: 'BT', label: 'Butão' },
+  { code: 'CV', label: 'Cabo Verde' },
+  { code: 'CM', label: 'Camarões' },
+  { code: 'KH', label: 'Camboja' },
+  { code: 'CA', label: 'Canadá' },
+  { code: 'QA', label: 'Catar' },
+  { code: 'KZ', label: 'Cazaquistão' },
+  { code: 'TD', label: 'Chade' },
+  { code: 'CL', label: 'Chile' },
+  { code: 'CN', label: 'China' },
+  { code: 'CY', label: 'Chipre' },
+  { code: 'CO', label: 'Colômbia' },
+  { code: 'KM', label: 'Comores' },
+  { code: 'CG', label: 'Congo (Brazzaville)' },
+  { code: 'CD', label: 'Congo (Kinshasa)' },
+  { code: 'KP', label: 'Coreia do Norte' },
+  { code: 'KR', label: 'Coreia do Sul' },
+  { code: 'CI', label: 'Costa do Marfim' },
+  { code: 'CR', label: 'Costa Rica' },
+  { code: 'HR', label: 'Croácia' },
+  { code: 'CU', label: 'Cuba' },
+  { code: 'CW', label: 'Curaçao' },
+  { code: 'DK', label: 'Dinamarca' },
+  { code: 'DJ', label: 'Djibuti' },
+  { code: 'DM', label: 'Dominica' },
+  { code: 'EG', label: 'Egito' },
+  { code: 'SV', label: 'El Salvador' },
+  { code: 'AE', label: 'Emirados Árabes Unidos' },
+  { code: 'EC', label: 'Equador' },
+  { code: 'ER', label: 'Eritreia' },
+  { code: 'SK', label: 'Eslováquia' },
+  { code: 'SI', label: 'Eslovênia' },
+  { code: 'ES', label: 'Espanha' },
+  { code: 'SZ', label: 'Essuatíni' },
+  { code: 'US', label: 'Estados Unidos' },
+  { code: 'EE', label: 'Estônia' },
+  { code: 'ET', label: 'Etiópia' },
+  { code: 'FJ', label: 'Fiji' },
+  { code: 'PH', label: 'Filipinas' },
+  { code: 'FI', label: 'Finlândia' },
+  { code: 'FR', label: 'França' },
+  { code: 'GA', label: 'Gabão' },
+  { code: 'GM', label: 'Gâmbia' },
+  { code: 'GH', label: 'Gana' },
+  { code: 'GE', label: 'Geórgia' },
+  { code: 'GI', label: 'Gibraltar' },
+  { code: 'GD', label: 'Granada' },
+  { code: 'GR', label: 'Grécia' },
+  { code: 'GL', label: 'Groenlândia' },
+  { code: 'GP', label: 'Guadalupe' },
+  { code: 'GU', label: 'Guam' },
+  { code: 'GT', label: 'Guatemala' },
+  { code: 'GG', label: 'Guernsey' },
+  { code: 'GY', label: 'Guiana' },
+  { code: 'GF', label: 'Guiana Francesa' },
+  { code: 'GN', label: 'Guiné' },
+  { code: 'GQ', label: 'Guiné Equatorial' },
+  { code: 'GW', label: 'Guiné-Bissau' },
+  { code: 'HT', label: 'Haiti' },
+  { code: 'HN', label: 'Honduras' },
+  { code: 'HK', label: 'Hong Kong' },
+  { code: 'HU', label: 'Hungria' },
+  { code: 'YE', label: 'Iêmen' },
+  { code: 'BV', label: 'Ilha Bouvet' },
+  { code: 'CX', label: 'Ilha Christmas' },
+  { code: 'IM', label: 'Ilha de Man' },
+  { code: 'NF', label: 'Ilha Norfolk' },
+  { code: 'AX', label: 'Ilhas Aland' },
+  { code: 'KY', label: 'Ilhas Cayman' },
+  { code: 'CC', label: 'Ilhas Cocos (Keeling)' },
+  { code: 'CK', label: 'Ilhas Cook' },
+  { code: 'FO', label: 'Ilhas Faroé' },
+  { code: 'GS', label: 'Ilhas Geórgia do Sul e Sandwich do Sul' },
+  { code: 'HM', label: 'Ilhas Heard e McDonald' },
+  { code: 'FK', label: 'Ilhas Malvinas' },
+  { code: 'MP', label: 'Ilhas Marianas do Norte' },
+  { code: 'MH', label: 'Ilhas Marshall' },
+  { code: 'UM', label: 'Ilhas Menores Distantes dos EUA' },
+  { code: 'PN', label: 'Ilhas Pitcairn' },
+  { code: 'SB', label: 'Ilhas Salomão' },
+  { code: 'TC', label: 'Ilhas Turcas e Caicos' },
+  { code: 'VI', label: 'Ilhas Virgens Americanas' },
+  { code: 'VG', label: 'Ilhas Virgens Britânicas' },
+  { code: 'IN', label: 'Índia' },
+  { code: 'ID', label: 'Indonésia' },
+  { code: 'IR', label: 'Irã' },
+  { code: 'IQ', label: 'Iraque' },
+  { code: 'IE', label: 'Irlanda' },
+  { code: 'IS', label: 'Islândia' },
+  { code: 'IL', label: 'Israel' },
+  { code: 'IT', label: 'Itália' },
+  { code: 'JM', label: 'Jamaica' },
+  { code: 'JP', label: 'Japão' },
+  { code: 'JE', label: 'Jersey' },
+  { code: 'JO', label: 'Jordânia' },
+  { code: 'KW', label: 'Kuwait' },
+  { code: 'LA', label: 'Laos' },
+  { code: 'LS', label: 'Lesoto' },
+  { code: 'LV', label: 'Letônia' },
+  { code: 'LB', label: 'Líbano' },
+  { code: 'LR', label: 'Libéria' },
+  { code: 'LY', label: 'Líbia' },
+  { code: 'LI', label: 'Liechtenstein' },
+  { code: 'LT', label: 'Lituânia' },
+  { code: 'LU', label: 'Luxemburgo' },
+  { code: 'MO', label: 'Macau' },
+  { code: 'MK', label: 'Macedônia do Norte' },
+  { code: 'MG', label: 'Madagascar' },
+  { code: 'MY', label: 'Malásia' },
+  { code: 'MW', label: 'Malaui' },
+  { code: 'MV', label: 'Maldivas' },
+  { code: 'ML', label: 'Mali' },
+  { code: 'MT', label: 'Malta' },
+  { code: 'MA', label: 'Marrocos' },
+  { code: 'MQ', label: 'Martinica' },
+  { code: 'MU', label: 'Maurício' },
+  { code: 'MR', label: 'Mauritânia' },
+  { code: 'YT', label: 'Mayotte' },
+  { code: 'MX', label: 'México' },
+  { code: 'MM', label: 'Mianmar (Birmânia)' },
+  { code: 'FM', label: 'Micronésia' },
+  { code: 'MZ', label: 'Moçambique' },
+  { code: 'MD', label: 'Moldávia' },
+  { code: 'MC', label: 'Mônaco' },
+  { code: 'MN', label: 'Mongólia' },
+  { code: 'ME', label: 'Montenegro' },
+  { code: 'MS', label: 'Montserrat' },
+  { code: 'NA', label: 'Namíbia' },
+  { code: 'NR', label: 'Nauru' },
+  { code: 'NP', label: 'Nepal' },
+  { code: 'NI', label: 'Nicarágua' },
+  { code: 'NE', label: 'Níger' },
+  { code: 'NG', label: 'Nigéria' },
+  { code: 'NU', label: 'Niue' },
+  { code: 'NO', label: 'Noruega' },
+  { code: 'NC', label: 'Nova Caledônia' },
+  { code: 'NZ', label: 'Nova Zelândia' },
+  { code: 'OM', label: 'Omã' },
+  { code: 'NL', label: 'Países Baixos' },
+  { code: 'BQ', label: 'Países Baixos Caribenhos' },
+  { code: 'PW', label: 'Palau' },
+  { code: 'PS', label: 'Palestina' },
+  { code: 'PA', label: 'Panamá' },
+  { code: 'PG', label: 'Papua-Nova Guiné' },
+  { code: 'PK', label: 'Paquistão' },
+  { code: 'PY', label: 'Paraguai' },
+  { code: 'PE', label: 'Peru' },
+  { code: 'PF', label: 'Polinésia Francesa' },
+  { code: 'PL', label: 'Polônia' },
+  { code: 'PR', label: 'Porto Rico' },
+  { code: 'PT', label: 'Portugal' },
+  { code: 'KE', label: 'Quênia' },
+  { code: 'KG', label: 'Quirguistão' },
+  { code: 'KI', label: 'Quiribati' },
+  { code: 'GB', label: 'Reino Unido' },
+  { code: 'CF', label: 'República Centro-Africana' },
+  { code: 'DO', label: 'República Dominicana' },
+  { code: 'RE', label: 'Reunião' },
+  { code: 'RO', label: 'Romênia' },
+  { code: 'RW', label: 'Ruanda' },
+  { code: 'RU', label: 'Rússia' },
+  { code: 'EH', label: 'Saara Ocidental' },
+  { code: 'WS', label: 'Samoa' },
+  { code: 'AS', label: 'Samoa Americana' },
+  { code: 'SM', label: 'San Marino' },
+  { code: 'SH', label: 'Santa Helena' },
+  { code: 'LC', label: 'Santa Lúcia' },
+  { code: 'BL', label: 'São Bartolomeu' },
+  { code: 'KN', label: 'São Cristóvão e Névis' },
+  { code: 'MF', label: 'São Martinho' },
+  { code: 'PM', label: 'São Pedro e Miquelão' },
+  { code: 'ST', label: 'São Tomé e Príncipe' },
+  { code: 'VC', label: 'São Vicente e Granadinas' },
+  { code: 'SC', label: 'Seicheles' },
+  { code: 'SN', label: 'Senegal' },
+  { code: 'SL', label: 'Serra Leoa' },
+  { code: 'RS', label: 'Sérvia' },
+  { code: 'SG', label: 'Singapura' },
+  { code: 'SX', label: 'Sint Maarten' },
+  { code: 'SY', label: 'Síria' },
+  { code: 'SO', label: 'Somália' },
+  { code: 'LK', label: 'Sri Lanka' },
+  { code: 'SD', label: 'Sudão' },
+  { code: 'SS', label: 'Sudão do Sul' },
+  { code: 'SE', label: 'Suécia' },
+  { code: 'CH', label: 'Suíça' },
+  { code: 'SR', label: 'Suriname' },
+  { code: 'SJ', label: 'Svalbard e Jan Mayen' },
+  { code: 'TJ', label: 'Tadjiquistão' },
+  { code: 'TH', label: 'Tailândia' },
+  { code: 'TW', label: 'Taiwan' },
+  { code: 'TZ', label: 'Tanzânia' },
+  { code: 'CZ', label: 'Tchéquia' },
+  { code: 'IO', label: 'Território Britânico do Oceano Índico' },
+  { code: 'TF', label: 'Territórios Franceses do Sul' },
+  { code: 'TL', label: 'Timor-Leste' },
+  { code: 'TG', label: 'Togo' },
+  { code: 'TK', label: 'Tokelau' },
+  { code: 'TO', label: 'Tonga' },
+  { code: 'TT', label: 'Trinidad e Tobago' },
+  { code: 'TN', label: 'Tunísia' },
+  { code: 'TM', label: 'Turcomenistão' },
+  { code: 'TR', label: 'Turquia' },
+  { code: 'TV', label: 'Tuvalu' },
+  { code: 'UA', label: 'Ucrânia' },
+  { code: 'UG', label: 'Uganda' },
+  { code: 'UY', label: 'Uruguai' },
+  { code: 'UZ', label: 'Uzbequistão' },
+  { code: 'VU', label: 'Vanuatu' },
+  { code: 'VA', label: 'Vaticano' },
+  { code: 'VE', label: 'Venezuela' },
+  { code: 'VN', label: 'Vietnã' },
+  { code: 'WF', label: 'Wallis e Futuna' },
+  { code: 'ZM', label: 'Zâmbia' },
+  { code: 'ZW', label: 'Zimbábue' },
+]
+
+const BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c.label]))
+
+/** Case- and accent-insensitive key: 'Rússia', 'russia' and 'RUSSIA' all meet. */
+function foldCountryLabel(label: string): string {
+  return label.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+const BY_LABEL = new Map(COUNTRIES.map((c) => [foldCountryLabel(c.label), c.code]))
+
+/**
+ * Names people type that are not the table's label. 'EUA' is the spelling the
+ * legacy corpus uses, so the migration depends on it resolving.
+ */
+const ALIASES: Record<string, string> = {
   'eua': 'US',
   'usa': 'US',
-  'estados unidos': 'US',
-  'canada': 'CA',
-  'mexico': 'MX',
-  'cuba': 'CU',
-  'argentina': 'AR',
-  'chile': 'CL',
-  'colombia': 'CO',
-  'peru': 'PE',
-  'uruguai': 'UY',
-  'paraguai': 'PY',
-  // Europa
-  'portugal': 'PT',
-  'espanha': 'ES',
-  'franca': 'FR',
-  'reino unido': 'GB',
   'uk': 'GB',
   'inglaterra': 'GB',
-  'irlanda': 'IE',
-  'alemanha': 'DE',
   'holanda': 'NL',
-  'paises baixos': 'NL',
-  'belgica': 'BE',
-  'suica': 'CH',
-  'austria': 'AT',
-  'italia': 'IT',
-  'polonia': 'PL',
-  'grecia': 'GR',
-  'turquia': 'TR',
-  'suecia': 'SE',
-  'noruega': 'NO',
-  'dinamarca': 'DK',
-  'finlandia': 'FI',
-  'hungria': 'HU',
-  'romenia': 'RO',
-  'ucrania': 'UA',
-  'russia': 'RU',
-  // Ásia e Oriente Médio
-  'china': 'CN',
-  'japao': 'JP',
   'coreia': 'KR',
-  'coreia do sul': 'KR',
-  'india': 'IN',
-  'israel': 'IL',
-  // África e Oceania
-  'egito': 'EG',
-  'nigeria': 'NG',
-  'africa do sul': 'ZA',
-  'australia': 'AU',
 }
 
-function normalizeCountryLabel(label: string): string {
-  return label
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
+/** The label for a code, or the code itself when it is not one we know. */
+export function countryLabelFor(code: string | null | undefined): string | null {
+  if (!code) return null
+  const upper = code.trim().toUpperCase()
+  if (!upper) return null
+  return BY_CODE.get(upper) ?? upper
 }
 
-export function resolveCountryCode(label: string): string | null {
-  const key = normalizeCountryLabel(label)
-  if (!key) return null
-  return COUNTRY_LABEL_TO_CODE[key] ?? null
+/**
+ * The ISO code for a country typed by hand, or null when there is none.
+ *
+ * Null is a legitimate answer, not a failure: 'Roma Antiga' is a real value in
+ * the corpus and is meant to survive as a label without a code.
+ */
+export function countryCodeFor(label: string | null | undefined): string | null {
+  if (!label) return null
+  const trimmed = label.trim()
+  if (!trimmed) return null
+
+  const upper = trimmed.toUpperCase()
+  if (BY_CODE.has(upper)) return upper
+
+  const key = foldCountryLabel(trimmed)
+  return BY_LABEL.get(key) ?? ALIASES[key] ?? null
 }

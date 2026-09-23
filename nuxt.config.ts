@@ -18,7 +18,7 @@ export default defineNuxtConfig({
     }
   },
   modules: ['@nuxt/eslint'],
-  css: ['~/assets/css/tokens.css'],
+  css: ['~/assets/css/tokens.css', '~/assets/css/forms.css'],
   routeRules: {
     // security.md asks for the CSP in route rules and has an acceptance
     // checkbox for it; it was never implemented. Headers only — no cache

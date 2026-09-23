@@ -38,7 +38,7 @@ import {
 } from '../server/db/schema'
 import { createWork } from '../server/services/catalog'
 import { normalizeIsbn } from '../server/utils/isbn'
-import { resolveCountryCode } from '../shared/constants/countries'
+import { countryCodeFor } from '../shared/constants/countries'
 import { writeGenerosTxt } from './seed-genres'
 
 // ---------------------------------------------------------------------------
@@ -190,7 +190,7 @@ export function validateLivros(livros: LivroJson[]): void {
     }
 
     // Country
-    if (resolveCountryCode(livro.country) === null && livro.country !== 'Roma Antiga') {
+    if (countryCodeFor(livro.country) === null && livro.country !== 'Roma Antiga') {
       throw new Error(`${ctx}: país desconhecido "${livro.country}". Adicione a shared/constants/countries.ts.`)
     }
 
@@ -360,7 +360,7 @@ export async function main(): Promise<void> {
             title: livro.title,
             authors: authorNames.map((name) => ({
               name,
-              country_code: resolveCountryCode(livro.country),
+              country_code: countryCodeFor(livro.country),
               country_label: livro.country,
             })),
             original_language: lang,

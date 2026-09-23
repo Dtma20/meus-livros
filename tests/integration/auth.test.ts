@@ -12,6 +12,31 @@ import { setTransport } from '../../server/utils/email'
  */
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
+/**
+ * Builds a `cookie` request header from every `Set-Cookie` a response carries.
+ *
+ * `headers.get('set-cookie')` returns only the FIRST one, and since the cookie
+ * cache landed better-auth sends more than one: change-password answers with
+ * three — `session_data`, `session_token`, `session_data` again — in that order.
+ * Reading the first therefore yields the cache cookie with no session token,
+ * the session looks signed out, and the failure surfaces as a 401 several
+ * assertions later. The sign-in responses happened to put a usable cookie
+ * first, which is the only reason every other test here passed.
+ *
+ * Later values win, matching how a browser applies repeated Set-Cookie names.
+ */
+function cookieHeaderFrom(res: Response): string {
+  const jar = new Map<string, string>()
+  for (const raw of res.headers.getSetCookie()) {
+    const pair = raw.split(';')[0]
+    if (!pair) continue
+    const eq = pair.indexOf('=')
+    if (eq <= 0) continue
+    jar.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim())
+  }
+  return [...jar].map(([name, value]) => `${name}=${value}`).join('; ')
+}
+
 describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activation/reset OTP flows', () => {
   let db: typeof import('../../server/db')['db']
   let schema: typeof import('../../server/db/schema')
@@ -85,6 +110,24 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     // otherwise hand its leftovers to this one.
     await purgeTestRateLimits()
   }, 30000)
+
+  /**
+   * Live session rows for an account, counted through `ba_user`.
+   *
+   * `session."userId"` references better-auth's own `ba_user` table, NOT the
+   * application's `users` table — the two ids are different, and counting with
+   * the wrong one returns 0 for every account, which reads as "revoked" no
+   * matter what actually happened. `afterAll` already resolves it this way.
+   */
+  async function countSessionsFor(email: string): Promise<number> {
+    const [row] = await db.execute(sql<{ n: number }>`
+      SELECT count(s.*)::int AS n
+      FROM "session" s
+      JOIN ba_user u ON u.id = s."userId"
+      WHERE u.email = ${email}
+    `)
+    return Number(row?.n ?? -1)
+  }
 
   async function waitForEmail(index = 0, timeoutMs = 5000): Promise<{ to: string; subject: string; text: string }> {
     const deadline = Date.now() + timeoutMs
@@ -189,7 +232,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
       }),
     )
     expect(verifyRes.status).toBe(200)
-    const cookie = verifyRes.headers.get('set-cookie')
+    const cookie = cookieHeaderFrom(verifyRes)
     expect(cookie).toBeTruthy()
 
     // Still no profile: verifying the code does not create one, which is the
@@ -223,7 +266,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
       }),
     )
     expect(signInRes.status).toBe(200)
-    expect(signInRes.headers.get('set-cookie')).toBeTruthy()
+    expect(cookieHeaderFrom(signInRes)).toBeTruthy()
   }, 30000)
 
   it('first access activation: allowlisted address receives code, sets password, and signs in', async () => {
@@ -262,7 +305,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
 
     const verifyRes = await handleAuthRequest(verifyReq)
     expect(verifyRes.status).toBe(200)
-    const cookie = verifyRes.headers.get('set-cookie')
+    const cookie = cookieHeaderFrom(verifyRes)
     expect(cookie).toBeTruthy()
 
     // 3. Set password
@@ -336,10 +379,14 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
 
     const res = await handleAuthRequest(req)
     expect(res.status).toBe(200)
-    const cookie = res.headers.get('set-cookie')
+    // `httpOnly` is a Set-Cookie ATTRIBUTE, so it has to be asserted on the raw
+    // response header. `cookieHeaderFrom` builds a request `cookie` header,
+    // which carries name=value pairs and never carries attributes.
+    const rawSetCookie = res.headers.getSetCookie().join(' | ').toLowerCase()
+    expect(rawSetCookie).toContain('httponly')
+    expect(rawSetCookie).toContain('samesite=lax')
+    const cookie = cookieHeaderFrom(res)
     expect(cookie).toBeTruthy()
-    expect(cookie?.toLowerCase()).toContain('httponly')
-    expect(cookie?.toLowerCase()).toContain('samesite=lax')
 
     const headers = new Headers()
     headers.set('cookie', cookie!)
@@ -365,7 +412,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
 
     const res = await handleAuthRequest(req)
     expect(res.status).toBe(200)
-    const cookie = res.headers.get('set-cookie')
+    const cookie = cookieHeaderFrom(res)
     expect(cookie).toBeTruthy()
 
     const headers = new Headers()
@@ -515,7 +562,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
         body: JSON.stringify({ identificador: testHandle, senha: initialPassword }),
       }),
     )
-    const oldSessionCookie = loginRes.headers.get('set-cookie')!
+    const oldSessionCookie = cookieHeaderFrom(loginRes)
     const oldHeaders = new Headers({ cookie: oldSessionCookie })
     expect(await getSessionUserByHeaders(oldHeaders)).not.toBeNull()
 
@@ -545,8 +592,17 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     expect(completeResetRes.status).toBe(200)
 
     // 4. Old session is deleted (revoked)
-    const oldSessionAfter = await getSessionUserByHeaders(oldHeaders)
-    expect(oldSessionAfter).toBeNull()
+    //
+    // Asserted against the `session` table, not against the cookie. The cookie
+    // cache (`session.cookieCache`, 5 min) is deliberately allowed to keep a
+    // revoked session usable until its cached copy expires — auth.ts says so
+    // where it enables the cache. Asserting that the cookie stops working
+    // therefore asserts something the code does not promise, and it used to
+    // "pass" only because the cookie being read was malformed.
+    //
+    // What revocation actually means is that the row is gone, and that is what
+    // makes the session unusable once the cache lapses.
+    expect(await countSessionsFor(allowedEmail)).toBe(0)
 
     // 5. Old password no longer works
     const oldPwLogin = await handleAuthRequest(
@@ -594,7 +650,11 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
         body: JSON.stringify({ identificador: testHandle, senha: currentPassword }),
       }),
     )
-    const cookieA = loginResA.headers.get('set-cookie')!
+    // Asserted, not assumed. Without this the failure of a sign-in shows up
+    // several requests later as a 401 on change-password, which reads like a
+    // bug in change-password and is not one.
+    expect(loginResA.status).toBe(200)
+    const cookieA = cookieHeaderFrom(loginResA)
     const headersA = new Headers({ cookie: cookieA })
 
     // Sign in to get session B (other session)
@@ -605,8 +665,11 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
         body: JSON.stringify({ identificador: testHandle, senha: currentPassword }),
       }),
     )
-    const cookieB = loginResB.headers.get('set-cookie')!
-    const headersB = new Headers({ cookie: cookieB })
+    // Session B exists only to be revoked by the change below; its cookie is
+    // never replayed, because the cookie cache would keep answering for it.
+    // Revocation is asserted against the `session` table instead.
+    expect(loginResB.status).toBe(200)
+    expect(cookieHeaderFrom(loginResB)).toBeTruthy()
 
     // 1. Missing current password returns 400
     const noCurrentPwRes = await handleAuthRequest(
@@ -643,14 +706,19 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     expect(changePwRes.status).toBe(200)
 
     // The session performing the change (session A) receives updated cookie and survives
-    const updatedCookieA = changePwRes.headers.get('set-cookie') || cookieA
+    const updatedCookieA = cookieHeaderFrom(changePwRes) || cookieA
     const survivingHeaders = new Headers({ cookie: updatedCookieA })
     const userAfter = await getSessionUserByHeaders(survivingHeaders)
     expect(userAfter).not.toBeNull()
 
-    // Session B is revoked
-    const sessionBAfter = await getSessionUserByHeaders(headersB)
-    expect(sessionBAfter).toBeNull()
+    // Session B is revoked.
+    //
+    // Counted in the `session` table rather than probed through its cookie, for
+    // the reason spelled out in the reset test above: the 5-minute cookie cache
+    // keeps a revoked session's cookie working, by design. After a change with
+    // revokeOtherSessions, exactly one row must remain — the session that made
+    // the change.
+    expect(await countSessionsFor(allowedEmail)).toBe(1)
   }, 20000)
 
   it('passwords under 8 characters and senha123 are rejected server-side', async () => {
@@ -743,7 +811,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     )
 
     expect(verifyRes.status).toBe(200)
-    const cookie = verifyRes.headers.get('set-cookie')
+    const cookie = cookieHeaderFrom(verifyRes)
     expect(cookie).toBeTruthy()
 
     const headers = new Headers()

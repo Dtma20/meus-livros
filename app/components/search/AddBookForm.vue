@@ -518,8 +518,7 @@ import BookCover from '../book/BookCover.vue'
 import ExternalLookup from './ExternalLookup.vue'
 import GenrePicker from './GenrePicker.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
-import { resolveCountryCode } from '~~/shared/constants/countries'
-import { formatCountryName } from '~~/shared/schemas/profile'
+import { countryCodeFor, countryLabelFor } from '~~/shared/constants/countries'
 import type { ExternalBookResult, SearchResult } from '~~/shared/schemas/search'
 import { coverUrlSchema, publicationYearSchema, type WorkInput } from '~~/shared/schemas/work'
 
@@ -920,7 +919,7 @@ function cancelExternalBook(): void {
 
 // ---------------------------------------------------------------------------
 // Author country: free text resolved to ISO via shared/constants/countries.
-// The stored label is canonicalised through formatCountryName when a code is
+// The stored label is canonicalised through countryLabelFor when a code is
 // known, so the book page (which renders the label) agrees with the profile
 // and map (which derive the name from the code). Unknown labels (e.g.
 // 'Roma Antiga') persist as-is with a null code.
@@ -1187,11 +1186,11 @@ async function handleSubmit(force = false): Promise<void> {
   duplicateWork.value = null
 
   const rawCountryLabel = authorCountry.value.trim() || null
-  const countryCode = rawCountryLabel ? resolveCountryCode(rawCountryLabel) : null
+  const countryCode = countryCodeFor(rawCountryLabel)
   // Canonical label so every surface agrees: the book page renders the label,
   // the profile and map derive the name from the code via formatCountryName.
   const countryLabel = rawCountryLabel
-    ? (countryCode ? formatCountryName(countryCode) || rawCountryLabel : rawCountryLabel)
+    ? (countryCode ? countryLabelFor(countryCode) ?? rawCountryLabel : rawCountryLabel)
     : null
 
   const payload: WorkInput = {

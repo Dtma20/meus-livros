@@ -185,6 +185,8 @@ Ask, in order:
 - **No RLS** — all access already passes through trusted server routes.
 - **No cached counts** — aggregates are live.
 - **Search does not call Open Library** — it averages 8.4s and misses 60% of Brazilian editions.
+- **There are two user tables, and `session` points at the other one.** better-auth owns `ba_user`, `account`, `session` and `verification`; the application owns `users`. `session."userId"` references **`ba_user.id`**, never `users.id`, and the two ids are different values for the same person. Joining `session` to `users` returns zero rows — which reads as "this account has no sessions" and is indistinguishable from real revocation. Reach `session` through `ba_user`, matching on `email`.
+- **A revoked session keeps working for up to 5 minutes.** `session.cookieCache` is enabled with `maxAge: 5 * 60`, which skips the `session` table on every request. Both `revokeSessionsOnPasswordReset` and change-password's `revokeOtherSessions` delete the row immediately, but a client whose cached cookie is still valid stays signed in until that copy expires. The trade-off is deliberate and is documented where the cache is enabled in `server/services/auth.ts`. **Assert revocation against the `session` table, never by replaying the cookie** — a test that replays it is asserting something the code does not promise.
 
 ---
 
