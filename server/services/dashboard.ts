@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
 import { buildReviewExcerpt } from '../../shared/schemas/feed'
 import type {
   DashboardAuthorView,
@@ -22,34 +22,20 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
       started_on: reading_logs.started_on,
       updated_at: reading_logs.updated_at,
       edition_page_count: editions.page_count,
+      edition_id: reading_logs.edition_id,
       work: {
         id: works.id,
         title: works.title,
         slug: works.slug,
         first_published_year: works.first_published_year,
-        cover_url: sql<string | null>`(
-          SELECT e.cover_url FROM editions e WHERE e.work_id = works.id AND e.cover_url IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
-        )`,
-        isbn13: sql<string | null>`(
-          SELECT e.isbn13 FROM editions e WHERE e.work_id = works.id AND e.isbn13 IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
-        )`,
-        ol_cover_id: sql<number | null>`(
-          SELECT e.ol_cover_id FROM editions e WHERE e.work_id = works.id AND e.ol_cover_id IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
-        )`,
       },
     })
     .from(reading_logs)
     .innerJoin(works, eq(works.id, reading_logs.work_id))
-    // edition_id intentionally nullable; fall back to first edition for page_count.
-    .leftJoin(
-      editions,
-      sql`editions.id = COALESCE(
-        ${reading_logs.edition_id},
-        (SELECT e2.id FROM editions e2 WHERE e2.work_id = ${reading_logs.work_id} ORDER BY e2.created_at, e2.id LIMIT 1)
-      )`,
-    )
+    .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
     .where(and(eq(reading_logs.user_id, userId), isNull(reading_logs.finished_on)))
-    .orderBy(desc(reading_logs.updated_at))
+    .orderBy(desc(reading_logs.updated_at), desc(reading_logs.id))
+    .limit(50)
 
   // 2. Completed books (finished_on IS NOT NULL) ordered by finished_on DESC
   const completedQuery = db
@@ -65,29 +51,14 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
         title: works.title,
         slug: works.slug,
         first_published_year: works.first_published_year,
-        cover_url: sql<string | null>`(
-          SELECT e.cover_url FROM editions e WHERE e.work_id = works.id AND e.cover_url IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
-        )`,
-        isbn13: sql<string | null>`(
-          SELECT e.isbn13 FROM editions e WHERE e.work_id = works.id AND e.isbn13 IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
-        )`,
-        ol_cover_id: sql<number | null>`(
-          SELECT e.ol_cover_id FROM editions e WHERE e.work_id = works.id AND e.ol_cover_id IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
-        )`,
       },
     })
     .from(reading_logs)
     .innerJoin(works, eq(works.id, reading_logs.work_id))
-    // edition_id intentionally nullable; fall back to first edition for page_count.
-    .leftJoin(
-      editions,
-      sql`editions.id = COALESCE(
-        ${reading_logs.edition_id},
-        (SELECT e2.id FROM editions e2 WHERE e2.work_id = ${reading_logs.work_id} ORDER BY e2.created_at, e2.id LIMIT 1)
-      )`,
-    )
+    .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
     .where(and(eq(reading_logs.user_id, userId), isNotNull(reading_logs.finished_on)))
-    .orderBy(desc(reading_logs.finished_on), desc(reading_logs.created_at))
+    .orderBy(desc(reading_logs.finished_on), desc(reading_logs.created_at), desc(reading_logs.id))
+    .limit(50)
 
   // As in getProfileData, with postgres(url, { max: 1 }) Promise.all pipelines
   // queries over the single connection rather than running them in parallel
@@ -96,7 +67,7 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
   // queries execute in ~0 ms.
   const [inProgressRows, completedRows] = await Promise.all([inProgressQuery, completedQuery])
 
-  // Collect all work IDs to batch fetch authors
+  // Collect all work IDs to batch fetch authors and first editions
   const allWorkIds = [
     ...new Set([...inProgressRows.map((r) => r.work.id), ...completedRows.map((r) => r.work.id)]),
   ]
@@ -104,10 +75,10 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
   // Fetch blocks for all in-progress books to calculate progress
   const inProgressLogIds = inProgressRows.map((r) => r.id)
 
-  // Both depend on wave 1 but not on each other, so they form wave 2. An empty
+  // These depend on wave 1 but not on each other, so they form wave 2. An empty
   // id list means no query at all — `inArray` on an empty array would spend a
   // round trip to return nothing.
-  const [authorsRows, blocksRows] = await Promise.all([
+  const [authorsRows, blocksRows, firstEditionRows] = await Promise.all([
     allWorkIds.length > 0
       ? db
           .select({
@@ -132,6 +103,21 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
           .from(reading_blocks)
           .where(inArray(reading_blocks.log_id, inProgressLogIds))
       : [],
+    allWorkIds.length > 0
+      ? db
+          .select({
+            work_id: editions.work_id,
+            cover_url: editions.cover_url,
+            isbn13: editions.isbn13,
+            ol_cover_id: editions.ol_cover_id,
+            page_count: editions.page_count,
+            created_at: editions.created_at,
+            id: editions.id,
+          })
+          .from(editions)
+          .where(inArray(editions.work_id, allWorkIds))
+          .orderBy(editions.created_at, editions.id)
+      : [],
   ])
 
   const authorsByWorkId = new Map<string, DashboardAuthorView[]>()
@@ -154,14 +140,42 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     list.push({ start_page: b.start_page, end_page: b.end_page })
   }
 
+  const firstOverallByWorkId = new Map<string, (typeof firstEditionRows)[number]>()
+  const firstCoverByWorkId = new Map<string, (typeof firstEditionRows)[number]>()
+  const firstIsbnByWorkId = new Map<string, (typeof firstEditionRows)[number]>()
+  const firstOlByWorkId = new Map<string, (typeof firstEditionRows)[number]>()
+
+  for (const edition of firstEditionRows) {
+    if (!firstOverallByWorkId.has(edition.work_id)) {
+      firstOverallByWorkId.set(edition.work_id, edition)
+    }
+    if (edition.cover_url !== null && !firstCoverByWorkId.has(edition.work_id)) {
+      firstCoverByWorkId.set(edition.work_id, edition)
+    }
+    if (edition.isbn13 !== null && !firstIsbnByWorkId.has(edition.work_id)) {
+      firstIsbnByWorkId.set(edition.work_id, edition)
+    }
+    if (edition.ol_cover_id !== null && !firstOlByWorkId.has(edition.work_id)) {
+      firstOlByWorkId.set(edition.work_id, edition)
+    }
+  }
+
   const inProgress: DashboardInProgressBook[] = inProgressRows.map((row) => {
     const intervals = blocksByLogId.get(row.id) ?? []
-    const calc = calculateReadingProgress(intervals, row.edition_page_count, false)
+    const firstOverall = firstOverallByWorkId.get(row.work.id)
+    const firstCover = firstCoverByWorkId.get(row.work.id)
+    const firstIsbn = firstIsbnByWorkId.get(row.work.id)
+    const firstOl = firstOlByWorkId.get(row.work.id)
+    const pageCount = row.edition_id === null ? firstOverall?.page_count ?? null : row.edition_page_count
+    const calc = calculateReadingProgress(intervals, pageCount, false)
 
     return {
       id: row.id,
       work: {
         ...row.work,
+        cover_url: firstCover?.cover_url ?? null,
+        isbn13: firstIsbn?.isbn13 ?? null,
+        ol_cover_id: firstOl?.ol_cover_id ?? null,
         authors: authorsByWorkId.get(row.work.id) ?? [],
       },
       started_on: row.started_on,
@@ -173,18 +187,27 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     }
   })
 
-  const completed: DashboardCompletedBook[] = completedRows.map((row) => ({
-    id: row.id,
-    work: {
-      ...row.work,
-      authors: authorsByWorkId.get(row.work.id) ?? [],
-    },
-    rating: row.rating !== null ? Number(row.rating) : null,
-    review_excerpt: buildReviewExcerpt(row.review),
-    finished_on: row.finished_on as string,
-    finished_precision: row.finished_precision,
-    created_at: row.created_at,
-  }))
+  const completed: DashboardCompletedBook[] = completedRows.map((row) => {
+    const firstCover = firstCoverByWorkId.get(row.work.id)
+    const firstIsbn = firstIsbnByWorkId.get(row.work.id)
+    const firstOl = firstOlByWorkId.get(row.work.id)
+
+    return {
+      id: row.id,
+      work: {
+        ...row.work,
+        cover_url: firstCover?.cover_url ?? null,
+        isbn13: firstIsbn?.isbn13 ?? null,
+        ol_cover_id: firstOl?.ol_cover_id ?? null,
+        authors: authorsByWorkId.get(row.work.id) ?? [],
+      },
+      rating: row.rating !== null ? Number(row.rating) : null,
+      review_excerpt: buildReviewExcerpt(row.review),
+      finished_on: row.finished_on as string,
+      finished_precision: row.finished_precision,
+      created_at: row.created_at,
+    }
+  })
 
   return { inProgress, completed }
 }

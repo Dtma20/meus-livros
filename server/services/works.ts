@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import type { WorkWithDetails } from '../../shared/schemas/work'
 import { db } from '../db'
@@ -38,7 +38,7 @@ async function assembleWorkDetails(
   // crawler that builds the WhatsApp preview reads the first response.
   // With max: 1 in postgres.js, pipelining dispatches all four queries
   // without waiting for each response, eliminating three round-trip latencies.
-  const [authorsList, genresList, editionsList, logsList] = await Promise.all([
+  const [authorsList, genresList, editionsList, logsList, [aggregates]] = await Promise.all([
     // 1. Authors in assigned display order
     db
       .select({
@@ -79,7 +79,8 @@ async function assembleWorkDetails(
       })
       .from(editions)
       .where(eq(editions.work_id, work.id))
-      .orderBy(editions.published_year, editions.created_at),
+      .orderBy(editions.published_year, editions.created_at, editions.id)
+      .limit(50),
 
     // 4. Visible reading logs for this work, newest first
     // Enforces visibleLogs(viewer) with innerJoin on users
@@ -99,7 +100,18 @@ async function assembleWorkDetails(
       .from(reading_logs)
       .innerJoin(users, eq(users.id, reading_logs.user_id))
       .where(and(eq(reading_logs.work_id, work.id), visibleLogs(viewer)))
-      .orderBy(desc(reading_logs.created_at)),
+      .orderBy(desc(reading_logs.created_at), desc(reading_logs.id))
+      .limit(50),
+
+    // 5. Aggregates over every visible log, not just the 50 listed above
+    db
+      .select({
+        count: sql<number>`count(*)::int`,
+        average: sql<string | null>`avg(${reading_logs.rating})`,
+      })
+      .from(reading_logs)
+      .innerJoin(users, eq(users.id, reading_logs.user_id))
+      .where(and(eq(reading_logs.work_id, work.id), visibleLogs(viewer))),
   ])
 
   // Best available cover from editions
@@ -120,15 +132,11 @@ async function assembleWorkDetails(
     }
   }
 
-  // Aggregate stats: strictly over visible logs
-  const logCount = logsList.length
-
-  const ratedLogs = logsList.filter(
-    (l) => l.rating !== null && l.rating !== undefined && !Number.isNaN(Number(l.rating)),
-  )
-
-  const averageRating = ratedLogs.length > 0
-    ? Math.round((ratedLogs.reduce((sum, l) => sum + Number(l.rating), 0) / ratedLogs.length) * 10) / 10
+  // Aggregate stats: strictly over visible logs, computed in SQL so the
+  // 50-row cap on the list does not cap the count
+  const logCount = aggregates?.count ?? 0
+  const averageRating = aggregates?.average
+    ? Math.round(Number(aggregates.average) * 10) / 10
     : null
 
   const shapedLogs = logsList.map((l) => ({

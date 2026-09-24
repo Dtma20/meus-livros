@@ -16,12 +16,40 @@ export const OPEN_LIBRARY_USER_AGENT =
 export const OPEN_LIBRARY_FETCH_LIMIT = 15
 /** Teto de resultados devolvidos após ordenar e enriquecer. */
 export const OPEN_LIBRARY_MAX_RESULTS = 10
+/** Teto de obras que recebem busca extra por edição em português. */
+export const MAX_PT_ENRICH = 3
 /**
  * Quantas edições pedir por obra ao procurar a brasileira.
  * 100 porque `limit=50` corta antes das edições PT de obras com muitas
  * traduções (1984: primeira PT na posição ~51–100). OL aceita 100/page.
  */
 const PT_EDITIONS_FETCH_LIMIT = 100
+const OPEN_LIBRARY_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const OPEN_LIBRARY_CACHE_MAX_ENTRIES = 100
+const openLibraryCache = new Map<
+  string,
+  { expires: number; data: ExternalSearchResponse }
+>()
+
+function normalizeCacheQuery(query: string): string {
+  return query.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function cacheExternalSearchResponse(
+  key: string,
+  data: ExternalSearchResponse,
+): void {
+  openLibraryCache.delete(key)
+  while (openLibraryCache.size >= OPEN_LIBRARY_CACHE_MAX_ENTRIES) {
+    const oldestKey = openLibraryCache.keys().next().value
+    if (oldestKey === undefined) break
+    openLibraryCache.delete(oldestKey)
+  }
+  openLibraryCache.set(key, {
+    expires: Date.now() + OPEN_LIBRARY_CACHE_TTL_MS,
+    data,
+  })
+}
 
 /**
  * Common ISO 639-2 (bibliographic/terminology) codes to ISO 639-1 (two-letter).
@@ -319,9 +347,19 @@ export async function searchOpenLibrary(
 
   const timeoutMs = options.timeoutMs ?? OPEN_LIBRARY_TIMEOUT_MS
   const fetchFn = options.fetchFn ?? globalThis.fetch
+  const useCache = options.fetchFn === undefined
+  const cacheKey = normalizeCacheQuery(trimmedQuery)
   const userAgent = options.userAgent ?? OPEN_LIBRARY_USER_AGENT
   const requestId = options.requestId
   const maxRetries = options.maxRetries ?? 1
+
+  if (useCache) {
+    const cached = openLibraryCache.get(cacheKey)
+    if (cached) {
+      if (cached.expires > Date.now()) return cached.data
+      openLibraryCache.delete(cacheKey)
+    }
+  }
 
   const url = `${OPEN_LIBRARY_SEARCH_URL}?q=${encodeURIComponent(
     trimmedQuery,
@@ -438,11 +476,13 @@ export async function searchOpenLibrary(
           // esforço), nunca falha a busca. `language === 'pt'` (preferredLanguage)
           // significa que `por` aparece no array da obra → edição PT existe.
           const toEnrich = top.filter((r) => r.language === 'pt')
+          const enrichCandidates = toEnrich.slice(0, MAX_PT_ENRICH)
+          const unenriched = toEnrich.slice(MAX_PT_ENRICH)
           const rest = top.filter((r) => r.language !== 'pt')
           let enriched: ExternalBookResult[] = []
-          if (toEnrich.length > 0) {
+          if (enrichCandidates.length > 0) {
             enriched = await Promise.all(
-              toEnrich.map((base) =>
+              enrichCandidates.map((base) =>
                 enrichWithPortugueseEdition(base, {
                   fetchFn,
                   userAgent,
@@ -453,7 +493,7 @@ export async function searchOpenLibrary(
             )
           }
           // Reordena: enriquecidos (título PT confirmado) mantêm prioridade.
-          const results = [...enriched, ...rest]
+          const results = [...enriched, ...unenriched, ...rest]
           const totalDuration = Math.round(performance.now() - startTime)
 
           logger.info(`[open-library] Busca concluída com ${results.length} resultados`, {
@@ -515,6 +555,10 @@ export async function searchOpenLibrary(
         requestId,
       },
     )
+
+    if (useCache && result.indisponivel !== true) {
+      cacheExternalSearchResponse(cacheKey, result)
+    }
 
     return result
   } catch (finalErr: unknown) {

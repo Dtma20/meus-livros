@@ -103,14 +103,6 @@ export async function getProfileByHandle(
         title: works.title,
         slug: works.slug,
         first_published_year: works.first_published_year,
-        cover_url: sql<string | null>`(
-          -- ORDER BY is what makes this deterministic. LIMIT 1 without it
-          -- returns whatever row the plan yields first, so SSR and a client
-          -- refresh() can disagree on which cover a work has.
-          SELECT e.cover_url FROM editions e
-          WHERE e.work_id = works.id AND e.cover_url IS NOT NULL
-          ORDER BY e.created_at, e.id LIMIT 1
-        )`,
       },
       edition: {
         id: editions.id,
@@ -124,17 +116,10 @@ export async function getProfileByHandle(
     .from(reading_logs)
     .innerJoin(users, eq(users.id, reading_logs.user_id))
     .innerJoin(works, eq(works.id, reading_logs.work_id))
-    // edition_id intentionally nullable; fall back to first edition so page_count
-    // feeds totalPages/averagePages stats and the edition pill.
-    .leftJoin(
-      editions,
-      sql`editions.id = COALESCE(
-        ${reading_logs.edition_id},
-        (SELECT e2.id FROM editions e2 WHERE e2.work_id = ${reading_logs.work_id} ORDER BY e2.created_at, e2.id LIMIT 1)
-      )`,
-    )
+    .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
     .where(and(eq(reading_logs.user_id, userRow.id), visibleLogs(viewer)))
-    .orderBy(sql`${reading_logs.finished_on} DESC NULLS LAST, ${reading_logs.created_at} DESC`)
+    .orderBy(sql`${reading_logs.finished_on} DESC NULLS LAST, ${reading_logs.created_at} DESC, ${reading_logs.id} DESC`)
+    .limit(100)
 
   const userView: ProfileUserView = {
     id: userRow.id,
@@ -166,7 +151,7 @@ export async function getProfileByHandle(
   // With postgres(url, { max: 1 }), Promise.all pipelines queries over the
   // single connection rather than achieving true parallel execution. The gain
   // is round-trip latency elimination via pipelining, not halved wall-clock time.
-  const [authorsRows, genresRows] = await Promise.all([
+  const [authorsRows, genresRows, firstEditionRows] = await Promise.all([
     db
       .select({
         work_id: work_authors.work_id,
@@ -191,6 +176,20 @@ export async function getProfileByHandle(
       .from(work_genres)
       .innerJoin(genres, eq(genres.id, work_genres.genre_id))
       .where(inArray(work_genres.work_id, workIds)),
+    db
+      .select({
+        work_id: editions.work_id,
+        id: editions.id,
+        isbn13: editions.isbn13,
+        cover_url: editions.cover_url,
+        ol_cover_id: editions.ol_cover_id,
+        page_count: editions.page_count,
+        published_year: editions.published_year,
+        created_at: editions.created_at,
+      })
+      .from(editions)
+      .where(inArray(editions.work_id, workIds))
+      .orderBy(editions.created_at, editions.id),
   ])
 
   const authorsByWorkId = new Map<string, ProfileAuthorView[]>()
@@ -223,30 +222,47 @@ export async function getProfileByHandle(
     })
   }
 
-  // 5. Construct ProfileLogItem array
-  const logs: ProfileLogItem[] = logRows.map((row) => ({
-    id: row.id,
-    rating: row.rating !== null ? Number(row.rating) : null,
-    started_on: row.started_on,
-    finished_on: row.finished_on,
-    finished_precision: row.finished_precision,
-    format: row.format,
-    visibility: row.visibility,
-    created_at: row.created_at,
-    work: {
-      id: row.work.id,
-      title: row.work.title,
-      slug: row.work.slug,
-      first_published_year: row.work.first_published_year,
-      cover_url: row.work.cover_url,
-      authors: authorsByWorkId.get(row.work.id) ?? [],
-      genres: genresByWorkId.get(row.work.id) ?? [],
-    },
-    // Joined edition may be the work's first edition when edition_id is null.
-    edition: row.edition,
-  }))
+  const firstOverallByWorkId = new Map<string, (typeof firstEditionRows)[number]>()
+  const firstCoverByWorkId = new Map<string, (typeof firstEditionRows)[number]>()
 
-  // 6. Compute stats over the visible logs
+  for (const edition of firstEditionRows) {
+    if (!firstOverallByWorkId.has(edition.work_id)) {
+      firstOverallByWorkId.set(edition.work_id, edition)
+    }
+    if (edition.cover_url !== null && !firstCoverByWorkId.has(edition.work_id)) {
+      firstCoverByWorkId.set(edition.work_id, edition)
+    }
+  }
+
+  // 5. Construct ProfileLogItem array
+  const logs: ProfileLogItem[] = logRows.map((row) => {
+    const firstOverall = firstOverallByWorkId.get(row.work.id)
+    const firstCover = firstCoverByWorkId.get(row.work.id)
+
+    return {
+      id: row.id,
+      rating: row.rating !== null ? Number(row.rating) : null,
+      started_on: row.started_on,
+      finished_on: row.finished_on,
+      finished_precision: row.finished_precision,
+      format: row.format,
+      visibility: row.visibility,
+      created_at: row.created_at,
+      work: {
+        id: row.work.id,
+        title: row.work.title,
+        slug: row.work.slug,
+        first_published_year: row.work.first_published_year,
+        cover_url: firstCover?.cover_url ?? null,
+        authors: authorsByWorkId.get(row.work.id) ?? [],
+        genres: genresByWorkId.get(row.work.id) ?? [],
+      },
+      // When edition_id is null, firstOverall is the deterministic fallback.
+      edition: row.edition ?? (row.edition_id === null ? firstOverall ?? null : null),
+    }
+  })
+
+  // 6. Compute stats over visible logs returned by the first 100 limit.
   const totalBooks = logs.length
   const authorSet = new Set<string>()
   const countrySet = new Set<string>()

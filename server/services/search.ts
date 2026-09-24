@@ -12,6 +12,7 @@ import type { SearchResult } from '../../shared/schemas/search'
  * Spec: "at most 20".
  */
 const LIMIT = 20
+const HYBRID_EXTERNAL_TIMEOUT_MS = 1200
 
 export interface SearchWork {
   id: string
@@ -30,6 +31,16 @@ export interface SearchWork {
  */
 export function escapeLikeWildcards(term: string): string {
   return term.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
+}
+
+async function searchExternalWithinHybridBudget(
+  query: string,
+): Promise<Awaited<ReturnType<typeof searchOpenLibrary>> | null> {
+  try {
+    return await searchOpenLibrary(query, { timeoutMs: HYBRID_EXTERNAL_TIMEOUT_MS })
+  } catch {
+    return null
+  }
 }
 
 /**
@@ -221,7 +232,7 @@ export async function searchHybridWorks(
   // Run local search and Open Library in parallel to eliminate sequential latency
   const [localRes, extRespResult] = await Promise.allSettled([
     searchWorks(term, viewer),
-    searchOpenLibrary(term),
+    searchExternalWithinHybridBudget(term),
   ])
 
   const localWorks = localRes.status === 'fulfilled' ? localRes.value : []
