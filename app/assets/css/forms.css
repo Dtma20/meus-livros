@@ -142,3 +142,78 @@
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
+
+/* Tabs navigation */
+
+.tabs-nav {
+  display: inline-flex;
+  background-color: var(--card-bg);
+  padding: var(--space-1);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--input-bg);
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+  box-sizing: border-box;
+}
+
+.tabs-nav--full {
+  display: flex;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  transition: color 0.2s, background-color 0.2s;
+  box-sizing: border-box;
+}
+
+.tabs-nav--full .tab-btn {
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  text-align: center;
+  line-height: 1.25;
+}
+
+/* On a phone, equal halves wrap the longer label onto three lines. Sizing by
+   content keeps both labels at two lines at most, still filling the card. */
+@media (max-width: 600px) {
+  .tabs-nav--full .tab-btn {
+    flex: 1 1 auto;
+  }
+}
+
+.tab-btn:hover:not(.active) {
+  color: #fff;
+}
+
+.tab-btn.active {
+  background-color: var(--highlight);
+  color: #14181c;
+  font-weight: 700;
+}
+
+.tab-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-btn {
+    transition: none;
+  }
+}
+
