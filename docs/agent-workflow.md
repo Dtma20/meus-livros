@@ -14,7 +14,7 @@ worktree + branch per task
     → reviewer re-runs everything, independently
       → clean: merge into develop, delete worktree, next task in
       → findings: a correction round, then re-review
-        → attempt 3 runs at high effort, and is the last delegated one
+        → attempt 3 runs at the same model and effort, and is the last delegated one
           → still failing: the reviewer finishes it by hand
 ```
 
@@ -26,22 +26,13 @@ agent run to produce what the reviewer can write in minutes, and by then the
 reviewer has read the code closely enough to be faster than the prompt describing
 it.
 
-**The third attempt raises the effort**, and it is the one place `-high` belongs:
-run it as `gemini-3.8-flash-high`, or keep the model and pass `--effort high`.
-§3 says to reserve `-high` for something that has already failed at medium — the
-last delegated attempt is the definition of that, and one run is nowhere near the
-six concurrent `-high` runs that emptied the hourly quota.
+**Every attempt uses the same model and effort** — `openai/gpt-6-luna#xhigh` (§3).
+No medium-first, no escalation on attempt 3, no solo-task exception. The old
+medium → medium → high rule (and its 2026-09-21 solo-task exception) was retired
+with the Gemini chain on 2026-09-23.
 
-Attempt 1 at medium → attempt 2 at medium → **attempt 3 at high** → the reviewer
+Attempt 1 at xhigh → attempt 2 at xhigh → **attempt 3 at xhigh** → the reviewer
 finishes it by hand.
-
-**The exception, owner's call on 2026-09-21: a task running alone may start at
-high.** The quota argument in §3 is about *concurrency*, not about effort — what
-emptied the hourly quota was six simultaneous `-high` runs, not one. When the
-queue holds a single task and nothing else is in flight, starting at high costs
-nothing that a correction round would not cost anyway, and a correction round
-also costs the reviewer a second review. TASK-027 was launched this way. The
-medium-first default still holds the moment two or more runs overlap.
 
 Still stop and ask when a finding genuinely needs the owner's judgement: cost, a
 scope change, or an external credential.
@@ -93,52 +84,43 @@ This also removes the incentive to fake a green report, because there is no repo
 
 ## 3. Model selection
 
-Owner's policy: **Gemini first, and fall back down this chain only on quota.**
+Owner's policy (2026-09-23): **always `openai/gpt-6-luna#xhigh`. No chain, no fallback, no effort levels.**
 
 ```
-gemini-3.8-flash-medium  (agy)      ← the default
-  → quota exhausted → claude-sonnet-4-6  (agy)
-    → quota exhausted → grok-4.6  (grok, free on this machine)
-      → quota exhausted → muse-spark-1.3-contributor-free  (opencode, .env removed first)
+openai/gpt-6-luna#xhigh  (opencode)  ← the only model
 ```
 
-A **derailed** run is not an exhausted quota. Re-run the same model once before stepping down — one TASK-013 round came back with its report replaced by unrelated prose after a single one-line edit, and the model was fine on the next attempt.
+Verified 2026-09-23 via `opencode models openai --verbose`: `openai/gpt-6-luna`
+is `status: active`, `release_date: 2026-09-22`, and its `variants` map includes
+`xhigh` (`reasoningEffort: xhigh`). Reference form is `provider/model#variant`
+(see `opencode.ai/docs/models`): `openai/gpt-6-luna#xhigh`.
 
-| Model | Where | Notes |
-|---|---|---|
-| `gemini-3.8-flash-medium` | `agy --model` | **The default whenever two or more runs overlap.** `-high` burns the hourly quota far faster — six concurrent `-high` runs exhausted it mid-batch and cost three tasks their run. Backgrounds long commands and idles — mitigated by §2. Quota is per-account and resets hourly. |
-| `gemini-3.8-flash-high` | `agy --model ... --effort high` | **Attempt 3 on a task that failed twice at medium, or attempt 1 on a task running alone** (§1). The constraint was always concurrency, not effort. |
-| `claude-sonnet-4-6` | `agy --model` | Fallback. Much longer quota reset (hours). |
-| `grok-4.6` | `grok --always-approve --prompt-file` | Free on the owner's machine, and the only model in this chain whose CLI takes the prompt from a file — which sidesteps the shell-quoting damage that `-p "$(cat ...)"` does to backslashes and backticks. Logged in via grok.com. |
-| `opencode/muse-spark-1.3-contributor-free` | `opencode run --auto -m` | Last resort. **Free in exchange for Meta training on prompts and completions** — do not point it at anything sensitive. **Delete `.env` from the worktree before launching it and restore it afterwards** (see below). Strong at coding: it found the `ILIKE` wildcard escaping bug, a `UNION` duplicating rows, and a missing `UNIQUE (key, window_start)` that would have made OTP rate limiting fail silently. |
+A **derailed** run is retried once on the same model — one TASK-013 round came
+back with its report replaced by unrelated prose after a single one-line edit,
+and the model was fine on the next attempt.
 
-Both CLIs need an auto-approve flag to run unattended: `--dangerously-skip-permissions` for `agy`, `--auto` for `opencode`. That is a standing grant to edit files and run commands in that worktree; the worktree is the blast radius.
+Retired: `gemini-3.8-flash-medium/high` (`agy`), `claude-sonnet-4-6` (`agy`),
+`grok-4.6` (`grok`), `opencode/muse-spark-1.3-contributor-free`. No `agy`, no
+`grok`, no `--effort`, no concurrency-based model switch. History below (§5)
+still names Gemini where Gemini actually ran — that is record, not policy.
+
+`--auto` runs unattended. That is a standing grant to edit files and run
+commands in that worktree; the worktree is the blast radius.
 
 ### Invocation
 
 ```bash
-agy  --model <id> --dangerously-skip-permissions -p "$(cat prompt.md)"
-grok --always-approve --prompt-file prompt.md
-opencode run --auto -m <id> "$(cat prompt.md)"
+opencode run --auto -m openai/gpt-6-luna#xhigh "$(cat prompt.md)"
 ```
 
-`grok`'s `--prompt-file` is the shape to prefer. Passing a long prompt through `"$(cat ...)"` runs it through the shell, and a prompt containing backslashes, backticks or `$` comes out altered — silently, and in the parts most likely to be code.
+Passing a long prompt through `"$(cat ...)"` runs it through the shell, and a
+prompt containing backslashes, backticks or `$` comes out altered — silently,
+and in the parts most likely to be code. Keep prompts in `prompt.md` and diff
+the worktree before trusting the report.
 
-### Handing a worktree to the free model
-
-The free tier is paid for with the prompt and the completion, so the credentials must not be in the tree while it runs. It never needs them — it runs no command that touches the database or the network.
-
-```bash
-mv .env "$TMPDIR/env-t0NN.bak"      # before launching opencode
-opencode run --auto -m opencode/muse-spark-1.3-contributor-free "$(cat prompt.md)"
-mv "$TMPDIR/env-t0NN.bak" .env      # before reviewing, the suite needs it
-```
-
-This narrows the exposure, it does not remove it: the main checkout's `.env` is still one `cat ../meus-livros/.env` away, and `printenv` still shows whatever the process inherited. A disposable Neon branch is the only version of this that actually holds.
-
-**Restore `.env` before reviewing.** The integration suite silently skips every database test without `DATABASE_URL` — `describe.skipIf(!process.env.DATABASE_URL)` — so a forgotten restore produces a green run that tested nothing.
-
-A run can exit **0 having done nothing** — quota exhaustion prints an error and still exits 0. Never trust the exit code. Diff the worktree against a snapshot taken before launching.
+A run can exit **0 having done nothing** — quota exhaustion prints an error and
+still exits 0. Never trust the exit code. Diff the worktree against a snapshot
+taken before launching.
 
 ---
 

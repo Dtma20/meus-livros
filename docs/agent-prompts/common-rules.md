@@ -1,6 +1,6 @@
 ## REGRAS DE EXECUÇÃO — leia primeiro, valem para toda a sessão
 
-Você roda em modo não-interativo (`agy -p` ou `opencode run`). A sessão encerra assim que você fica ocioso, e todo processo em background morre junto.
+Você roda em modo não-interativo (`opencode run -m openai/gpt-6-luna#xhigh`). A sessão encerra assim que você fica ocioso, e todo processo em background morre junto.
 
 **Você não executa verificação. O revisor executa.** Isso não é desconfiança: é a única forma de você não se perder esperando comando lento.
 
