@@ -64,50 +64,6 @@
         {{ serverError }}
       </div>
 
-      <!-- External Lookup (Open Library) -->
-      <ExternalLookup
-        :query="title"
-        :disabled="submitting"
-        :auto-lookup="autoLookup"
-        @select="handleExternalSelect"
-      />
-
-      <!-- Prompt when Open Library has different values for already-typed fields -->
-      <div v-if="pendingExternalBook" class="external-changes-prompt" role="alert">
-        <h3 class="changes-title">Dados encontrados no Open Library</h3>
-        <p class="changes-subtitle">
-          Os seguintes campos já preenchidos têm valores diferentes dos dados online:
-        </p>
-        <ul class="changes-list">
-          <li v-for="c in pendingChanges" :key="c.field">
-            <strong>{{ c.label }}:</strong> de <em>"{{ c.current }}"</em> para <em>"{{ c.incoming }}"</em>
-          </li>
-        </ul>
-        <div class="changes-actions">
-          <button
-            type="button"
-            class="btn btn-primary"
-            @click="applyExternalBook(pendingExternalBook, true)"
-          >
-            Substituir com dados online
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            @click="applyExternalBook(pendingExternalBook, false)"
-          >
-            Manter o que digitei (preencher apenas vazios)
-          </button>
-          <button
-            type="button"
-            class="btn btn-secondary"
-            @click="cancelExternalBook"
-          >
-            Cancelar
-          </button>
-        </div>
-      </div>
-
       <!-- Visible Required Fields -->
       <div class="form-section">
         <!-- Title -->
@@ -515,23 +471,20 @@
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { onMounted, ref, watch } from 'vue'
 import BookCover from '../book/BookCover.vue'
-import ExternalLookup from './ExternalLookup.vue'
 import GenrePicker from './GenrePicker.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
 import { countryCodeFor, countryLabelFor } from '~~/shared/constants/countries'
-import type { ExternalBookResult, SearchResult } from '~~/shared/schemas/search'
+import type { SearchResult } from '~~/shared/schemas/search'
 import { coverUrlSchema, publicationYearSchema, type WorkInput } from '~~/shared/schemas/work'
 
 const props = withDefaults(
   defineProps<{
     initialTitle?: string
     returnTo?: string
-    autoLookup?: boolean
   }>(),
   {
     initialTitle: '',
     returnTo: '/app/novo',
-    autoLookup: false,
   },
 )
 
@@ -552,14 +505,6 @@ const originalLanguage = ref('')
 const genreIds = ref<number[]>([])
 const seriesName = ref('')
 const seriesNumber = ref('')
-
-// Open Library fields & conflict state
-const olWorkKey = ref('')
-const olCoverId = ref<number | null>(null)
-const pendingExternalBook = ref<ExternalBookResult | null>(null)
-const pendingChanges = ref<
-  Array<{ field: string; label: string; current: string; incoming: string }>
->([])
 
 // Disclosures
 const showMoreDetails = ref(false)
@@ -739,183 +684,6 @@ watch(authorInput, (val) => {
     }
   }, 250)
 })
-// ---------------------------------------------------------------------------
-// Open Library External Lookup Integration
-// ---------------------------------------------------------------------------
-function handleExternalSelect(book: ExternalBookResult): void {
-  const changes: Array<{ field: string; label: string; current: string; incoming: string }> = []
-
-  // Check Title
-  if (title.value.trim() && title.value.trim() !== book.title.trim()) {
-    changes.push({
-      field: 'title',
-      label: 'Título',
-      current: title.value.trim(),
-      incoming: book.title.trim(),
-    })
-  }
-
-  // Check Authors
-  const incomingAuthors = book.authors
-  if (authors.value.length > 0 && incomingAuthors?.length) {
-    const currentStr = authors.value.map((a) => a.name.trim()).join(', ')
-    const incomingStr = incomingAuthors.map((a) => a.trim()).join(', ')
-    if (currentStr.toLowerCase() !== incomingStr.toLowerCase()) {
-      changes.push({
-        field: 'authors',
-        label: 'Autores',
-        current: currentStr,
-        incoming: incomingStr,
-      })
-    }
-  }
-
-  // Check First Published Year
-  if (
-    firstPublishedYear.value !== null &&
-    firstPublishedYear.value !== undefined &&
-    book.first_publish_year !== null &&
-    book.first_publish_year !== undefined &&
-    firstPublishedYear.value !== book.first_publish_year
-  ) {
-    changes.push({
-      field: 'first_published_year',
-      label: 'Ano da 1ª publicação',
-      current: String(firstPublishedYear.value),
-      incoming: String(book.first_publish_year),
-    })
-  }
-
-  // Check Original Language
-  if (
-    originalLanguage.value &&
-    book.language &&
-    originalLanguage.value.toLowerCase() !== book.language.toLowerCase()
-  ) {
-    changes.push({
-      field: 'original_language',
-      label: 'Idioma original',
-      current: originalLanguage.value,
-      incoming: book.language,
-    })
-  }
-
-  // Check Page count
-  if (
-    editionPageCount.value !== null &&
-    editionPageCount.value !== undefined &&
-    String(editionPageCount.value) !== '' &&
-    book.page_count !== null &&
-    book.page_count !== undefined &&
-    Number(editionPageCount.value) !== book.page_count
-  ) {
-    changes.push({
-      field: 'page_count',
-      label: 'Número de páginas',
-      current: String(editionPageCount.value),
-      incoming: String(book.page_count),
-    })
-  }
-
-  // Check Cover URL
-  if (
-    editionCoverUrl.value.trim() &&
-    book.cover_url &&
-    editionCoverUrl.value.trim() !== book.cover_url.trim()
-  ) {
-    changes.push({
-      field: 'cover_url',
-      label: 'URL da capa',
-      current: editionCoverUrl.value,
-      incoming: book.cover_url,
-    })
-  }
-
-  if (changes.length > 0) {
-    pendingExternalBook.value = book
-    pendingChanges.value = changes
-  } else {
-    applyExternalBook(book, false)
-  }
-}
-
-function applyExternalBook(book: ExternalBookResult, overwrite: boolean): void {
-  // Title
-  if (overwrite || !title.value.trim()) {
-    title.value = book.title
-    validateField('title')
-  }
-
-  // Authors (limit 5)
-  const incomingAuthors = book.authors
-  if (overwrite || authors.value.length === 0) {
-    if (incomingAuthors && incomingAuthors.length > 0) {
-      authors.value = incomingAuthors.slice(0, 5).map((name) => ({ name: name.trim() }))
-      delete errors.value.authors
-    }
-  }
-
-  // First published year
-  if (
-    book.first_publish_year !== null &&
-    book.first_publish_year !== undefined &&
-    (overwrite || firstPublishedYear.value === null || firstPublishedYear.value === undefined)
-  ) {
-    firstPublishedYear.value = book.first_publish_year
-    showMoreDetails.value = true
-    validateField('first_published_year')
-  }
-
-  // Original language
-  if (book.language && (overwrite || !originalLanguage.value)) {
-    originalLanguage.value = book.language
-    showMoreDetails.value = true
-  }
-
-  // Page count. Open Library reports the median across the work's editions, so
-  // it is a hint, not the page count of the edition being recorded.
-  if (
-    book.page_count !== null &&
-    book.page_count !== undefined &&
-    (overwrite || editionPageCount.value === null || editionPageCount.value === undefined)
-  ) {
-    editionPageCount.value = book.page_count
-    showEdition.value = true
-    validateField('page_count')
-  }
-
-  // Open Library work key
-  if (book.ol_work_key) {
-    olWorkKey.value = book.ol_work_key
-  }
-
-  // Cover & OL Cover ID
-  if (book.ol_cover_id) {
-    olCoverId.value = book.ol_cover_id
-    if (overwrite || !editionCoverUrl.value.trim()) {
-      editionCoverUrl.value =
-        book.cover_url || `https://covers.openlibrary.org/b/id/${book.ol_cover_id}-M.jpg`
-      previewCoverUrl.value = editionCoverUrl.value.trim()
-      showEdition.value = true
-      validateField('cover_url')
-    }
-  } else if (book.cover_url && (overwrite || !editionCoverUrl.value.trim())) {
-    editionCoverUrl.value = book.cover_url
-    previewCoverUrl.value = editionCoverUrl.value.trim()
-    showEdition.value = true
-    validateField('cover_url')
-  }
-
-  // NOTE: Genres are NEVER imported from Open Library.
-
-  pendingExternalBook.value = null
-  pendingChanges.value = []
-}
-
-function cancelExternalBook(): void {
-  pendingExternalBook.value = null
-  pendingChanges.value = []
-}
 
 // ---------------------------------------------------------------------------
 // Author country: free text resolved to ISO via shared/constants/countries.
@@ -1055,8 +823,6 @@ function saveDraft(): void {
       editionPublishedYear: editionPublishedYear.value,
       editionLanguage: editionLanguage.value,
       editionCoverUrl: editionCoverUrl.value,
-      olWorkKey: olWorkKey.value,
-      olCoverId: olCoverId.value,
     }
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
   } catch {
@@ -1117,12 +883,6 @@ function restoreDraft(): void {
       editionCoverUrl.value = draft.editionCoverUrl
       previewCoverUrl.value = typeof draft.editionCoverUrl === 'string' ? draft.editionCoverUrl.trim() : ''
     }
-    if (draft.olWorkKey !== undefined) {
-      olWorkKey.value = draft.olWorkKey
-    }
-    if (draft.olCoverId !== undefined) {
-      olCoverId.value = draft.olCoverId
-    }
   } catch {
     // Ignore corrupted drafts
   }
@@ -1154,8 +914,6 @@ watch(
     editionPublishedYear,
     editionLanguage,
     editionCoverUrl,
-    olWorkKey,
-    olCoverId,
   ],
   () => {
     saveDraft()
@@ -1203,10 +961,6 @@ async function handleSubmit(force = false): Promise<void> {
     genre_ids: genreIds.value,
   }
 
-  if (olWorkKey.value) {
-    payload.ol_work_key = olWorkKey.value
-  }
-
   if (
     firstPublishedYear.value !== null &&
     firstPublishedYear.value !== undefined &&
@@ -1233,8 +987,7 @@ async function handleSubmit(force = false): Promise<void> {
       editionPageCount.value ||
       editionPublishedYear.value ||
       editionLanguage.value ||
-      editionCoverUrl.value.trim() ||
-      olCoverId.value,
+      editionCoverUrl.value.trim(),
   )
 
   if (hasEdition) {
@@ -1247,7 +1000,6 @@ async function handleSubmit(force = false): Promise<void> {
         : null,
       language: editionLanguage.value || null,
       cover_url: editionCoverUrl.value.trim() || null,
-      ol_cover_id: olCoverId.value ? Number(olCoverId.value) : null,
     }
   }
 
@@ -1382,45 +1134,6 @@ function handleCancel(): void {
   flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: var(--space-2);
-}
-
-/* External changes resolution prompt */
-.external-changes-prompt {
-  background-color: rgba(64, 188, 244, 0.08);
-  border: 1px solid var(--highlight);
-  border-radius: var(--radius-md);
-  padding: var(--space-5);
-  margin-bottom: var(--space-6);
-}
-
-.changes-title {
-  color: var(--highlight);
-  font-size: var(--font-size-base);
-  margin: 0 0 var(--space-1) 0;
-}
-
-.changes-subtitle {
-  color: var(--text-color);
-  font-size: var(--font-size-sm);
-  margin: 0 0 var(--space-3) 0;
-}
-
-.changes-list {
-  list-style: disc;
-  padding-left: var(--space-5);
-  margin: 0 0 var(--space-4) 0;
-  color: #fff;
-  font-size: var(--font-size-sm);
-}
-
-.changes-list li {
-  margin-bottom: var(--space-1);
-}
-
-.changes-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
 }
 
 /* Form Styles */

@@ -522,7 +522,6 @@ function onWorkSelected(work: SearchResult): void {
     authors: work.authors,
     first_published_year: work.first_published_year,
     cover_url: work.cover_url,
-    ol_cover_id: work.ol_cover_id,
   }
   editionId.value = null
   editionsList.value = []

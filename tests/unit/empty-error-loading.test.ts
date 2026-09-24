@@ -163,7 +163,7 @@ describe('LoadingSkeleton.vue', () => {
 })
 
 describe('SearchBox.vue - Empty state on search miss', () => {
-  it('renders "Não encontramos esse livro." with "Adicionar à mão" as primary action and "Buscar online" as secondary', async () => {
+  it('renders "Não encontramos esse livro." with "Adicionar à mão" as action', async () => {
     // Mock global fetch to return zero works
     const originalFetch = global.fetch
     global.fetch = vi.fn().mockResolvedValue({
@@ -192,11 +192,6 @@ describe('SearchBox.vue - Empty state on search miss', () => {
     expect(primaryBtn?.textContent?.trim()).toBe('Adicionar à mão')
     expect(primaryBtn?.classList.contains('empty-btn-primary')).toBe(true)
 
-    const secondaryBtn = wrapper.find('[data-testid="search-online-lookup"]')
-    expect(secondaryBtn).not.toBeNull()
-    expect(secondaryBtn?.textContent?.trim()).toBe('Buscar online')
-    expect(secondaryBtn?.classList.contains('empty-btn-secondary')).toBe(true)
-
     wrapper.unmount()
     global.fetch = originalFetch
   })
@@ -215,7 +210,6 @@ describe('SearchBox.vue - Empty state on search miss', () => {
             first_published_year: 1899,
             cover_url: 'https://covers.openlibrary.org/b/id/647501-M.jpg',
             ol_cover_id: 647501,
-            source: 'externo',
           },
         ],
       }),

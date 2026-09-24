@@ -1,6 +1,6 @@
 import { getQuery } from 'h3'
 import { searchQuerySchema } from '../../../shared/schemas/search'
-import { recordSearchMiss, searchHybridWorks, searchWorks } from '../../services/search'
+import { recordSearchMiss, searchWorks } from '../../services/search'
 import { defineApiHandler, parseOrThrow } from '../../utils/api'
 import { getSessionUser } from '../../utils/session'
 
@@ -9,7 +9,7 @@ import { getSessionUser } from '../../utils/session'
  *
  * - No authentication required.
  * - q trimmed, 2–100 chars. Shorter → 200 { works: [] }.
- * - Hybrid search: local prioritized + Open Library automatic complement.
+ * - Local search in catalog.
  * - Zero results → fire-and-forget insert into search_misses.
  */
 export default defineApiHandler(async (event) => {
@@ -24,9 +24,7 @@ export default defineApiHandler(async (event) => {
   const user = await getSessionUser(event)
   const viewer = user ? { id: user.id } : null
 
-  const works = query.local === 'true' || query.local === '1'
-    ? await searchWorks(q, viewer)
-    : await searchHybridWorks(q, viewer)
+  const works = await searchWorks(q, viewer)
 
   if (works.length === 0) {
     recordSearchMiss(q, viewer?.id ?? null)

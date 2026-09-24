@@ -13,8 +13,6 @@ import {
   works,
 } from '../db/schema'
 import { visibleLogs, type Viewer } from './visibility'
-import { findDuplicateWork, findOrCreateAuthor } from './catalog'
-import { slugify, uniqueSlug } from '../utils/slug'
 
 export type { Viewer }
 
@@ -237,95 +235,4 @@ export async function getWorkById(id: string, viewer: Viewer): Promise<WorkWithD
   }
 
   return assembleWorkDetails(work, viewer)
-}
-
-export interface ImportExternalWorkInput {
-  ol_work_key?: string | null
-  title: string
-  authors: string[]
-  first_publish_year?: number | null
-  cover_url?: string | null
-  ol_cover_id?: number | null
-  language?: string | null
-  page_count?: number | null
-}
-
-export async function importExternalWork(
-  input: ImportExternalWorkInput,
-  userId: string,
-): Promise<{ id: string; slug: string; title: string }> {
-  const cleanTitle = input.title.trim()
-  const authorNames = input.authors.map((a) => a.trim()).filter(Boolean)
-  const authorSlugs = authorNames.map((a) => slugify(a)).filter(Boolean)
-
-  // 1. Check if work already exists by ol_work_key
-  if (input.ol_work_key) {
-    const [byKey] = await db
-      .select({ id: works.id, slug: works.slug, title: works.title })
-      .from(works)
-      .where(eq(works.ol_work_key, input.ol_work_key))
-      .limit(1)
-
-    if (byKey) {
-      return byKey
-    }
-  }
-
-  // 2. Check if work already exists by title + authors
-  if (authorSlugs.length > 0) {
-    const duplicate = await findDuplicateWork(cleanTitle, authorSlugs, db)
-    if (duplicate) {
-      return { id: duplicate.id, slug: duplicate.slug, title: duplicate.title }
-    }
-  }
-
-  // 3. Create authors
-  const authorIds: string[] = []
-  for (const name of authorNames) {
-    authorIds.push(await findOrCreateAuthor(name, userId, undefined, db))
-  }
-
-  // 4. Generate unique slug
-  const slug = await uniqueSlug(cleanTitle, async (candidate) => {
-    const [row] = await db.select({ id: works.id }).from(works).where(eq(works.slug, candidate))
-    return Boolean(row)
-  })
-
-  // 5. Create work and default edition in a transaction
-  return db.transaction(async (tx) => {
-    const [work] = await tx
-      .insert(works)
-      .values({
-        slug,
-        title: cleanTitle,
-        original_language: input.language?.toLowerCase() ?? null,
-        first_published_year: input.first_publish_year ?? null,
-        ol_work_key: input.ol_work_key ?? null,
-        created_by: userId,
-      })
-      .returning({ id: works.id, slug: works.slug, title: works.title })
-
-    if (!work) throw new Error('A obra não pôde ser criada.')
-
-    if (authorIds.length > 0) {
-      await tx
-        .insert(work_authors)
-        .values(authorIds.map((author_id, position) => ({ work_id: work.id, author_id, position })))
-        .onConflictDoNothing()
-    }
-
-    if (input.cover_url || input.ol_cover_id || input.first_publish_year || input.page_count) {
-      await tx.insert(editions).values({
-        work_id: work.id,
-        cover_url: input.cover_url ?? null,
-        ol_cover_id: input.ol_cover_id ?? null,
-        published_year: input.first_publish_year ?? null,
-        language: input.language?.toLowerCase() ?? null,
-        page_count: input.page_count ?? null,
-        created_by: userId,
-      })
-    }
-
-    return work
-  })
 }
