@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, ne, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import { db } from '../db'
 import { authors, editions, genres, reading_logs, work_authors, work_genres, works } from '../db/schema'
@@ -111,11 +111,14 @@ export async function findOrCreateAuthor(
  * A probable duplicate: identical unaccented lowercase title AND at least one
  * author in common. Title alone is not enough — different authors write books
  * with the same name.
+ *
+ * `excludeWorkId` is for updates: a work being edited always matches itself.
  */
 export async function findDuplicateWork(
   title: string,
   authorSlugs: string[],
   conn: DbOrTx = db,
+  excludeWorkId?: string,
 ): Promise<{ id: string, slug: string, title: string, cover_url?: string | null } | null> {
   if (authorSlugs.length === 0) return null
 
@@ -139,6 +142,7 @@ export async function findDuplicateWork(
       and(
         sql`f_unaccent(lower(${works.title})) = f_unaccent(lower(${title}))`,
         inArray(authors.slug, authorSlugs),
+        excludeWorkId ? ne(works.id, excludeWorkId) : undefined,
       ),
     )
     .limit(1)
@@ -440,6 +444,26 @@ export async function updateWork(
       statusCode: 404,
       data: { error: 'nao_encontrado', message: 'Obra não encontrada.' },
     })
+  }
+
+  // Same rule as createWork: renaming a work, or changing its authors, into a
+  // title-and-author pair another work already has is a duplicate. Only checked
+  // when one of those two fields is sent, so a pair forced in on create does
+  // not block every later edit of its year or series.
+  if (hasField(input, 'title') || hasField(input, 'authors')) {
+    const authorSlugs = input.authors
+      ? input.authors.map((a) => slugify(a.name)).filter(Boolean)
+      : (
+          await db
+            .select({ slug: authors.slug })
+            .from(work_authors)
+            .innerJoin(authors, eq(authors.id, work_authors.author_id))
+            .where(eq(work_authors.work_id, workId))
+        ).map((a) => a.slug)
+    const duplicate = await findDuplicateWork(input.title ?? work.title, authorSlugs, db, workId)
+    if (duplicate) {
+      throw conflict('Já existe uma obra com este título e autor.', { work: duplicate })
+    }
   }
 
   const genreIds = hasField(input, 'genre_ids') ? [...new Set(input.genre_ids ?? [])] : null

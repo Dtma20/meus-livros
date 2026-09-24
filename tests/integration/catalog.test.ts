@@ -1,3 +1,5 @@
+import { createServer, type Server } from 'node:http'
+import { createApp, createRouter, toNodeListener } from 'h3'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { coverUrlSchema } from '../../shared/schemas/work'
 
@@ -5,6 +7,16 @@ const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
 /** Every row this file creates carries this marker so cleanup can find it. */
 const MARKER = `zz-teste-catalogo-${Date.now()}`
+let isbnSeed = Date.now() % 1_000_000_000
+
+function uniqueTestIsbn13(): string {
+  const body = `979${String(isbnSeed++).padStart(9, '0')}`
+  let sum = 0
+  for (let index = 0; index < body.length; index++) {
+    sum += Number(body[index]) * (index % 2 === 0 ? 1 : 3)
+  }
+  return body + String((10 - (sum % 10)) % 10)
+}
 
 interface H3ErrorLike {
   statusCode?: number
@@ -22,6 +34,8 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
   let catalog: typeof import('../../server/services/catalog')
   let sqlOp: typeof import('drizzle-orm')
   let userId: string
+  let patchServer: Server
+  let patchUrl: string
 
   beforeAll(async () => {
     const dbModule = await import('../../server/db')
@@ -42,9 +56,25 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
 
     if (!user) throw new Error('Não foi possível criar o usuário de teste.')
     userId = user.id
+
+    const app = createApp()
+    const router = createRouter()
+    const { default: workPatch } = await import('../../server/api/works/[id].patch')
+    router.patch('/api/works/:id', workPatch)
+    app.use(router)
+    patchServer = createServer(toNodeListener(app))
+    await new Promise<void>((resolve) => {
+      patchServer.listen(0, '127.0.0.1', () => resolve())
+    })
+    const address = patchServer.address()
+    const port = typeof address === 'object' && address ? address.port : 0
+    patchUrl = `http://127.0.0.1:${port}/api/works`
   })
 
   afterAll(async () => {
+    if (patchServer) {
+      await new Promise<void>((resolve) => patchServer.close(() => resolve()))
+    }
     if (!userId) return
     // works -> editions and work_authors cascade; reading_logs is RESTRICT but
     // this file never creates one.
@@ -146,12 +176,13 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     await catalog.createEdition(work.id, { isbn: null }, userId)
     await catalog.createEdition(work.id, { isbn: null }, userId)
 
-    await catalog.createEdition(work.id, { isbn: '9788535902778' }, userId)
+    const isbn = uniqueTestIsbn13()
+    await catalog.createEdition(work.id, { isbn }, userId)
 
     let caught: unknown
     try {
-      // The same ISBN in ISBN-10 spelling: normalisation must catch it.
-      await catalog.createEdition(work.id, { isbn: '8535902775' }, userId)
+      // Repeating the same normalised ISBN must be a conflict.
+      await catalog.createEdition(work.id, { isbn }, userId)
     } catch (error) {
       caught = error
     }
@@ -170,6 +201,93 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     }
     expect(asError(caught).statusCode).toBe(404)
   })
+
+  it('returns 409 when a work update creates a title and author duplicate', async () => {
+    const author = `${MARKER} Autor duplicado na edição`
+    const first = await catalog.createWork(
+      {
+        title: `${MARKER} Título duplicado na edição`,
+        authors: [{ name: author }],
+        genre_ids: [],
+      },
+      userId,
+    )
+    const second = await catalog.createWork(
+      {
+        title: `${MARKER} Título original na edição`,
+        authors: [{ name: author }],
+        genre_ids: [],
+      },
+      userId,
+    )
+
+    let caught: unknown
+    try {
+      await catalog.updateWork(second.id, { title: `${MARKER} Título duplicado na edição` }, userId)
+    } catch (error) {
+      caught = error
+    }
+
+    expect(asError(caught).statusCode).toBe(409)
+    expect(asError(caught).data?.error).toBe('conflito')
+    expect(asError(caught).data?.work?.id).toBe(first.id)
+  })
+
+  it('normalises an invalid edition ISBN to null and allows another null ISBN', async () => {
+    const work = await catalog.createWork(
+      {
+        title: `${MARKER} Edições ISBN inválido`,
+        authors: [{ name: `${MARKER} Autor ISBN inválido` }],
+        genre_ids: [],
+      },
+      userId,
+    )
+    const first = await catalog.createEdition(work.id, { isbn: uniqueTestIsbn13() }, userId)
+    const second = await catalog.createEdition(work.id, { isbn: null }, userId)
+
+    await catalog.updateEdition(first.id, { isbn: 'não é ISBN' }, userId)
+
+    const rows = await db
+      .select({ id: schema.editions.id, isbn13: schema.editions.isbn13 })
+      .from(schema.editions)
+      .where(sqlOp.inArray(schema.editions.id, [first.id, second.id]))
+    expect(rows).toHaveLength(2)
+    expect(rows.every((row) => row.isbn13 === null)).toBe(true)
+  })
+
+  it('deletes an orphan edition without checking its creator', async () => {
+    const work = await catalog.createWork(
+      {
+        title: `${MARKER} Edição órfã`,
+        authors: [{ name: `${MARKER} Autor edição órfã` }],
+        genre_ids: [],
+        edition: { publisher: 'Editora' },
+      },
+      userId,
+    )
+    if (!work.edition) throw new Error('A edição de teste não foi criada.')
+
+    await catalog.deleteEdition(work.edition.id, '00000000-0000-4000-8000-000000000000')
+
+    const [edition] = await db
+      .select({ id: schema.editions.id })
+      .from(schema.editions)
+      .where(sqlOp.eq(schema.editions.id, work.edition.id))
+    expect(edition).toBeUndefined()
+  })
+
+  it('returns 401 for a work PATCH without a session', async () => {
+    const response = await fetch(`${patchUrl}/00000000-0000-4000-8000-000000000000`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: `${MARKER} sem sessão` }),
+      signal: AbortSignal.timeout(10_000),
+    })
+
+    expect(response.status).toBe(401)
+    const body = await response.json() as { error?: string }
+    expect(body.error).toBe('nao_autenticado')
+  }, 20_000)
 
   it('rejects genre ids that do not exist', async () => {
     let caught: unknown

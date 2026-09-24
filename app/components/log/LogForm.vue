@@ -36,6 +36,7 @@
             v-if="mode === 'create'"
             type="button"
             class="change-book-btn"
+            :disabled="submitting || deleting || creatingEdition"
             @click="changeBook"
           >
             ← Trocar livro
@@ -234,6 +235,125 @@
             <p v-else class="field-hint">
               Nenhuma outra edição cadastrada para esta obra.
             </p>
+
+            <button
+              type="button"
+              class="new-edition-toggle"
+              :aria-expanded="showNewEditionForm"
+              aria-controls="new-edition-form"
+              :disabled="submitting || deleting || creatingEdition"
+              @click="showNewEditionForm = !showNewEditionForm"
+            >
+              {{ showNewEditionForm ? '− Fechar cadastro de edição' : 'Cadastrar nova edição' }}
+            </button>
+
+            <div v-if="showNewEditionForm" id="new-edition-form" class="new-edition-form">
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="log-new-edition-isbn" class="form-label">ISBN</label>
+                  <input
+                    id="log-new-edition-isbn"
+                    v-model="newEditionIsbn"
+                    type="text"
+                    class="form-input"
+                    maxlength="40"
+                    :disabled="submitting || deleting || creatingEdition"
+                    :aria-invalid="Boolean(newEditionErrors.isbn)"
+                    :aria-describedby="newEditionErrors.isbn ? 'log-new-edition-isbn-error' : undefined"
+                  >
+                  <span v-if="newEditionErrors.isbn" id="log-new-edition-isbn-error" class="field-error" role="alert">
+                    {{ newEditionErrors.isbn }}
+                  </span>
+                </div>
+
+                <div class="form-group flex-1">
+                  <label for="log-new-edition-publisher" class="form-label">Editora</label>
+                  <input
+                    id="log-new-edition-publisher"
+                    v-model="newEditionPublisher"
+                    type="text"
+                    class="form-input"
+                    maxlength="200"
+                    :disabled="submitting || deleting || creatingEdition"
+                    :aria-invalid="Boolean(newEditionErrors.publisher)"
+                  >
+                  <span v-if="newEditionErrors.publisher" class="field-error" role="alert">{{ newEditionErrors.publisher }}</span>
+                </div>
+              </div>
+
+              <div class="form-row">
+                <div class="form-group flex-1">
+                  <label for="log-new-edition-pages" class="form-label">Páginas</label>
+                  <input
+                    id="log-new-edition-pages"
+                    v-model.number="newEditionPageCount"
+                    type="number"
+                    min="1"
+                    class="form-input"
+                    :disabled="submitting || deleting || creatingEdition"
+                    :aria-invalid="Boolean(newEditionErrors.page_count)"
+                  >
+                  <span v-if="newEditionErrors.page_count" class="field-error" role="alert">{{ newEditionErrors.page_count }}</span>
+                </div>
+
+                <div class="form-group flex-1">
+                  <label for="log-new-edition-year" class="form-label">Ano da edição</label>
+                  <input
+                    id="log-new-edition-year"
+                    v-model.number="newEditionPublishedYear"
+                    type="number"
+                    class="form-input"
+                    :disabled="submitting || deleting || creatingEdition"
+                    :aria-invalid="Boolean(newEditionErrors.published_year)"
+                  >
+                  <span v-if="newEditionErrors.published_year" class="field-error" role="alert">{{ newEditionErrors.published_year }}</span>
+                </div>
+
+                <div class="form-group flex-1">
+                  <label for="log-new-edition-language" class="form-label">Idioma</label>
+                  <select
+                    id="log-new-edition-language"
+                    v-model="newEditionLanguage"
+                    class="form-input form-select"
+                    :disabled="submitting || deleting || creatingEdition"
+                  >
+                    <option value="">Selecione o idioma...</option>
+                    <option v-for="language in LANGUAGES" :key="language.code" :value="language.code">
+                      {{ language.label }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="log-new-edition-cover" class="form-label">URL da capa</label>
+                <input
+                  id="log-new-edition-cover"
+                  v-model="newEditionCoverUrl"
+                  type="url"
+                  class="form-input"
+                  maxlength="2000"
+                  placeholder="https://exemplo.com/capa.jpg"
+                  :disabled="submitting || deleting || creatingEdition"
+                  :aria-invalid="Boolean(newEditionErrors.cover_url)"
+                  :aria-describedby="newEditionErrors.cover_url ? 'log-new-edition-cover-error' : 'log-new-edition-cover-hint'"
+                >
+                <span id="log-new-edition-cover-hint" class="field-hint">A URL precisa começar com https://.</span>
+                <span v-if="newEditionErrors.cover_url" id="log-new-edition-cover-error" class="field-error" role="alert">
+                  {{ newEditionErrors.cover_url }}
+                </span>
+              </div>
+
+              <p v-if="newEditionErrors.form" class="field-error" role="alert">{{ newEditionErrors.form }}</p>
+              <button
+                type="button"
+                class="edition-create-btn"
+                :disabled="submitting || deleting || creatingEdition"
+                @click="handleCreateEdition"
+              >
+                {{ creatingEdition ? 'Cadastrando...' : 'Salvar nova edição' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -310,8 +430,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import BookCover from '../book/BookCover.vue'
 import RatingInput from '../book/RatingInput.vue'
 import SearchBox from '../search/SearchBox.vue'
+import { LANGUAGES } from '~~/shared/constants/languages'
 import type { LogEditionView as LogEdition, LogWithDetails } from '~~/shared/schemas/log'
 import type { SearchResult } from '~~/shared/schemas/search'
+import { coverUrlSchema, editionInputSchema, type EditionInput } from '~~/shared/schemas/work'
 
 const props = withDefaults(
   defineProps<{
@@ -363,6 +485,15 @@ const showStartDate = ref(false)
 const showEditionPicker = ref(false)
 const editionsList = ref<LogEdition[]>([])
 const loadingEditions = ref(false)
+const showNewEditionForm = ref(false)
+const creatingEdition = ref(false)
+const newEditionIsbn = ref('')
+const newEditionPublisher = ref('')
+const newEditionPageCount = ref<number | null>(null)
+const newEditionPublishedYear = ref<number | null>(null)
+const newEditionLanguage = ref('')
+const newEditionCoverUrl = ref('')
+const newEditionErrors = ref<Record<string, string>>({})
 
 const submitting = ref(false)
 const deleting = ref(false)
@@ -410,25 +541,106 @@ function changeBook(): void {
 async function toggleEditionPicker(): Promise<void> {
   showEditionPicker.value = !showEditionPicker.value
   if (showEditionPicker.value && selectedWork.value && editionsList.value.length === 0) {
-    loadingEditions.value = true
-    try {
-      const res = await $fetch<{ editions: LogEdition[] }>(
-        `/api/works/${selectedWork.value.id}/editions`,
-        {
-          timeout: 15_000,
-          // ofetch retries non-payload methods once, which would make the
-          // effective wait 30s. The point here is a bound, not a retry.
-          retry: 0,
-        },
-      )
-      editionsList.value = res.editions
-    } catch {
-      // Catalog enrichment fallback. Stays silent on purpose, timeout included:
-      // errorMessage is the submit slot, and an optional edition lookup must not
-      // write there -- it would overwrite a real save error.
-    } finally {
-      loadingEditions.value = false
+    await loadEditions()
+  }
+}
+
+async function loadEditions(): Promise<void> {
+  if (!selectedWork.value) return
+  loadingEditions.value = true
+  try {
+    const res = await $fetch<{ editions: LogEdition[] }>(
+      `/api/works/${selectedWork.value.id}/editions`,
+      {
+        timeout: 15_000,
+        // ofetch retries non-payload methods once, which would make the
+        // effective wait 30s. The point here is a bound, not a retry.
+        retry: 0,
+      },
+    )
+    editionsList.value = res.editions
+  } catch {
+    // Optional edition lookup stays silent and must not overwrite a save error.
+  } finally {
+    loadingEditions.value = false
+  }
+}
+
+function validateNewEdition(): boolean {
+  const payload: EditionInput = {
+    isbn: newEditionIsbn.value.trim() || null,
+    publisher: newEditionPublisher.value.trim() || null,
+    page_count: newEditionPageCount.value === null ? null : Number(newEditionPageCount.value),
+    published_year: newEditionPublishedYear.value === null ? null : Number(newEditionPublishedYear.value),
+    language: newEditionLanguage.value || null,
+    cover_url: newEditionCoverUrl.value.trim() || null,
+    ol_cover_id: null,
+  }
+  const parsed = editionInputSchema.safeParse(payload)
+  const errors: Record<string, string> = {}
+  if (!parsed.success) {
+    for (const issue of parsed.error.issues) {
+      const field = String(issue.path[0] ?? 'form')
+      if (!errors[field]) errors[field] = issue.message
     }
+  }
+  if (newEditionCoverUrl.value.trim()) {
+    const coverResult = coverUrlSchema.safeParse(newEditionCoverUrl.value.trim())
+    if (!coverResult.success) {
+      errors.cover_url = coverResult.error.issues[0]?.message ?? 'A URL da capa precisa começar com https://'
+    }
+  }
+  newEditionErrors.value = errors
+  return Object.keys(errors).length === 0
+}
+
+function clearNewEditionForm(): void {
+  newEditionIsbn.value = ''
+  newEditionPublisher.value = ''
+  newEditionPageCount.value = null
+  newEditionPublishedYear.value = null
+  newEditionLanguage.value = ''
+  newEditionCoverUrl.value = ''
+  newEditionErrors.value = {}
+}
+
+async function handleCreateEdition(): Promise<void> {
+  if (!selectedWork.value || !validateNewEdition()) return
+  creatingEdition.value = true
+
+  const payload: EditionInput = {
+    isbn: newEditionIsbn.value.trim() || null,
+    publisher: newEditionPublisher.value.trim() || null,
+    page_count: newEditionPageCount.value === null ? null : Number(newEditionPageCount.value),
+    published_year: newEditionPublishedYear.value === null ? null : Number(newEditionPublishedYear.value),
+    language: newEditionLanguage.value || null,
+    cover_url: newEditionCoverUrl.value.trim() || null,
+    ol_cover_id: null,
+  }
+
+  try {
+    const result = await $fetch<{ id: string }>(`/api/works/${selectedWork.value.id}/editions`, {
+      method: 'POST',
+      timeout: 15_000,
+      retry: 0,
+      body: payload,
+    })
+    await loadEditions()
+    editionId.value = result.id
+    clearNewEditionForm()
+    showNewEditionForm.value = false
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      newEditionErrors.value = { form: TIMEOUT_MESSAGE }
+      return
+    }
+    const fetchErr = err as { data?: { message?: string } }
+    // Keep typed values on every failure, especially duplicate ISBN (409).
+    newEditionErrors.value = {
+      form: fetchErr.data?.message ?? 'Não foi possível cadastrar a edição.',
+    }
+  } finally {
+    creatingEdition.value = false
   }
 }
 
@@ -578,6 +790,7 @@ async function handleSubmit(): Promise<void> {
         // `submitting` stuck true, and the button reading "Salvando..." forever
         // with no error and no way out but a reload. Observed in the wild.
         timeout: 15_000,
+        retry: 0,
         body: payload,
       })
       void navigateTo(`/entrada/${props.initialLog.id}`)
@@ -585,6 +798,7 @@ async function handleSubmit(): Promise<void> {
       const res = await $fetch<{ id: string }>('/api/logs', {
         method: 'POST',
         timeout: 15_000,
+        retry: 0,
         body: payload,
       })
       clearDraft()
@@ -616,6 +830,7 @@ async function handleDelete(): Promise<void> {
     await $fetch(`/api/logs/${props.initialLog.id}`, {
       method: 'DELETE',
       timeout: 15_000,
+      retry: 0,
     })
     const dest = props.initialLog.user?.handle ? `/@${props.initialLog.user.handle}` : '/'
     void navigateTo(dest)
@@ -865,6 +1080,64 @@ async function handleDelete(): Promise<void> {
   border-radius: var(--radius-sm);
   padding: var(--space-3);
   margin-top: var(--space-2);
+}
+
+.new-edition-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-2) 0;
+  color: var(--highlight);
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.new-edition-toggle:hover {
+  text-decoration: underline;
+}
+
+.new-edition-toggle:focus-visible,
+.edition-create-btn:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+
+.new-edition-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--input-bg);
+}
+
+.field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: var(--font-size-xs);
+}
+
+.edition-create-btn {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  color: #14181c;
+  background: var(--highlight);
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edition-create-btn:disabled,
+.new-edition-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .edition-options {
