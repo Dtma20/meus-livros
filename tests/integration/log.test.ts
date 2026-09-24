@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-teste-logs-${Date.now()}`
@@ -18,7 +19,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
   let schema: typeof import('../../server/db/schema')
   let logsService: typeof import('../../server/services/logs')
   let catalogService: typeof import('../../server/services/catalog')
-  let sqlOp: typeof import('drizzle-orm')
 
   let userAId: string
   let userBId: string
@@ -32,7 +32,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
     schema = await import('../../server/db/schema')
     logsService = await import('../../server/services/logs')
     catalogService = await import('../../server/services/catalog')
-    sqlOp = await import('drizzle-orm')
 
     // Create User A
     const [userA] = await db
@@ -90,17 +89,11 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
   })
 
   afterAll(async () => {
-    if (!userAId && !userBId) return
-    const userIds = [userAId, userBId].filter(Boolean)
-
-    // Delete reading logs first (RESTRICT on work_id)
-    await db.delete(schema.reading_logs).where(sqlOp.inArray(schema.reading_logs.user_id, userIds))
-    // Delete editions and works
-    await db.delete(schema.editions).where(sqlOp.inArray(schema.editions.created_by, userIds))
-    await db.delete(schema.works).where(sqlOp.inArray(schema.works.created_by, userIds))
-    await db.delete(schema.authors).where(sqlOp.inArray(schema.authors.created_by, userIds))
-    await db.delete(schema.users).where(sqlOp.inArray(schema.users.id, userIds))
-    await client.end()
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
+    }
   })
 
   it('a valid log is created and read back', async () => {

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { livroJsonSchema, type LivroJson } from '../../shared/schemas/export-import'
+import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-transfer-${Date.now()}`
@@ -38,34 +39,9 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
 
   afterAll(async () => {
     try {
-      const userIds = [testUserId, roundtripUserId].filter((id): id is string => Boolean(id))
-      if (userIds.length > 0) {
-        // Derivar tudo a partir de created_by / user_id: a limpeza não depende
-        // de IDs coletados no meio do teste, então vale mesmo se o it falhar.
-        await db
-          .delete(schema.reading_logs)
-          .where(sqlOp.inArray(schema.reading_logs.user_id, userIds))
-
-        await db
-          .delete(schema.editions)
-          .where(sqlOp.inArray(schema.editions.created_by, userIds))
-
-        await db
-          .delete(schema.works)
-          .where(sqlOp.inArray(schema.works.created_by, userIds))
-
-        await db
-          .delete(schema.authors)
-          .where(sqlOp.inArray(schema.authors.created_by, userIds))
-
-        await db
-          .delete(schema.users)
-          .where(sqlOp.inArray(schema.users.id, userIds))
-      }
+      await removeFixtures(MARKER)
     } finally {
-      if (client) {
-        await client.end()
-      }
+      await client?.end()
     }
   })
 

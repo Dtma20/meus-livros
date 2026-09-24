@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
@@ -55,13 +56,14 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
   })
 
   afterAll(async () => {
-    for (const id of [ownerId, otherId]) {
-      if (!id) continue
-      await db.delete(schema.works).where(sqlOp.eq(schema.works.created_by, id))
-      await db.delete(schema.authors).where(sqlOp.eq(schema.authors.created_by, id))
-      await db.delete(schema.users).where(sqlOp.eq(schema.users.id, id))
+    // One pass for both users. The old per-user loop deleted the owner before
+    // the works the other user had edited were gone, and a log left by a
+    // failed test below made the works delete throw and skip the rest.
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
     }
-    await client.end()
   })
 
   async function makeWork(suffix: string) {
@@ -338,9 +340,5 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
     // The log survives with its rating; it only stops naming an edition.
     expect(survivor?.id).toBe(log.id)
     expect(survivor?.edition_id).toBeNull()
-
-    // Clean up: reading_logs.work_id is RESTRICT, so afterAll cannot drop the
-    // work while this log points at it.
-    await db.delete(schema.reading_logs).where(sqlOp.eq(schema.reading_logs.id, log.id))
   })
 })

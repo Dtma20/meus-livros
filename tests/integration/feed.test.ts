@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures, trackSetup } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `t018-feed-${Date.now()}`
@@ -20,12 +21,12 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
   let publicLogCId: string
   let privateLogCId: string
 
-  const createdUserIds: string[] = []
-  const createdEmails: string[] = []
   const createdWorkIds: string[] = []
-  const createdLogIds: string[] = []
+  const setup = trackSetup()
 
-  beforeAll(async () => {
+  // No per-hook timeout: seeding twelve works through createWork has crossed
+  // 30s against Neon, and the config's hookTimeout is sized for it.
+  beforeAll(() => setup.run(async () => {
     const dbModule = await import('../../server/db')
     db = dbModule.db
     client = dbModule.client
@@ -37,7 +38,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
 
     // 1. Create User A (profile: público)
     const emailA = `${MARKER}-a@example.com`
-    createdEmails.push(emailA)
     const [userA] = await db
       .insert(schema.users)
       .values({
@@ -50,7 +50,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
 
     // 2. Create User B (profile: público, outside viewer)
     const emailB = `${MARKER}-b@example.com`
-    createdEmails.push(emailB)
     const [userB] = await db
       .insert(schema.users)
       .values({
@@ -63,7 +62,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
 
     // 3. Create User C (profile: privado)
     const emailC = `${MARKER}-c@example.com`
-    createdEmails.push(emailC)
     const [userC] = await db
       .insert(schema.users)
       .values({
@@ -81,7 +79,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
     userAId = userA.id
     userBId = userB.id
     userCId = userC.id
-    createdUserIds.push(userAId, userBId, userCId)
 
     // 4. Create works and logs for User A (12 public logs to test the 10-item cap and ordering)
     for (let i = 1; i <= 12; i++) {
@@ -111,7 +108,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
         userAId,
         { skipRateLimit: true },
       )
-      createdLogIds.push(log.id)
 
       // Adjust created_at so each subsequent log has an increasing timestamp
       const simulatedTime = new Date(Date.now() - (15 - i) * 60 * 1000)
@@ -135,7 +131,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
       { skipRateLimit: true },
     )
     privateLogAId = privLogA.id
-    createdLogIds.push(privateLogAId)
 
     // Set created_at to newest so if it leaks, it would be at the very top
     await db
@@ -157,7 +152,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
       { skipRateLimit: true },
     )
     publicLogCId = pubLogC.id
-    createdLogIds.push(publicLogCId)
 
     const privLogC = await logsService.createLog(
       {
@@ -171,28 +165,21 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
       { skipRateLimit: true },
     )
     privateLogCId = privLogC.id
-    createdLogIds.push(privateLogCId)
 
     // Set created_at to newest
     await db
       .update(schema.reading_logs)
       .set({ created_at: new Date(Date.now() + 20000) })
       .where(sqlOp.inArray(schema.reading_logs.id, [publicLogCId, privateLogCId]))
-  }, 30000)
+  }))
 
   afterAll(async () => {
-    if (createdUserIds.length === 0) return
-
-    // Clean up all created test data in reverse foreign key order
-    await db.delete(schema.reading_logs).where(sqlOp.inArray(schema.reading_logs.user_id, createdUserIds))
-    await db.delete(schema.editions).where(sqlOp.inArray(schema.editions.created_by, createdUserIds))
-    await db.delete(schema.works).where(sqlOp.inArray(schema.works.created_by, createdUserIds))
-    await db.delete(schema.authors).where(sqlOp.inArray(schema.authors.created_by, createdUserIds))
-    await db.delete(schema.users).where(sqlOp.inArray(schema.users.id, createdUserIds))
-    if (createdEmails.length > 0) {
-      await db.delete(schema.allowed_emails).where(sqlOp.inArray(schema.allowed_emails.email, createdEmails))
+    await setup.settled()
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
     }
-    await client.end()
   })
 
   it('1. Authenticated: returns at most 10 entries, newest first', async () => {

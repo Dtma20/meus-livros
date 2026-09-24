@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures } from './fixtures'
 
 describe('Route integration HTTP tests', () => {
   let child: ChildProcess
@@ -59,18 +60,14 @@ describe('Route integration HTTP tests', () => {
   }, 120000)
 
   afterAll(async () => {
-    if (realWork) {
-      const dbModule = await import('../../server/db')
-      const schemaModule = await import('../../server/db/schema')
-      const sqlOp = await import('drizzle-orm')
-      // No reading_logs point at it, so nothing blocks the delete; editions and
-      // work_authors would cascade if this file ever grew them.
-      await dbModule.db
-        .delete(schemaModule.works)
-        .where(sqlOp.eq(schemaModule.works.id, realWork.id))
-    }
-    if (child) {
-      child.kill()
+    try {
+      // By marker, so a work inserted by a setup that failed afterwards is
+      // still found.
+      await removeFixtures(workMarker)
+    } finally {
+      if (child) {
+        child.kill()
+      }
     }
   })
 

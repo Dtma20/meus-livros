@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { isError } from 'h3'
 import type { ReadingBlockInput, UpdateReadingBlockInput } from '../../shared/schemas/reading-block'
+import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-reading-blocks-auth-${Date.now()}`
@@ -9,7 +10,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading blocks authorization integration tests
   let db: typeof import('../../server/db')['db']
   let client: typeof import('../../server/db')['client']
   let schema: typeof import('../../server/db/schema')
-  let sqlOp: typeof import('drizzle-orm')
   let catalogService: typeof import('../../server/services/catalog')
   let logsService: typeof import('../../server/services/logs')
   let readingBlocksService: typeof import('../../server/services/reading-blocks')
@@ -24,7 +24,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading blocks authorization integration tests
     db = dbModule.db
     client = dbModule.client
     schema = await import('../../server/db/schema')
-    sqlOp = await import('drizzle-orm')
     catalogService = await import('../../server/services/catalog')
     logsService = await import('../../server/services/logs')
     readingBlocksService = await import('../../server/services/reading-blocks')
@@ -64,18 +63,14 @@ describe.skipIf(!hasDatabaseUrl)('Reading blocks authorization integration tests
     }
     const block = await readingBlocksService.createBlock(logId, userAId, blockInput)
     blockId = block.id
-  }, 30000)
+  })
 
   afterAll(async () => {
-    if (!userAId && !userBId) return
-    const userIds = [userAId, userBId].filter(Boolean)
-
-    await db.delete(schema.reading_logs).where(sqlOp.inArray(schema.reading_logs.user_id, userIds))
-    await db.delete(schema.editions).where(sqlOp.inArray(schema.editions.created_by, userIds))
-    await db.delete(schema.works).where(sqlOp.inArray(schema.works.created_by, userIds))
-    await db.delete(schema.authors).where(sqlOp.inArray(schema.authors.created_by, userIds))
-    await db.delete(schema.users).where(sqlOp.inArray(schema.users.id, userIds))
-    await client.end()
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
+    }
   })
 
   async function captureBody(action: () => Promise<unknown>): Promise<unknown> {

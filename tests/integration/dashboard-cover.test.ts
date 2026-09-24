@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-dashboard-cover-${Date.now()}`
@@ -7,7 +8,6 @@ describe.skipIf(!hasDatabaseUrl)('Dashboard cover fallback integration tests', (
   let db: typeof import('../../server/db')['db']
   let client: typeof import('../../server/db')['client']
   let schema: typeof import('../../server/db/schema')
-  let sqlOp: typeof import('drizzle-orm')
   let dashboardService: typeof import('../../server/services/dashboard')
 
   let testUserId: string
@@ -17,7 +17,6 @@ describe.skipIf(!hasDatabaseUrl)('Dashboard cover fallback integration tests', (
     db = dbModule.db
     client = dbModule.client
     schema = await import('../../server/db/schema')
-    sqlOp = await import('drizzle-orm')
     dashboardService = await import('../../server/services/dashboard')
 
     const [user] = await db
@@ -57,31 +56,13 @@ describe.skipIf(!hasDatabaseUrl)('Dashboard cover fallback integration tests', (
       work_id: work.id,
       visibility: 'publico',
     })
-  }, 30000)
+  })
 
   afterAll(async () => {
     try {
-      if (testUserId) {
-        await db
-          .delete(schema.reading_logs)
-          .where(sqlOp.eq(schema.reading_logs.user_id, testUserId))
-
-        await db
-          .delete(schema.editions)
-          .where(sqlOp.eq(schema.editions.created_by, testUserId))
-
-        await db
-          .delete(schema.works)
-          .where(sqlOp.eq(schema.works.created_by, testUserId))
-
-        await db
-          .delete(schema.users)
-          .where(sqlOp.eq(schema.users.id, testUserId))
-      }
+      await removeFixtures(MARKER)
     } finally {
-      if (client) {
-        await client.end()
-      }
+      await client?.end()
     }
   })
 

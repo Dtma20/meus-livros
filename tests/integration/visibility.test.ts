@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures, trackSetup } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-vis-${Date.now()}`
@@ -30,10 +31,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
   let logA1PrivateId: string
   let logC1PublicId: string
 
-  const createdUserIds: string[] = []
-  const createdEmails: string[] = []
+  const setup = trackSetup()
 
-  beforeAll(async () => {
+  beforeAll(() => setup.run(async () => {
     const dbModule = await import('../../server/db')
     db = dbModule.db
     client = dbModule.client
@@ -46,7 +46,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
 
     // Create User A (profile_visibility = 'publico')
     const emailA = `${MARKER}-a@example.com`
-    createdEmails.push(emailA)
     const rnd = Math.random().toString(36).slice(2, 8)
     const [userA] = await db
       .insert(schema.users)
@@ -60,7 +59,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
 
     // Create User B (profile_visibility = 'publico')
     const emailB = `${MARKER}-b@example.com`
-    createdEmails.push(emailB)
     const [userB] = await db
       .insert(schema.users)
       .values({
@@ -73,7 +71,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
 
     // Create User C (profile_visibility = 'privado')
     const emailC = `${MARKER}-c@example.com`
-    createdEmails.push(emailC)
     const [userC] = await db
       .insert(schema.users)
       .values({
@@ -91,7 +88,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
     userAId = userA.id
     userBId = userB.id
     userCId = userC.id
-    createdUserIds.push(userAId, userBId, userCId)
 
     // Create a common Work for visibility testing
     const createdWork = await catalogService.createWork(
@@ -165,21 +161,15 @@ describe.skipIf(!hasDatabaseUrl)('TASK-017 — Visibility enforcement and tests'
       userCId,
       { skipRateLimit: true },
     )
-  }, 30000)
+  }))
 
   afterAll(async () => {
-    if (createdUserIds.length === 0) return
-
-    // Clean up in reverse dependency order
-    await db.delete(schema.reading_logs).where(sqlOp.inArray(schema.reading_logs.user_id, createdUserIds))
-    await db.delete(schema.editions).where(sqlOp.inArray(schema.editions.created_by, createdUserIds))
-    await db.delete(schema.works).where(sqlOp.inArray(schema.works.created_by, createdUserIds))
-    await db.delete(schema.authors).where(sqlOp.inArray(schema.authors.created_by, createdUserIds))
-    await db.delete(schema.users).where(sqlOp.inArray(schema.users.id, createdUserIds))
-    if (createdEmails.length > 0) {
-      await db.delete(schema.allowed_emails).where(sqlOp.inArray(schema.allowed_emails.email, createdEmails))
+    await setup.settled()
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
     }
-    await client.end()
   })
 
   // ---------------------------------------------------------------------------

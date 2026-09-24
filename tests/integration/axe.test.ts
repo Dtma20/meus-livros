@@ -4,6 +4,7 @@ import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import axe from 'axe-core'
+import { removeFixtures } from './fixtures'
 
 function httpGet(url: string): Promise<{ status: number, body: string }> {
   return new Promise((resolve, reject) => {
@@ -20,7 +21,6 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
   let child: ChildProcess
   let baseUrl: string
   let entryPath: string | null = null
-  let tempEntryLogId: string | null = null
   // Seeded by this file and dropped in afterAll: see routes.test.ts for why the
   // literal slug `1984` — and reading whatever work happened to be there —
   // both made this depend on something other than the page under test.
@@ -107,7 +107,6 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
 
           if (created) {
             entryPath = `/entrada/${created.id}`
-            tempEntryLogId = created.id
           }
         }
       }
@@ -115,25 +114,15 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
   }, 120000)
 
   afterAll(async () => {
-    if (tempEntryLogId) {
-      const dbModule = await import('../../server/db')
-      const schemaModule = await import('../../server/db/schema')
-      const sqlOp = await import('drizzle-orm')
-      await dbModule.db
-        .delete(schemaModule.reading_logs)
-        .where(sqlOp.eq(schemaModule.reading_logs.id, tempEntryLogId))
-    }
-    if (seededWorkId) {
-      const dbModule = await import('../../server/db')
-      const schemaModule = await import('../../server/db/schema')
-      const sqlOp = await import('drizzle-orm')
-      // After the log above, because reading_logs.work_id is RESTRICT.
-      await dbModule.db
-        .delete(schemaModule.works)
-        .where(sqlOp.eq(schemaModule.works.id, seededWorkId))
-    }
-    if (child) {
-      child.kill()
+    try {
+      // Finds the seeded work by its marker, and the log on it first
+      // (reading_logs.work_id is RESTRICT), even if setup stopped before
+      // recording either id.
+      await removeFixtures(workMarker)
+    } finally {
+      if (child) {
+        child.kill()
+      }
     }
   })
 
