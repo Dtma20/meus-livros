@@ -3,7 +3,7 @@
     <div class="log-page-card">
       <h1 class="page-title">Editar registro</h1>
       <p class="page-desc">
-        Atualize os dados da sua leitura ou exclua a entrada.
+        Atualize sua leitura ou corrija as informações do livro.
       </p>
 
       <div v-if="pending" class="loading-state">
@@ -16,80 +16,117 @@
       </div>
 
       <template v-else>
-        <LogForm
-          :key="logFormKey"
-          mode="edit"
-          :initial-log="log"
-        />
-
-        <div v-if="workError && !work" class="book-data-state">
-          <p class="error-text">Não foi possível carregar os dados do livro.</p>
+        <div class="tabs-nav tabs-nav--full" role="tablist">
+          <button
+            id="tab-registro"
+            type="button"
+            role="tab"
+            class="tab-btn"
+            :class="{ active: activeTab === 'registro' }"
+            :aria-selected="activeTab === 'registro'"
+            aria-controls="panel-registro"
+            @click="activeTab = 'registro'"
+          >
+            Editar registro
+          </button>
+          <button
+            id="tab-livro"
+            type="button"
+            role="tab"
+            class="tab-btn"
+            :class="{ active: activeTab === 'livro' }"
+            :aria-selected="activeTab === 'livro'"
+            aria-controls="panel-livro"
+            @click="activeTab = 'livro'"
+          >
+            Editar informações do livro
+          </button>
         </div>
 
-        <div v-else-if="!work" class="book-data-state">
-          <p>Carregando dados do livro…</p>
+        <div
+          id="panel-registro"
+          role="tabpanel"
+          aria-labelledby="tab-registro"
+          v-show="activeTab === 'registro'"
+        >
+          <LogForm
+            :key="logFormKey"
+            mode="edit"
+            :initial-log="log"
+          />
         </div>
 
-        <div v-else class="book-details-section">
-          <p v-if="reloadError" class="error-text" role="alert">{{ reloadError }}</p>
+        <div
+          id="panel-livro"
+          role="tabpanel"
+          aria-labelledby="tab-livro"
+          v-show="activeTab === 'livro'"
+          class="book-panel"
+        >
           <p class="book-edit-warning">
-            Salve a leitura antes de alterar os dados do livro — alterações não salvas da leitura são descartadas.
+            Salvar aqui recarrega a aba "Editar registro" — alterações não salvas da leitura são descartadas.
           </p>
 
-          <details class="book-details">
-            <summary class="book-details-summary">Dados do livro</summary>
+          <p v-if="reloadError" class="error-text" role="alert">{{ reloadError }}</p>
 
-            <div class="book-details-content">
-              <p class="book-shared-desc">
-                O catálogo é compartilhado: qualquer pessoa do grupo pode corrigir este livro, e fica
-                registrado quem alterou por último.
+          <div v-if="workError && !work" class="book-data-state">
+            <p class="error-text">Não foi possível carregar os dados do livro.</p>
+          </div>
+
+          <div v-else-if="!work" class="book-data-state">
+            <p>Carregando dados do livro…</p>
+          </div>
+
+          <template v-else>
+            <p class="book-shared-desc">
+              O catálogo é compartilhado: qualquer pessoa do grupo pode corrigir este livro, e fica
+              registrado quem alterou por último.
+            </p>
+
+            <section class="edit-section">
+              <WorkEditForm :work="work" @saved="refreshAll" />
+            </section>
+
+            <section class="edit-section">
+              <h2 class="section-title">Edições</h2>
+              <p class="section-desc">
+                Uma edição guarda ISBN, editora, páginas e capa. Um livro pode não ter nenhuma — escolher
+                a edição é opcional.
               </p>
 
-              <section class="edit-section">
-                <WorkEditForm :work="work" @saved="refreshAll" />
-              </section>
-
-              <section class="edit-section">
-                <h2 class="section-title">Edições</h2>
-                <p class="section-desc">
-                  Uma edição guarda ISBN, editora, páginas e capa. Um livro pode não ter nenhuma — escolher
-                  a edição é opcional.
-                </p>
-
-                <div v-if="work.editions.length > 0" class="editions-list">
-                  <EditionEditor
-                    v-for="edition in work.editions"
-                    :key="edition.id"
-                    :work-id="work.id"
-                    :work-title="work.title"
-                    :edition="edition"
-                    @saved="refreshAll"
-                    @deleted="refreshAll"
-                  />
-                </div>
-
-                <p v-else class="empty-note">Nenhuma edição cadastrada ainda.</p>
-
+              <div v-if="work.editions.length > 0" class="editions-list">
                 <EditionEditor
-                  v-if="addingEdition"
+                  v-for="edition in work.editions"
+                  :key="edition.id"
                   :work-id="work.id"
                   :work-title="work.title"
-                  :edition="null"
-                  @saved="onEditionAdded"
-                  @cancel="addingEdition = false"
+                  :edition="edition"
+                  @saved="refreshAll"
+                  @deleted="refreshAll"
                 />
+              </div>
 
-                <button
-                  v-else
-                  type="button"
-                  class="btn btn-secondary"
-                  @click="addingEdition = true"
-                >
-                  Adicionar edição
-                </button>
-              </section>
-            </div>
-          </details>
+              <p v-else class="empty-note">Nenhuma edição cadastrada ainda.</p>
+
+              <EditionEditor
+                v-if="addingEdition"
+                :work-id="work.id"
+                :work-title="work.title"
+                :edition="null"
+                @saved="onEditionAdded"
+                @cancel="addingEdition = false"
+              />
+
+              <button
+                v-else
+                type="button"
+                class="btn btn-secondary"
+                @click="addingEdition = true"
+              >
+                Adicionar edição
+              </button>
+            </section>
+          </template>
         </div>
       </template>
     </div>
@@ -115,6 +152,7 @@ const id = computed(() => route.params.id as string)
 
 const logFormKey = ref(0)
 const addingEdition = ref(false)
+const activeTab = ref<'registro' | 'livro'>('registro')
 
 // Not awaited: a top-level await makes <script setup> async, the page needs a
 // Suspense boundary to render at all, and the `v-if="pending"` branch below
@@ -256,6 +294,12 @@ useSeoMeta({
   text-decoration: underline;
 }
 
+.book-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
 .book-data-state {
   padding: var(--space-4) 0;
   color: var(--text-color);
@@ -263,47 +307,11 @@ useSeoMeta({
   text-align: center;
 }
 
-.book-details-section {
-  margin-top: var(--space-8);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--input-bg);
-}
-
 .book-edit-warning {
   color: var(--text-color);
   font-size: var(--font-size-sm);
-  margin: 0 0 var(--space-4) 0;
+  margin: 0;
   line-height: var(--line-height-normal);
-}
-
-.book-details {
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  background-color: var(--bg-color);
-}
-
-.book-details-summary {
-  font-family: var(--font-serif);
-  font-size: var(--font-size-xl);
-  color: #fff;
-  cursor: pointer;
-  padding: var(--space-1) 0;
-}
-
-.book-details-summary:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
-}
-
-.book-details-content {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--input-bg);
 }
 
 .book-shared-desc,
