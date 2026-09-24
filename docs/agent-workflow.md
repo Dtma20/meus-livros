@@ -282,10 +282,16 @@ because every one of them looked fine in a diff.
   The database holds the real 86-book corpus and other test files create rows in
   parallel workers. Scope every assertion to the rows the test created. This
   broke the migration suite the moment the auth suite landed beside it.
-- **Delete `reading_logs` before `works` in cleanup.** A partial setup leaves an
-  id out of the user list, the works delete dies on the foreign key, and the
-  whole fixture stays in the database. That happened, and the rows were found by
-  querying afterwards, not by reading the test.
+- **Clean up integration fixtures with `removeFixtures(MARKER)`** from
+  `tests/integration/fixtures.ts`, never a hand-written chain of deletes. Put the
+  suite's marker in every email, title, slug and author name it creates. The
+  helper finds rows by that marker rather than by collected ids, deletes
+  `reading_logs` before `works` (RESTRICT) and users last, all in one
+  transaction. Hand-written chains left 31 works, 3 logs and 10 users in the real
+  database: a partial setup left ids uncollected, a stray log made the works
+  delete throw and skip everything after it, and users deleted first turned
+  `created_by` NULL. Wrap a seeding `beforeAll` in `trackSetup()` so a timed-out
+  setup cannot keep inserting after `afterAll` has cleaned.
 - **Integration tests need an explicit timeout**, 20–30s. They make several
   round-trips to a remote Postgres and the 5s default measures Neon's latency on
   the night the suite runs, failing a different test each time.

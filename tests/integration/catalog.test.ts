@@ -2,6 +2,7 @@ import { createServer, type Server } from 'node:http'
 import { createApp, createRouter, toNodeListener } from 'h3'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { coverUrlSchema } from '../../shared/schemas/work'
+import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
@@ -75,13 +76,11 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     if (patchServer) {
       await new Promise<void>((resolve) => patchServer.close(() => resolve()))
     }
-    if (!userId) return
-    // works -> editions and work_authors cascade; reading_logs is RESTRICT but
-    // this file never creates one.
-    await db.delete(schema.works).where(sqlOp.eq(schema.works.created_by, userId))
-    await db.delete(schema.authors).where(sqlOp.eq(schema.authors.created_by, userId))
-    await db.delete(schema.users).where(sqlOp.eq(schema.users.id, userId))
-    await client.end()
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
+    }
   })
 
   it('creates a work with a negative first_published_year and reads it back', async () => {

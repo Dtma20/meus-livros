@@ -1,8 +1,8 @@
-import { inArray, sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { ref } from 'vue'
 import { useBookFilters } from '../../app/composables/useBookFilters'
 import { aggregateReadingMapData } from '../../app/utils/reading-map'
+import { removeFixtures, trackSetup } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `t025-${Date.now()}`
@@ -13,11 +13,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
   let profilesService: typeof import('../../server/services/profiles')
   let catalogService: typeof import('../../server/services/catalog')
 
-  const createdUserIds: string[] = []
-  const createdEmails: string[] = []
-  const createdWorkIds: string[] = []
-  const createdEditionIds: string[] = []
-  const createdAuthorIds: string[] = []
+  const setup = trackSetup()
 
   let ownerId: string
   let ownerHandle: string
@@ -26,7 +22,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
   let jpWorkTitle: string
   let ancientRomeWorkTitle: string
 
-  beforeAll(async () => {
+  beforeAll(() => setup.run(async () => {
     const dbModule = await import('../../server/db')
     db = dbModule.db
     schema = await import('../../server/db/schema')
@@ -36,7 +32,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
     // 1. Create a user with a public profile
     const email = `${MARKER}@example.com`
     ownerHandle = `mapuser_${Date.now() % 10000000}`
-    createdEmails.push(email)
 
     const [user] = await db
       .insert(schema.users)
@@ -50,7 +45,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
       .returning({ id: schema.users.id })
 
     ownerId = user!.id
-    createdUserIds.push(ownerId)
 
     // 2. Create Work 1: Brazil (public log)
     brWorkTitle = `${MARKER} Dom Casmurro`
@@ -73,13 +67,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
       ownerId,
       { skipRateLimit: true },
     )
-    createdWorkIds.push(brWork.id)
-    if (brWork.edition?.id) createdEditionIds.push(brWork.edition.id)
-    const brAuthors = await db
-      .select({ author_id: schema.work_authors.author_id })
-      .from(schema.work_authors)
-      .where(sql`${schema.work_authors.work_id} = ${brWork.id}`)
-    for (const a of brAuthors) createdAuthorIds.push(a.author_id)
 
     await db.insert(schema.reading_logs).values({
       user_id: ownerId,
@@ -114,13 +101,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
       ownerId,
       { skipRateLimit: true },
     )
-    createdWorkIds.push(jpWork.id)
-    if (jpWork.edition?.id) createdEditionIds.push(jpWork.edition.id)
-    const jpAuthors = await db
-      .select({ author_id: schema.work_authors.author_id })
-      .from(schema.work_authors)
-      .where(sql`${schema.work_authors.work_id} = ${jpWork.id}`)
-    for (const a of jpAuthors) createdAuthorIds.push(a.author_id)
 
     await db.insert(schema.reading_logs).values({
       user_id: ownerId,
@@ -155,13 +135,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
       ownerId,
       { skipRateLimit: true },
     )
-    createdWorkIds.push(romeWork.id)
-    if (romeWork.edition?.id) createdEditionIds.push(romeWork.edition.id)
-    const romeAuthors = await db
-      .select({ author_id: schema.work_authors.author_id })
-      .from(schema.work_authors)
-      .where(sql`${schema.work_authors.work_id} = ${romeWork.id}`)
-    for (const a of romeAuthors) createdAuthorIds.push(a.author_id)
 
     await db.insert(schema.reading_logs).values({
       user_id: ownerId,
@@ -174,49 +147,12 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
       format: 'fisico',
       visibility: 'publico',
     })
-  }, 30000)
+  }))
 
   afterAll(async () => {
-    // 1. Delete reading logs
-    if (createdUserIds.length > 0) {
-      await db
-        .delete(schema.reading_logs)
-        .where(inArray(schema.reading_logs.user_id, createdUserIds))
-    }
-
-    // 2. Delete works and relations
-    if (createdWorkIds.length > 0) {
-      await db
-        .delete(schema.reading_logs)
-        .where(inArray(schema.reading_logs.work_id, createdWorkIds))
-      await db
-        .delete(schema.work_authors)
-        .where(inArray(schema.work_authors.work_id, createdWorkIds))
-      await db
-        .delete(schema.work_genres)
-        .where(inArray(schema.work_genres.work_id, createdWorkIds))
-      await db
-        .delete(schema.editions)
-        .where(inArray(schema.editions.work_id, createdWorkIds))
-      await db
-        .delete(schema.works)
-        .where(inArray(schema.works.id, createdWorkIds))
-    }
-
-    // 3. Delete authors
-    if (createdAuthorIds.length > 0) {
-      await db
-        .delete(schema.authors)
-        .where(inArray(schema.authors.id, createdAuthorIds))
-    }
-
-    // 4. Delete users
-    if (createdUserIds.length > 0) {
-      await db
-        .delete(schema.users)
-        .where(inArray(schema.users.id, createdUserIds))
-    }
-  }, 30000)
+    await setup.settled()
+    await removeFixtures(MARKER)
+  })
 
   it('map reflects only visible logs: private entry country does not appear to a stranger (Requirement 3)', async () => {
     // Stranger view (viewer === null)

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { formatPublicationYear } from '../../shared/schemas/work'
+import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-teste-work-${Date.now()}`
@@ -20,7 +21,6 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
   let worksService: typeof import('../../server/services/works')
   let catalogService: typeof import('../../server/services/catalog')
   let logsService: typeof import('../../server/services/logs')
-  let sqlOp: typeof import('drizzle-orm')
 
   let userAId: string
   let userBId: string
@@ -38,7 +38,6 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
     worksService = await import('../../server/services/works')
     catalogService = await import('../../server/services/catalog')
     logsService = await import('../../server/services/logs')
-    sqlOp = await import('drizzle-orm')
 
     // Create User A (author of public logs)
     const [userA] = await db
@@ -148,50 +147,10 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
   })
 
   afterAll(async () => {
-    if (userAId || userBId) {
-      // Clean up reading logs for both works
-      await db
-        .delete(schema.reading_logs)
-        .where(
-          sqlOp.or(
-            sqlOp.eq(schema.reading_logs.user_id, userAId),
-            sqlOp.eq(schema.reading_logs.user_id, userBId),
-          ),
-        )
-
-      // Clean up works (cascades to editions and work_authors)
-      await db
-        .delete(schema.works)
-        .where(
-          sqlOp.or(
-            sqlOp.eq(schema.works.created_by, userAId),
-            sqlOp.eq(schema.works.created_by, userBId),
-          ),
-        )
-
-      // Clean up authors
-      await db
-        .delete(schema.authors)
-        .where(
-          sqlOp.or(
-            sqlOp.eq(schema.authors.created_by, userAId),
-            sqlOp.eq(schema.authors.created_by, userBId),
-          ),
-        )
-
-      // Clean up users
-      await db
-        .delete(schema.users)
-        .where(
-          sqlOp.or(
-            sqlOp.eq(schema.users.id, userAId),
-            sqlOp.eq(schema.users.id, userBId),
-          ),
-        )
-    }
-
-    if (client) {
-      await client.end()
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
     }
   })
 

@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
@@ -129,16 +130,11 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
   })
 
   afterAll(async () => {
-    if (!userId) return
-
-    // Delete in dependency order: search_misses → logs → works → authors → user
-    await db.delete(schema.search_misses).where(sqlOp.like(schema.search_misses.query, `${MARKER}%`))
-    await db.delete(schema.search_misses).where(sqlOp.eq(schema.search_misses.user_id, userId))
-    await db.delete(schema.reading_logs).where(sqlOp.eq(schema.reading_logs.user_id, userId))
-    await db.delete(schema.works).where(sqlOp.eq(schema.works.created_by, userId))
-    await db.delete(schema.authors).where(sqlOp.eq(schema.authors.created_by, userId))
-    await db.delete(schema.users).where(sqlOp.eq(schema.users.id, userId))
-    await client.end()
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
+    }
   })
 
   // -------------------------------------------------------------------------

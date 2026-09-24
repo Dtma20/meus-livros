@@ -1,18 +1,73 @@
+/**
+ * scripts/wipe-database.ts
+ *
+ * DESTRUCTIVE. Deletes EVERY row of works, editions, authors, reading_logs,
+ * reading_blocks, work_authors, work_genres and search_misses — real members'
+ * books and reading history included — plus every account whose email is not
+ * in REAL_EMAILS below.
+ *
+ * This is NOT a test-fixture cleanup. It was called `cleanup-db.ts`, which read
+ * like one. The integration suites clean up after themselves through
+ * `removeFixtures()` in tests/integration/fixtures.ts; if a run left rows
+ * behind, delete those by their marker instead of running this.
+ *
+ * Refuses to run unless stdin is a terminal and you type the database host
+ * name back when asked, so it cannot run from CI, a pipe or an agent.
+ *
+ * Usage:
+ *   npx tsx scripts/wipe-database.ts
+ */
 import 'dotenv/config'
+import { createInterface } from 'node:readline/promises'
 import postgres from 'postgres'
 
 const REAL_EMAILS = ['diogo.tallys16@gmail.com', 'dtma@ic.ufal.br']
 
-async function cleanup() {
+async function confirmWipe(sql: postgres.Sql, host: string): Promise<boolean> {
+  if (!process.stdin.isTTY) {
+    console.error('Recusado: este script apaga o catálogo inteiro e só roda num terminal interativo.')
+    return false
+  }
+
+  const [counts] = await sql`
+    SELECT
+      (SELECT count(*) FROM works)::int AS works,
+      (SELECT count(*) FROM reading_logs)::int AS reading_logs,
+      (SELECT count(*) FROM users)::int AS users
+  `
+  console.log('')
+  console.log('ATENÇÃO: isto NÃO é a limpeza de fixtures de teste.')
+  console.log(`Vai apagar TODAS as obras, edições, autores e leituras de ${host},`)
+  console.log('inclusive as dos membros reais, e todas as contas fora de REAL_EMAILS.')
+  console.log('Hoje o banco tem:', counts)
+  console.log('')
+
+  const prompt = createInterface({ input: process.stdin, output: process.stdout })
+  try {
+    const answer = await prompt.question(`Para confirmar, digite o host do banco (${host}): `)
+    return answer.trim() === host
+  } finally {
+    prompt.close()
+  }
+}
+
+async function wipe() {
   const connectionString = process.env.DATABASE_URL_DIRECT || process.env.DATABASE_URL
   if (!connectionString) {
     throw new Error('Nenhuma string de conexão configurada.')
   }
 
+  const host = new URL(connectionString).hostname
   const sql = postgres(connectionString, { max: 1 })
 
   try {
-    console.log('Iniciando limpeza do banco de dados...')
+    if (!(await confirmWipe(sql, host))) {
+      console.error('Nada foi apagado.')
+      process.exitCode = 1
+      return
+    }
+
+    console.log('Apagando o banco de dados...')
 
     await sql.begin(async (tx) => {
       // 1. Apagar blocos de leitura
@@ -94,7 +149,7 @@ async function cleanup() {
       console.log(`- Removidos ${delUsers.count} usuários de teste de users`)
     })
 
-    console.log('\nLimpeza concluída com sucesso!')
+    console.log('\nBanco apagado.')
 
     // Conferência final
     const remainingUsers = await sql`SELECT id, email, handle, display_name FROM users`
@@ -112,13 +167,13 @@ async function cleanup() {
         (SELECT COUNT(*) FROM editions) as editions_count,
         (SELECT COUNT(*) FROM authors) as authors_count
     `
-    console.log('Contagens após limpeza:', counts[0])
+    console.log('Contagens depois de apagar:', counts[0])
   } catch (err) {
-    console.error('Erro durante a limpeza:', err)
+    console.error('Erro ao apagar o banco:', err)
     process.exit(1)
   } finally {
     await sql.end()
   }
 }
 
-cleanup()
+wipe()
