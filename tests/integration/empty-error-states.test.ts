@@ -149,11 +149,6 @@ describe('TASK-020 Integration: Search with no results shows manual-add as prima
     expect(primaryBtn.textContent?.trim()).toBe('Adicionar à mão')
     expect(primaryBtn.classList.contains('empty-btn-primary')).toBe(true)
 
-    const secondaryBtn = container.querySelector('[data-testid="search-online-lookup"]') as HTMLElement
-    expect(secondaryBtn).not.toBeNull()
-    expect(secondaryBtn.textContent?.trim()).toBe('Buscar online')
-    expect(secondaryBtn.classList.contains('empty-btn-secondary')).toBe(true)
-
     app.unmount()
     container.remove()
     global.fetch = originalFetch

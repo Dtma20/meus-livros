@@ -1,18 +1,14 @@
 import { logger } from '../utils/logger'
-import { inArray, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { db } from '../db'
 import type { Viewer } from './visibility'
-import { search_misses, works } from '../db/schema'
-import { slugify } from '../utils/slug'
-import { searchOpenLibrary } from './open-library'
-import type { SearchResult } from '../../shared/schemas/search'
+import { search_misses } from '../db/schema'
 
 /**
  * Maximum results returned by a single search call.
  * Spec: "at most 20".
  */
 const LIMIT = 20
-const HYBRID_EXTERNAL_TIMEOUT_MS = 1200
 
 export interface SearchWork {
   id: string
@@ -31,16 +27,6 @@ export interface SearchWork {
  */
 export function escapeLikeWildcards(term: string): string {
   return term.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
-}
-
-async function searchExternalWithinHybridBudget(
-  query: string,
-): Promise<Awaited<ReturnType<typeof searchOpenLibrary>> | null> {
-  try {
-    return await searchOpenLibrary(query, { timeoutMs: HYBRID_EXTERNAL_TIMEOUT_MS })
-  } catch {
-    return null
-  }
 }
 
 /**
@@ -216,86 +202,6 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
       ? (JSON.parse(row.authors_json) as { name: string; slug: string }[])
       : (row.authors_json as { name: string; slug: string }[])),
   }))
-}
-
-/**
- * Searches the local catalogue first and seamlessly complements with Open Library
- * results, with local results prioritized at the top and deduplication applied.
- */
-export async function searchHybridWorks(
-  query: string,
-  viewer: Viewer,
-): Promise<SearchResult[]> {
-  const term = query.trim()
-  if (term.length < 2) return []
-
-  // Run local search and Open Library in parallel to eliminate sequential latency
-  const [localRes, extRespResult] = await Promise.allSettled([
-    searchWorks(term, viewer),
-    searchExternalWithinHybridBudget(term),
-  ])
-
-  const localWorks = localRes.status === 'fulfilled' ? localRes.value : []
-  const localResults: SearchResult[] = localWorks.map((w) => ({
-    id: w.id,
-    slug: w.slug,
-    title: w.title,
-    authors: w.authors,
-    first_published_year: w.first_published_year,
-    cover_url: w.cover_url,
-    log_count: w.log_count,
-    source: 'local',
-  }))
-
-  let externalResults: SearchResult[] = []
-  try {
-    const extResp = extRespResult.status === 'fulfilled' ? extRespResult.value : null
-    if (extResp?.results && extResp.results.length > 0) {
-      const localTitles = new Set(localWorks.map((w) => slugify(w.title)))
-      const localOlKeys = new Set<string>()
-
-      const extKeys = extResp.results.map((r) => r.ol_work_key).filter(Boolean)
-      if (extKeys.length > 0) {
-        const found = await db
-          .select({ ol_work_key: works.ol_work_key })
-          .from(works)
-          .where(inArray(works.ol_work_key, extKeys))
-        for (const f of found) {
-          if (f.ol_work_key) localOlKeys.add(f.ol_work_key)
-        }
-      }
-
-      externalResults = extResp.results
-        .filter((r) => {
-          if (r.ol_work_key && localOlKeys.has(r.ol_work_key)) return false
-          const titleSlug = slugify(r.title)
-          if (localTitles.has(titleSlug)) return false
-          return true
-        })
-        .slice(0, 10)
-        .map((r) => ({
-          title: r.title,
-          authors: r.authors.map((name) => ({ name, slug: slugify(name) })),
-          first_published_year: r.first_publish_year,
-          cover_url: r.cover_url,
-          ol_cover_id: r.ol_cover_id,
-          ol_work_key: r.ol_work_key,
-          language: r.language,
-          page_count: r.page_count,
-          log_count: 0,
-          source: 'externo',
-        }))
-    }
-  } catch (err) {
-    logger.warn('[search] Erro ao buscar Open Library na busca híbrida:', {
-      module: 'search',
-      source: 'external_api',
-      _rawError: err,
-      error: err as Error,
-    })
-  }
-
-  return [...localResults, ...externalResults]
 }
 
 /**

@@ -38,9 +38,9 @@
         <li
           v-for="(work, index) in results"
           :id="itemId(index)"
-          :key="work.id || work.ol_work_key || index"
+          :key="work.id || index"
           class="search-result"
-          :class="{ 'is-active': index === activeIndex, 'is-external': work.source === 'externo' }"
+          :class="{ 'is-active': index === activeIndex }"
           role="option"
           :aria-selected="index === activeIndex"
           @mousedown.prevent="selectWork(work)"
@@ -50,7 +50,6 @@
             <BookCover
               :title="work.title"
               :cover-url="work.cover_url"
-              :ol-cover-id="work.ol_cover_id"
               :alt="`Capa de ${work.title}`"
               loading="lazy"
             />
@@ -64,12 +63,6 @@
               {{ work.first_published_year }}
             </span>
           </div>
-          <span
-            class="result-badge"
-            :class="work.source === 'externo' ? 'badge-external' : 'badge-local'"
-          >
-            {{ work.source === 'externo' ? 'Open Library' : 'No acervo' }}
-          </span>
         </li>
       </template>
 
@@ -84,17 +77,9 @@
             type="button"
             class="empty-btn-primary"
             data-testid="search-add-manual"
-            @click="goToAdd('manual')"
+            @click="goToAdd()"
           >
             Adicionar à mão
-          </button>
-          <button
-            type="button"
-            class="empty-btn-secondary"
-            data-testid="search-online-lookup"
-            @click="goToAdd('online')"
-          >
-            Buscar online
           </button>
         </div>
       </li>
@@ -185,22 +170,6 @@ async function fetchResults(term: string): Promise<void> {
 
   loading.value = true
 
-  // Fast path: fetch local catalog first so existing books appear instantaneously (< 50ms)
-  fetch(`/api/search?q=${encodeURIComponent(term)}&local=true`, { signal })
-    .then(async (res) => {
-      if (!res.ok || signal.aborted) return
-      const data = (await res.json()) as { works: SearchResult[] }
-      if (signal.aborted) return
-      // If we got local results and full search hasn't settled yet, show them immediately
-      if (data.works && data.works.length > 0 && loading.value) {
-        results.value = data.works
-        searched.value = true
-        lastQuery.value = term
-      }
-    })
-    .catch(() => {})
-
-  // Full path: hybrid search (local prioritized + Open Library complement)
   try {
     const res = await fetch(
       `/api/search?q=${encodeURIComponent(term)}`,
@@ -266,7 +235,7 @@ function onKeydown(e: KeyboardEvent): void {
     if (activeIndex.value >= 0 && results.value[activeIndex.value]) {
       selectWork(results.value[activeIndex.value]!)
     } else if (results.value.length === 0 && searched.value) {
-      goToAdd('manual')
+      goToAdd()
     }
   } else if (e.key === 'Escape') {
     inputRef.value?.blur()
@@ -304,46 +273,14 @@ function onBlur(): void {
 // ---------------------------------------------------------------------------
 // Selection
 // ---------------------------------------------------------------------------
-async function selectWork(work: SearchResult): Promise<void> {
-  if (work.source === 'externo' && !work.id) {
-    loading.value = true
-    try {
-      const res = await fetch('/api/works/import-external', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ol_work_key: work.ol_work_key,
-          title: work.title,
-          authors: work.authors.map((a) => a.name),
-          first_publish_year: work.first_published_year,
-          cover_url: work.cover_url,
-          ol_cover_id: work.ol_cover_id,
-          language: work.language,
-          page_count: work.page_count ?? null,
-        }),
-      })
-      if (res.ok) {
-        const imported = (await res.json()) as { id: string; slug: string; title: string }
-        work = { ...work, id: imported.id, slug: imported.slug, source: 'local' }
-      } else {
-        goToAdd('online')
-        return
-      }
-    } catch {
-      goToAdd('online')
-      return
-    } finally {
-      loading.value = false
-    }
-  }
-
+function selectWork(work: SearchResult): void {
   emit('select', work)
   if (props.navigateOnSelect && work.slug) {
     void navigateTo(`/livro/${work.slug}`)
   }
 }
 
-function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
+function goToAdd(): void {
   const q = query.value.trim()
 
   let currentPath = ''
@@ -357,10 +294,9 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
 
   const hasRet = currentPath && currentPath !== '/app/livro/novo' && !currentPath.startsWith('/app/livro/novo?')
   const retParam = hasRet ? `&ret=${encodeURIComponent(currentPath)}` : ''
-  const onlineParam = mode === 'online' ? '&online=true' : ''
   const dest = q
-    ? `/app/livro/novo?q=${encodeURIComponent(q)}${onlineParam}${retParam}`
-    : `/app/livro/novo${onlineParam || retParam ? `?${(onlineParam + retParam).replace(/^&/, '')}` : ''}`
+    ? `/app/livro/novo?q=${encodeURIComponent(q)}${retParam}`
+    : `/app/livro/novo${retParam ? `?${retParam.replace(/^&/, '')}` : ''}`
 
   void navigateTo(dest)
 }
@@ -504,28 +440,6 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
   min-width: 0;
 }
 
-.result-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.badge-local {
-  background-color: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.badge-external {
-  background-color: rgba(168, 85, 247, 0.15);
-  color: #d8b4fe;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-
 .result-title {
   color: #fff;
   font-size: var(--font-size-sm);
@@ -589,39 +503,13 @@ function goToAdd(mode: 'manual' | 'online' = 'manual'): void {
   outline-offset: 1px;
 }
 
-.empty-btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: transparent;
-  color: var(--highlight);
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--input-bg);
-  cursor: pointer;
-  transition: border-color 0.2s, background-color 0.2s;
-}
-
-.empty-btn-secondary:hover {
-  border-color: var(--highlight);
-  background-color: var(--input-bg);
-}
-
-.empty-btn-secondary:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: 1px;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .search-spinner {
     animation-duration: 1.5s;
   }
   .search-input,
   .search-result,
-  .empty-btn-primary,
-  .empty-btn-secondary {
+  .empty-btn-primary {
     transition: none;
   }
 }

@@ -4,14 +4,13 @@
       <AddBookForm
         :initial-title="initialTitle"
         :return-to="returnTo"
-        :auto-lookup="autoLookup"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import AddBookForm from '~/components/search/AddBookForm.vue'
 
 definePageMeta({
@@ -24,17 +23,6 @@ useSeoMeta({
 })
 
 const route = useRoute()
-const router = useRouter()
-
-const autoLookup = ref(route.query.online === 'true')
-
-onMounted(() => {
-  if (autoLookup.value) {
-    const query = { ...route.query }
-    delete query.online
-    router.replace({ query })
-  }
-})
 
 const initialTitle = computed(() => {
   const q = route.query.q ?? route.query.title ?? ''
