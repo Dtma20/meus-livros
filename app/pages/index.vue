@@ -35,9 +35,11 @@
           <h1 class="dashboard-title">Minha Leitura</h1>
           <p class="dashboard-subtitle">Acompanhe seu progresso e as atividades do grupo</p>
         </div>
-        <NuxtLink to="/app/novo" class="btn-primary btn-register">
-          Registrar livro
-        </NuxtLink>
+        <div class="dashboard-header-actions">
+          <NuxtLink to="/app/novo" class="btn-primary btn-register">
+            + Cadastrar livro
+          </NuxtLink>
+        </div>
       </header>
 
       <!-- Loading state while dashboard/feed is fetching -->
@@ -143,13 +145,16 @@
           </div>
         </section>
 
-        <!-- 2. LIVROS JÁ LIDOS CAROUSEL -->
+        <!-- 2. MINHA ESTANTE SECTION -->
+        <ShelfSection :books="shelfBooks" />
+
+        <!-- 3. LIVROS JÁ LIDOS CAROUSEL -->
         <ReadingCarousel
           v-if="completedBooks.length > 0"
           :books="completedBooks"
         />
 
-        <!-- 3. FEED / ATIVIDADE DO GRUPO -->
+        <!-- 4. FEED / ATIVIDADE DO GRUPO -->
         <section class="dashboard-section feed-section">
           <div class="section-header">
             <div>
@@ -229,6 +234,7 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReadingCarousel from '~/components/dashboard/ReadingCarousel.vue'
+import ShelfSection from '~/components/dashboard/ShelfSection.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
@@ -239,12 +245,14 @@ import type {
   DashboardCompletedBook,
   DashboardInProgressBook,
   DashboardResponse,
+  DashboardShelfBook,
 } from '~~/shared/schemas/dashboard'
 
 interface HomeAsyncData {
   authenticated: boolean
   inProgress: DashboardInProgressBook[]
   completed: DashboardCompletedBook[]
+  shelf: DashboardShelfBook[]
   entries: FeedEntry[]
   hasFeedError: boolean
   redirectTo?: string
@@ -282,6 +290,7 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
       authenticated: false,
       inProgress: [],
       completed: [],
+      shelf: [],
       entries: [],
       hasFeedError: false,
     }
@@ -294,6 +303,7 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
       authenticated: false,
       inProgress: [],
       completed: [],
+      shelf: [],
       entries: [],
       hasFeedError: false,
       redirectTo: '/app/bem-vindo',
@@ -302,7 +312,7 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
 
   try {
     const [dashboard, feed] = await Promise.all([
-      requestFetch<DashboardResponse>('/api/dashboard').catch(() => ({ inProgress: [], completed: [] })),
+      requestFetch<DashboardResponse>('/api/dashboard').catch(() => ({ inProgress: [], completed: [], shelf: [] })),
       requestFetch<FeedResponse>('/api/feed/recentes').catch(() => ({ entries: [] })),
     ])
 
@@ -310,6 +320,7 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
       authenticated: true,
       inProgress: dashboard?.inProgress ?? [],
       completed: dashboard?.completed ?? [],
+      shelf: dashboard?.shelf ?? [],
       entries: feed?.entries ?? [],
       hasFeedError: false,
     }
@@ -319,6 +330,7 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
       authenticated: true,
       inProgress: [],
       completed: [],
+      shelf: [],
       entries: [],
       hasFeedError: true,
     }
@@ -336,6 +348,7 @@ if (pageData.value?.redirectTo) {
 const isAuthenticated = computed(() => Boolean(pageData.value?.authenticated))
 const inProgressBooks = computed(() => pageData.value?.inProgress ?? [])
 const completedBooks = computed(() => pageData.value?.completed ?? [])
+const shelfBooks = computed(() => pageData.value?.shelf ?? [])
 const entries = computed(() => pageData.value?.entries ?? [])
 const hasFeedError = computed(() => Boolean(pageData.value?.hasFeedError))
 
@@ -486,6 +499,36 @@ useHead({
   font-size: var(--font-size-sm);
 }
 
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--card-bg);
+  border: 1px solid var(--input-bg);
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+  white-space: nowrap;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.btn-secondary:hover {
+  color: #fff;
+  border-color: var(--highlight);
+  background-color: var(--input-bg);
+}
+
+.btn-secondary:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
 /* Authenticated dashboard */
 .dashboard-container {
   width: 100%;
@@ -499,6 +542,14 @@ useHead({
   margin-bottom: var(--space-6);
   padding-bottom: var(--space-4);
   border-bottom: 1px solid var(--input-bg);
+  flex-wrap: wrap;
+}
+
+.dashboard-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
 }
 
 .dashboard-title {

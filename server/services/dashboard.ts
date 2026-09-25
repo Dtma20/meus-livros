@@ -1,10 +1,11 @@
-import { and, desc, eq, inArray, isNotNull, isNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
 import { buildReviewExcerpt } from '../../shared/schemas/feed'
 import type {
   DashboardAuthorView,
   DashboardCompletedBook,
   DashboardInProgressBook,
   DashboardResponse,
+  DashboardShelfBook,
 } from '../../shared/schemas/dashboard'
 import { calculateReadingProgress } from '../../shared/utils/reading-progress'
 import { db } from '../db'
@@ -60,16 +61,56 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     .orderBy(desc(reading_logs.finished_on), desc(reading_logs.created_at), desc(reading_logs.id))
     .limit(50)
 
+  // 3. Shelf books: works registered by the user with no reading logs for this user
+  const shelfQuery = db
+    .select({
+      id: works.id,
+      title: works.title,
+      slug: works.slug,
+      first_published_year: works.first_published_year,
+      created_at: works.created_at,
+    })
+    .from(works)
+    .where(
+      and(
+        or(
+          eq(works.created_by, userId),
+          inArray(
+            works.id,
+            db
+              .select({ work_id: editions.work_id })
+              .from(editions)
+              .where(eq(editions.created_by, userId)),
+          ),
+        ),
+        sql`NOT EXISTS (
+          SELECT 1 FROM ${reading_logs}
+          WHERE ${reading_logs.work_id} = ${works.id}
+          AND ${reading_logs.user_id} = ${userId}
+        )`,
+      ),
+    )
+    .orderBy(desc(works.created_at), desc(works.id))
+    .limit(50)
+
   // As in getProfileData, with postgres(url, { max: 1 }) Promise.all pipelines
   // queries over the single connection rather than running them in parallel
   // server side. The gain is one fewer round trip — which is the whole cost
   // here: from Brazil a warm round trip to Neon sa-east-1 is ~45 ms and these
   // queries execute in ~0 ms.
-  const [inProgressRows, completedRows] = await Promise.all([inProgressQuery, completedQuery])
+  const [inProgressRows, completedRows, shelfRows] = await Promise.all([
+    inProgressQuery,
+    completedQuery,
+    shelfQuery,
+  ])
 
   // Collect all work IDs to batch fetch authors and first editions
   const allWorkIds = [
-    ...new Set([...inProgressRows.map((r) => r.work.id), ...completedRows.map((r) => r.work.id)]),
+    ...new Set([
+      ...inProgressRows.map((r) => r.work.id),
+      ...completedRows.map((r) => r.work.id),
+      ...shelfRows.map((r) => r.id),
+    ]),
   ]
 
   // Fetch blocks for all in-progress books to calculate progress
@@ -209,5 +250,26 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     }
   })
 
-  return { inProgress, completed }
+  const shelf: DashboardShelfBook[] = shelfRows.map((row) => {
+    const firstCover = firstCoverByWorkId.get(row.id)
+    const firstIsbn = firstIsbnByWorkId.get(row.id)
+    const firstOl = firstOlByWorkId.get(row.id)
+
+    return {
+      id: row.id,
+      work: {
+        id: row.id,
+        title: row.title,
+        slug: row.slug,
+        first_published_year: row.first_published_year,
+        cover_url: firstCover?.cover_url ?? null,
+        isbn13: firstIsbn?.isbn13 ?? null,
+        ol_cover_id: firstOl?.ol_cover_id ?? null,
+        authors: authorsByWorkId.get(row.id) ?? [],
+      },
+      created_at: row.created_at,
+    }
+  })
+
+  return { inProgress, completed, shelf }
 }

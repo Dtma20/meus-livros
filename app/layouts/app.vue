@@ -2,7 +2,7 @@
   <NuxtLayout name="default">
     <template #nav>
       <NuxtLink to="/app/novo" class="nav-link">
-        Registrar livro
+        Cadastrar livro
       </NuxtLink>
       <NuxtLink :to="profileLink" class="nav-link">
         Perfil

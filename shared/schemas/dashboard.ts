@@ -36,7 +36,14 @@ export interface DashboardCompletedBook {
   created_at: Date
 }
 
+export interface DashboardShelfBook {
+  id: string
+  work: DashboardWorkView
+  created_at: Date
+}
+
 export interface DashboardResponse {
   inProgress: DashboardInProgressBook[]
   completed: DashboardCompletedBook[]
+  shelf: DashboardShelfBook[]
 }

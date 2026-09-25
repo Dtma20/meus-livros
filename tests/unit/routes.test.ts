@@ -147,7 +147,7 @@ describe('Layout: default.vue', () => {
 })
 
 describe('Layout: app.vue', () => {
-  it('extends default layout and provides authenticated nav (Registrar livro / Perfil / Sair)', () => {
+  it('extends default layout and provides authenticated nav (Cadastrar livro / Perfil / Sair)', () => {
     const wrapper = mount(AppLayout)
     const navLinks = wrapper.findAll('nav.site-nav a')
     const linkData = navLinks.map((a) => ({
@@ -156,7 +156,7 @@ describe('Layout: app.vue', () => {
     }))
 
     expect(linkData).toEqual([
-      { href: '/app/novo', text: 'Registrar livro' },
+      { href: '/app/novo', text: 'Cadastrar livro' },
       { href: '/app/perfil', text: 'Perfil' },
       { href: '/entrar', text: 'Sair' }
     ])
@@ -183,7 +183,7 @@ describe('Layout: app.vue', () => {
     }))
 
     expect(linkData).toEqual([
-      { href: '/app/novo', text: 'Registrar livro' },
+      { href: '/app/novo', text: 'Cadastrar livro' },
       { href: '/@diogo', text: 'Perfil' },
       { href: '/entrar', text: 'Sair' }
     ])
@@ -348,7 +348,7 @@ describe('Page stubs and route parameters', () => {
     wWelcome.unmount()
 
     const wNew = mount(NewBookPage)
-    expect(wNew.text()).toContain('Registrar livro')
+    expect(wNew.text()).toContain('Cadastrar livro')
     wNew.unmount()
 
     const wProfile = mount(EditProfilePage)

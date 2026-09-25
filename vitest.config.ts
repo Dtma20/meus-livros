@@ -1,6 +1,6 @@
 import 'dotenv/config'
 import { fileURLToPath } from 'node:url'
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
@@ -12,6 +12,7 @@ export default defineConfig({
     },
   },
   test: {
+    exclude: [...configDefaults.exclude, '.claude/**'],
     globals: true,
     // Builds the bundle before any worker starts. Doing it from a test file's
     // beforeAll rewrites .nuxt while other workers are resolving against it.

@@ -33,7 +33,7 @@
             {{ selectedWork.first_published_year }}
           </span>
           <button
-            v-if="mode === 'create'"
+            v-if="mode === 'create' && !disableChangeBook"
             type="button"
             class="change-book-btn"
             :disabled="submitting || deleting || creatingEdition"
@@ -440,11 +440,13 @@ const props = withDefaults(
     mode?: 'create' | 'edit'
     initialLog?: LogWithDetails | null
     initialWork?: SearchResult | null
+    disableChangeBook?: boolean
   }>(),
   {
     mode: 'create',
     initialLog: null,
     initialWork: null,
+    disableChangeBook: false,
   },
 )
 
@@ -715,6 +717,23 @@ watch(
     saveDraft()
   },
   { deep: true },
+)
+
+watch(
+  () => props.initialWork,
+  (work) => {
+    if (work && work.id && work.slug) {
+      selectedWork.value = {
+        id: work.id,
+        title: work.title,
+        slug: work.slug,
+        authors: work.authors,
+        first_published_year: work.first_published_year,
+        cover_url: work.cover_url,
+      }
+    }
+  },
+  { immediate: true },
 )
 
 // Initialize from props or draft

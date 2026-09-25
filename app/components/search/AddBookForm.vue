@@ -52,7 +52,7 @@
 
     <!-- Main Add Book Form -->
     <form class="add-book-form" novalidate @submit.prevent="handleSubmit(false)">
-      <div class="form-header">
+      <div v-if="!hideHeader" class="form-header">
         <h1 class="form-title">Cadastrar livro</h1>
         <p class="form-copy">
           Não encontrou? Adicione o livro — leva menos de um minuto.
@@ -481,10 +481,12 @@ const props = withDefaults(
   defineProps<{
     initialTitle?: string
     returnTo?: string
+    hideHeader?: boolean
   }>(),
   {
     initialTitle: '',
     returnTo: '/app/novo',
+    hideHeader: false,
   },
 )
 
@@ -1019,8 +1021,12 @@ async function handleSubmit(force = false): Promise<void> {
     emit('success', res)
 
     const target = props.returnTo || '/app/novo'
-    const sep = target.includes('?') ? '&' : '?'
-    await navigateTo(`${target}${sep}work_id=${res.id}`)
+    if (target === '/') {
+      await navigateTo('/')
+    } else {
+      const sep = target.includes('?') ? '&' : '?'
+      await navigateTo(`${target}${sep}work_id=${res.id}`)
+    }
   } catch (err: unknown) {
     if (isTimeoutOrAbort(err)) {
       serverError.value = TIMEOUT_MESSAGE
@@ -1049,8 +1055,12 @@ async function useExistingDuplicate(): Promise<void> {
   if (!duplicateWork.value) return
   clearDraft()
   const target = props.returnTo || '/app/novo'
-  const sep = target.includes('?') ? '&' : '?'
-  await navigateTo(`${target}${sep}work_id=${duplicateWork.value.id}`)
+  if (target === '/') {
+    await navigateTo('/')
+  } else {
+    const sep = target.includes('?') ? '&' : '?'
+    await navigateTo(`${target}${sep}work_id=${duplicateWork.value.id}`)
+  }
 }
 
 async function forceCreateWork(): Promise<void> {

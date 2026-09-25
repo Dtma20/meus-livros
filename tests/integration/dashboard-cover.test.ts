@@ -56,6 +56,13 @@ describe.skipIf(!hasDatabaseUrl)('Dashboard cover fallback integration tests', (
       work_id: work.id,
       visibility: 'publico',
     })
+
+    // Work criado sem nenhum reading_log (deve aparecer na estante)
+    await db.insert(schema.works).values({
+      title: `${MARKER} Estante`,
+      slug: `${MARKER}-estante`,
+      created_by: testUserId,
+    })
   })
 
   afterAll(async () => {
@@ -71,5 +78,12 @@ describe.skipIf(!hasDatabaseUrl)('Dashboard cover fallback integration tests', (
 
     expect(data.inProgress).toHaveLength(1)
     expect(data.inProgress[0]!.work.isbn13).toBe('9780000000026')
+  })
+
+  it('returns registered works without reading logs in shelf', async () => {
+    const data = await dashboardService.getDashboardData(testUserId)
+
+    expect(data.shelf).toHaveLength(1)
+    expect(data.shelf[0]!.work.title).toBe(`${MARKER} Estante`)
   })
 })
