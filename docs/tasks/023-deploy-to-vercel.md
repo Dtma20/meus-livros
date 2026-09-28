@@ -42,7 +42,7 @@ nuxt.config.ts   (region confirmed)
 3. Production env vars: `DATABASE_URL` (pooled), `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `EMAIL_FROM`, `GMAIL_APP_PASSWORD`. **There is no `RESEND_API_KEY`** - delivery moved to Gmail SMTP in TASK-007 ([architecture.md](../architecture.md) §3.5). Omitting `GMAIL_APP_PASSWORD` does not fail the build; the transport is built lazily, so it fails at the first email that is actually sent. After [TASK-027](027-password-sign-in.md) that is first-access activation and password reset - **not** routine sign-in, which sends no email. A missing app password therefore locks out new members while every existing session keeps working, which is a quieter failure than it used to be.
 4. **`DATABASE_URL_DIRECT` must NOT be set on Vercel.** It is for laptop migrations and `pg_dump` only.
 5. **Preview deployments must point at a Neon branch, not production.** Set `DATABASE_URL` separately for the Preview environment. Getting this wrong means a preview deploy writing to real data.
-6. `NODE_ENV=production`; confirm Nuxt dev-mode error overlays are unreachable.
+6. **Do not set `NODE_ENV` in Vercel.** Vercel already builds and runs in production mode; a `NODE_ENV=production` env var also makes the install skip devDependencies, and `@nuxt/eslint` is a devDependency loaded as a module in `nuxt.config.ts`, so the build can break (not measured). Confirm Nuxt dev-mode error overlays are unreachable.
 7. Deploy on push to `main`.
 8. Verify the CSP header from [security.md](../security.md) §2 is present on responses.
 9. Run the migration against production **before** deploying the code that needs it.
