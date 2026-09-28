@@ -162,6 +162,7 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref } from 'vue'
 import { authClient } from '~/utils/auth-client'
+import AppLogo from '~/components/ui/AppLogo.vue'
 import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/shared/schemas/auth'
 
 useSeoMeta({
