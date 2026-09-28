@@ -373,6 +373,78 @@ async function forwardOtpRequest(
   return genericOtpResponse()
 }
 
+async function stripSessionToken(response: Response): Promise<Response> {
+  const contentType = response.headers.get('content-type')
+  if (
+    !contentType ||
+    !contentType.toLowerCase().includes('application/json') ||
+    response.status === 204 ||
+    response.status === 304 ||
+    !response.body
+  ) {
+    return response
+  }
+
+  const clone = response.clone()
+  const text = await clone.text()
+  if (!text || text.trim() === '') {
+    return response
+  }
+
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    return response
+  }
+
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return response
+  }
+
+  const record = { ...(data as Record<string, unknown>) }
+  let modified = false
+
+  if ('token' in record) {
+    delete record.token
+    modified = true
+  }
+
+  if (
+    typeof record.session === 'object' &&
+    record.session !== null &&
+    !Array.isArray(record.session) &&
+    'token' in record.session
+  ) {
+    const session = { ...(record.session as Record<string, unknown>) }
+    delete session.token
+    record.session = session
+    modified = true
+  }
+
+  if (!modified) {
+    return response
+  }
+
+  const headers = new Headers(response.headers)
+  headers.delete('content-length')
+  if (typeof response.headers.getSetCookie === 'function') {
+    const cookies = response.headers.getSetCookie()
+    if (cookies.length > 0) {
+      headers.delete('set-cookie')
+      for (const cookie of cookies) {
+        headers.append('set-cookie', cookie)
+      }
+    }
+  }
+
+  return new Response(JSON.stringify(record), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 export async function handleAuthRequest(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const authPath = url.pathname.replace(/^\/api\/auth/, '').replace(/\/$/, '')
@@ -406,7 +478,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
   if (request.method === 'POST' && authPath === '/sign-in/email-otp') {
     const response = await auth.handler(request)
     if (response.ok) {
-      return response
+      return stripSessionToken(response)
     }
 
     return Response.json(
@@ -512,7 +584,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
 
     const response = await auth.handler(signInRequest)
     if (response.ok) {
-      return response
+      return stripSessionToken(response)
     }
 
     return Response.json(
@@ -655,7 +727,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
 
     const response = await auth.handler(changePwReq)
     if (response.ok) {
-      return response
+      return stripSessionToken(response)
     }
 
     return Response.json(
@@ -665,7 +737,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
   }
 
   if ((request.method === 'GET' || request.method === 'HEAD') && authPath === '/get-session') {
-    return auth.handler(request)
+    return stripSessionToken(await auth.handler(request))
   }
 
   if (request.method === 'POST' && authPath === '/sign-out') {
