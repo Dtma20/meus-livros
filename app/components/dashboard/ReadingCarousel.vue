@@ -272,14 +272,14 @@ onMounted(() => {
 }
 
 .card-date {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--text-color);
   opacity: 0.7;
   margin-top: auto;
 }
 
 .card-review-excerpt {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-style: italic;
   color: #94a3b8;
   margin: var(--space-2) 0 0;

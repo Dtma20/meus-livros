@@ -34,7 +34,7 @@ const ariaLabel = computed(() => {
 <style scoped>
 .stars {
   color: var(--star-color, #f59e0b);
-  font-size: 0.9rem;
+  font-size: var(--font-size-sm);
   letter-spacing: 1px;
 }
 </style>

@@ -94,12 +94,12 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   align-items: center;
   gap: var(--space-2);
   font-family: var(--font-serif);
-  font-size: 1.35rem;
+  font-size: var(--font-size-xl);
   font-weight: 600;
   letter-spacing: -0.015em;
   color: #fff;
   text-decoration: none;
-  padding: 4px 10px;
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-md);
   background-color: transparent;
   transition: background-color 0.25s ease 0.05s, color 0.25s ease 0.05s;
@@ -129,7 +129,7 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   text-decoration: none;
   font-size: var(--font-size-sm);
   min-height: 28px;
-  padding: 4px 10px;
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
@@ -204,6 +204,10 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   .site-nav {
     gap: var(--space-3);
   }
+
+  .site-title {
+    font-size: var(--font-size-lg);
+  }
 }
 
 @media (max-width: 400px) {
@@ -213,7 +217,6 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   }
 
   .site-title {
-    font-size: 1.15rem;
     padding: 4px 6px;
   }
 }
