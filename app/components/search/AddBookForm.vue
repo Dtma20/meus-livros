@@ -1013,7 +1013,7 @@ function handleCancel(): void {
 }
 
 .duplicate-prompt {
-  background-color: rgba(64, 188, 244, 0.08);
+  background-color: var(--highlight-soft);
   border: 1px solid var(--highlight);
   border-radius: var(--radius-md);
   padding: var(--space-5);

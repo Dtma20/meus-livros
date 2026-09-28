@@ -326,7 +326,7 @@ async function handleSubmit() {
 .form-input:focus {
   outline: none;
   border-color: var(--highlight);
-  box-shadow: 0 0 0 2px rgba(64, 188, 244, 0.2);
+  box-shadow: 0 0 0 2px var(--highlight-glow);
 }
 
 .form-input:focus-visible {

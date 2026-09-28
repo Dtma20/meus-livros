@@ -314,7 +314,7 @@
 }
 
 .preview-circle-green {
-  color: #10b981;
+  color: var(--success);
   font-size: 0.65rem;
 }
 

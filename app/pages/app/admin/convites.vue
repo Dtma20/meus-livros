@@ -401,7 +401,7 @@ async function handleRemoveInvite(invite: InviteView) {
 }
 
 .form-success-message {
-  color: #34d399;
+  color: var(--success);
   font-size: var(--font-size-sm);
   margin: 0;
 }
@@ -499,9 +499,9 @@ async function handleRemoveInvite(invite: InviteView) {
 }
 
 .status-ativado {
-  color: #34d399;
-  background-color: rgba(52, 211, 153, 0.12);
-  border: 1px solid rgba(52, 211, 153, 0.3);
+  color: var(--success);
+  background-color: color-mix(in srgb, var(--success) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
 }
 
 .invite-note {
