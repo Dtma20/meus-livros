@@ -163,17 +163,31 @@ defineEmits<{
 }
 
 @media (max-width: 640px) {
-  .filter-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
   .filter-row {
-    flex-wrap: nowrap;
-    justify-content: flex-start;
-    min-width: max-content;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
   }
   .filter-group {
-    flex-wrap: nowrap;
+    display: contents;
+  }
+  .sort-label {
+    display: none;
+  }
+  .filter-select {
+    width: 100%;
+    min-width: 0;
+    min-height: var(--target-min-size);
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .reset-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: var(--target-min-size);
+    box-sizing: border-box;
+    font-size: var(--font-size-sm);
   }
 }
 </style>
