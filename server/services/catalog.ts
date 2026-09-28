@@ -1,7 +1,7 @@
 import { and, eq, gt, inArray, ne, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import { db } from '../db'
-import { authors, editions, genres, reading_logs, work_authors, work_genres, works } from '../db/schema'
+import { authors, editions, genres, reading_logs, users, work_authors, work_genres, works } from '../db/schema'
 import { normalizeIsbn } from '../utils/isbn'
 import { logger } from '../utils/logger'
 import { slugify, uniqueSlug } from '../utils/slug'
@@ -518,7 +518,11 @@ export async function updateEdition(
 
 export async function deleteEdition(editionId: string, userId: string): Promise<void> {
   const [edition] = await db
-    .select({ id: editions.id, work_id: editions.work_id })
+    .select({
+      id: editions.id,
+      work_id: editions.work_id,
+      created_by: editions.created_by,
+    })
     .from(editions)
     .where(eq(editions.id, editionId))
     .limit(1)
@@ -530,6 +534,49 @@ export async function deleteEdition(editionId: string, userId: string): Promise<
     })
   }
 
+  const [user] = await db
+    .select({ is_admin: users.is_admin })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1)
+
+  const isAdmin = user?.is_admin ?? false
+  const isCreator = edition.created_by === userId
+
+  if (!isAdmin) {
+    if (!isCreator) {
+      throw createError({
+        statusCode: 403,
+        data: {
+          error: 'sem_permissao',
+          message: 'Só quem cadastrou esta edição pode excluí-la, e só enquanto ninguém mais a usa em uma leitura.',
+        },
+      })
+    }
+
+    const [otherLogs] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(reading_logs)
+      .where(and(eq(reading_logs.edition_id, editionId), ne(reading_logs.user_id, userId)))
+
+    if ((otherLogs?.n ?? 0) > 0) {
+      throw createError({
+        statusCode: 403,
+        data: {
+          error: 'sem_permissao',
+          message: 'Só quem cadastrou esta edição pode excluí-la, e só enquanto ninguém mais a usa em uma leitura.',
+        },
+      })
+    }
+  }
+
+  const [ownLogs] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(reading_logs)
+    .where(and(eq(reading_logs.edition_id, editionId), eq(reading_logs.user_id, userId)))
+
+  const readingsDetached = ownLogs?.n ?? 0
+
   await db.delete(editions).where(eq(editions.id, editionId))
 
   logger.info(`[catalog] Edição excluída: ${editionId}`, {
@@ -537,6 +584,11 @@ export async function deleteEdition(editionId: string, userId: string): Promise<
     feature: 'book_catalog',
     operation: 'delete_edition',
     userId,
-    context: { editionId, workId: edition.work_id },
+    context: {
+      editionId,
+      workId: edition.work_id,
+      deleterRole: isAdmin ? 'admin' : 'creator',
+      readingsDetached,
+    },
   })
 }
