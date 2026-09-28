@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import { createApp, type Component } from 'vue'
 import FilterBar from '../../app/components/profile/FilterBar.vue'
@@ -63,11 +62,9 @@ describe('FilterBar.vue', () => {
     expect(countrySelect).not.toBeNull()
     expect(countrySelect?.value).toBe('')
 
-    // Selected option text must be "Todos os Países"
     const selectedOption = countrySelect?.options[countrySelect.selectedIndex]
     expect(selectedOption?.textContent?.trim()).toBe('Todos os Países')
 
-    // Reset button must not be rendered when hasActiveFilters is false
     const resetBtn = wrapper.find('button.reset-btn')
     expect(resetBtn).toBeNull()
 

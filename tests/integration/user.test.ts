@@ -4,7 +4,7 @@ import { createUser, getUserById, updateUserProfile } from '../../server/service
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
-describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and management (integration)', () => {
+describe.skipIf(!hasDatabaseUrl)('TASK-008 - User profile creation and management (integration)', () => {
   let db: typeof import('../../server/db')['db']
   let schema: typeof import('../../server/db/schema')
 
@@ -19,7 +19,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
   })
 
   afterAll(async () => {
-    // Clean up all rows created by this test run
+
     if (createdEmails.length > 0) {
       await db.delete(schema.users).where(inArray(schema.users.email, createdEmails))
       await db.delete(schema.allowed_emails).where(inArray(schema.allowed_emails.email, createdEmails))
@@ -31,7 +31,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
     const handle = `u1_${testId % 10000000}`
     createdEmails.push(email)
 
-    // Add to allowlist first
     await db.insert(schema.allowed_emails).values({
       email,
       note: 'TASK-008 integration test 1',
@@ -50,7 +49,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
     expect(created.display_name).toBe('Usuário Teste Um')
     expect(created.profile_visibility).toBe('publico')
 
-    // Verify row in database
     const [row] = await db
       .select()
       .from(schema.users)
@@ -78,7 +76,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
     })
     createdUserIds.push(first.id)
 
-    // Second attempt must fail with 409
     let duplicateError: unknown
     try {
       await createUser({
@@ -95,7 +92,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
     expect(errorObj.statusCode).toBe(409)
     expect(errorObj.data?.error).toBe('conflito')
 
-    // Verify exactly one row exists for this email
     const rows = await db
       .select()
       .from(schema.users)
@@ -122,7 +118,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
     })
     createdUserIds.push(first.id)
 
-    // Second user attempts to register the same handle
     let collisionError: unknown
     try {
       await createUser({
@@ -145,7 +140,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
     expect(Array.isArray(errorObj.data?.suggestions)).toBe(true)
     expect(errorObj.data?.suggestions?.length).toBeGreaterThanOrEqual(1)
 
-    // Verify that none of the suggestions match the taken handle
     for (const sug of errorObj.data?.suggestions ?? []) {
       expect(sug).not.toBe(takenHandle)
       expect(sug).toMatch(/^[a-z0-9_]{3,20}$/)
@@ -201,7 +195,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
     })
     createdUserIds.push(user.id)
 
-    // Attempt to update display_name, bio, profile_visibility, AND handle
     const updated = await updateUserProfile(user.id, {
       display_name: 'Nome Modificado',
       bio: 'Minha nova biografia de leitor.',
@@ -209,13 +202,11 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 — User profile creation and managem
       handle: 'tentativa_troca_handle',
     })
 
-    // Handle MUST remain unchanged
     expect(updated.handle).toBe(originalHandle)
     expect(updated.display_name).toBe('Nome Modificado')
     expect(updated.bio).toBe('Minha nova biografia de leitor.')
     expect(updated.profile_visibility).toBe('privado')
 
-    // Verify in database that handle was not changed
     const freshUser = await getUserById(user.id)
     expect(freshUser?.handle).toBe(originalHandle)
     expect(freshUser?.display_name).toBe('Nome Modificado')

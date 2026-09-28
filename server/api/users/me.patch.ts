@@ -4,12 +4,6 @@ import { updateUserProfile } from '../../services/users'
 import { defineApiHandler, parseOrThrow } from '../../utils/api'
 import { requireSessionUser } from '../../utils/session'
 
-/**
- * PATCH /api/users/me
- *
- * Updates display_name, bio (<= 500 chars), profile_visibility.
- * The handle is immutable in MVP — any handle field in the payload is ignored.
- */
 export default defineApiHandler(async (event) => {
   const sessionUser = await requireSessionUser(event)
   const body = await readBody(event)

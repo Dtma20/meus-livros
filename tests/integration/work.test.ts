@@ -39,7 +39,6 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
     catalogService = await import('../../server/services/catalog')
     logsService = await import('../../server/services/logs')
 
-    // Create User A (author of public logs)
     const [userA] = await db
       .insert(schema.users)
       .values({
@@ -50,7 +49,6 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
       })
       .returning({ id: schema.users.id })
 
-    // Create User B (author of private log)
     const [userB] = await db
       .insert(schema.users)
       .values({
@@ -65,7 +63,6 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
     userAId = userA.id
     userBId = userB.id
 
-    // Create Work A with first_published_year = -500
     const createdWorkA = await catalogService.createWork(
       {
         title: `${MARKER} Obra Antiga`,
@@ -82,7 +79,6 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
     workAId = createdWorkA.id
     workASlug = createdWorkA.slug
 
-    // Create Work B with no logs
     const createdWorkB = await catalogService.createWork(
       {
         title: `${MARKER} Obra Vazia`,
@@ -95,7 +91,6 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
     void createdWorkB
     workBSlug = createdWorkB.slug
 
-    // Create 3 public logs for Work A: ratings 4.0, 5.0, 4.0 (average = 4.3)
     const log1 = await logsService.createLog(
       {
         work_id: workAId,
@@ -131,7 +126,6 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
     )
     publicLogIds = [log1.id, log2.id, log3.id]
 
-    // Create 1 private log for Work A: rating 1.0 (owned by User B)
     const logPriv = await logsService.createLog(
       {
         work_id: workAId,
@@ -178,10 +172,9 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
 
   it('the average rating excludes the privado log for anonymous viewers', async () => {
     const resultAnon = await worksService.getWorkBySlug(workASlug, null)
-    // 3 public logs: 4.0, 5.0, 4.0 -> average = 13 / 3 = 4.333... -> 4.3
+
     expect(resultAnon.average_rating).toBe(4.3)
 
-    // Private owner: includes the 1.0 rating -> (4 + 5 + 4 + 1) / 4 = 14 / 4 = 3.5
     const resultOwner = await worksService.getWorkBySlug(workASlug, { id: userBId })
     expect(resultOwner.average_rating).toBe(3.5)
   }, 20000)

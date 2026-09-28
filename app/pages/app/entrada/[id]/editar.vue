@@ -44,10 +44,10 @@
         </div>
 
         <div
+          v-show="activeTab === 'registro'"
           id="panel-registro"
           role="tabpanel"
           aria-labelledby="tab-registro"
-          v-show="activeTab === 'registro'"
         >
           <LogForm
             :key="logFormKey"
@@ -57,14 +57,14 @@
         </div>
 
         <div
+          v-show="activeTab === 'livro'"
           id="panel-livro"
           role="tabpanel"
           aria-labelledby="tab-livro"
-          v-show="activeTab === 'livro'"
           class="book-panel"
         >
           <p class="book-edit-warning">
-            Salvar aqui recarrega a aba "Editar registro" — alterações não salvas da leitura são descartadas.
+            Salvar aqui recarrega a aba "Editar registro": alterações não salvas da leitura são descartadas.
           </p>
 
           <p v-if="reloadError" class="error-text" role="alert">{{ reloadError }}</p>
@@ -90,7 +90,7 @@
             <section class="edit-section">
               <h2 class="section-title">Edições</h2>
               <p class="section-desc">
-                Uma edição guarda ISBN, editora, páginas e capa. Um livro pode não ter nenhuma — escolher
+                Uma edição guarda ISBN, editora, páginas e capa. Um livro pode não ter nenhuma - escolher
                 a edição é opcional.
               </p>
 
@@ -154,21 +154,10 @@ const logFormKey = ref(0)
 const addingEdition = ref(false)
 const activeTab = ref<'registro' | 'livro'>('registro')
 
-// Not awaited: a top-level await makes <script setup> async, the page needs a
-// Suspense boundary to render at all, and the `v-if="pending"` branch below
-// becomes dead code. The refs arrive immediately and the template shows the
-// loading state, which is what it was written to do.
-//
-// The URL is built at runtime, so it is typed as plain `string` rather than
-// handed to Nuxt's typed-route resolution. With the `/api/auth/**` catch-all in
-// the route map, letting it infer blows the conditional-type recursion limit
-// (TS2321) and the whole page stops typechecking.
 const { data: log, pending, error } = useAsyncData<LogWithDetails>(
   `log-${id.value}`,
   () =>
     $fetch<LogWithDetails>(`/api/logs/${id.value}` as string, {
-      // Without a timeout this promise can never settle: a lost request
-      // leaves `pending` stuck true and the user staring at "Carregando registro…" forever.
       timeout: 15_000,
       retry: 0,
     }),
@@ -176,7 +165,6 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
 
 const slug = computed(() => log.value?.work?.slug || '')
 
-// Also not awaited, for the same reason: setup stays synchronous.
 function fetchWork(workSlug: string): Promise<WorkWithDetails> {
   return $fetch<WorkWithDetails>(`/api/works/${encodeURIComponent(workSlug)}` as string, {
     timeout: 15_000,
@@ -184,8 +172,6 @@ function fetchWork(workSlug: string): Promise<WorkWithDetails> {
   })
 }
 
-// Static key plus `watch`: a getter key would refetch on its own when the slug
-// arrives, and the watch would fire the same request a second time.
 const { data: work, error: workError } = useAsyncData<WorkWithDetails | null>(
   `entry-work-${id.value}`,
   () => (slug.value ? fetchWork(slug.value) : Promise.resolve(null)),
@@ -194,12 +180,6 @@ const { data: work, error: workError } = useAsyncData<WorkWithDetails | null>(
 
 const reloadError = ref('')
 
-// Fetched by hand rather than through each useAsyncData's `refresh`: a failed
-// refresh would set `error` and swap the whole page to "Registro não
-// encontrado" for an entry that exists. Here a failure keeps what is on screen
-// and says so. Remounting LogForm (new key) is what makes it re-read the title,
-// the authors and the edition list — without it, deleting the edition this
-// entry uses leaves LogForm holding an edition_id that no longer exists.
 async function refreshAll(): Promise<void> {
   try {
     const [freshLog, freshWork] = await Promise.all([
@@ -220,12 +200,6 @@ async function onEditionAdded(): Promise<void> {
   await refreshAll()
 }
 
-// Declared after useAsyncData on purpose. The title getter reads `log`, and
-// unhead evaluates it synchronously on the first watchEffect run — with the
-// call placed above, `log` is still in its temporal dead zone, the getter
-// throws, and unhead's own `entry` is left undefined. The resulting
-// "entry is undefined" TypeError aborts setup before useAsyncData ever runs,
-// so the page renders its not-found branch and no request is made.
 useSeoMeta({
   title: () => (log.value ? `Editar: ${log.value.work.title}` : 'Editar registro'),
 })

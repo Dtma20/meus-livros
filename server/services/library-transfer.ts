@@ -101,9 +101,6 @@ export function formatImportError(bookIndex: number, title: string): string {
   return `Livro #${bookIndex} ("${title}"): não foi possível importar.`
 }
 
-/**
- * Exporta toda a biblioteca de leituras de um usuário no formato JSON.
- */
 export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
   logger.info(`Exportando biblioteca do usuário ${userId}`, { module: 'export', userId })
 
@@ -139,7 +136,6 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
 
   const workIds = [...new Set(logs.map((l) => l.work_id))]
 
-  // Buscar autores agrupados por work_id
   const authorRows = await db
     .select({
       work_id: work_authors.work_id,
@@ -161,7 +157,6 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
     list.push({ name: a.name, country: a.country_label })
   }
 
-  // Buscar gêneros agrupados por work_id
   const genreRows = await db
     .select({
       work_id: work_genres.work_id,
@@ -217,9 +212,6 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
   })
 }
 
-/**
- * Importa um lote de livros para a biblioteca do usuário a partir de um JSON.
- */
 export async function importUserLibrary(userId: string, books: LivroJson[]): Promise<ImportResult> {
   logger.info(`Iniciando importação de ${books.length} livros para o usuário ${userId}`, {
     module: 'import',
@@ -227,7 +219,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
     count: books.length,
   })
 
-  // Carregar todos os gêneros do banco para consulta em memória
   const allGenres = await db.select().from(genres)
   const genreSlugToId = new Map<string, number>()
   const genreLabelToId = new Map<string, number>()
@@ -246,7 +237,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
 
     try {
       await db.transaction(async (tx) => {
-        // 1. Processar autores
         const authorNames = parseAuthors(book.author)
         if (authorNames.length === 0) authorNames.push('Autor Desconhecido')
 
@@ -286,11 +276,9 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           }
         }
 
-        // 2. Localizar ou criar Obra (Work)
         const baseSlug = slugify(book.title) || 'obra'
         let workId: string | null = null
 
-        // Tentar encontrar obra existente com o mesmo título e autor
         const authorSlugs = authorNames.map(slugify).filter(Boolean)
         if (authorSlugs.length > 0) {
           const candidates = await tx
@@ -316,7 +304,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           : null
 
         if (!workId) {
-          // Gerar slug único
           let finalSlug = baseSlug
           let suffix = 1
           while (true) {
@@ -341,7 +328,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
 
           workId = createdWork!.id
 
-          // Vincular autores
           for (let pos = 0; pos < authorIds.length; pos++) {
             await tx
               .insert(work_authors)
@@ -353,7 +339,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
               .onConflictDoNothing()
           }
 
-          // Vincular gêneros
           if (book.genre && book.genre.length > 0) {
             for (const gName of book.genre) {
               const mappedSlug = GENRE_SLUG_MAP[gName] ?? slugify(gName)
@@ -371,7 +356,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           }
         }
 
-        // 3. Processar Edição (Edition)
         const normalizedIsbn = normalizeIsbn(book.isbn)
         let editionId: string | null = null
 
@@ -387,7 +371,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
         }
 
         if (!editionId) {
-          // Buscar primeira edição da obra ou criar
           const [existingForWork] = await tx
             .select({ id: editions.id })
             .from(editions)
@@ -421,7 +404,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           }
         }
 
-        // 4. Inserir Registro de Leitura (reading_logs)
         let finishedOn: string | null = null
         let finishedPrecision: 'dia' | 'mes' | 'ano' = 'ano'
 

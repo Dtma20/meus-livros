@@ -27,7 +27,6 @@
           :key="star"
           class="star-wrapper"
         >
-          <!-- Left half target (e.g. 0.5, 1.5, 2.5...) -->
           <button
             type="button"
             class="star-half star-half-left"
@@ -38,7 +37,6 @@
             @click="onClickRating(star - 0.5)"
           />
 
-          <!-- Right half target (e.g. 1.0, 2.0, 3.0...) -->
           <button
             type="button"
             class="star-half star-half-right"
@@ -49,7 +47,6 @@
             @click="onClickRating(star)"
           />
 
-          <!-- Visual Star -->
           <svg
             class="star-svg"
             viewBox="0 0 24 24"
@@ -57,20 +54,17 @@
             height="28"
             aria-hidden="true"
           >
-            <!-- Background Empty Star -->
             <path
               d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
               class="star-empty"
             />
 
-            <!-- Full Star Fill -->
             <path
               v-if="effectiveRating >= star"
               d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
               class="star-filled"
             />
 
-            <!-- Half Star Fill -->
             <path
               v-else-if="effectiveRating >= star - 0.5"
               d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
@@ -82,7 +76,6 @@
       </div>
     </div>
 
-    <!-- Rating display value and clear button -->
     <div class="rating-meta">
       <span class="rating-label">{{ ratingDisplayLabel }}</span>
       <button
@@ -148,7 +141,6 @@ function onMouseLeave(): void {
 
 function onClickRating(val: number): void {
   if (props.disabled) return
-  // If clicking same rating again, allow keeping or toggling
   emit('update:modelValue', val)
 }
 

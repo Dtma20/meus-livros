@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, type Component, defineComponent, h, nextTick, ref, Suspense } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -39,7 +38,6 @@ const NuxtLink = defineComponent({
   },
 })
 
-/** Suspense resolves the page's async setup over several microtask turns. */
 async function flushAsync() {
   for (let i = 0; i < 5; i++) {
     await Promise.resolve()
@@ -55,9 +53,7 @@ function mount<T extends Component>(component: T, props: Record<string, unknown>
 
   const container = document.createElement('div')
   document.body.appendChild(container)
-  // The page awaits its data, which makes <script setup> async. Nuxt wraps pages
-  // in Suspense; a bare createApp does not, and an async component without a
-  // boundary renders nothing at all.
+
   const app = createApp({
     render: () => h(Suspense, null, { default: () => h(component, props) }),
   })
@@ -177,11 +173,9 @@ describe('BookPage component (app/pages/livro/[slug].vue)', () => {
     expect(text).toContain('@leitor1')
     expect(text).toContain('Excelente clássico de estratégia.')
 
-    // Link to log permalink
     const logLink = wrapper.find('a[href="/entrada/44444444-4444-4444-4444-444444444444"]')
     expect(logLink).not.toBeNull()
 
-    // Link to reader profile
     const userLink = wrapper.find('a[href="/@leitor1"]')
     expect(userLink).not.toBeNull()
 
@@ -222,7 +216,7 @@ describe('BookPage component (app/pages/livro/[slug].vue)', () => {
     const text = wrapper.text()
     expect(text).toContain('Obra Sem Leituras')
     expect(text).toContain('Ninguém registrou esse livro ainda.')
-    // Never renders 0,0
+
     expect(text).not.toContain('0,0')
     expect(text).not.toContain('0.0')
     expect(wrapper.find('.work-rating-row')).toBeNull()

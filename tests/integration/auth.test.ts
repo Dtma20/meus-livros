@@ -4,27 +4,8 @@ import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { getSessionUserByHeaders, handleAuthRequest } from '../../server/services/auth'
 import { setTransport } from '../../server/utils/email'
 
-/**
- * Every test here makes several sequential round-trips to a remote Postgres, so
- * the 5s default is not a meaningful budget - it measures Neon's latency on the
- * night the suite happens to run, not the code. The explicit 20s timeouts are
- * there so a slow link fails the run for a real reason or not at all.
- */
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
-/**
- * Builds a `cookie` request header from every `Set-Cookie` a response carries.
- *
- * `headers.get('set-cookie')` returns only the FIRST one, and since the cookie
- * cache landed better-auth sends more than one: change-password answers with
- * three — `session_data`, `session_token`, `session_data` again — in that order.
- * Reading the first therefore yields the cache cookie with no session token,
- * the session looks signed out, and the failure surfaces as a 401 several
- * assertions later. The sign-in responses happened to put a usable cookie
- * first, which is the only reason every other test here passed.
- *
- * Later values win, matching how a browser applies repeated Set-Cookie names.
- */
 function cookieHeaderFrom(res: Response): string {
   const jar = new Map<string, string>()
   for (const raw of res.headers.getSetCookie()) {
@@ -37,16 +18,13 @@ function cookieHeaderFrom(res: Response): string {
   return [...jar].map(([name, value]) => `${name}=${value}`).join('; ')
 }
 
-describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activation/reset OTP flows', () => {
+describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activation/reset OTP flows', () => {
   let db: typeof import('../../server/db')['db']
   let schema: typeof import('../../server/db/schema')
   const testId = Date.now()
   const allowedEmail = `test-auth-${testId}@example.com`
   const nonAllowedEmail = `test-blocked-${testId}@example.com`
-  // An invitee with NO `users` profile row, which is what genuine first access
-  // looks like: the profile is created at /app/bem-vindo, after the password is
-  // set. `allowedEmail` below gets a profile in beforeAll because the sign-in
-  // and change-password tests need one, and that is exactly what hid the 401.
+
   const activationEmail = `test-ativar-${testId}@example.com`
   const testIp = `192.0.2.${(testId % 200) + 1}`
   const activationIp = `192.0.2.${((testId + 3) % 200) + 1}`
@@ -78,7 +56,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     process.env.EMAIL_FROM = 'test-remetente@gmail.com'
     process.env.GMAIL_APP_PASSWORD = 'test-app-password'
 
-    // Mock nodemailer transport so zero real emails are ever sent
     const mockTransport = {
       sendMail: async (mailOptions: { to: string; subject: string; text: string }) => {
         sentEmails.push(mailOptions)
@@ -88,37 +65,21 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
 
     setTransport(mockTransport)
 
-    // Insert test addresses into allowed_emails table
     await db.insert(schema.allowed_emails).values([
       { email: allowedEmail, note: 'TASK-027 integration test' },
-      // Allowlisted and deliberately given no `users` row: this is the invitee
-      // the first-access test uses.
+
       { email: activationEmail, note: 'TASK-027 first-access test' },
     ])
 
-    // `allowedEmail` gets a profile because the sign-in, change-password and
-    // reset tests below all need one. Note what this does NOT buy: it is not a
-    // precondition of activation, and treating it as one is what let a 401 on
-    // /set-password ship. `activationEmail` has no row here on purpose.
     await db.insert(schema.users).values({
       email: allowedEmail,
       handle: testHandle,
       display_name: 'Test Auth User',
     })
 
-    // Start from a clean counter. A run that crashed inside this hour would
-    // otherwise hand its leftovers to this one.
     await purgeTestRateLimits()
   }, 30000)
 
-  /**
-   * Live session rows for an account, counted through `ba_user`.
-   *
-   * `session."userId"` references better-auth's own `ba_user` table, NOT the
-   * application's `users` table — the two ids are different, and counting with
-   * the wrong one returns 0 for every account, which reads as "revoked" no
-   * matter what actually happened. `afterAll` already resolves it this way.
-   */
   async function countSessionsFor(email: string): Promise<number> {
     const [row] = await db.execute(sql<{ n: number }>`
       SELECT count(s.*)::int AS n
@@ -143,17 +104,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     sentEmails.length = 0
   })
 
-  /**
-   * Rate-limit rows are the one piece of state that outlives a failed run: they
-   * are keyed by (key, hour window), so a counter left behind by a crashed run
-   * makes the *next* run inside the same hour fail for a reason that has nothing
-   * to do with the code. Two defences: purge before as well as after, and match
-   * the spray keys by prefix rather than trusting that every one was pushed.
-   */
   async function purgeTestRateLimits() {
-    // One statement, not a loop. Each round-trip to Neon costs enough that a
-    // dozen of them pushes afterAll past the 10s default hook timeout, and a
-    // hook that times out leaves exactly the rows this function exists to drop.
+
     const exact = [...createdRateLimitKeys, `signin:id:${testHandle}`]
     const patterns = [
       ...createdEmails.map((e) => `%${e}%`),
@@ -169,16 +121,12 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
   afterAll(async () => {
     setTransport(null)
 
-    // Purge counters first. Everything below can throw on a half-created
-    // fixture, and if it does, the rate-limit rows must already be gone.
     await purgeTestRateLimits()
 
-    // 1. Delete verification entries
     for (const email of createdEmails) {
       await db.execute(sql`DELETE FROM verification WHERE identifier LIKE ${`%${email}%`}`)
     }
 
-    // 2. Delete better-auth sessions and accounts for test users
     const baUsers = await db.execute(sql<{ id: string }>`
       SELECT id FROM ba_user WHERE email IN (${sql.join(createdEmails.map((e) => sql`${e}`), sql`, `)})
     `)
@@ -189,21 +137,14 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
       await db.execute(sql`DELETE FROM ba_user WHERE id IN (${sql.join(userIds.map((id) => sql`${id}`), sql`, `)})`)
     }
 
-    // 3. Delete allowlist and user entries
     await db.delete(schema.allowed_emails).where(inArray(schema.allowed_emails.email, createdEmails))
     await db.delete(schema.users).where(inArray(schema.users.email, createdEmails))
 
-    // 4. Delete rate limit entries created after the first purge above.
     await purgeTestRateLimits()
   }, 30000)
 
   it('first access works for an invitee who has no profile row yet', async () => {
-    // The regression this exists for: /set-password used to gate on
-    // getSessionUserByHeaders, which resolves the *app profile* and returns null
-    // without a `users` row. A real invitee has no such row -- it is created at
-    // /app/bem-vindo, after the password is set -- so every genuine activation
-    // answered 401. The test that should have caught it inserted the profile in
-    // beforeAll and called that first access.
+
     const noProfileBefore = await db
       .select({ id: schema.users.id })
       .from(schema.users)
@@ -235,9 +176,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const cookie = cookieHeaderFrom(verifyRes)
     expect(cookie).toBeTruthy()
 
-    // Still no profile: verifying the code does not create one, which is the
-    // whole point. If this ever starts returning a row, the assertion above
-    // stops meaning anything and this test silently becomes the old one.
     const noProfileAfterCode = await db
       .select({ id: schema.users.id })
       .from(schema.users)
@@ -257,7 +195,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     )
     expect(setPwRes.status).toBe(200)
 
-    // And the password works: sign-in by email, since no handle exists yet.
     const signInRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
@@ -270,7 +207,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
   }, 30000)
 
   it('first access activation: allowlisted address receives code, sets password, and signs in', async () => {
-    // 1. Request activation code
+
     const req = new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
       method: 'POST',
       headers: {
@@ -285,7 +222,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const body = await res.json()
     expect(body.success).toBe(true)
 
-    // Verify email was sent via mock transport
     const emailData = await waitForEmail()
     expect(emailData.to).toBe(allowedEmail)
 
@@ -293,7 +229,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     expect(match).not.toBeNull()
     const otp = match![0]
 
-    // 2. Verify OTP
     const verifyReq = new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
       method: 'POST',
       headers: {
@@ -308,7 +243,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const cookie = cookieHeaderFrom(verifyRes)
     expect(cookie).toBeTruthy()
 
-    // 3. Set password
     const setPwReq = new Request('http://localhost:3000/api/auth/set-password', {
       method: 'POST',
       headers: {
@@ -340,7 +274,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const body = await res.json()
     expect(body.success).toBe(true)
 
-    // Zero emails sent!
     expect(sentEmails.length).toBe(0)
   }, 20000)
 
@@ -379,9 +312,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
 
     const res = await handleAuthRequest(req)
     expect(res.status).toBe(200)
-    // `httpOnly` is a Set-Cookie ATTRIBUTE, so it has to be asserted on the raw
-    // response header. `cookieHeaderFrom` builds a request `cookie` header,
-    // which carries name=value pairs and never carries attributes.
+
     const rawSetCookie = res.headers.getSetCookie().join(' | ').toLowerCase()
     expect(rawSetCookie).toContain('httponly')
     expect(rawSetCookie).toContain('samesite=lax')
@@ -484,7 +415,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const rateLimitHandle = `rl_${testId % 1000000}`
     createdRateLimitKeys.push(`signin:id:${rateLimitHandle}`)
 
-    // 10 attempts
     for (let i = 0; i < 10; i++) {
       const res = await handleAuthRequest(
         new Request('http://localhost:3000/api/auth/entrar', {
@@ -496,7 +426,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
       expect(res.status).toBe(400)
     }
 
-    // 11th attempt returns 429
     const eleventhRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
@@ -510,12 +439,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
   }, 20000)
 
   it('the 31st sign-in attempt from one IP within an hour returns 429', async () => {
-    // Driving all 30 attempts through the route costs ~620ms each against Neon
-    // — 19s, against a 20s timeout, so it failed roughly half the time for a
-    // reason that had nothing to do with the limit. Seed the counter to 29 and
-    // spend the two remaining round-trips on what is actually being asserted:
-    // that an unknown handle still increments the *IP* counter (the whole point
-    // of counting before resolving the identifier), and that 31 trips it.
+
     await db.execute(sql`
       INSERT INTO rate_limit (key, count, window_start)
       VALUES (${`signin:ip:${signInIpLimitIp}`}, 29, date_trunc('hour', now()))
@@ -531,7 +455,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
         body: JSON.stringify({ identificador: unknownHandleId, senha: 'wrongPassword' }),
       }),
     )
-    // Unknown handle: still a plain rejection, and still counted.
+
     expect(thirtieth.status).toBe(400)
 
     const [counter] = await db.execute(sql<{ count: number }>`
@@ -554,7 +478,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
   }, 20000)
 
   it('password reset flow: sends code, resets password, invalidates old sessions, single-use code', async () => {
-    // 1. Establish an active session before reset to verify revocation
+
     const loginRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
@@ -566,7 +490,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const oldHeaders = new Headers({ cookie: oldSessionCookie })
     expect(await getSessionUserByHeaders(oldHeaders)).not.toBeNull()
 
-    // 2. Request reset code
     const resetReq = new Request('http://localhost:3000/api/auth/forget-password/email-otp', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
@@ -581,7 +504,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     expect(match).not.toBeNull()
     const resetCode = match![0]
 
-    // 3. Reset password
     const newPassword = 'ResetPassword456'
     const completeResetReq = new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
       method: 'POST',
@@ -591,20 +513,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const completeResetRes = await handleAuthRequest(completeResetReq)
     expect(completeResetRes.status).toBe(200)
 
-    // 4. Old session is deleted (revoked)
-    //
-    // Asserted against the `session` table, not against the cookie. The cookie
-    // cache (`session.cookieCache`, 5 min) is deliberately allowed to keep a
-    // revoked session usable until its cached copy expires — auth.ts says so
-    // where it enables the cache. Asserting that the cookie stops working
-    // therefore asserts something the code does not promise, and it used to
-    // "pass" only because the cookie being read was malformed.
-    //
-    // What revocation actually means is that the row is gone, and that is what
-    // makes the session unusable once the cache lapses.
     expect(await countSessionsFor(allowedEmail)).toBe(0)
 
-    // 5. Old password no longer works
     const oldPwLogin = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
@@ -614,7 +524,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     )
     expect(oldPwLogin.status).toBe(400)
 
-    // 6. New password works
     const newPwLogin = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
@@ -624,7 +533,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     )
     expect(newPwLogin.status).toBe(200)
 
-    // 7. Reset code cannot be replayed
     const replayRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
         method: 'POST',
@@ -638,11 +546,10 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
   }, 20000)
 
   it('change-password without currentPassword is rejected, and with valid currentPassword revokes other sessions', async () => {
-    // Current password is now ResetPassword456
+
     const currentPassword = 'ResetPassword456'
     const newPassword = 'ChangedPassword789'
 
-    // Sign in to get session A
     const loginResA = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
@@ -650,14 +557,11 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
         body: JSON.stringify({ identificador: testHandle, senha: currentPassword }),
       }),
     )
-    // Asserted, not assumed. Without this the failure of a sign-in shows up
-    // several requests later as a 401 on change-password, which reads like a
-    // bug in change-password and is not one.
+
     expect(loginResA.status).toBe(200)
     const cookieA = cookieHeaderFrom(loginResA)
     const headersA = new Headers({ cookie: cookieA })
 
-    // Sign in to get session B (other session)
     const loginResB = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
@@ -665,13 +569,10 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
         body: JSON.stringify({ identificador: testHandle, senha: currentPassword }),
       }),
     )
-    // Session B exists only to be revoked by the change below; its cookie is
-    // never replayed, because the cookie cache would keep answering for it.
-    // Revocation is asserted against the `session` table instead.
+
     expect(loginResB.status).toBe(200)
     expect(cookieHeaderFrom(loginResB)).toBeTruthy()
 
-    // 1. Missing current password returns 400
     const noCurrentPwRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/change-password', {
         method: 'POST',
@@ -687,7 +588,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const noCurrentBody = await noCurrentPwRes.json()
     expect(noCurrentBody.error).toBe('validacao')
 
-    // 2. Change password with session A
     const userA = await getSessionUserByHeaders(headersA)
     expect(userA).not.toBeNull()
     createdRateLimitKeys.push(`pwchange:user:${userA!.id}`)
@@ -705,26 +605,16 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     )
     expect(changePwRes.status).toBe(200)
 
-    // The session performing the change (session A) receives updated cookie and survives
     const updatedCookieA = cookieHeaderFrom(changePwRes) || cookieA
     const survivingHeaders = new Headers({ cookie: updatedCookieA })
     const userAfter = await getSessionUserByHeaders(survivingHeaders)
     expect(userAfter).not.toBeNull()
 
-    // Session B is revoked.
-    //
-    // Counted in the `session` table rather than probed through its cookie, for
-    // the reason spelled out in the reset test above: the 5-minute cookie cache
-    // keeps a revoked session's cookie working, by design. After a change with
-    // revokeOtherSessions, exactly one row must remain — the session that made
-    // the change.
     expect(await countSessionsFor(allowedEmail)).toBe(1)
   }, 20000)
 
   it('passwords under 8 characters and senha123 are rejected server-side', async () => {
-    // set-password authenticates before it validates, and that order is
-    // deliberate: an anonymous caller must not learn whether the password rules
-    // were even reached. 401, not 400.
+
     const anonRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/set-password', {
         method: 'POST',
@@ -734,8 +624,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     )
     expect(anonRes.status).toBe(401)
 
-    // 1. Short password (< 8 chars). Asserted on reset-password because the
-    // floor runs there before the OTP is looked at, so no session is needed.
     const shortRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
         method: 'POST',
@@ -747,7 +635,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
     const shortBody = await shortRes.json()
     expect(shortBody.error).toBe('validacao')
 
-    // 2. Forbidden password ('senha123') on reset-password
     const forbiddenRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
         method: 'POST',
@@ -765,9 +652,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 — Password authentication + activat
       '/api/auth/email-otp/request-password-reset',
       '/api/auth/email-otp/request-email-change',
       '/api/auth/request-email-change',
-      // better-auth's own password sign-in. /entrar calls it internally; it is
-      // not reachable from outside, because its name promises an email and the
-      // field accepts a handle. Asserted so it is not quietly reopened.
+
       '/api/auth/sign-in/email',
       '/api/auth/unknown-route',
     ]

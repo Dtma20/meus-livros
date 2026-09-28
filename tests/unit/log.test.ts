@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 import RatingInput from '../../app/components/book/RatingInput.vue'
@@ -12,8 +11,7 @@ import {
 } from '../../shared/schemas/log'
 
 vi.hoisted(() => {
-  // RatingInput reaches for Nuxt's auto-imported useId to tie its label to the
-  // slider. Mounting the component outside Nuxt means providing it.
+
   const globalScope = globalThis as unknown as Record<string, unknown>
   globalScope.useId = () => 'test-rating-id'
 })
@@ -63,22 +61,18 @@ describe('shared/schemas/log.ts - reviewSchema', () => {
 
 describe('shared/schemas/log.ts - Timezone & Date validation', () => {
   it('a log created at 22:00 in Brazil records today Brazilian date, not tomorrow', () => {
-    // At 22:00 BRT (UTC-3) on 2026-09-19:
-    // UTC time is 2026-09-20 01:00:00Z.
+
     const lateNightBrt = new Date('2026-09-20T01:00:00Z')
     const brDate = getTodaySaoPaulo(lateNightBrt)
     expect(brDate).toBe('2026-09-19')
 
-    // Today in BRT is 2026-09-19.
-    // So 2026-09-19 is not in the future.
     expect(isFutureDateSaoPaulo('2026-09-19', lateNightBrt)).toBe(false)
 
-    // Tomorrow (2026-09-20) is in the future relative to 22:00 BRT.
     expect(isFutureDateSaoPaulo('2026-09-20', lateNightBrt)).toBe(true)
   })
 
   it('accepts past dates and rejects future dates', () => {
-    const now = new Date('2026-09-19T15:00:00Z') // ~12:00 in SP
+    const now = new Date('2026-09-19T15:00:00Z')
     expect(isFutureDateSaoPaulo('2026-09-18', now)).toBe(false)
     expect(isFutureDateSaoPaulo('2026-09-19', now)).toBe(false)
     expect(isFutureDateSaoPaulo('2026-09-20', now)).toBe(true)
@@ -178,22 +172,18 @@ describe('RatingInput.vue', () => {
 
     const slider = wrapper.find<HTMLElement>('[role="slider"]')
 
-    // ArrowRight increments by 0.5
     slider?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
     await nextTick()
     expect(emittedValue).toBe(3.5)
 
-    // ArrowLeft decrements by 0.5
     slider?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }))
     await nextTick()
     expect(emittedValue).toBe(2.5)
 
-    // End sets to 5.0
     slider?.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }))
     await nextTick()
     expect(emittedValue).toBe(5.0)
 
-    // Delete clears to null
     slider?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))
     await nextTick()
     expect(emittedValue).toBeNull()

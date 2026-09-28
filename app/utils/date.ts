@@ -1,18 +1,3 @@
-/**
- * Formats a Date, ISO date string, or timestamp into a relative time string in pt-BR.
- * Examples:
- * - "há poucos instantes"
- * - "há 2 minutos"
- * - "há 1 hora"
- * - "há 3 horas"
- * - "há 2 dias"
- * - "há 1 semana"
- * - "há 2 semanas"
- * - "há 1 mês"
- * - "há 2 meses"
- * - "há 1 ano"
- * - "há 2 anos"
- */
 export function formatRelativeDate(
   date: Date | string | number | null | undefined,
   now: Date = new Date(),
@@ -54,9 +39,6 @@ export function formatRelativeDate(
   return diffYears === 1 ? 'há 1 ano' : `há ${diffYears} anos`
 }
 
-/**
- * Formats a date into full pt-BR locale date and time for title/tooltip attributes.
- */
 export function formatFullDate(
   date: Date | string | number | null | undefined,
 ): string {

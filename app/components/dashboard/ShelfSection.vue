@@ -18,7 +18,6 @@
       </NuxtLink>
     </div>
 
-    <!-- Estado vazio quando não há livros na estante -->
     <div v-if="books.length === 0" class="empty-shelf">
       <p class="empty-shelf-text">
         Você não tem nenhum livro cadastrado sem atividade na sua estante no momento.
@@ -28,7 +27,6 @@
       </NuxtLink>
     </div>
 
-    <!-- Grade de livros da estante -->
     <div v-else class="shelf-grid">
       <article
         v-for="item in books"

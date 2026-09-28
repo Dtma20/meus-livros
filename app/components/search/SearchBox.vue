@@ -24,7 +24,6 @@
       <span v-if="loading" class="search-spinner" aria-hidden="true" />
     </div>
 
-    <!-- Results dropdown -->
     <ul
       v-if="isOpen"
       :id="listId"
@@ -33,7 +32,6 @@
       :role="results.length > 0 ? 'listbox' : undefined"
       :aria-label="resultsLabel"
     >
-      <!-- Works found -->
       <template v-if="results.length > 0">
         <li
           v-for="(work, index) in results"
@@ -66,7 +64,6 @@
         </li>
       </template>
 
-      <!-- Zero results: invitation to add, not a failure message -->
       <li
         v-else-if="!loading && searched"
         class="search-empty"
@@ -107,34 +104,22 @@ const emit = defineEmits<{
   (e: 'select', work: SearchResult): void
 }>()
 
-// ---------------------------------------------------------------------------
-// IDs — unique per instance so multiple SearchBoxes on the same page work.
-// useId() (not Math.random()) so server and client render the same value.
-// ---------------------------------------------------------------------------
 const uid = useId().replace(/:/g, '')
 const inputId = `search-input-${uid}`
 const listId = `search-list-${uid}`
 const itemId = (i: number) => `search-item-${uid}-${i}`
 
-// ---------------------------------------------------------------------------
-// State
-// ---------------------------------------------------------------------------
 const query = ref(props.initialQuery || '')
 const results = ref<SearchResult[]>([])
 const loading = ref(false)
 const activeIndex = ref(-1)
 const focused = ref(false)
-/** True once we have received at least one response for the current query. */
 const searched = ref(false)
-/** The query that produced the current results (for the empty-state message). */
 const lastQuery = ref('')
 
 const inputRef = ref<HTMLInputElement | null>(null)
 const listRef = ref<HTMLUListElement | null>(null)
 
-// ---------------------------------------------------------------------------
-// Derived
-// ---------------------------------------------------------------------------
 const isOpen = computed(
   () => focused.value && query.value.trim().length >= 2 && (results.value.length > 0 || (!loading.value && searched.value)),
 )
@@ -149,9 +134,6 @@ const resultsLabel = computed(() =>
     : 'Nenhum resultado',
 )
 
-// ---------------------------------------------------------------------------
-// Debounced fetch — 250ms, aborts in-flight request on new keystroke
-// ---------------------------------------------------------------------------
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let abortController: AbortController | null = null
 
@@ -163,7 +145,6 @@ async function fetchResults(term: string): Promise<void> {
     return
   }
 
-  // Abort the previous in-flight request before issuing a new one.
   abortController?.abort()
   abortController = new AbortController()
   const signal = abortController.signal
@@ -204,7 +185,6 @@ watch(query, (val) => {
     return
   }
 
-  // Show spinner immediately so the UI doesn't feel frozen on slow connections.
   loading.value = true
   debounceTimer = setTimeout(() => fetchResults(trimmed), 250)
 })
@@ -214,9 +194,6 @@ onBeforeUnmount(() => {
   abortController?.abort()
 })
 
-// ---------------------------------------------------------------------------
-// Keyboard navigation
-// ---------------------------------------------------------------------------
 function onKeydown(e: KeyboardEvent): void {
   if (!isOpen.value) return
 
@@ -251,14 +228,10 @@ function scrollActiveIntoView(): void {
   })
 }
 
-// ---------------------------------------------------------------------------
-// Focus / blur
-// ---------------------------------------------------------------------------
 function onFocus(): void {
   focused.value = true
 }
 
-/** Small delay so mousedown on a result fires before the list disappears. */
 function onBlur(): void {
   setTimeout(() => {
     const activeEl = typeof document !== 'undefined' ? document.activeElement : null
@@ -270,9 +243,6 @@ function onBlur(): void {
   }, 150)
 }
 
-// ---------------------------------------------------------------------------
-// Selection
-// ---------------------------------------------------------------------------
 function selectWork(work: SearchResult): void {
   emit('select', work)
   if (props.navigateOnSelect && work.slug) {
@@ -289,7 +259,6 @@ function goToAdd(): void {
       currentPath = useRoute().fullPath || ''
     }
   } catch {
-    // In unit test or environment without router context
   }
 
   const hasRet = currentPath && currentPath !== '/app/livro/novo' && !currentPath.startsWith('/app/livro/novo?')
@@ -304,7 +273,6 @@ function goToAdd(): void {
 </script>
 
 <style scoped>
-/* Screen-reader-only utility — no Tailwind in this project */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -323,7 +291,6 @@ function goToAdd(): void {
   max-width: 480px;
 }
 
-/* Input + spinner row */
 .search-input-wrap {
   position: relative;
   display: flex;
@@ -353,12 +320,10 @@ function goToAdd(): void {
   border-color: var(--highlight);
 }
 
-/* Hide the native clear (×) button in WebKit */
 .search-input::-webkit-search-cancel-button {
   display: none;
 }
 
-/* Loading spinner */
 .search-spinner {
   position: absolute;
   right: var(--space-3);
@@ -376,7 +341,6 @@ function goToAdd(): void {
   to { transform: rotate(360deg); }
 }
 
-/* Results list */
 .search-results {
   position: absolute;
   top: calc(100% + var(--space-1));
@@ -394,7 +358,6 @@ function goToAdd(): void {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
-/* Individual result */
 .search-result {
   display: flex;
   flex-direction: row;
@@ -458,7 +421,6 @@ function goToAdd(): void {
   opacity: 0.7;
 }
 
-/* Empty state — looks like a next step, not an error */
 .search-empty {
   display: flex;
   flex-direction: column;

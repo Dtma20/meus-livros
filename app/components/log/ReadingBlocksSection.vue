@@ -26,7 +26,6 @@
       </button>
     </div>
 
-    <!-- Visual Progress Bar -->
     <div class="progress-bar-wrap" role="progressbar" :aria-valuenow="progress.percentage ?? 0" aria-valuemin="0" aria-valuemax="100">
       <div class="progress-bar-track">
         <div
@@ -36,7 +35,6 @@
       </div>
     </div>
 
-    <!-- Add/Edit Block Form -->
     <div v-if="showAddForm || editingBlock" class="block-form-card">
       <h3 class="form-card-title">
         {{ editingBlock ? 'Editar trecho lido' : 'Registrar novo trecho lido' }}
@@ -120,7 +118,6 @@
       </form>
     </div>
 
-    <!-- Timeline of Blocks -->
     <div class="blocks-list">
       <p v-if="deleteError" class="field-error-msg" role="alert">
         {{ deleteError }}
@@ -258,7 +255,6 @@ function updateLocalProgress(): void {
   emit('update:progress', progress.value)
 }
 
-// Form state
 const showAddForm = ref(false)
 const editingBlock = ref<ReadingBlockView | null>(null)
 const formStartPage = ref<number | null>(null)
@@ -320,7 +316,6 @@ async function saveBlock(): Promise<void> {
 
   try {
     if (editingBlock.value) {
-      // PATCH
       const res = await fetch(`/api/logs/${props.logId}/blocks/${editingBlock.value.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -341,7 +336,6 @@ async function saveBlock(): Promise<void> {
         blocks.value[idx] = updated
       }
     } else {
-      // POST
       const res = await fetch(`/api/logs/${props.logId}/blocks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -379,8 +373,6 @@ async function confirmDelete(block: ReadingBlockView): Promise<void> {
       method: 'DELETE',
     })
     if (!res.ok) {
-      // Um 502 da plataforma ou um 500 vazio não devolvem JSON, e deixar o
-      // parser estourar mostraria a mensagem do navegador, em inglês.
       const body = await res.json().catch(() => null) as { message?: string } | null
       throw new Error(body?.message || 'Não foi possível excluir o trecho.')
     }
@@ -444,7 +436,6 @@ function formatBlockDate(dateStr: string): string {
   background-color: rgba(99, 102, 241, 0.1);
 }
 
-/* Progress bar */
 .progress-bar-wrap {
   width: 100%;
   margin-bottom: var(--space-6);
@@ -465,7 +456,6 @@ function formatBlockDate(dateStr: string): string {
   transition: width 0.4s ease;
 }
 
-/* Form Card */
 .block-form-card {
   background-color: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--input-bg);
@@ -560,7 +550,6 @@ function formatBlockDate(dateStr: string): string {
   cursor: pointer;
 }
 
-/* Block Cards */
 .blocks-list {
   display: flex;
   flex-direction: column;

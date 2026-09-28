@@ -19,7 +19,6 @@ const clientErrorSchema = z.object({
 export default defineApiHandler(async (event) => {
   const ip = getClientIp(event)
 
-  // Protect ingestion endpoint from flooding (max 30 error reports per IP per hour)
   const allowed = await checkRateLimit(`client-errors:ip:${ip}`, 30)
   if (!allowed) {
     setResponseStatus(event, 429)

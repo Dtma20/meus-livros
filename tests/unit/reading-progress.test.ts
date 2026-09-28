@@ -38,10 +38,10 @@ describe('calculateReadingProgress unit tests', () => {
       { start_page: 45, end_page: 72 },
     ]
     const res = calculateReadingProgress(intervals, 400, false)
-    // Merged: 1 to 72 = 72 pages
+
     expect(res.pagesRead).toBe(72)
     expect(res.currentPage).toBe(72)
-    expect(res.percentage).toBe(18) // 72 / 400 = 18%
+    expect(res.percentage).toBe(18)
     expect(res.intervals).toEqual([{ start_page: 1, end_page: 72 }])
   })
 
@@ -66,7 +66,7 @@ describe('calculateReadingProgress unit tests', () => {
     const res = calculateReadingProgress(intervals, 400, false)
     expect(res.pagesRead).toBe(71)
     expect(res.currentPage).toBe(120)
-    expect(res.percentage).toBe(17) // 71 / 400 = 17.75% -> 17%
+    expect(res.percentage).toBe(17)
     expect(res.intervals).toEqual([
       { start_page: 1, end_page: 50 },
       { start_page: 100, end_page: 120 },

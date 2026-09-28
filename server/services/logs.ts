@@ -13,10 +13,6 @@ import { logger } from '../utils/logger'
 import { checkRateLimit } from './rate-limit'
 import { visibleLogs, type Viewer } from './visibility'
 
-/**
- * The response contract lives in `shared/` — a page must be able to type the
- * result of `GET /api/logs/:id` without importing anything under `server/`.
- */
 export type {
   LogAuthorView as LogAuthor,
   LogEditionView as LogEdition,
@@ -29,16 +25,6 @@ export interface CreateLogOptions {
   skipRateLimit?: boolean
 }
 
-/**
- * Creates a new reading log entry.
- *
- * Rules:
- * - Rate limit: 60 logs/user/hour.
- * - Work must exist in catalogue.
- * - If edition_id is given, it must belong to work_id.
- * - No uniqueness check: re-reading the same work is fully supported.
- * - Review is plain text: stored literally.
- */
 export async function createLog(
   input: LogInput,
   userId: string,
@@ -57,7 +43,6 @@ export async function createLog(
     }
   }
 
-  // 1. Verify work exists
   const [work] = await db
     .select({ id: works.id })
     .from(works)
@@ -74,7 +59,6 @@ export async function createLog(
     })
   }
 
-  // 2. Verify edition belongs to work if specified
   if (input.edition_id) {
     const [edition] = await db
       .select({ id: editions.id, work_id: editions.work_id })
@@ -93,7 +77,6 @@ export async function createLog(
     }
   }
 
-  // 3. Insert reading log
   const [created] = await db
     .insert(reading_logs)
     .values({
@@ -131,13 +114,6 @@ export async function createLog(
   return { id: created.id }
 }
 
-/**
- * Retrieves a single reading log by its UUID, enforcing visibility.
- *
- * Rules:
- * - A private entry returns 404 (never 403) to other users or anonymous viewers.
- * - An entry from a private profile returns 404 to other users or anonymous viewers.
- */
 export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDetails> {
   const rows = await db
     .select({
@@ -189,9 +165,6 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
     .from(reading_logs)
     .innerJoin(users, eq(users.id, reading_logs.user_id))
     .innerJoin(works, eq(works.id, reading_logs.work_id))
-    // edition_id is intentionally nullable ("Edição padrão do catálogo" = null).
-    // When null, fall back to the work's first edition so page_count, cover and
-    // publisher still render. edition_id itself stays null in the response.
     .leftJoin(
       editions,
       sql`editions.id = COALESCE(
@@ -213,7 +186,6 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
     })
   }
 
-  // Fetch work authors in order
   const authorsList = await db
     .select({
       id: authors.id,
@@ -225,7 +197,6 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
     .where(eq(work_authors.work_id, row.work.id))
     .orderBy(work_authors.position)
 
-  // Fetch reading blocks in reverse chronological order
   const blocksList = await db
     .select({
       id: reading_blocks.id,
@@ -280,29 +251,17 @@ export async function getLogById(id: string, viewer: Viewer): Promise<LogWithDet
       ...row.work,
       authors: authorsList,
     },
-    // Return the joined edition (which may be the work's first edition when
-    // edition_id is null). edition_id itself stays null so LogForm still shows
-    // "Edição padrão do catálogo".
     edition: row.edition,
     blocks: blocksList,
     progress,
   }
 }
 
-/**
- * Updates an existing reading log entry.
- *
- * Rules:
- * - Ownership is enforced in the WHERE clause.
- * - Non-owner receives 404, never 403.
- * - If edition_id is updated, it must belong to the log's work_id.
- */
 export async function updateLog(
   id: string,
   input: UpdateLogInput,
   userId: string,
 ): Promise<{ id: string }> {
-  // Query ownership in the WHERE clause
   const [existing] = await db
     .select({
       id: reading_logs.id,
@@ -324,7 +283,6 @@ export async function updateLog(
     })
   }
 
-  // If edition_id is provided, verify it belongs to this work
   if (input.edition_id) {
     const [edition] = await db
       .select({ id: editions.id, work_id: editions.work_id })
@@ -343,7 +301,6 @@ export async function updateLog(
     }
   }
 
-  // Validate dates ordering if either or both are being updated
   const finalStarted = input.started_on !== undefined ? input.started_on : existing.started_on
   const finalFinished = input.finished_on !== undefined ? input.finished_on : existing.finished_on
   if (finalStarted && finalFinished && finalStarted > finalFinished) {
@@ -412,13 +369,6 @@ export async function updateLog(
   return { id: updated.id }
 }
 
-/**
- * Deletes a reading log entry.
- *
- * Rules:
- * - Ownership is enforced in the WHERE clause.
- * - Non-owner receives 404, never 403.
- */
 export async function deleteLog(id: string, userId: string): Promise<void> {
   const deleted = await db
     .delete(reading_logs)
@@ -444,9 +394,6 @@ export async function deleteLog(id: string, userId: string): Promise<void> {
   })
 }
 
-/**
- * Fetches available editions for a given work.
- */
 export async function getEditionsForWork(workId: string): Promise<LogEditionView[]> {
   return db
     .select({

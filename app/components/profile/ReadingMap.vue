@@ -96,7 +96,6 @@ const emit = defineEmits<{
 
 const hoveredCountry = ref<{ code: string; name: string; count: number } | null>(null)
 
-// Cache for formatted country names in pt-BR
 const nameCache = new Map<string, string>()
 
 function getCountryName(isoCode: string): string {
@@ -119,10 +118,6 @@ const maxCount = computed(() => {
   return Math.max(0, ...counts)
 })
 
-// 239 groups / 881 paths. Computed once per dependency change instead of ~5
-// function calls per group per render: hovering writes `hoveredCountry`, which
-// re-runs this component's whole render function even though only the status
-// line reads it.
 const groupClasses = computed<Record<string, string[]>>(() => {
   const max = maxCount.value
   const selected = props.selectedCountry

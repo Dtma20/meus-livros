@@ -5,10 +5,6 @@ export interface GenreItem {
   kind: 'ficcao' | 'nao_ficcao' | 'outro'
 }
 
-/**
- * The 26 canonical seeded genres in the catalog.
- * Corresponds to the database genres table (seeded in TASK-004).
- */
 export const GENRES: readonly GenreItem[] = [
   { id: 1, slug: 'ficcao', label_pt: 'Ficção', kind: 'ficcao' },
   { id: 2, slug: 'nao-ficcao', label_pt: 'Não Ficção', kind: 'nao_ficcao' },

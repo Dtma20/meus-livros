@@ -4,10 +4,6 @@ import { db } from '../db'
 import type { Viewer } from './visibility'
 import { search_misses } from '../db/schema'
 
-/**
- * Maximum results returned by a single search call.
- * Spec: "at most 20".
- */
 const LIMIT = 20
 
 export interface SearchWork {
@@ -20,55 +16,22 @@ export interface SearchWork {
   log_count: number
 }
 
-/**
- * Escape the LIKE wildcards (`%`, `_`) and the escape character itself so a
- * user-typed `%` or `_` matches literally. The result is still passed as a
- * **bound parameter** — never concatenated into the SQL string.
- */
 export function escapeLikeWildcards(term: string): string {
   return term.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_')
 }
 
-/**
- * Search the local catalog for works matching `query` (accent-insensitive,
- * case-insensitive) against both `works.search_text` (generated column on
- * `title`) and `authors.name`.
- *
- * The user-supplied term is **always a bound parameter** — it is never
- * concatenated into the SQL string. A literal `%` or `_` in the input is
- * matched literally (see {@link escapeLikeWildcards}) and does not act as
- * a wildcard.
- *
- * Ranking (spec §4):
- *   1. Exact title match (f_unaccent(lower(title)) = f_unaccent(lower($1)))
- *   2. Title prefix match (search_text LIKE f_unaccent(lower($1)) || '%')
- *   3. log_count DESC — **visible logs only**
- *
- * log_count counts only what the viewer may see. Counting every log would rank
- * results by activity the viewer cannot look at, and it would say out loud that
- * a private entry exists — the same leak the 404-instead-of-403 rule closes, by
- * a different door.
- *   4. title ASC
- */
 export async function searchWorks(query: string, viewer: Viewer): Promise<SearchWork[]> {
-  // The spec says: q shorter than 2 chars → return empty array, not an error.
   const term = query.trim()
   if (term.length < 2) return []
 
-  // Clean tokens for multi-word matching
   const tokens = term
     .replace(/[.,/#!$%^&*;:{}=\-_`~()?"']/g, ' ')
     .split(/\s+/)
     .map((t) => t.trim().toLowerCase())
     .filter((t) => t.length >= 2)
 
-  // Escaped in JS, bound as a parameter; every LIKE/ILIKE below declares
-  // ESCAPE '\' so the backslashes are honoured. (In the sql template
-  // literal the backslash is written doubled: '\\' renders as '\' in SQL.)
   const escaped = escapeLikeWildcards(term)
 
-  // Single-pass query: one scan of works using EXISTS for author match to avoid
-  // fan-out from multi-author works and avoid needing DISTINCT in matched.
   const rows = await db.execute<{
     id: string
     slug: string
@@ -204,16 +167,6 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
   }))
 }
 
-/**
- * Record a search that returned no results.
- * Fire-and-forget: errors are caught and logged so they never block or fail the response.
- *
- * Rules (TASK-026):
- * - Store the query as typed, trimmed (raw text is the signal, including typos; do not normalise).
- * - Queries shorter than 2 characters are ignored (empty by design, not by catalog absence).
- * - Anonymous searches record user_id as null.
- * - Errors are caught and logged, never throwing or rejecting.
- */
 export async function recordSearchMiss(query: string, userId: string | null = null): Promise<void> {
   const term = query.trim()
   if (term.length < 2) return

@@ -95,7 +95,7 @@ describe('Feed Unit Tests', () => {
     it('truncates review and adds ellipsis when exceeding limit', () => {
       const longReview = 'A'.repeat(250)
       const excerpt = buildReviewExcerpt(longReview, 200)
-      expect(excerpt?.length).toBe(201) // 200 chars + '…'
+      expect(excerpt?.length).toBe(201)
       expect(excerpt?.endsWith('…')).toBe(true)
     })
   })

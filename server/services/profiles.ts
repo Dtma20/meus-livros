@@ -22,15 +22,6 @@ import {
 } from '../db/schema'
 import { visibleLogs, type Viewer } from './visibility'
 
-/**
- * Service to fetch a user profile and their visible reading logs.
- *
- * Rules:
- * - A `privado` profile returns 404 (never 403) to everyone except its owner.
- * - Non-existent handle returns 404.
- * - Logs and stats are strictly filtered by `visibleLogs(viewer)`.
- * - For non-owners, private entries are excluded from both logs and counters.
- */
 export async function getProfileByHandle(
   handle: string,
   viewer: Viewer,
@@ -46,7 +37,6 @@ export async function getProfileByHandle(
     })
   }
 
-  // 1. Fetch user by handle
   const [userRow] = await db
     .select({
       id: users.id,
@@ -70,7 +60,6 @@ export async function getProfileByHandle(
     })
   }
 
-  // 2. Private profile visibility check: 404 to all non-owners (never 403)
   const isOwner = viewer !== null && viewer.id === userRow.id
   if (userRow.profile_visibility === 'privado' && !isOwner) {
     throw createError({
@@ -82,16 +71,12 @@ export async function getProfileByHandle(
     })
   }
 
-  // 3. Query reading logs for this user, enforcing visibleLogs(viewer)
   const logRows = await db
     .select({
       id: reading_logs.id,
       work_id: reading_logs.work_id,
       edition_id: reading_logs.edition_id,
       rating: reading_logs.rating,
-      // review is deliberately absent: the profile grid renders covers and
-      // counters, never review text. Selecting it shipped ~58 KB of dead
-      // payload per profile load (86 logs, 56 reviews in the real corpus).
       started_on: reading_logs.started_on,
       finished_on: reading_logs.finished_on,
       finished_precision: reading_logs.finished_precision,
@@ -145,12 +130,8 @@ export async function getProfileByHandle(
     }
   }
 
-  // 4. Batch query authors and genres for all retrieved works
   const workIds = [...new Set(logRows.map((r) => r.work.id))]
 
-  // With postgres(url, { max: 1 }), Promise.all pipelines queries over the
-  // single connection rather than achieving true parallel execution. The gain
-  // is round-trip latency elimination via pipelining, not halved wall-clock time.
   const [authorsRows, genresRows, firstEditionRows] = await Promise.all([
     db
       .select({
@@ -234,7 +215,6 @@ export async function getProfileByHandle(
     }
   }
 
-  // 5. Construct ProfileLogItem array
   const logs: ProfileLogItem[] = logRows.map((row) => {
     const firstOverall = firstOverallByWorkId.get(row.work.id)
     const firstCover = firstCoverByWorkId.get(row.work.id)
@@ -257,12 +237,10 @@ export async function getProfileByHandle(
         authors: authorsByWorkId.get(row.work.id) ?? [],
         genres: genresByWorkId.get(row.work.id) ?? [],
       },
-      // When edition_id is null, firstOverall is the deterministic fallback.
       edition: row.edition ?? (row.edition_id === null ? firstOverall ?? null : null),
     }
   })
 
-  // 6. Compute stats over visible logs returned by the first 100 limit.
   const totalBooks = logs.length
   const authorSet = new Set<string>()
   const countrySet = new Set<string>()

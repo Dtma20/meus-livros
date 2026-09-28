@@ -1,18 +1,3 @@
-// Geometria do mapa mundi, indexada por código ISO 3166-1 alpha-2 em maiúsculo —
-// o mesmo formato de `authors.country_code`.
-//
-// Origem: File:BlankMap-World.svg, Wikimedia Commons, **domínio público**
-// (Canuckguy e outros, adaptado do mapa do CIA World Factbook de 2005).
-// Procedência e licença em `world-map.LICENSE.txt`, ao lado deste arquivo.
-//
-// Por que um módulo TypeScript e não um `.svg`: `v-html` é banido no repositório,
-// então o SVG não pode ser injetado como string. O componente percorre estes
-// paths com `v-for` e renderiza `<path>` de verdade, um por geometria.
-//
-// Arquivo gerado — não edite à mão. Foi otimizado com
-// `svgo 3.3.5 --precision=0 --multipass`, que levou 1,08 MB a 203 KB sem perda
-// visível: as coordenadas vivem num canvas de 2754x1398 e a precisão decimal
-// original era ruído.
 
 export const WORLD_MAP_VIEW_BOX = '0 0 2754 1398'
 

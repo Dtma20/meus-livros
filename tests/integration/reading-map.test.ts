@@ -7,7 +7,7 @@ import { removeFixtures, trackSetup } from './fixtures'
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `t025-${Date.now()}`
 
-describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', () => {
+describe.skipIf(!hasDatabaseUrl)('TASK-025 - Reading map integration tests', () => {
   let db: typeof import('../../server/db')['db']
   let schema: typeof import('../../server/db/schema')
   let profilesService: typeof import('../../server/services/profiles')
@@ -29,7 +29,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
     profilesService = await import('../../server/services/profiles')
     catalogService = await import('../../server/services/catalog')
 
-    // 1. Create a user with a public profile
     const email = `${MARKER}@example.com`
     ownerHandle = `mapuser_${Date.now() % 10000000}`
 
@@ -46,7 +45,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
 
     ownerId = user!.id
 
-    // 2. Create Work 1: Brazil (public log)
     brWorkTitle = `${MARKER} Dom Casmurro`
     const brWork = await catalogService.createWork(
       {
@@ -80,7 +78,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
       visibility: 'publico',
     })
 
-    // 3. Create Work 2: Japan (private log)
     jpWorkTitle = `${MARKER} Norwegian Wood`
     const jpWork = await catalogService.createWork(
       {
@@ -114,7 +111,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
       visibility: 'privado', // Private log!
     })
 
-    // 4. Create Work 3: Ancient Rome (country_code is null, country_label is 'Roma Antiga', public log)
     ancientRomeWorkTitle = `${MARKER} Meditações`
     const romeWork = await catalogService.createWork(
       {
@@ -155,39 +151,34 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
   })
 
   it('map reflects only visible logs: private entry country does not appear to a stranger (Requirement 3)', async () => {
-    // Stranger view (viewer === null)
+
     const strangerView = await profilesService.getProfileByHandle(ownerHandle, null)
-    expect(strangerView.logs).toHaveLength(2) // 1 BR public, 1 Roma Antiga public
+    expect(strangerView.logs).toHaveLength(2)
 
     const strangerMapData = aggregateReadingMapData(strangerView.logs)
 
-    // Brazil is public, so it appears
     expect(strangerMapData.countryCounts['BR']).toBe(1)
-    // Japan is private, MUST NOT leak to stranger
+
     expect(strangerMapData.countryCounts['JP']).toBeUndefined()
     expect(strangerMapData.countryCounts).not.toHaveProperty('JP')
 
-    // Owner view (viewer === { id: ownerId })
     const ownerView = await profilesService.getProfileByHandle(ownerHandle, { id: ownerId })
-    expect(ownerView.logs).toHaveLength(3) // All 3 logs visible to owner
+    expect(ownerView.logs).toHaveLength(3)
 
     const ownerMapData = aggregateReadingMapData(ownerView.logs)
     expect(ownerMapData.countryCounts['BR']).toBe(1)
-    expect(ownerMapData.countryCounts['JP']).toBe(1) // Japan appears for owner
+    expect(ownerMapData.countryCounts['JP']).toBe(1)
   }, 20000)
 
   it('author with no ISO code (Roma Antiga) is excluded from the map but counted in the stat (Requirement 5)', async () => {
     const strangerView = await profilesService.getProfileByHandle(ownerHandle, null)
     const mapData = aggregateReadingMapData(strangerView.logs)
 
-    // Excluded from map country counts
     expect(mapData.countryCounts).not.toHaveProperty('null')
-    expect(mapData.totalMappedCountries).toBe(1) // Only 'BR' is mapped
+    expect(mapData.totalMappedCountries).toBe(1)
 
-    // Listed in unmapped countries for the note
     expect(mapData.unmappedCountries).toContain('Roma Antiga')
 
-    // But counted in global uniqueCountries stat (Brasil + Roma Antiga = 2)
     expect(strangerView.stats.uniqueCountries).toBe(2)
   }, 20000)
 
@@ -197,15 +188,12 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 — Reading map integration tests', (
 
     const { filterCountry, sortedBooks } = useBookFilters(logsRef)
 
-    // Initial state: all 2 visible books displayed
     expect(sortedBooks.value).toHaveLength(2)
 
-    // Filter by 'Brasil' (as emitted when clicking BR on ReadingMap)
     filterCountry.value = 'Brasil'
     expect(sortedBooks.value).toHaveLength(1)
     expect(sortedBooks.value[0]!.work.title).toBe(brWorkTitle)
 
-    // Clear filter (as emitted when clicking Brasil again or clicking Limpar)
     filterCountry.value = ''
     expect(sortedBooks.value).toHaveLength(2)
   }, 20000)

@@ -1,28 +1,13 @@
 import { formatCountryName, type ProfileLogItem } from '~~/shared/schemas/profile'
 
 export interface AggregatedReadingMapData {
-  /** Map of ISO 3166-1 alpha-2 uppercase country codes to number of books */
   countryCounts: Record<string, number>
-  /** Total number of unique countries with an ISO code represented on the map */
   totalMappedCountries: number
-  /** Names/labels of countries that cannot be placed on the map (e.g. no ISO code) */
   unmappedCountries: string[]
 }
 
 const ISO_3166_1_ALPHA_2_REGEX = /^[A-Z]{2}$/
 
-/**
- * Aggregates country data for the reading map from a list of profile reading logs.
- *
- * Rules:
- * - Reads country_code (ISO 3166-1 alpha-2) from author(s) of each work.
- * - Counts 1 book per unique country per log (a book with multiple authors from
- *   different countries counts for both countries; a book with multiple authors
- *   from the same country counts once for that country).
- * - Authors without a valid ISO 3166-1 alpha-2 code (e.g. 'Roma Antiga'
- *   where country_code is null or malformed) are excluded from countryCounts but
- *   collected in unmappedCountries for the descriptive note.
- */
 export function aggregateReadingMapData(logs: ProfileLogItem[]): AggregatedReadingMapData {
   const countryCounts: Record<string, number> = {}
   const unmappedCountriesSet = new Set<string>()
@@ -59,14 +44,6 @@ export function aggregateReadingMapData(logs: ProfileLogItem[]): AggregatedReadi
   }
 }
 
-/**
- * Computes the color tier (0-4) for a country based on its book count.
- * Tier 0: 0 books
- * Tier 1: 1 - 25% of max
- * Tier 2: 26 - 50% of max
- * Tier 3: 51 - 75% of max
- * Tier 4: 76 - 100% of max (or single-country profile)
- */
 export function getMapColorTier(count: number, maxCount: number): number {
   if (count <= 0) return 0
   if (maxCount <= 1) return 4

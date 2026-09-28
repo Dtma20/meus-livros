@@ -1,11 +1,9 @@
 <template>
   <div class="entry-page">
-    <!-- Loading state -->
     <div v-if="isPending" class="entry-status-wrap" role="status">
       <LoadingSkeleton :count="1" />
     </div>
 
-    <!-- Error / Not found state -->
     <div v-else-if="hasError || !logData" class="entry-status-wrap" role="status">
       <EmptyState
         v-if="is404"
@@ -24,9 +22,7 @@
       />
     </div>
 
-    <!-- Main Content -->
     <article v-else class="entry-article">
-      <!-- Header: Library owner context -->
       <header class="entry-header">
         <NuxtLink :to="`/@${logData.user.handle}`" class="reader-link">
           <template v-if="isOwner">
@@ -49,7 +45,6 @@
         </span>
       </header>
 
-      <!-- Book Card & Information -->
       <div class="book-card-section">
         <div class="cover-container">
           <BookCover
@@ -92,7 +87,6 @@
             </span>
           </div>
 
-          <!-- Affordances: Share & Edit -->
           <div class="actions-row">
             <button
               type="button"
@@ -190,7 +184,6 @@
         </div>
       </div>
 
-      <!-- Reading Progress & Blocks Section -->
       <ReadingBlocksSection
         :log-id="logData.id"
         :initial-blocks="logData.blocks || []"
@@ -200,7 +193,6 @@
         :is-finished="Boolean(logData.finished_on)"
       />
 
-      <!-- Review Section -->
       <section class="review-section">
         <h2 class="review-heading">Resenha</h2>
         <div v-if="logData.review" class="review-body">
@@ -213,7 +205,6 @@
         </div>
       </section>
 
-      <!-- Footer Navigation -->
       <footer class="entry-footer">
         <NuxtLink :to="`/@${logData.user.handle}`" class="footer-link">
           {{ isOwner ? '← Voltar para a sua biblioteca' : `← Outras leituras de ${logData.user.display_name}` }}
@@ -313,7 +304,6 @@ const isOwner = computed(() => {
   return false
 })
 
-// Metadata values
 const publishedYear = computed(() => {
   if (!logData.value) return null
   return logData.value.work.first_published_year ?? logData.value.edition?.published_year ?? null
@@ -337,14 +327,13 @@ const formatText = computed(() => {
   return formatBookFormat(logData.value.format)
 })
 
-// Open Graph & Head tags
 const pageTitle = computed(() => {
   if (!logData.value) return 'Entrada não encontrada'
   return logData.value.work.title
 })
 
 const ogTitle = computed(() => {
-  if (!logData.value) return 'Entrada — Meus Livros'
+  if (!logData.value) return 'Entrada - Meus Livros'
   return buildOgTitle(logData.value.work.title, logData.value.user.handle, logData.value.rating)
 })
 
@@ -390,7 +379,6 @@ if (typeof useHead === 'function') {
   })
 }
 
-// Share affordance
 const copied = ref(false)
 
 async function handleShare() {
@@ -420,12 +408,10 @@ async function handleShare() {
         copied.value = false
       }, 2500)
     } catch {
-      // Ignore clipboard error
     }
   }
 }
 
-// Delete affordance for entry owner
 const isDeleting = ref(false)
 const deleteError = ref('')
 

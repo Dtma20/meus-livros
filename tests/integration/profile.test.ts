@@ -13,7 +13,7 @@ function asError(caught: unknown): H3ErrorLike {
   return caught as H3ErrorLike
 }
 
-describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integration tests', () => {
+describe.skipIf(!hasDatabaseUrl)('TASK-016 - Profile page and visibility integration tests', () => {
   let db: typeof import('../../server/db')['db']
   let schema: typeof import('../../server/db/schema')
   let profilesService: typeof import('../../server/services/profiles')
@@ -33,7 +33,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
     profilesService = await import('../../server/services/profiles')
     catalogService = await import('../../server/services/catalog')
 
-    // 1. Create a user with a public profile
     const email1 = `${MARKER}-pub@example.com`
     publicOwnerHandle = `upub_${Date.now() % 10000000}`
 
@@ -50,7 +49,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
 
     publicOwnerId = pubUser!.id
 
-    // 2. Create a user with a private profile
     const email2 = `${MARKER}-priv@example.com`
     privateOwnerHandle = `upriv_${Date.now() % 10000000}`
 
@@ -67,8 +65,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
 
     privateOwnerId = privUser!.id
 
-    // 3. For the public profile user, create 7 works (5 will have public logs, 2 will have private logs)
-    // Authors from different countries to test unique authors & countries
     for (let i = 1; i <= 7; i++) {
       const isPublicLog = i <= 5
       const countryCode = i === 1 ? 'BR' : i === 2 ? 'GB' : i === 3 ? 'US' : null
@@ -94,7 +90,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
         { skipRateLimit: true },
       )
 
-      // Insert reading log: 5 public, 2 private
       const createdAt = new Date(Date.now() - (10 - i) * 60000)
       await db.insert(schema.reading_logs).values({
         user_id: publicOwnerId,
@@ -111,7 +106,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
       })
     }
 
-    // 4. For the private profile user, create 1 work with 1 public log
     const privProfileWork = await catalogService.createWork(
       {
         title: `${MARKER} Obra Privada`,
@@ -144,15 +138,14 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
   })
 
   it('a profile with 5 public and 2 private entries shows 5 to a stranger and 7 to the owner', async () => {
-    // Stranger view (viewer === null)
+
     const strangerView = await profilesService.getProfileByHandle(publicOwnerHandle, null)
     expect(strangerView.logs).toHaveLength(5)
-    // All logs must be public
+
     for (const log of strangerView.logs) {
       expect(log.visibility).toBe('publico')
     }
 
-    // Owner view (viewer === { id: publicOwnerId })
     const ownerView = await profilesService.getProfileByHandle(publicOwnerHandle, { id: publicOwnerId })
     expect(ownerView.logs).toHaveLength(7)
     const privateLogs = ownerView.logs.filter((l) => l.visibility === 'privado')
@@ -160,21 +153,20 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
   }, 20000)
 
   it('stat counters match the visible set for each viewer (does not leak private count)', async () => {
-    // Stranger view
+
     const strangerView = await profilesService.getProfileByHandle(publicOwnerHandle, null)
     expect(strangerView.stats.totalBooks).toBe(5)
-    // Pages for 5 public books: 100 + 200 + 300 + 400 + 500 = 1500
+
     expect(strangerView.stats.totalPages).toBe(1500)
 
-    // Owner view
     const ownerView = await profilesService.getProfileByHandle(publicOwnerHandle, { id: publicOwnerId })
     expect(ownerView.stats.totalBooks).toBe(7)
-    // Pages for 7 books: 1500 + 600 + 700 = 2800
+
     expect(ownerView.stats.totalPages).toBe(2800)
   }, 20000)
 
   it('a privado profile returns 404 to a stranger and 200 to its owner', async () => {
-    // Stranger view must throw 404
+
     let strangerError: unknown
     try {
       await profilesService.getProfileByHandle(privateOwnerHandle, null)
@@ -186,7 +178,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
     expect(sErr.statusCode).toBe(404)
     expect(sErr.data?.error).toBe('nao_encontrado')
 
-    // Different authenticated user (not the owner) must also get 404
     let otherUserError: unknown
     try {
       await profilesService.getProfileByHandle(privateOwnerHandle, { id: publicOwnerId })
@@ -196,7 +187,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 — Profile page and visibility integ
     expect(otherUserError).toBeDefined()
     expect(asError(otherUserError).statusCode).toBe(404)
 
-    // Owner view must succeed with 200
     const ownerView = await profilesService.getProfileByHandle(privateOwnerHandle, { id: privateOwnerId })
     expect(ownerView.user.handle).toBe(privateOwnerHandle)
     expect(ownerView.logs).toHaveLength(1)

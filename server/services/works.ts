@@ -31,13 +31,7 @@ async function assembleWorkDetails(
   work: WorkBaseRow,
   viewer: Viewer,
 ): Promise<WorkWithDetails> {
-  // Four independent reads, all keyed by a work.id known before the first of
-  // them. Serialised they were five sequential round trips per page, and the
-  // crawler that builds the WhatsApp preview reads the first response.
-  // With max: 1 in postgres.js, pipelining dispatches all four queries
-  // without waiting for each response, eliminating three round-trip latencies.
   const [authorsList, genresList, editionsList, logsList, [aggregates]] = await Promise.all([
-    // 1. Authors in assigned display order
     db
       .select({
         id: authors.id,
@@ -51,7 +45,6 @@ async function assembleWorkDetails(
       .where(eq(work_authors.work_id, work.id))
       .orderBy(work_authors.position),
 
-    // 2. Genres
     db
       .select({
         id: genres.id,
@@ -63,7 +56,6 @@ async function assembleWorkDetails(
       .where(eq(work_genres.work_id, work.id))
       .orderBy(genres.id),
 
-    // 3. Editions
     db
       .select({
         id: editions.id,
@@ -80,8 +72,6 @@ async function assembleWorkDetails(
       .orderBy(editions.published_year, editions.created_at, editions.id)
       .limit(50),
 
-    // 4. Visible reading logs for this work, newest first
-    // Enforces visibleLogs(viewer) with innerJoin on users
     db
       .select({
         id: reading_logs.id,
@@ -101,7 +91,6 @@ async function assembleWorkDetails(
       .orderBy(desc(reading_logs.created_at), desc(reading_logs.id))
       .limit(50),
 
-    // 5. Aggregates over every visible log, not just the 50 listed above
     db
       .select({
         count: sql<number>`count(*)::int`,
@@ -112,7 +101,6 @@ async function assembleWorkDetails(
       .where(and(eq(reading_logs.work_id, work.id), visibleLogs(viewer))),
   ])
 
-  // Best available cover from editions
   const bestCoverEdition = editionsList.find((e) => e.cover_url)
     ?? editionsList.find((e) => e.ol_cover_id)
     ?? editionsList.find((e) => e.isbn13)
@@ -130,8 +118,6 @@ async function assembleWorkDetails(
     }
   }
 
-  // Aggregate stats: strictly over visible logs, computed in SQL so the
-  // 50-row cap on the list does not cap the count
   const logCount = aggregates?.count ?? 0
   const averageRating = aggregates?.average
     ? Math.round(Number(aggregates.average) * 10) / 10
@@ -165,16 +151,6 @@ async function assembleWorkDetails(
   }
 }
 
-/**
- * Retrieves a work by its unique slug, including authors, genres, editions,
- * and reading logs filtered by the viewer's visibility.
- *
- * Rules:
- * - Private logs are never included unless viewer is the author.
- * - Profile visibility of log authors is respected via visibleLogs(viewer).
- * - Aggregates (log_count and average_rating) only count visible logs.
- * - If not found, throws 404 with standard error code 'nao_encontrado'.
- */
 export async function getWorkBySlug(slug: string, viewer: Viewer): Promise<WorkWithDetails> {
   const [work] = await db
     .select({
@@ -204,10 +180,6 @@ export async function getWorkBySlug(slug: string, viewer: Viewer): Promise<WorkW
   return assembleWorkDetails(work, viewer)
 }
 
-/**
- * Retrieves a work by its UUID, including authors, genres, editions,
- * and reading logs filtered by the viewer's visibility.
- */
 export async function getWorkById(id: string, viewer: Viewer): Promise<WorkWithDetails> {
   const [work] = await db
     .select({

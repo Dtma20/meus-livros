@@ -37,8 +37,7 @@ describe('normalizeIsbn', () => {
   })
 
   it('returns null for an Amazon ASIN', () => {
-    // The corpus stores three Kindle ASINs in the isbn field. They are not
-    // ISBNs, so they must become null rather than a fabricated ISBN-13.
+
     expect(normalizeIsbn('B07PV188F2')).toBeNull()
   })
 })

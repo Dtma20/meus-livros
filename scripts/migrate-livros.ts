@@ -1,24 +1,3 @@
-/**
- * scripts/migrate-livros.ts
- *
- * Imports 86 books from legacy/livros.json into Postgres as the owner's
- * reading history. Queries run over DATABASE_URL_DIRECT, on a client this
- * script opens itself; DATABASE_URL must still be set, because importing
- * server/db (via the catalog service) requires it.
- *
- * Usage:
- *   npx tsx scripts/migrate-livros.ts            # refuses if reading_logs non-empty
- *   npx tsx scripts/migrate-livros.ts --force    # runs cleanly even if reading_logs non-empty
- *
- * Idempotency: refuses to run if reading_logs is non-empty, unless --force.
- * When --force is passed, cleans up previous owner records in the same transaction.
- * A mid-run failure rolls back the entire transaction leaving tables empty.
- *
- * Reuses createWork from server/services/catalog.ts with skipRateLimit: true.
- *
- * The script is exempt from the ESLint rule that bars scripts/** from
- * importing `db` directly (CLAUDE.md: "scripts/** is exempt").
- */
 
 import 'dotenv/config'
 import fs from 'node:fs'
@@ -41,10 +20,6 @@ import { normalizeIsbn } from '../server/utils/isbn'
 import { countryCodeFor } from '../shared/constants/countries'
 import { writeGenerosTxt } from './seed-genres'
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
 export interface LivroJson {
   title: string
   author: string
@@ -64,14 +39,6 @@ export interface LivroJson {
   cover_url: string | null
 }
 
-// ---------------------------------------------------------------------------
-// Mapping tables — every value from §4 and §5 of migration.md
-// ---------------------------------------------------------------------------
-//
-// Country label → ISO code lives in shared/constants/countries.ts (single
-// source of truth, also used by the manual book form). 'Roma Antiga' has no
-// ISO code and resolves to null — it persists as a label-only country.
-
 export const ISO_IDIOMA: Record<string, string> = {
   'inglês': 'en',
   'português': 'pt',
@@ -86,10 +53,6 @@ export const ISO_IDIOMA: Record<string, string> = {
   'japonês': 'ja',
 }
 
-/**
- * Maps the 26 data labels to genre slugs (seeded in genres table).
- * Biografia and Autobiografia both map to 'biografia' — deliberate merge.
- */
 export const GENRE_SLUG_MAP: Record<string, string> = {
   'Ficção': 'ficcao',
   'Não-Ficção': 'nao-ficcao',
@@ -119,16 +82,6 @@ export const GENRE_SLUG_MAP: Record<string, string> = {
   'Comédia': 'comedia',
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Convert HTML <br> tags to plain-text newlines.
- * <br><br> → \n\n, <br> → \n
- * Then asserts no '<' remains — that assertion is the security control
- * that makes "reviews are plain text" true rather than assumed.
- */
 export function brToText(html: string): string {
   const result = html
     .replace(/<br\s*\/?>\s*<br\s*\/?>/gi, '\n\n')
@@ -136,18 +89,13 @@ export function brToText(html: string): string {
 
   if (result.includes('<')) {
     throw new Error(
-      `Review still contains '<' after br conversion — possible HTML injection.\nContent: ${result.slice(0, 200)}`,
+      `Review still contains '<' after br conversion - possible HTML injection.\nContent: ${result.slice(0, 200)}`,
     )
   }
 
   return result
 }
 
-/**
- * Parse authors from a book's `author` field.
- * A comma or ' e ' separates multiple authors.
- * Returns an array of names (trimmed, in order).
- */
 export function parseAuthors(authorStr: string): string[] {
   if (authorStr.includes(',')) {
     return authorStr.split(',').map((s) => s.trim()).filter(Boolean)
@@ -158,10 +106,6 @@ export function parseAuthors(authorStr: string): string[] {
   return [authorStr.trim()]
 }
 
-/**
- * Map `source` field to the book_format enum.
- * 'Físico' → 'fisico', 'Ebook' → 'ebook'
- */
 export function parseFormat(source: string): 'fisico' | 'ebook' | 'audio' {
   switch (source) {
     case 'Físico': return 'fisico'
@@ -169,10 +113,6 @@ export function parseFormat(source: string): 'fisico' | 'ebook' | 'audio' {
     default: throw new Error(`Formato desconhecido: "${source}"`)
   }
 }
-
-// ---------------------------------------------------------------------------
-// Pre-flight validation
-// ---------------------------------------------------------------------------
 
 export function validateLivros(livros: LivroJson[]): void {
   if (livros.length !== 86) {
@@ -182,25 +122,21 @@ export function validateLivros(livros: LivroJson[]): void {
   for (const [i, livro] of livros.entries()) {
     const ctx = `[${i}] "${livro.title}"`
 
-    // Genre labels
     for (const g of livro.genre) {
       if (!(g in GENRE_SLUG_MAP)) {
         throw new Error(`${ctx}: gênero desconhecido "${g}". Adicione ao GENRE_SLUG_MAP.`)
       }
     }
 
-    // Country
     if (countryCodeFor(livro.country) === null && livro.country !== 'Roma Antiga') {
       throw new Error(`${ctx}: país desconhecido "${livro.country}". Adicione a shared/constants/countries.ts.`)
     }
 
-    // Language (case-folded)
     const lang = livro.original_language.toLowerCase()
     if (!(lang in ISO_IDIOMA)) {
       throw new Error(`${ctx}: idioma desconhecido "${livro.original_language}". Adicione ao ISO_IDIOMA.`)
     }
 
-    // Rating
     if (livro.rate !== null) {
       if (livro.rate < 0.5 || livro.rate > 5.0 || (livro.rate * 2) !== Math.trunc(livro.rate * 2)) {
         throw new Error(`${ctx}: rate inválido: ${livro.rate}`)
@@ -208,7 +144,6 @@ export function validateLivros(livros: LivroJson[]): void {
     }
   }
 
-  // All ISBNs must normalise; verify 83 distinct valid ISBNs and 3 null ISBNs (ASINs)
   const isbn13Set = new Set<string>()
   let validIsbnCount = 0
   let nullIsbnCount = 0
@@ -235,10 +170,6 @@ export function validateLivros(livros: LivroJson[]): void {
   console.log('✓ Pre-flight validations passed (86 records, 83 valid ISBNs, 3 null ASINs).')
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
 export async function main(): Promise<void> {
   const force = process.argv.includes('--force')
 
@@ -247,7 +178,6 @@ export async function main(): Promise<void> {
     throw new Error('DATABASE_URL_DIRECT ou DATABASE_URL não configurado.')
   }
 
-  // Owner identity — never hardcoded
   const ownerEmail = process.env.OWNER_EMAIL
   const ownerHandle = process.env.OWNER_HANDLE
   const ownerName = process.env.OWNER_NAME
@@ -259,19 +189,16 @@ export async function main(): Promise<void> {
     )
   }
 
-  // Load JSON
   const jsonPath = path.resolve(process.cwd(), 'legacy/livros.json')
   const rawJson = fs.readFileSync(jsonPath, 'utf-8')
   const livros: LivroJson[] = JSON.parse(rawJson)
 
-  // Pre-flight
   validateLivros(livros)
 
   const client = postgres(connectionString, { max: 1 })
   const db = drizzle(client)
 
   try {
-    // Idempotency guard
     const [logCount] = await db.select({ n: sql<number>`count(*)::int` }).from(reading_logs)
     if ((logCount?.n ?? 0) > 0 && !force) {
       throw new Error(
@@ -280,7 +207,6 @@ export async function main(): Promise<void> {
       )
     }
 
-    // Load seeded genres → slug→id map
     const seededGenres = await db.select({ id: genres.id, slug: genres.slug }).from(genres)
     if (seededGenres.length === 0) {
       throw new Error('Tabela genres está vazia. Execute npm run db:seed primeiro.')
@@ -290,9 +216,6 @@ export async function main(): Promise<void> {
     console.log(`Iniciando migração de ${livros.length} livros…`)
 
     await db.transaction(async (tx) => {
-      // -----------------------------------------------------------------------
-      // 1. Insert owner into users and allowed_emails
-      // -----------------------------------------------------------------------
       const [owner] = await tx
         .insert(users)
         .values({
@@ -313,7 +236,6 @@ export async function main(): Promise<void> {
         ownerId = existing.id
       }
 
-      // If --force is set and reading_logs was not empty, wipe previous owner data cleanly
       if (force && (logCount?.n ?? 0) > 0) {
         console.log('Limpando dados anteriores do proprietário (--force)…')
         await tx.delete(reading_logs).where(eq(reading_logs.user_id, ownerId))
@@ -324,7 +246,6 @@ export async function main(): Promise<void> {
         await tx.delete(authors).where(eq(authors.created_by, ownerId))
       }
 
-      // Insert into allowed_emails so owner can sign in via normal OTP flow
       await tx
         .insert(allowed_emails)
         .values({ email: ownerEmail, invited_by: null, note: 'Dono da instância' })
@@ -332,9 +253,6 @@ export async function main(): Promise<void> {
 
       console.log(`✓ Usuário dono: ${ownerHandle} (${ownerId})`)
 
-      // -----------------------------------------------------------------------
-      // 2–8. Process each book via catalog.createWork
-      // -----------------------------------------------------------------------
       let totalGenreLinks = 0
       let expectedPageSum = 0
 
@@ -342,7 +260,6 @@ export async function main(): Promise<void> {
         const authorNames = parseAuthors(livro.author)
         const lang = ISO_IDIOMA[livro.original_language.toLowerCase()] ?? null
 
-        // Map genre IDs
         const genreIdSet = new Set<number>()
         for (const genreLabel of livro.genre) {
           const genreSlug = GENRE_SLUG_MAP[genreLabel]!
@@ -354,7 +271,6 @@ export async function main(): Promise<void> {
         }
         totalGenreLinks += genreIdSet.size
 
-        // Exercise the production createWork path
         const workResult = await createWork(
           {
             title: livro.title,
@@ -373,7 +289,7 @@ export async function main(): Promise<void> {
               isbn: livro.isbn,
               publisher: livro.publisher,
               page_count: livro.pages,
-              published_year: null, // Deliberately null per migration.md §4
+              published_year: null,
               language: 'pt',
               cover_url: livro.cover_url ?? null,
               ol_cover_id: null,
@@ -393,14 +309,9 @@ export async function main(): Promise<void> {
           throw new Error(`Edição não criada para a obra "${livro.title}".`)
         }
 
-        // ------------------------------------------------------------------
-        // 8. reading_logs
-        // ------------------------------------------------------------------
         const reviewText = livro.review ? brToText(livro.review) : null
         const format = parseFormat(livro.source)
 
-        // Preserve reading order: created_at = make_date(read_in,1,1) + idx minutes
-        // finished_on = make_date(read_in, 1, 1)
         const finishedOn = `${livro.read_in}-01-01`
         const baseDate = new Date(`${livro.read_in}-01-01T00:00:00Z`)
         const createdAt = new Date(baseDate.getTime() + idx * 60 * 1000)
@@ -427,9 +338,6 @@ export async function main(): Promise<void> {
         }
       }
 
-      // -----------------------------------------------------------------------
-      // Post-insert assertions (same transaction)
-      // -----------------------------------------------------------------------
       console.log('Executando validações pós-insert…')
 
       const [wCount] = await tx.select({ n: sql<number>`count(*)::int` }).from(works).where(eq(works.created_by, ownerId))
@@ -469,11 +377,6 @@ export async function main(): Promise<void> {
         }
       }
 
-      // Author count assertion:
-      // 59 raw author strings, 2 multi-author records ('Pierre Weil, Roland Tompakow' and 'Karl Marx, Friedrich Engels').
-      // Friedrich Engels is also single author of 'Do socialismo utópico ao socialismo científico',
-      // so the split yields exactly 60 unique authors. Measured against the real
-      // corpus — asserted exactly, not as a range.
       const [aCount] = await tx.select({ n: sql<number>`count(*)::int` }).from(authors).where(eq(authors.created_by, ownerId))
       if (aCount?.n !== 60) {
         failures.push(`  authors count: esperado 60, obtido ${aCount?.n}`)
@@ -495,22 +398,16 @@ export async function main(): Promise<void> {
       console.log(`✓ work_genres = ${wgCount?.n}`)
     })
 
-    // -----------------------------------------------------------------------
-    // Post-commit housekeeping (not part of transaction)
-    // -----------------------------------------------------------------------
-
-    // Regenerate legacy/generos.txt from seeded genres
     writeGenerosTxt()
     console.log('✓ legacy/generos.txt regenerado.')
 
-    // Delete legacy/livros_lidos_atualizado.csv
     const csvPath = path.resolve(process.cwd(), 'legacy/livros_lidos_atualizado.csv')
     if (fs.existsSync(csvPath)) {
       fs.unlinkSync(csvPath)
       console.log('✓ legacy/livros_lidos_atualizado.csv removido.')
     }
 
-    console.log('\n✅ Migração concluída com sucesso: 86 obras, 86 edições, 86 logs.')
+    console.log('\nMigração concluída com sucesso: 86 obras, 86 edições, 86 logs.')
   } finally {
     await client.end()
   }
@@ -523,7 +420,7 @@ const isDirectExecution = process.argv[1] && (
 
 if (isDirectExecution) {
   main().catch((err: unknown) => {
-    console.error('\n❌ Migração falhou:', err instanceof Error ? err.message : err)
+    console.error('\nMigração falhou:', err instanceof Error ? err.message : err)
     process.exit(1)
   })
 }

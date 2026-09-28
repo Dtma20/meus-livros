@@ -115,10 +115,9 @@ describe('Retry utility (withRetry)', () => {
         }),
       ).rejects.toThrow('500 Internal Error')
 
-      // Initial attempt (1) + 2 retries (2, 3) = 3 calls
       expect(fn).toHaveBeenCalledTimes(3)
       expect(sleepFn).toHaveBeenCalledTimes(2)
-      // Delay 1: 50ms, Delay 2: 100ms
+
       expect(sleepFn).toHaveBeenNthCalledWith(1, 50)
       expect(sleepFn).toHaveBeenNthCalledWith(2, 100)
     })

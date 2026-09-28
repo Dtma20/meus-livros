@@ -17,13 +17,12 @@ vi.hoisted(() => {
     path: to,
     ...options,
   })
-  // The middleware resolves these before its first await; without them it
-  // cannot run outside a Nuxt app.
+
   globalScope.useNuxtApp = () => ({ runWithContext: (fn: () => unknown) => fn() })
   globalScope.useRequestFetch = () => (globalThis as unknown as Record<string, unknown>).$fetch
 })
 
-describe('TASK-008 — Handle validation and transliteration (unit)', () => {
+describe('TASK-008 - Handle validation and transliteration (unit)', () => {
   it('accepts joao_123', () => {
     expect(handleSchema.safeParse('joao_123').success).toBe(true)
     expect(validateHandle('joao_123').valid).toBe(true)
@@ -96,7 +95,7 @@ describe('TASK-008 — Handle validation and transliteration (unit)', () => {
   })
 })
 
-describe('TASK-008 — Schema validations for POST and PATCH (unit)', () => {
+describe('TASK-008 - Schema validations for POST and PATCH (unit)', () => {
   it('createUserSchema accepts valid handle and display_name', () => {
     const result = createUserSchema.safeParse({
       handle: 'joao_123',
@@ -147,7 +146,7 @@ describe('TASK-008 — Schema validations for POST and PATCH (unit)', () => {
   })
 })
 
-describe('TASK-008 — Route middleware logic (unit)', () => {
+describe('TASK-008 - Route middleware logic (unit)', () => {
   type MiddlewareHandler = (to: { path: string; fullPath: string }) => Promise<unknown> | unknown
   const runMiddleware = authMiddleware as unknown as MiddlewareHandler
 

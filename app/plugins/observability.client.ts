@@ -38,15 +38,12 @@ function reportClientError(payload: {
       body,
       keepalive: true,
     }).catch(() => {
-      // Falha no envio do relatório de erro não deve gerar novo erro
     })
   } catch {
-    // Ignora falhas internas no coletor de telemetria
   }
 }
 
 export default defineNuxtPlugin((nuxtApp) => {
-  // 1. Vue Global Component Error Handler
   nuxtApp.vueApp.config.errorHandler = (err: unknown, instance, info) => {
     const errorObj = err instanceof Error ? err : new Error(String(err))
     const internal = instance as unknown as { _?: { type?: { name?: string } } } | null | undefined
@@ -61,12 +58,10 @@ export default defineNuxtPlugin((nuxtApp) => {
     })
   }
 
-  // 2. Global unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
     const reason = event.reason
     const errorObj = reason instanceof Error ? reason : new Error(String(reason))
 
-    // Extract requestId if present on $fetch errors
     const requestId =
       (reason as { data?: { requestId?: string } })?.data?.requestId ||
       (reason as { response?: { headers?: Headers } })?.response?.headers?.get('x-request-id') ||
@@ -81,7 +76,6 @@ export default defineNuxtPlugin((nuxtApp) => {
     })
   })
 
-  // 3. Global uncaught window errors
   window.addEventListener('error', (event) => {
     if (event.error) {
       reportClientError({

@@ -1,22 +1,3 @@
-/**
- * scripts/wipe-database.ts
- *
- * DESTRUCTIVE. Deletes EVERY row of works, editions, authors, reading_logs,
- * reading_blocks, work_authors, work_genres and search_misses — real members'
- * books and reading history included — plus every account whose email is not
- * in REAL_EMAILS below.
- *
- * This is NOT a test-fixture cleanup. It was called `cleanup-db.ts`, which read
- * like one. The integration suites clean up after themselves through
- * `removeFixtures()` in tests/integration/fixtures.ts; if a run left rows
- * behind, delete those by their marker instead of running this.
- *
- * Refuses to run unless stdin is a terminal and you type the database host
- * name back when asked, so it cannot run from CI, a pipe or an agent.
- *
- * Usage:
- *   npx tsx scripts/wipe-database.ts
- */
 import 'dotenv/config'
 import { createInterface } from 'node:readline/promises'
 import postgres from 'postgres'
@@ -70,46 +51,36 @@ async function wipe() {
     console.log('Apagando o banco de dados...')
 
     await sql.begin(async (tx) => {
-      // 1. Apagar blocos de leitura
       const delReadingBlocks = await tx`DELETE FROM reading_blocks`
       console.log(`- Removidos ${delReadingBlocks.count} registros de reading_blocks`)
 
-      // 2. Apagar logs de leitura
       const delReadingLogs = await tx`DELETE FROM reading_logs`
       console.log(`- Removidos ${delReadingLogs.count} registros de reading_logs`)
 
-      // 3. Apagar relações de gêneros dos livros
       const delWorkGenres = await tx`DELETE FROM work_genres`
       console.log(`- Removidos ${delWorkGenres.count} registros de work_genres`)
 
-      // 4. Apagar relações de autores das obras
       const delWorkAuthors = await tx`DELETE FROM work_authors`
       console.log(`- Removidos ${delWorkAuthors.count} registros de work_authors`)
 
-      // 5. Apagar edições dos livros
       const delEditions = await tx`DELETE FROM editions`
       console.log(`- Removidos ${delEditions.count} registros de editions`)
 
-      // 6. Apagar todas as obras (livros)
       const delWorks = await tx`DELETE FROM works`
       console.log(`- Removidos ${delWorks.count} registros de works`)
 
-      // 7. Apagar autores
       const delAuthors = await tx`DELETE FROM authors`
       console.log(`- Removidos ${delAuthors.count} registros de authors`)
 
-      // 8. Apagar buscas não encontradas
       const delSearchMisses = await tx`DELETE FROM search_misses`
       console.log(`- Removidos ${delSearchMisses.count} registros de search_misses`)
 
-      // 9. Apagar e-mails permitidos de teste
       const delAllowedEmails = await tx`
         DELETE FROM allowed_emails
         WHERE email NOT IN ${tx(REAL_EMAILS)}
       `
       console.log(`- Removidos ${delAllowedEmails.count} registros de allowed_emails de teste`)
 
-      // 10. Apagar sessões de usuários de teste no better-auth
       const delSessions = await tx`
         DELETE FROM "session"
         WHERE "userId" IN (
@@ -118,7 +89,6 @@ async function wipe() {
       `
       console.log(`- Removidos ${delSessions.count} sessões de teste`)
 
-      // 11. Apagar contas de usuários de teste no better-auth
       const delAccounts = await tx`
         DELETE FROM "account"
         WHERE "userId" IN (
@@ -127,21 +97,18 @@ async function wipe() {
       `
       console.log(`- Removidos ${delAccounts.count} contas de teste`)
 
-      // 12. Apagar códigos de verificação de teste
       const delVerifications = await tx`
         DELETE FROM "verification"
         WHERE "identifier" NOT IN ${tx(REAL_EMAILS)}
       `
       console.log(`- Removidos ${delVerifications.count} códigos de verificação de teste`)
 
-      // 13. Apagar usuários de teste da tabela ba_user
       const delBaUsers = await tx`
         DELETE FROM "ba_user"
         WHERE email NOT IN ${tx(REAL_EMAILS)}
       `
       console.log(`- Removidos ${delBaUsers.count} usuários de teste de ba_user`)
 
-      // 14. Apagar usuários de teste da tabela principal users
       const delUsers = await tx`
         DELETE FROM users
         WHERE email NOT IN ${tx(REAL_EMAILS)}
@@ -151,7 +118,6 @@ async function wipe() {
 
     console.log('\nBanco apagado.')
 
-    // Conferência final
     const remainingUsers = await sql`SELECT id, email, handle, display_name FROM users`
     console.log('\nUsuários restantes na tabela users:')
     console.table(remainingUsers)

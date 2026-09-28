@@ -4,19 +4,10 @@ import { recordSearchMiss, searchWorks } from '../../services/search'
 import { defineApiHandler, parseOrThrow } from '../../utils/api'
 import { getSessionUser } from '../../utils/session'
 
-/**
- * GET /api/search?q=
- *
- * - No authentication required.
- * - q trimmed, 2–100 chars. Shorter → 200 { works: [] }.
- * - Local search in catalog.
- * - Zero results → fire-and-forget insert into search_misses.
- */
 export default defineApiHandler(async (event) => {
   const query = getQuery(event)
   const { q } = parseOrThrow(searchQuerySchema, query)
 
-  // Under 2 chars: return empty array, not an error.
   if (q.length < 2) {
     return { works: [] }
   }

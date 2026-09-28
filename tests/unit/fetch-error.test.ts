@@ -3,26 +3,12 @@ import { ofetch } from 'ofetch'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '../../app/utils/fetch-error'
 
-/**
- * The regression: every client fetch got `timeout`, and every catch tested
- * `err.name === 'TimeoutError'`. ofetch never throws that — it aborts with that
- * name internally and wraps the result in a `FetchError`. So the branch never
- * fired, a timed-out save fell through to `data?.message ?? '…'`, and because a
- * timed-out request has no body, the user saw the generic fallback copy for
- * what was really a dead connection.
- *
- * The first two cases drive a real ofetch timeout against a local socket that
- * accepts and then says nothing, so they assert ofetch's actual error shape
- * rather than a hand-written imitation of it. Reading the source and guessing
- * the shape one layer too high is what produced the bug.
- */
 describe('isTimeoutOrAbort', () => {
   let server: Server
   let url: string
 
   beforeAll(async () => {
-    // Accepts the connection and never answers, which is what a lost request
-    // looks like from the client: no response, no close.
+
     server = createServer(() => {})
     await new Promise<void>((resolve) => {
       server.listen(0, '127.0.0.1', () => resolve())
@@ -41,10 +27,9 @@ describe('isTimeoutOrAbort', () => {
   it('a real ofetch timeout does not carry TimeoutError on the error itself', async () => {
     const err = await ofetch(url, { timeout: 100, retry: 0 }).catch((e: unknown) => e)
 
-    // This is the assertion that explains the bug: the naive check is false.
     expect((err as { name?: string }).name).toBe('FetchError')
     expect((err as { name?: string }).name).not.toBe('TimeoutError')
-    // And a timed-out request has no body to read a message out of.
+
     expect((err as { data?: unknown }).data).toBeUndefined()
   })
 

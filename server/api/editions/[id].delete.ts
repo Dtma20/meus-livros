@@ -6,13 +6,6 @@ import { requireSessionUser } from '../../utils/session'
 
 const idSchema = z.string().uuid()
 
-/**
- * DELETE /api/editions/:id
- *
- * Unlike `DELETE /api/works/:id`, this is not blocked by existing reading logs:
- * `reading_logs.edition_id` is `ON DELETE set null` and is null for most logs
- * anyway.
- */
 export default defineApiHandler(async (event) => {
   const user = await requireSessionUser(event)
 

@@ -33,7 +33,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
     logsService = await import('../../server/services/logs')
     catalogService = await import('../../server/services/catalog')
 
-    // Create User A
     const [userA] = await db
       .insert(schema.users)
       .values({
@@ -43,7 +42,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
       })
       .returning({ id: schema.users.id })
 
-    // Create User B
     const [userB] = await db
       .insert(schema.users)
       .values({
@@ -57,7 +55,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
     userAId = userA.id
     userBId = userB.id
 
-    // Create Work A with Edition A
     const createdWorkA = await catalogService.createWork(
       {
         title: `${MARKER} Obra A`,
@@ -72,7 +69,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
     )
     workAId = createdWorkA.id
 
-    // Create Work B with Edition B
     const createdWorkB = await catalogService.createWork(
       {
         title: `${MARKER} Obra B`,
@@ -218,11 +214,9 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
       { skipRateLimit: true },
     )
 
-    // User A (owner) can read it
     const ownerRead = await logsService.getLogById(privateLog.id, { id: userAId })
     expect(ownerRead.id).toBe(privateLog.id)
 
-    // User B receives 404
     let caughtB: unknown
     try {
       await logsService.getLogById(privateLog.id, { id: userBId })
@@ -232,7 +226,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
     expect(asError(caughtB).statusCode).toBe(404)
     expect(asError(caughtB).data?.error).toBe('nao_encontrado')
 
-    // Anonymous viewer receives 404
     let caughtAnon: unknown
     try {
       await logsService.getLogById(privateLog.id, null)
@@ -274,7 +267,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
     expect(asError(caught).statusCode).toBe(404)
     expect(asError(caught).data?.error).toBe('nao_encontrado')
 
-    // Verify row was NOT modified
     const original = await logsService.getLogById(logA.id, { id: userAId })
     expect(original.rating).toBe(3.0)
     expect(original.review).toBe('Texto original de A')
@@ -293,7 +285,6 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
       { skipRateLimit: true },
     )
 
-    // User B tries to delete User A's log
     let caught: unknown
     try {
       await logsService.deleteLog(logA.id, userBId)
@@ -302,10 +293,8 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
     }
     expect(asError(caught).statusCode).toBe(404)
 
-    // Owner User A deletes successfully
     await expect(logsService.deleteLog(logA.id, userAId)).resolves.toBeUndefined()
 
-    // Verification: log is now gone
     let verifyCaught: unknown
     try {
       await logsService.getLogById(logA.id, { id: userAId })

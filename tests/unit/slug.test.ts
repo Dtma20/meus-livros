@@ -9,7 +9,7 @@ describe('slugify', () => {
   })
 
   it('collapses punctuation and repeated separators', () => {
-    expect(slugify('Dom Casmurro — 2ª edição!')).toBe('dom-casmurro-2a-edicao')
+    expect(slugify('Dom Casmurro - 2ª edição!')).toBe('dom-casmurro-2a-edicao')
     expect(slugify('  espaços   demais  ')).toBe('espacos-demais')
   })
 

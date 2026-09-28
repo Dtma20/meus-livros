@@ -196,7 +196,6 @@ describe('Logger unit tests', () => {
         outputHandler: (entry) => entries.push(entry),
       })
 
-      // Simulate a slow operation with a 50ms sleep and 20ms threshold
       const result = await testLogger.measure(
         'slow_db_query',
         async () => {

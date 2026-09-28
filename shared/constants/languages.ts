@@ -3,9 +3,6 @@ export interface LanguageOption {
   label: string
 }
 
-/**
- * ISO 639-1 language options with Portuguese display labels.
- */
 export const LANGUAGES: readonly LanguageOption[] = [
   { code: 'pt', label: 'Português' },
   { code: 'en', label: 'Inglês' },

@@ -1,9 +1,5 @@
 import { z } from 'zod'
 
-/**
- * Shared authentication schemas (used by frontend forms and server route validation).
- */
-
 export const emailSchema = z
   .email({ error: 'Informe um e-mail válido.' })
   .trim()
@@ -31,10 +27,6 @@ export const FORBIDDEN_PASSWORDS = [
   'meuslivros',
 ] as const
 
-/**
- * Checks if a candidate password matches weak/common passwords or user context (handle, email local-part).
- * Case-insensitive comparison.
- */
 export function isForbiddenPassword(
   password: string,
   userContext?: { handle?: string; email?: string },
@@ -58,9 +50,6 @@ export function isForbiddenPassword(
   return false
 }
 
-/**
- * Password schema enforcing 8–128 characters and weak-password floor.
- */
 export const senhaSchema = z
   .string({ error: 'Informe uma senha.' })
   .min(8, { error: 'A senha deve ter pelo menos 8 caracteres.' })
@@ -69,18 +58,12 @@ export const senhaSchema = z
     error: 'Senha muito fraca ou comum.',
   })
 
-/**
- * Identifier schema: handle or email.
- */
 export const identificadorSchema = z
   .string({ error: 'Informe seu e-mail ou usuário.' })
   .trim()
   .min(3, { error: 'O identificador deve ter pelo menos 3 caracteres.' })
   .max(254, { error: 'O identificador deve ter no máximo 254 caracteres.' })
 
-/**
- * Schema for sign-in (handle or email + password).
- */
 export const signInSchema = z.object({
   identificador: z.string({ error: 'Informe seu e-mail ou usuário.' }).trim().min(1, {
     error: 'Informe seu e-mail ou usuário.',
@@ -90,16 +73,10 @@ export const signInSchema = z.object({
   }),
 })
 
-/**
- * Schema for setting the first password during activation.
- */
 export const setPasswordSchema = z.object({
   newPassword: senhaSchema,
 })
 
-/**
- * Schema for password reset via OTP.
- */
 export const resetPasswordSchema = z
   .object({
     email: emailSchema,
@@ -117,9 +94,6 @@ export const resetPasswordSchema = z
     },
   )
 
-/**
- * Schema for authenticated password change.
- */
 export const changePasswordSchema = z.object({
   currentPassword: z.string({ error: 'Informe a senha atual.' }).min(1, {
     error: 'Informe a senha atual.',

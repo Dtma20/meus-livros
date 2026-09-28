@@ -17,6 +17,5 @@ export default defineEventHandler((event) => {
   event.context.requestId = requestId
   event.context.startTime = performance.now()
 
-  // Propagate to client in response header
   setResponseHeader(event, 'x-request-id', requestId)
 })

@@ -3,7 +3,6 @@ import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
-/** Every row this file creates carries this marker so cleanup can find it. */
 const MARKER = `zz-teste-edicao-${Date.now()}`
 
 interface H3ErrorLike {
@@ -56,9 +55,7 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
   })
 
   afterAll(async () => {
-    // One pass for both users. The old per-user loop deleted the owner before
-    // the works the other user had edited were gone, and a log left by a
-    // failed test below made the works delete throw and skip the rest.
+
     try {
       await removeFixtures(MARKER)
     } finally {
@@ -98,7 +95,7 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
       .where(sqlOp.eq(schema.works.id, work.id))
 
     expect(row?.title).toBe(`${MARKER} Título Corrigido`)
-    // Untouched by a body that never mentioned them.
+
     expect(row?.series_name).toBe('Série Original')
     expect(row?.series_number).toBe('1')
     expect(row?.year).toBe(1899)
@@ -145,7 +142,6 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
   it('records who edited last', async () => {
     const work = await makeWork('auditoria')
 
-    // A member who did not create the work may still correct it.
     await catalog.updateWork(work.id, { title: `${MARKER} Corrigido por outro` }, otherId)
 
     const [row] = await db
@@ -222,7 +218,6 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
       ownerId,
     )
 
-    // A second member edits another of their books and types something else.
     await catalog.updateWork(
       work.id,
       {
@@ -245,9 +240,7 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
     const work = await makeWork('genero-invalido')
 
     try {
-      // Within smallint range, so this reaches the service's own existence
-      // check rather than overflowing the column. Out-of-range ids are the
-      // schema's job and are covered in tests/unit/work-update.test.ts.
+
       await catalog.updateWork(work.id, { genre_ids: [9999] }, ownerId)
       expect.unreachable('updateWork deveria ter recusado o gênero.')
     } catch (caught) {
@@ -263,7 +256,6 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
       .where(sqlOp.eq(schema.editions.work_id, work.id))
     if (!edition) throw new Error('A edição de teste não foi criada.')
 
-    // Hyphenated ISBN-10; normalises to its ISBN-13 form, separators and all.
     await catalog.updateEdition(edition.id, { isbn: '85-359-1484-6' }, ownerId)
 
     const [withIsbn] = await db
@@ -280,7 +272,7 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
       .where(sqlOp.eq(schema.editions.id, edition.id))
 
     expect(cleared?.isbn13).toBeNull()
-    // Untouched by a body that only mentioned the ISBN.
+
     expect(cleared?.publisher).toBe('Editora Original')
   })
 
@@ -298,8 +290,6 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
       .where(sqlOp.eq(schema.editions.work_id, second.id))
     if (!editionA || !editionB) throw new Error('As edições de teste não foram criadas.')
 
-    // A different ISBN from the normalisation test above, so the two do not
-    // depend on execution order to avoid colliding with each other.
     await catalog.updateEdition(editionA.id, { isbn: '9788535914856' }, ownerId)
 
     try {
@@ -337,7 +327,6 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
       .from(schema.reading_logs)
       .where(sqlOp.eq(schema.reading_logs.id, log.id))
 
-    // The log survives with its rating; it only stops naming an edition.
     expect(survivor?.id).toBe(log.id)
     expect(survivor?.edition_id).toBeNull()
   })

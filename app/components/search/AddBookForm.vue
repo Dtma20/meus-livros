@@ -1,6 +1,5 @@
 <template>
   <div class="add-book-form-wrap">
-    <!-- Duplicate 409 Resolution Banner -->
     <div v-if="duplicateWork" class="duplicate-prompt" role="alert">
       <div class="duplicate-header">
         <h3 class="duplicate-title">Obra encontrada no catálogo</h3>
@@ -50,23 +49,19 @@
       </div>
     </div>
 
-    <!-- Main Add Book Form -->
     <form class="add-book-form" novalidate @submit.prevent="handleSubmit(false)">
       <div v-if="!hideHeader" class="form-header">
         <h1 class="form-title">Cadastrar livro</h1>
         <p class="form-copy">
-          Não encontrou? Adicione o livro — leva menos de um minuto.
+          Não encontrou? Adicione o livro - leva menos de um minuto.
         </p>
       </div>
 
-      <!-- General Server Error -->
       <div v-if="serverError" class="server-error" role="alert">
         {{ serverError }}
       </div>
 
-      <!-- Visible Required Fields -->
       <div class="form-section">
-        <!-- Title -->
         <div class="form-group">
           <label for="book-title" class="form-label">
             Título <span class="required-indicator" aria-hidden="true">*</span>
@@ -90,7 +85,6 @@
           </span>
         </div>
 
-        <!-- Authors (Tag Input with Autocomplete) -->
         <div class="form-group">
           <label for="author-input" class="form-label">
             Autores <span class="required-indicator" aria-hidden="true">*</span>
@@ -99,7 +93,6 @@
             Pressione Enter ou clique em Adicionar para cada autor.
           </p>
 
-          <!-- Selected Author Tags -->
           <div v-if="authors.length > 0" class="author-tags" role="list" aria-label="Autores adicionados">
             <span
               v-for="(author, index) in authors"
@@ -120,7 +113,6 @@
             </span>
           </div>
 
-          <!-- Author Input Row -->
           <div class="author-input-row">
             <div class="author-input-wrap">
               <input
@@ -140,7 +132,6 @@
                 @blur="onAuthorBlur"
               >
 
-              <!-- Autocomplete suggestions dropdown -->
               <ul
                 v-if="showAuthorSuggestions && authorSuggestions.length > 0"
                 class="author-suggestions"
@@ -180,7 +171,6 @@
         </div>
       </div>
 
-      <!-- Progressive Disclosure: Additional Work Details -->
       <div class="disclosure-section">
         <button
           type="button"
@@ -196,7 +186,6 @@
         </button>
 
         <div v-if="showMoreDetails" id="more-details-content" class="disclosure-content">
-          <!-- First Published Year & Original Language -->
           <div class="form-row">
             <div class="form-group flex-1">
               <label for="work-year" class="form-label">Ano da 1ª publicação</label>
@@ -238,7 +227,6 @@
             </div>
           </div>
 
-          <!-- Series Name & Number -->
           <div class="form-row">
             <div class="form-group flex-2">
               <label for="work-series-name" class="form-label">Série / Coleção</label>
@@ -269,7 +257,6 @@
             </div>
           </div>
 
-          <!-- Author country (applied to every listed author) -->
           <div class="form-group">
             <label for="author-country" class="form-label">País de origem do autor</label>
             <input
@@ -288,7 +275,6 @@
             </span>
           </div>
 
-          <!-- Genre Picker -->
           <div class="form-group">
             <span id="genre-picker-label" class="form-label">Gêneros (até 4)</span>
             <GenrePicker
@@ -299,7 +285,6 @@
         </div>
       </div>
 
-      <!-- Progressive Disclosure: Edition Details -->
       <div class="disclosure-section">
         <button
           type="button"
@@ -315,7 +300,6 @@
         </button>
 
         <div v-if="showEdition" id="edition-details-content" class="disclosure-content">
-          <!-- ISBN & Publisher -->
           <div class="form-row">
             <div class="form-group flex-1">
               <label for="edition-isbn" class="form-label">ISBN</label>
@@ -346,7 +330,6 @@
             </div>
           </div>
 
-          <!-- Page Count & Published Year -->
           <div class="form-row">
             <div class="form-group flex-1">
               <label for="edition-pages" class="form-label">Número de páginas</label>
@@ -388,7 +371,6 @@
             </div>
           </div>
 
-          <!-- Edition Language -->
           <div class="form-group">
             <label for="edition-language" class="form-label">Idioma desta edição</label>
             <select
@@ -408,7 +390,6 @@
             </select>
           </div>
 
-          <!-- Cover URL -->
           <div class="form-group">
             <label for="edition-cover-url" class="form-label">URL da imagem da capa</label>
             <input
@@ -442,7 +423,6 @@
         </div>
       </div>
 
-      <!-- Form Actions -->
       <div class="form-actions">
         <button
           type="submit"
@@ -497,7 +477,6 @@ const emit = defineEmits<{
 
 const DRAFT_KEY = 'meus-livros:add-book-draft'
 
-// Form Fields
 const title = ref(props.initialTitle || '')
 const authors = ref<Array<{ name: string }>>([])
 const authorInput = ref('')
@@ -508,34 +487,27 @@ const genreIds = ref<number[]>([])
 const seriesName = ref('')
 const seriesNumber = ref('')
 
-// Disclosures
 const showMoreDetails = ref(false)
 const showEdition = ref(false)
 
-// Edition fields
 const editionIsbn = ref('')
 const editionPublisher = ref('')
 const editionPageCount = ref<number | null>(null)
 const editionPublishedYear = ref<number | null>(null)
 const editionLanguage = ref('')
 const editionCoverUrl = ref('')
-// Committed on blur: rendering BookCover per keystroke fires one image request
-// per character typed. The payload always uses editionCoverUrl.
 const previewCoverUrl = ref('')
 
-// State & UI feedback
 const submitting = ref(false)
 const serverError = ref('')
 const errors = ref<Record<string, string>>({})
 
-// Autocomplete
 const authorInputRef = ref<HTMLInputElement | null>(null)
 const authorSuggestions = ref<string[]>([])
 const showAuthorSuggestions = ref(false)
 const highlightedSuggestionIndex = ref(-1)
 let authorDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
-// Duplicate detection (409)
 interface DuplicateWorkState {
   id: string
   slug: string
@@ -544,9 +516,6 @@ interface DuplicateWorkState {
 }
 const duplicateWork = ref<DuplicateWorkState | null>(null)
 
-// ---------------------------------------------------------------------------
-// Author Management & Autocomplete
-// ---------------------------------------------------------------------------
 function addAuthor(name: string): void {
   const trimmed = name.trim()
   if (!trimmed) return
@@ -679,25 +648,12 @@ watch(authorInput, (val) => {
       showAuthorSuggestions.value = authorSuggestions.value.length > 0
       highlightedSuggestionIndex.value = -1
     } catch {
-      // Debounced typeahead. Stays silent on purpose: a suggestion lookup that
-      // times out while the user is still typing must not raise serverError.
       authorSuggestions.value = []
       showAuthorSuggestions.value = false
     }
   }, 250)
 })
 
-// ---------------------------------------------------------------------------
-// Author country: free text resolved to ISO via shared/constants/countries.
-// The stored label is canonicalised through countryLabelFor when a code is
-// known, so the book page (which renders the label) agrees with the profile
-// and map (which derive the name from the code). Unknown labels (e.g.
-// 'Roma Antiga') persist as-is with a null code.
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Validation
-// ---------------------------------------------------------------------------
 function validateField(field: string): void {
   if (field === 'title') {
     const val = title.value.trim()
@@ -803,9 +759,6 @@ function validateAll(): boolean {
   return Object.keys(errors.value).length === 0
 }
 
-// ---------------------------------------------------------------------------
-// Draft Persistence
-// ---------------------------------------------------------------------------
 function saveDraft(): void {
   try {
     const draft = {
@@ -828,7 +781,6 @@ function saveDraft(): void {
     }
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
   } catch {
-    // Ignore private browsing exceptions
   }
 }
 
@@ -886,7 +838,6 @@ function restoreDraft(): void {
       previewCoverUrl.value = typeof draft.editionCoverUrl === 'string' ? draft.editionCoverUrl.trim() : ''
     }
   } catch {
-    // Ignore corrupted drafts
   }
 }
 
@@ -894,7 +845,6 @@ function clearDraft(): void {
   try {
     localStorage.removeItem(DRAFT_KEY)
   } catch {
-    // Ignore
   }
 }
 
@@ -930,11 +880,7 @@ onMounted(() => {
   }
 })
 
-// ---------------------------------------------------------------------------
-// Submission & Duplicate handling
-// ---------------------------------------------------------------------------
 async function handleSubmit(force = false): Promise<void> {
-  // If the user typed an author name but didn't click add / hit Enter, auto-add it
   if (authorInput.value.trim() && authors.value.length < 5) {
     addAuthor(authorInput.value)
   }
@@ -947,8 +893,6 @@ async function handleSubmit(force = false): Promise<void> {
 
   const rawCountryLabel = authorCountry.value.trim() || null
   const countryCode = countryCodeFor(rawCountryLabel)
-  // Canonical label so every surface agrees: the book page renders the label,
-  // the profile and map derive the name from the code via formatCountryName.
   const countryLabel = rawCountryLabel
     ? (countryCode ? countryLabelFor(countryCode) ?? rawCountryLabel : rawCountryLabel)
     : null
@@ -1009,10 +953,6 @@ async function handleSubmit(force = false): Promise<void> {
     const url = force ? '/api/works?forcar=1' : '/api/works'
     const res = await $fetch<{ id: string; slug: string }>(url, {
       method: 'POST',
-      // Without a timeout this promise can never settle: a request lost
-      // without the server answering or closing leaves `finally` unreached,
-      // `submitting` stuck true, and the button reading "Cadastrando..." forever
-      // with no error and no way out but a reload. Observed in the wild.
       timeout: 15_000,
       body: payload,
     })
@@ -1080,7 +1020,6 @@ function handleCancel(): void {
   width: 100%;
 }
 
-/* Duplicate resolution card */
 .duplicate-prompt {
   background-color: rgba(64, 188, 244, 0.08);
   border: 1px solid var(--highlight);
@@ -1146,7 +1085,6 @@ function handleCancel(): void {
   margin-top: var(--space-2);
 }
 
-/* Form Styles */
 .form-header {
   margin-bottom: var(--space-6);
 }
@@ -1284,7 +1222,6 @@ function handleCancel(): void {
   flex-shrink: 0;
 }
 
-/* Author Tags & Autocomplete */
 .author-tags {
   display: flex;
   flex-wrap: wrap;
@@ -1377,7 +1314,6 @@ function handleCancel(): void {
   white-space: nowrap;
 }
 
-/* Disclosure Sections */
 .disclosure-section {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding-top: var(--space-4);
@@ -1425,7 +1361,6 @@ function handleCancel(): void {
   border-left: 2px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Actions and Buttons */
 .form-actions {
   display: flex;
   gap: var(--space-3);

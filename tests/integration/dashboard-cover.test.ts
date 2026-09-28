@@ -50,14 +50,12 @@ describe.skipIf(!hasDatabaseUrl)('Dashboard cover fallback integration tests', (
       created_by: testUserId,
     })
 
-    // Log sem edition_id: o fallback busca em qualquer edição da obra.
     await db.insert(schema.reading_logs).values({
       user_id: testUserId,
       work_id: work.id,
       visibility: 'publico',
     })
 
-    // Work criado sem nenhum reading_log (deve aparecer na estante)
     await db.insert(schema.works).values({
       title: `${MARKER} Estante`,
       slug: `${MARKER}-estante`,

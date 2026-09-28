@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, ref } from 'vue'
 import { useBookFilters } from '../../app/composables/useBookFilters'
@@ -9,10 +8,6 @@ import type { H3Event } from 'h3'
 import { defineApiHandler } from '../../server/utils/api'
 import type { ProfileLogItem } from '../../shared/schemas/profile'
 
-// SearchBox reaches for three Nuxt auto-imports that a bare createApp does not
-// provide: useId for the listbox ids, plus navigateTo and useRoute in goToAdd.
-// Without them the component throws on mount and every assertion below reports
-// a missing element rather than the real cause.
 vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
   globalScope.useId = () => 'test-search-id'
@@ -73,19 +68,15 @@ describe('TASK-020 Integration: Profile filtering empty state and restoration', 
       sortedBooks,
     } = useBookFilters(logs)
 
-    // Initial state: 2 books visible
     expect(sortedBooks.value.length).toBe(2)
     expect(hasActiveFilters.value).toBe(false)
 
-    // Filter by a non-matching genre
     filterGenre.value = 'Terror'
     expect(hasActiveFilters.value).toBe(true)
     expect(sortedBooks.value.length).toBe(0)
 
-    // Active filter description
     const activeFiltersDesc = `gênero "${filterGenre.value}"`
 
-    // Mount the empty state with the filter description
     const container = document.createElement('div')
     document.body.appendChild(container)
     const app = createApp(EmptyState, {
@@ -101,13 +92,11 @@ describe('TASK-020 Integration: Profile filtering empty state and restoration', 
     expect(container.textContent).toContain('Nenhum livro com esses filtros.')
     expect(container.textContent).toContain('Filtros ativos: gênero "Terror".')
 
-    // Click "Limpar filtros"
     const clearBtn = container.querySelector('button.empty-btn')
     expect(clearBtn).not.toBeNull()
     clearBtn?.dispatchEvent(new MouseEvent('click'))
     await nextTick()
 
-    // Filters are reset and the full grid is restored
     expect(hasActiveFilters.value).toBe(false)
     expect(filterGenre.value).toBe('')
     expect(sortedBooks.value.length).toBe(2)
@@ -133,12 +122,10 @@ describe('TASK-020 Integration: Search with no results shows manual-add as prima
     const input = container.querySelector('input') as HTMLInputElement
     expect(input).not.toBeNull()
 
-    // Focus and input search term
     input.dispatchEvent(new Event('focus'))
     input.value = 'Livro Não Cadastrado'
     input.dispatchEvent(new Event('input'))
 
-    // Wait for debounced search
     await new Promise((resolve) => setTimeout(resolve, 350))
     await nextTick()
 
@@ -157,7 +144,7 @@ describe('TASK-020 Integration: Search with no results shows manual-add as prima
 
 describe('TASK-020 Integration: Forced 500 error handling', () => {
   it('forced 500 returns error shape without stack trace and renders ErrorState with retry', async () => {
-    // 1. Test the server-side API error handler contract
+
     let capturedStatusCode: number | undefined
     const mockEvent = {
       node: {
@@ -175,7 +162,6 @@ describe('TASK-020 Integration: Forced 500 error handling', () => {
       },
     } as unknown as H3Event
 
-    // Mock h3 setResponseStatus behavior via defineApiHandler
     const failingHandler = defineApiHandler(async () => {
       const err = new Error('Database connection crashed: SELECT * FROM users')
       err.stack = 'Error: Database connection crashed\n    at query (pg.js:123:45)'
@@ -186,21 +172,17 @@ describe('TASK-020 Integration: Forced 500 error handling', () => {
     const response = await failingHandler(mockEvent)
     consoleSpy.mockRestore()
 
-    // Status code must be 500
     expect(capturedStatusCode).toBe(500)
 
-    // Response body must adhere to project format { error, message }
     expect(response).toHaveProperty('error')
     expect(response).toHaveProperty('message')
 
-    // Response body MUST NOT contain stack trace or internal database messages
     const bodyStr = JSON.stringify(response)
     expect(bodyStr).not.toContain('stack')
     expect(bodyStr).not.toContain('pg.js')
     expect(bodyStr).not.toContain('SELECT * FROM')
     expect(bodyStr).not.toContain('Database connection crashed')
 
-    // 2. Test ErrorState component rendering for 500
     let retried = false
     const container = document.createElement('div')
     document.body.appendChild(container)

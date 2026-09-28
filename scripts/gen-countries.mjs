@@ -9,9 +9,6 @@ const CODES =
   'PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM ' +
   'TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'
 
-// Node's ICU spells a handful of these in ways that read badly in a form, and
-// Chrome's ICU spells them differently again — which is the whole reason this
-// table is being frozen. These win over whatever the generating runtime said.
 const OVERRIDES = {
   HK: 'Hong Kong',
   MO: 'Macau',
@@ -33,26 +30,6 @@ const entries = CODES.split(' ')
 const body = entries.map(([code, label]) => `  { code: '${code}', label: '${label.replace(/'/g, "\\'")}' },`).join('\n')
 
 const file = `/**
- * ISO 3166-1 alpha-2 countries, labelled in pt-BR.
- *
- * **Frozen on purpose. Do not rebuild this from \`Intl.DisplayNames\` at runtime.**
- *
- * The first version of this file did exactly that, and it broke hydration: Node's
- * ICU and Chrome's ICU disagree on several pt-BR region names — Node says
- * "Hong Kong, RAE da China" where Chrome says "Hong Kong", "Macau, RAE da China"
- * against "Macau", "Territórios palestinos" against "Palestina". Different labels
- * sort differently, so the server and the client rendered the 249 \`<option>\`
- * elements in different orders and every one of them mismatched. A table that
- * changes with the runtime's ICU version is also a table \`countryCodeFor\` cannot
- * resolve reliably.
- *
- * Codes are what gets stored: \`authors.country_code\` is \`char(2)\` and the reading
- * map keys on it. \`authors.country_label\` stays free text alongside this list —
- * the corpus contains 'Roma Antiga', which has no ISO code and never will.
- *
- * Sorted by label in pt-BR. Regenerate with \`scripts/gen-countries.mjs\` only if the list
- * of countries itself changes, never to re-derive the spellings.
- */
 
 export interface CountryOption {
   code: string
@@ -65,17 +42,12 @@ ${body}
 
 const BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c.label]))
 
-/** Case- and accent-insensitive key: 'Rússia', 'russia' and 'RUSSIA' all meet. */
 function foldCountryLabel(label: string): string {
   return label.trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
 }
 
 const BY_LABEL = new Map(COUNTRIES.map((c) => [foldCountryLabel(c.label), c.code]))
 
-/**
- * Names people type that are not the table's label. 'EUA' is the spelling the
- * legacy corpus uses, so the migration depends on it resolving.
- */
 const ALIASES: Record<string, string> = {
   'eua': 'US',
   'usa': 'US',
@@ -85,7 +57,6 @@ const ALIASES: Record<string, string> = {
   'coreia': 'KR',
 }
 
-/** The label for a code, or the code itself when it is not one we know. */
 export function countryLabelFor(code: string | null | undefined): string | null {
   if (!code) return null
   const upper = code.trim().toUpperCase()
@@ -93,12 +64,6 @@ export function countryLabelFor(code: string | null | undefined): string | null 
   return BY_CODE.get(upper) ?? upper
 }
 
-/**
- * The ISO code for a country typed by hand, or null when there is none.
- *
- * Null is a legitimate answer, not a failure: 'Roma Antiga' is a real value in
- * the corpus and is meant to survive as a label without a code.
- */
 export function countryCodeFor(label: string | null | undefined): string | null {
   if (!label) return null
   const trimmed = label.trim()

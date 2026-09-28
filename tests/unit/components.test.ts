@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import { createApp, type Component, nextTick } from 'vue'
 import StarRating from '../../app/components/book/StarRating.vue'

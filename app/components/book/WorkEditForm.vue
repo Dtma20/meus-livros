@@ -18,8 +18,8 @@
     <fieldset class="authors-fieldset">
       <legend class="form-label">Autores</legend>
       <p class="form-hint">
-        O país do autor alimenta o mapa de leituras. Um país fora da lista — “Roma Antiga”, por
-        exemplo — é aceito e aparece no perfil, mas não no mapa.
+        O país do autor alimenta o mapa de leituras. Um país fora da lista - “Roma Antiga”, por
+        exemplo - é aceito e aparece no perfil, mas não no mapa.
       </p>
 
       <div v-for="(author, index) in authorRows" :key="index" class="author-row">
@@ -87,7 +87,7 @@
           max="2100"
           :aria-invalid="Boolean(errors.first_published_year)"
         >
-        <p class="form-hint">Use negativo para a.C. — -500 aparece como “500 a.C.”.</p>
+        <p class="form-hint">Use negativo para a.C. - -500 aparece como “500 a.C.”.</p>
         <p v-if="errors.first_published_year" class="error-message">
           {{ errors.first_published_year }}
         </p>
@@ -158,14 +158,10 @@ const emit = defineEmits<{ (e: 'saved'): void }>()
 
 interface AuthorRow {
   name: string
-  /** What the member typed: either a country label or an ISO code. */
   country: string
 }
 
 const title = ref(props.work.title)
-// The year is held as text so that clearing the input is distinguishable from
-// typing 0. `v-model.number` on an empty field yields NaN, which then reaches
-// the body as null by accident rather than on purpose.
 const yearText = ref(
   props.work.first_published_year === null ? '' : String(props.work.first_published_year),
 )
@@ -198,15 +194,12 @@ function removeAuthor(index: number): void {
   authorRows.splice(index, 1)
 }
 
-/** Empty and whitespace-only both mean "cleared", which the API spells `null`. */
 function textOrNull(value: string): string | null {
   const trimmed = value.trim()
   return trimmed === '' ? null : trimmed
 }
 
 function validate(): boolean {
-  // Rebuilt rather than mutated key by key: one assignment is one reactive
-  // update, and there is no way to leave a stale message behind.
   const next: Record<string, string> = {}
 
   if (title.value.trim() === '') {
@@ -238,10 +231,6 @@ async function handleSubmit(): Promise<void> {
 
   const yearRaw = yearText.value.trim()
 
-  // Every field this form renders is sent on every save. The form shows the
-  // complete state of those columns, so "what is on screen" is the intended
-  // result — the PATCH route's absent-key semantics exist for callers that
-  // edit one field, not for this one.
   const body = {
     title: title.value.trim(),
     authors: authorRows
@@ -251,9 +240,6 @@ async function handleSubmit(): Promise<void> {
         return {
           name: a.name.trim(),
           country_code: countryCodeFor(typed),
-          // Keep what was typed even when it resolved to a code: the label is
-          // what the profile prints, and 'Roma Antiga' resolves to no code at
-          // all yet must survive.
           country_label: typed,
         }
       }),

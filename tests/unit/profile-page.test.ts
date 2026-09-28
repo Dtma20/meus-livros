@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, type Component, defineComponent, h, nextTick, ref, Suspense } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -92,7 +91,7 @@ function mount<T extends Component>(component: T, props: Record<string, unknown>
   }
 }
 
-describe('ProfilePage (app/pages/@[handle].vue) — Visibility switcher and owner controls', () => {
+describe('ProfilePage (app/pages/@[handle].vue) - Visibility switcher and owner controls', () => {
   const sampleProfile: ProfileResponse = {
     user: {
       id: 'user-1',
@@ -177,20 +176,17 @@ describe('ProfilePage (app/pages/@[handle].vue) — Visibility switcher and owne
     await wrapper.router.push('/@diogo')
     await flushAsync()
 
-    // 1. "Editar perfil" button
     const editBtn = wrapper.find('a.btn-edit-profile')
     expect(editBtn).not.toBeNull()
     expect(editBtn?.getAttribute('href')).toBe('/app/perfil')
     expect(editBtn?.textContent?.trim()).toBe('Editar perfil')
 
-    // 2. Visibility tabs
     const tabs = wrapper.findAll<HTMLButtonElement>('.visibility-tab')
     expect(tabs).toHaveLength(3)
 
     const tabTexts = tabs.map((t) => t.textContent?.trim().replace(/\s+/g, ' '))
     expect(tabTexts).toEqual(['Todos 2', 'Públicos 1', 'Privados 1'])
 
-    // Default active tab is 'Todos'
     expect(tabs[0]?.getAttribute('aria-selected')).toBe('true')
     expect(wrapper.findAll('.book-card-item')).toHaveLength(2)
     expect(wrapper.find('a[aria-label*="Livro Público"]')).not.toBeNull()
@@ -212,7 +208,6 @@ describe('ProfilePage (app/pages/@[handle].vue) — Visibility switcher and owne
 
     const tabs = wrapper.findAll<HTMLButtonElement>('.visibility-tab')
 
-    // Click 'Públicos' (index 1)
     tabs[1]?.click()
     await flushAsync()
 
@@ -222,7 +217,6 @@ describe('ProfilePage (app/pages/@[handle].vue) — Visibility switcher and owne
     expect(wrapper.find('a[aria-label*="Livro Privado"]')).toBeNull()
     expect(wrapper.find('.private-badge')).toBeNull()
 
-    // Click 'Privados' (index 2)
     tabs[2]?.click()
     await flushAsync()
 
@@ -232,7 +226,6 @@ describe('ProfilePage (app/pages/@[handle].vue) — Visibility switcher and owne
     expect(wrapper.find('a[aria-label*="Livro Público"]')).toBeNull()
     expect(wrapper.find('.private-badge')).not.toBeNull()
 
-    // Click back to 'Todos' (index 0)
     tabs[0]?.click()
     await flushAsync()
 

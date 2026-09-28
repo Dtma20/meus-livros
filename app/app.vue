@@ -6,9 +6,6 @@
 
 <script setup lang="ts">
 useHead({
-  // Each page sets its own title verbatim. No site-name suffix: the tab is
-  // already the route, and repeating the brand on every one of them reads as
-  // noise.
   titleTemplate: (chunk?: string) => chunk || 'Meus Livros',
 })
 </script>
@@ -30,13 +27,11 @@ h1, h2, h3 {
   letter-spacing: -0.015em;
 }
 
-/* Global accessible focus indicator for keyboard users */
 :focus-visible {
   outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, var(--highlight));
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
-/* Neutralize motion for users requesting reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

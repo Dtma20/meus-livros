@@ -3,17 +3,6 @@ import { reading_logs, users } from '../db/schema'
 
 export type Viewer = { id: string } | null
 
-/**
- * The single most important authorization helper.
- * Every read of reading_logs goes through it.
- *
- * Rule: A log is visible if:
- * - log.user_id = viewer.id (the owner can always see their own log, even if private)
- * OR
- * - log.visibility = 'publico' AND author.profile_visibility = 'publico'
- *
- * Viewer is NOT optional — callers must pass null explicitly when unauthenticated.
- */
 export function visibleLogs(viewer: Viewer): SQL {
   if (viewer === undefined) {
     throw new TypeError(

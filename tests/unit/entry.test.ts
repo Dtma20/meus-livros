@@ -12,9 +12,6 @@ import {
 } from '../../app/utils/entry'
 import type { LogWithDetails } from '../../shared/schemas/log'
 
-// ---------------------------------------------------------------------------
-// formatRatingStars
-// ---------------------------------------------------------------------------
 describe('formatRatingStars', () => {
   it('returns empty string for null, undefined or 0', () => {
     expect(formatRatingStars(null)).toBe('')
@@ -33,13 +30,10 @@ describe('formatRatingStars', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// buildOgTitle
-// ---------------------------------------------------------------------------
 describe('buildOgTitle', () => {
   it('includes stars when rating is present', () => {
     expect(buildOgTitle('Dom Casmurro', 'diogo', 5)).toBe(
-      'Dom Casmurro — ★★★★★ por @diogo',
+      'Dom Casmurro - ★★★★★ por @diogo',
     )
   })
 
@@ -56,9 +50,6 @@ describe('buildOgTitle', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// buildOgDescription
-// ---------------------------------------------------------------------------
 describe('buildOgDescription', () => {
   it('returns first 160 chars of review', () => {
     const long = 'A'.repeat(200)
@@ -83,11 +74,6 @@ describe('buildOgDescription', () => {
     )
   })
 
-  // Critical security requirement: og:description from user review must not
-  // inject HTML into meta tags. The value here is the raw text used as the
-  // `content` attribute value — the framework (Nuxt/useSeoMeta) HTML-escapes
-  // attribute values. We verify the function itself does not alter the string,
-  // which means the framework will handle escaping correctly.
   it('preserves double-quote and angle-bracket characters in the raw string', () => {
     const review = 'She said "Wow!" and <3 the book'
     const result = buildOgDescription(review, 'X', 'Y')
@@ -95,20 +81,11 @@ describe('buildOgDescription', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// isValidCoverUrl
-// ---------------------------------------------------------------------------
 describe('isValidCoverUrl', () => {
   it('accepts https URLs', () => {
     expect(isValidCoverUrl('https://covers.example.com/img.jpg')).toBe(true)
   })
 
-  // Was `accepts http URLs`, asserting true. security.md §4 states one rule
-  // for cover URLs — "must parse as a URL with an `https:` scheme" — and the
-  // write path has always enforced it, so no stored value can be `http:`
-  // anyway: all 47 covers in the real corpus are https. The assertion was
-  // encoding a third, laxer rule for the Open Graph image path, where an
-  // `http:` image on an https page is mixed content.
   it('rejects http URLs', () => {
     expect(isValidCoverUrl('http://covers.example.com/img.jpg')).toBe(false)
   })
@@ -124,9 +101,6 @@ describe('isValidCoverUrl', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// makeAbsoluteUrl
-// ---------------------------------------------------------------------------
 describe('makeAbsoluteUrl', () => {
   it('returns path + origin when path is relative', () => {
     expect(makeAbsoluteUrl('/og-fallback.png', 'https://meus-livros.app')).toBe(
@@ -146,9 +120,6 @@ describe('makeAbsoluteUrl', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// buildOgImageUrl — critical: never produce ?default=false
-// ---------------------------------------------------------------------------
 describe('buildOgImageUrl - NEVER produce ?default=false', () => {
   const origin = 'https://meus-livros.app'
 
@@ -185,7 +156,7 @@ describe('buildOgImageUrl - NEVER produce ?default=false', () => {
     expect(url).not.toContain('default=false')
   })
 
-  it('serves /og-fallback.png (absolute) when no cover info is present — NEVER ?default=false', () => {
+  it('serves /og-fallback.png (absolute) when no cover info is present - NEVER ?default=false', () => {
     const url = buildOgImageUrl({
       editionCoverUrl: null,
       workCoverUrl: null,
@@ -197,10 +168,7 @@ describe('buildOgImageUrl - NEVER produce ?default=false', () => {
   })
 
   it('serves /og-fallback.png for an isbn13-only edition (no cover_url, no ol_cover_id)', () => {
-    // This is the real-world case: 64 ISBN-13 entries in the seed data have no
-    // cover_url. The BookCover component uses ?default=false for <img> onerror
-    // fallbacks — that is fine for rendering. Here, the og:image path must NOT
-    // use that URL because WhatsApp's crawler would get a 404.
+
     const url = buildOgImageUrl({
       editionCoverUrl: null,
       workCoverUrl: null,
@@ -212,9 +180,6 @@ describe('buildOgImageUrl - NEVER produce ?default=false', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// resolveEntryOgImageUrl — integration of the above with LogWithDetails shape
-// ---------------------------------------------------------------------------
 describe('resolveEntryOgImageUrl', () => {
   const origin = 'https://meus-livros.app'
 
@@ -276,12 +241,7 @@ describe('resolveEntryOgImageUrl', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// formatReadingDate — CRITICAL: finished_precision='ano' must render year only
-// ---------------------------------------------------------------------------
 describe('formatReadingDate - precision rendering', () => {
-  // The entire migrated acervo (86 entries) uses finished_precision='ano'.
-  // Rendering a full date for these entries would make 100% of the content wrong.
 
   it('renders only the year when precision is "ano"', () => {
     expect(formatReadingDate('2016-01-01', 'ano')).toBe('2016')
@@ -309,9 +269,6 @@ describe('formatReadingDate - precision rendering', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// formatBookFormat
-// ---------------------------------------------------------------------------
 describe('formatBookFormat', () => {
   it('returns "Livro físico" for "fisico"', () => {
     expect(formatBookFormat('fisico')).toBe('Livro físico')

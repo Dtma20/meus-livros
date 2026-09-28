@@ -90,7 +90,6 @@ describe('Schema types compilation and usability', () => {
       updated_at: null,
     }
 
-    // Signed first_published_year test (-500) and text series_number ('1-2')
     const ancientWork: Work = {
       id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a34',
       slug: 'arte-da-guerra',
@@ -102,8 +101,7 @@ describe('Schema types compilation and usability', () => {
       ol_work_key: null,
       created_by: null,
       created_at: new Date('2026-01-01T00:00:00Z'),
-      // A work nobody has edited yet: both audit columns are null, which is
-      // what migration 0004 backfills every pre-existing row to.
+
       updated_by: null,
       updated_at: null,
     }

@@ -18,25 +18,17 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core'
 
-// Hand-written in migration (TASK-004):
-// - Extensions: citext, unaccent
-// - Function: f_unaccent(text)
-// - Generated column: works.search_text GENERATED ALWAYS AS (f_unaccent(lower(title))) STORED
-// - Index: works_search_idx ON works (search_text text_pattern_ops)
-
 export const citext = customType<{ data: string }>({
   dataType() {
     return 'citext'
   },
 })
 
-// Enums
 export const visibilityEnum = pgEnum('visibility', ['publico', 'privado'])
 export const datePrecisionEnum = pgEnum('date_precision', ['dia', 'mes', 'ano'])
 export const bookFormatEnum = pgEnum('book_format', ['fisico', 'ebook', 'audio'])
 export const genreKindEnum = pgEnum('genre_kind', ['ficcao', 'nao_ficcao', 'outro'])
 
-// 1. users
 export const users = pgTable(
   'users',
   {
@@ -53,7 +45,6 @@ export const users = pgTable(
   ],
 )
 
-// 2. allowed_emails
 export const allowed_emails = pgTable('allowed_emails', {
   email: citext('email').primaryKey(),
   invited_by: uuid('invited_by').references(() => users.id, { onDelete: 'set null' }),
@@ -61,7 +52,6 @@ export const allowed_emails = pgTable('allowed_emails', {
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 })
 
-// 3. authors
 export const authors = pgTable('authors', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
@@ -72,30 +62,21 @@ export const authors = pgTable('authors', {
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 })
 
-// 4. works
 export const works = pgTable('works', {
   id: uuid('id').primaryKey().defaultRandom(),
   slug: citext('slug').notNull().unique(),
   title: text('title').notNull(),
   original_language: char('original_language', { length: 2 }),
-  // SIGNED integer: real corpus contains -500. No unsigned type, no > 0 check.
   first_published_year: integer('first_published_year'),
   series_name: text('series_name'),
-  // TEXT: real values include '1-2' and '0.1'. Never numeric.
   series_number: text('series_number'),
   ol_work_key: text('ol_work_key').unique(),
   created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
-  // The catalogue is shared: any member may edit any work, so who touched it
-  // last is the only accountability trail there is. Nullable because every row
-  // that existed before this column did has no honest value to put here.
   updated_by: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updated_at: timestamp('updated_at', { withTimezone: true, mode: 'date' }),
-  // search_text: hand-written in migration (TASK-004)
-  // works_search_idx: hand-written in migration (TASK-004)
 })
 
-// 5. work_authors
 export const work_authors = pgTable(
   'work_authors',
   {
@@ -113,7 +94,6 @@ export const work_authors = pgTable(
   ],
 )
 
-// 6. editions
 export const editions = pgTable(
   'editions',
   {
@@ -135,13 +115,11 @@ export const editions = pgTable(
   },
   (table) => [
     check('page_count_positive', sql`${table.page_count} IS NULL OR ${table.page_count} > 0`),
-    // PARTIAL unique: "no ISBN" must be a repeatable legal state, not a collision.
     uniqueIndex('editions_isbn13_key').on(table.isbn13).where(sql`${table.isbn13} IS NOT NULL`),
     index('editions_work_idx').on(table.work_id),
   ],
 )
 
-// 7. genres
 export const genres = pgTable('genres', {
   id: smallint('id').primaryKey(),
   slug: citext('slug').notNull().unique(),
@@ -149,7 +127,6 @@ export const genres = pgTable('genres', {
   kind: genreKindEnum('kind').notNull(),
 })
 
-// 8. work_genres
 export const work_genres = pgTable(
   'work_genres',
   {
@@ -165,8 +142,6 @@ export const work_genres = pgTable(
   ],
 )
 
-// 9. reading_logs
-// Deliberately NO unique(user_id, work_id): that constraint is what breaks re-reads.
 export const reading_logs = pgTable(
   'reading_logs',
   {
@@ -179,7 +154,7 @@ export const reading_logs = pgTable(
       .references(() => works.id, { onDelete: 'restrict' }),
     edition_id: uuid('edition_id').references(() => editions.id, { onDelete: 'set null' }),
     rating: numeric('rating', { precision: 2, scale: 1 }),
-    review: text('review'), // PLAIN TEXT. Never HTML.
+    review: text('review'),
     started_on: date('started_on'),
     finished_on: date('finished_on'),
     finished_precision: datePrecisionEnum('finished_precision').notNull().default('dia'),
@@ -203,7 +178,6 @@ export const reading_logs = pgTable(
   ],
 )
 
-// 10. search_misses
 export const search_misses = pgTable('search_misses', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   query: text('query').notNull(),
@@ -211,7 +185,6 @@ export const search_misses = pgTable('search_misses', {
   created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
 })
 
-// 11. reading_blocks
 export const reading_blocks = pgTable(
   'reading_blocks',
   {
@@ -236,7 +209,6 @@ export const reading_blocks = pgTable(
   ],
 )
 
-// Drizzle Relations
 export const usersRelations = relations(users, ({ many }) => ({
   reading_logs: many(reading_logs),
   reading_blocks: many(reading_blocks),

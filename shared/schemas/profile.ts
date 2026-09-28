@@ -78,14 +78,6 @@ function getRegionNames(): Intl.DisplayNames {
   return ptBrRegionNames
 }
 
-/**
- * Resolves an author's country into a display string in pt-BR.
- *
- * Requirements:
- * - If country_code is present (e.g. 'GB', 'US'), formats via Intl.DisplayNames('pt-BR')
- *   (e.g. 'Reino Unido', 'Estados Unidos').
- * - If country_code is null/invalid, falls back to country_label (e.g. 'Roma Antiga').
- */
 export function formatCountryName(
   countryCode: string | null | undefined,
   countryLabel?: string | null,

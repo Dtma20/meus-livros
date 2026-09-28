@@ -1,18 +1,6 @@
 import { sql } from 'drizzle-orm'
 import { db } from '../db'
 
-/**
- * Rate limiting backed by the `rate_limit` table — no Redis.
- *
- * One counter row per (key, 1-hour window), bumped by a single atomic upsert.
- * The UNIQUE(key, window_start) constraint in migration 0002 is what makes
- * the ON CONFLICT branch reachable; without it every request would insert a
- * fresh row and the limit would never fire.
- *
- * Only server/services/** may import the db handle (ESLint enforces this),
- * so the implementation lives here. server/utils/rate-limit.ts re-exports it.
- */
-
 export async function checkRateLimit(key: string, limitPerHour: number): Promise<boolean> {
   const rows = await db.execute(sql<{ count: number }>`
     INSERT INTO rate_limit (key, count, window_start)
@@ -25,21 +13,11 @@ export async function checkRateLimit(key: string, limitPerHour: number): Promise
   return count <= limitPerHour
 }
 
-/** Error body for a tripped rate limit, in the project's `{ error, message }` shape. */
 export interface RateLimitExceeded {
   error: 'muitas_tentativas'
   message: string
 }
 
-/**
- * OTP-request limits (security.md §8):
- *   - 5 requests per email per hour
- *   - 20 requests per IP per hour
- *
- * Returns null when within limits, or the 429 body when either trips.
- * Every call counts — including requests for non-allowlisted addresses, which
- * the caller answers with an identical success-shaped response.
- */
 export async function checkOtpRequestLimit(
   email: string,
   ip: string,
@@ -59,13 +37,6 @@ export async function checkOtpRequestLimit(
   return null
 }
 
-/**
- * Password sign-in limits (security.md §8):
- *   - 10 attempts per identifier per hour
- *   - 30 attempts per IP per hour
- *
- * Counted BEFORE resolving the identifier so unknown handles still trip the IP counter.
- */
 export async function checkSignInLimit(
   identifier: string,
   ip: string,
@@ -85,10 +56,6 @@ export async function checkSignInLimit(
   return null
 }
 
-/**
- * Password change limit (security.md §8):
- *   - 10 attempts per user per hour
- */
 export async function checkPasswordChangeLimit(userId: string): Promise<RateLimitExceeded | null> {
   const userOk = await checkRateLimit(`pwchange:user:${userId}`, 10)
 

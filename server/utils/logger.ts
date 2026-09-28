@@ -34,16 +34,11 @@ function redactEmails(value: string): string {
 
 export type LogOutputHandler = (entry: LogEntry, formatted: string) => void
 
-/**
- * Sanitizes arbitrary data to guarantee no sensitive credentials,
- * tokens, passwords, cookies, or raw email addresses reach stdout or log drains.
- */
 export function sanitizeLogData(data: unknown, depth = 0, seen = new WeakSet()): unknown {
   if (depth > 6) return '[MAX_DEPTH]'
   if (data === null || data === undefined) return data
 
   if (typeof data === 'string') {
-    // Redact emails embedded in strings
     let sanitized = data.replace(EMAIL_REGEX, (email) => redactEmail(email))
     if (sanitized.length > MAX_STRING_LENGTH) {
       sanitized = `${sanitized.slice(0, MAX_STRING_LENGTH)}… [TRUNCATED ${data.length - MAX_STRING_LENGTH} chars]`
@@ -277,10 +272,6 @@ export class Logger {
     this.log('FATAL', message, context)
   }
 
-  /**
-   * Measures the execution time of an async or sync operation,
-   * emits a WARN log if it crosses warnThresholdMs, and tracks failures.
-   */
   public async measure<T>(
     operationName: string,
     fn: () => Promise<T> | T,
@@ -324,14 +315,13 @@ export class Logger {
       return JSON.stringify(entry)
     }
 
-    // Development readable format
     const time = entry.timestamp.slice(11, 23)
     const levelColors: Record<LogLevel, string> = {
-      DEBUG: '\x1b[90m', // gray
-      INFO: '\x1b[36m',  // cyan
-      WARN: '\x1b[33m',  // yellow
-      ERROR: '\x1b[31m', // red
-      FATAL: '\x1b[35;1m', // bold magenta
+      DEBUG: '\x1b[90m',
+      INFO: '\x1b[36m',
+      WARN: '\x1b[33m',
+      ERROR: '\x1b[31m',
+      FATAL: '\x1b[35;1m',
     }
     const reset = '\x1b[0m'
     const color = levelColors[entry.level] || ''

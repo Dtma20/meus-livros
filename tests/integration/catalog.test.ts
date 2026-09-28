@@ -6,7 +6,6 @@ import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
-/** Every row this file creates carries this marker so cleanup can find it. */
 const MARKER = `zz-teste-catalogo-${Date.now()}`
 let isbnSeed = Date.now() % 1_000_000_000
 
@@ -170,8 +169,6 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
       userId,
     )
 
-    // "No ISBN" is a repeatable legal state — that is what the partial unique
-    // index is for. Three books in the corpus need it.
     await catalog.createEdition(work.id, { isbn: null }, userId)
     await catalog.createEdition(work.id, { isbn: null }, userId)
 
@@ -180,7 +177,7 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
 
     let caught: unknown
     try {
-      // Repeating the same normalised ISBN must be a conflict.
+
       await catalog.createEdition(work.id, { isbn }, userId)
     } catch (error) {
       caught = error

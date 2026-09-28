@@ -7,23 +7,12 @@ import { removeFixtures } from './fixtures'
 describe('Route integration HTTP tests', () => {
   let child: ChildProcess
   let baseUrl: string
-  /**
-   * A work this file creates for itself, and deletes afterwards.
-   *
-   * It used to be the literal slug `1984`, which made the test a statement
-   * about one particular book being present rather than about the route
-   * rendering: any database without that row failed a route test for a data
-   * reason. Reading "whatever work happens to be there" is no better — the
-   * other integration files create and drop works throughout the run, so that
-   * version passes or fails depending on which file got there first.
-   *
-   * Owning the fixture is what makes this test independent of both.
-   */
+
   const workMarker = `zz-teste-rota-${Date.now()}`
   let realWork: { id: string; slug: string; title: string } | null = null
 
   beforeAll(async () => {
-    // The bundle is built by tests/global-setup.ts, before any worker starts.
+
     const env = { ...process.env }
     delete env.NODE_OPTIONS
     delete env.VITEST
@@ -61,8 +50,7 @@ describe('Route integration HTTP tests', () => {
 
   afterAll(async () => {
     try {
-      // By marker, so a work inserted by a setup that failed afterwards is
-      // still found.
+
       await removeFixtures(workMarker)
     } finally {
       if (child) {
@@ -81,9 +69,7 @@ describe('Route integration HTTP tests', () => {
   })
 
   it('GET /@<handle desconhecido> returns 404', async () => {
-    // No longer the TASK-006 stub. A handle nobody owns has to say so in the
-    // status line: the crawler that builds the link preview reads that, and a
-    // 200 with an error box would be previewed as a real profile.
+
     const res = await fetch(`${baseUrl}/@ninguem-tem-esse-handle`, { redirect: 'manual' })
     expect(res.status).toBe(404)
   })
@@ -92,40 +78,36 @@ describe('Route integration HTTP tests', () => {
     const res = await fetch(`${baseUrl}/@dtma23`, { redirect: 'manual' })
     expect(res.status).toBe(200)
     const html = await res.text()
-    // Server-rendered: the name is in the first response, no JavaScript run.
+
     expect(html).toContain('Diogo Amorim')
     expect(html).toContain('@dtma23')
   })
 
   it('GET /livro/<slug desconhecido> returns 404, not a 200 with an error box', async () => {
-    // No longer the TASK-006 stub. The crawler that builds the WhatsApp preview
-    // reads the status of the first response, so a work that does not exist has
-    // to say so in the status line and not only in the body.
+
     const res = await fetch(`${baseUrl}/livro/slug-que-nao-existe`, { redirect: 'manual' })
     expect(res.status).toBe(404)
   })
 
   it('GET /livro/<slug real> returns 200 and server-renders the title', async () => {
-    // A missing fixture is a broken setup, not a passing test.
+
     expect(realWork).not.toBeNull()
 
     const res = await fetch(`${baseUrl}/livro/${encodeURIComponent(realWork!.slug)}`, {
       redirect: 'manual',
     })
     expect(res.status).toBe(200)
-    // Server-rendered, so the title is in the first response with no JavaScript run.
+
     expect(await res.text()).toContain(realWork!.title)
   })
 
   it('GET /entrada/<id> returns 200 and renders the entry page (not the stub)', async () => {
-    // The stub is gone: this is now the real entry page. An anonymous request
-    // for a non-existent or private id shows the not-found empty state, but
-    // the route itself is server-rendered and returns 200.
+
     const res = await fetch(`${baseUrl}/entrada/nao-existe`, { redirect: 'manual' })
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('Entrada não encontrada')
-    // Sanity: the old stub text is gone
+
     expect(html).not.toContain('ID da entrada:')
   })
 
@@ -166,9 +148,7 @@ describe('Route integration HTTP tests', () => {
     })
     expect(res.status).toBe(404)
     const html = await res.text()
-    // Copy comes from the TASK-020 state table. The status line matters as much
-    // as the words: the crawler that builds the WhatsApp preview reads it, and
-    // three public pages once answered 200 with an error box in the body.
+
     expect(html).toContain('Não encontramos essa página.')
     expect(html).toContain('Ir para o início')
     expect(html).toContain('Dados bibliográficos parcialmente do Open Library')

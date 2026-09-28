@@ -85,8 +85,7 @@ describe.skipIf(!hasDatabaseUrl)('Reading blocks authorization integration tests
   }
 
   it('returns identical create bodies for a foreign and a nonexistent log', async () => {
-    // O 403 anterior confirmava a existência do *registro de leitura*, não do
-    // bloco: bastava comparar as respostas de um logId alheio e de um inventado.
+
     const input: ReadingBlockInput = { start_page: 1, end_page: 5, read_at: '2026-09-20' }
     const foreignBody = await captureBody(() => readingBlocksService.createBlock(logId, userBId, input))
     const missingBody = await captureBody(() => readingBlocksService.createBlock('00000000-0000-0000-0000-000000000000', userBId, input))

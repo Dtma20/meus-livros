@@ -55,7 +55,6 @@
         </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
 
-        <!-- Global stats: always reflect total visible collection -->
         <div class="stats" aria-label="Estatísticas gerais do acervo">
           <StatBox :value="globalStats.totalBooks" label="Livros" />
           <StatBox :value="globalStats.uniqueAuthors" label="Autores" />
@@ -63,7 +62,6 @@
         </div>
       </header>
 
-      <!-- Empty state when profile has no books registered -->
       <div v-if="logs.length === 0" class="empty-collection">
         <EmptyState
           v-if="isOwner"
@@ -80,7 +78,6 @@
       </div>
 
       <template v-else>
-        <!-- Visibility switcher for owner -->
         <div v-if="isOwner" class="visibility-bar">
           <div class="visibility-nav" role="tablist" aria-label="Filtrar por visibilidade">
             <button
@@ -116,7 +113,6 @@
           </div>
         </div>
 
-        <!-- Empty state when chosen visibility has zero books -->
         <div v-if="displayedLogs.length === 0" class="empty-visibility-results">
           <EmptyState
             v-if="visibilityFilter === 'privado'"
@@ -135,7 +131,6 @@
         </div>
 
         <template v-else>
-        <!-- Reading map of countries -->
         <ClientOnly>
           <ReadingMap
             v-if="showMap"
@@ -146,7 +141,6 @@
           />
         </ClientOnly>
 
-        <!-- Filter bar for genre, country, decade, and sorting -->
         <FilterBar
           v-model:genre="filterGenre"
           v-model:country="filterCountry"
@@ -159,7 +153,6 @@
           @reset="resetFilters"
         />
 
-        <!-- Empty state when active filters match zero books -->
         <div v-if="hasActiveFilters && sortedBooks.length === 0" class="empty-filter-results">
           <EmptyState
             title="Nenhum livro com esses filtros."
@@ -169,18 +162,13 @@
           />
         </div>
 
-        <!-- Poster grid of books and footer (only rendered when books match) -->
         <template v-else>
           <BookGrid>
-            <!--
-              .book-grid is 6 columns at its widest, so the first 6 are the first row.
-              Below 601px the reading map is hidden and card 0 is the LCP element.
-            -->
             <div v-for="(log, i) in sortedBooks" :key="log.id" class="book-card-item">
               <span
                 v-if="log.visibility === 'privado'"
                 class="private-badge"
-                title="Registro privado — visível apenas para você"
+                title="Registro privado - visível apenas para você"
               >
                 Privado
               </span>
@@ -197,7 +185,6 @@
             </div>
           </BookGrid>
 
-          <!-- Footer: Paginometer following active filters -->
           <footer class="paginometer" aria-label="Estatísticas de páginas dos livros exibidos">
             <div class="page-stat">
               <strong>{{ filteredStats.totalPages.toLocaleString('pt-BR') }}</strong>
@@ -255,10 +242,6 @@ const session = typeof useState === 'function'
   ? useState<{ user?: AuthSessionUser | null }>('auth:session', () => ({ user: null }))
   : ref({ user: null })
 
-// Awaited on purpose. Without it `error.value` is still null when the check
-// below runs, so the 404 never gets set and an unknown or private handle
-// answers 200 with an error box — which is the difference between "this profile
-// does not exist" and "it exists and you cannot see it".
 const { data: pageData, pending, error, refresh } = await useAsyncData(
   `profile-${handle.value}`,
   async () => {
@@ -300,14 +283,12 @@ const is404 = computed(() => {
   return status === 404
 })
 
-// In SSR, set HTTP response status if fetch failed
 if (event && error.value) {
   const err = error.value as { statusCode?: number; status?: number } | null | undefined
   const status = err?.statusCode || err?.status || 500
   setResponseStatus(event, status)
 }
 
-// Open Graph / SEO metadata
 const firstCover = computed(() => {
   const items = profile.value?.logs || []
   for (const l of items) {
@@ -442,8 +423,6 @@ function writeToClipboard(text: string): Promise<void> {
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     return navigator.clipboard.writeText(text)
   }
-  // execCommand is the only path left on non-secure origins (the LAN address
-  // the cohort uses to test on their phones is plain http).
   return new Promise((resolve, reject) => {
     try {
       const field = document.createElement('textarea')
@@ -503,8 +482,6 @@ onBeforeUnmount(() => {
   margin-bottom: var(--space-8, 32px);
 }
 
-/* Shrink-wraps the name + handle line so the actions row below can stretch to
-   exactly that width. */
 .identity {
   width: fit-content;
   max-width: 100%;
@@ -550,8 +527,6 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-sm, 4px);
 }
 
-/* Reserves its own line height so the row below does not shift when the
-   confirmation appears. */
 .copy-feedback {
   margin: var(--space-1, 4px) 0 0 0;
   min-height: 1.25em;
@@ -568,7 +543,6 @@ onBeforeUnmount(() => {
   margin-bottom: var(--space-6, 24px);
 }
 
-/* Each button takes an equal share, so the pair spans the name-row width. */
 .profile-actions > * {
   flex: 1 1 0;
   justify-content: center;
@@ -685,7 +659,6 @@ onBeforeUnmount(() => {
   margin-bottom: var(--space-6, 24px);
 }
 
-/* The actions row already carries the gap below it. */
 .identity:has(.profile-actions) + .stats,
 .identity:has(.profile-actions) + .bio + .stats {
   margin-top: 0;
@@ -750,8 +723,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 600px) {
-  /* A short display name would otherwise squeeze the two nowrap buttons past
-     the viewport edge. */
   .identity {
     width: 100%;
   }

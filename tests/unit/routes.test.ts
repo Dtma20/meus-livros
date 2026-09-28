@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -41,8 +40,7 @@ vi.hoisted(() => {
     ...options
   })
   globalScope.clearError = (opts?: unknown) => opts
-  // The middleware resolves these before its first await; without them it
-  // cannot run outside a Nuxt app.
+
   globalScope.useNuxtApp = () => ({ runWithContext: (fn: () => unknown) => fn() })
   globalScope.useRequestFetch = () => (globalThis as unknown as Record<string, unknown>).$fetch
   globalScope.useRequestURL = () => new URL('http://localhost:3000/livro/test')
@@ -193,9 +191,7 @@ describe('Layout: app.vue', () => {
 })
 
 describe('Error page: error.vue', () => {
-  // Copy comes from the TASK-020 state table, which is the specification for
-  // every empty and error state. Asserting the literal strings is deliberate:
-  // it is what stops the copy drifting back to something a reader has to decode.
+
   it('handles 404 with pt-BR copy and a way back home', () => {
     const wrapper = mount(ErrorPage, {
       error: { statusCode: 404 }
@@ -219,8 +215,6 @@ describe('Error page: error.vue', () => {
     })
     expect(wrapper.text()).toContain('Algo deu errado. Tente de novo.')
 
-    // The point of this test. ErrorState renders fixed copy and never touches
-    // the error object, so neither the message nor the stack can reach a reader.
     expect(wrapper.text()).not.toContain('Sensitive database failure message')
     expect(wrapper.text()).not.toContain('/server/db/secret.ts')
     expect(wrapper.text()).not.toContain('Internal Server Error')
@@ -284,10 +278,6 @@ describe('Page stubs and route parameters', () => {
     const wrapper = mount(ProfilePage, {}, router)
     await nextTick()
 
-    // Routing is what this file checks. What the page renders is covered by
-    // tests/integration/routes.test.ts against the real server — TASK-016 made
-    // the page await its data so an unknown handle can answer 404 instead of
-    // 200, and an awaited page renders nothing without a Suspense boundary.
     expect(router.currentRoute.value.params.handle).toBe('diogo')
     wrapper.unmount()
   })
@@ -302,11 +292,6 @@ describe('Page stubs and route parameters', () => {
     const wrapper = mount(BookPage, {}, router)
     await nextTick()
 
-    // This file's job is routing: the slug reaches the route. What the page
-    // renders is covered in tests/unit/work.test.ts, which mounts it inside a
-    // Suspense boundary — TASK-015 made the page await its data so that an
-    // unknown slug can answer 404 instead of 200, and an awaited page renders
-    // nothing at all without that boundary.
     expect(router.currentRoute.value.params.slug).toBe('dom-casmurro')
     wrapper.unmount()
   })
@@ -322,15 +307,13 @@ describe('Page stubs and route parameters', () => {
     await nextTick()
 
     expect(router.currentRoute.value.params.id).toBe('42')
-    // No longer a stub: TASK-014 turned this into the real entry page. With no
-    // log loaded it shows the not-found state.
+
     expect(wrapper.text()).toContain('Entrada não encontrada')
     wrapper.unmount()
   })
 
   it('renders index and login pages', async () => {
-    // TASK-018 turned IndexPage into an async component (await useAsyncData).
-    // An awaited page renders its DOM inside a Suspense boundary; verify mount resolves.
+
     const wIndex = mount(IndexPage)
     await flushAsync()
     expect(wIndex.text()).toContain('Início')
@@ -362,8 +345,7 @@ describe('Page stubs and route parameters', () => {
     await router.push('/app/entrada/99/editar')
     const wEdit = mount(EditEntryPage, {}, router)
     await nextTick()
-    // No longer a stub: TASK-013 turned this into the real edit page. With no
-    // log loaded it shows its title and the not-found state.
+
     expect(wEdit.text()).toContain('Editar registro')
     wEdit.unmount()
   })

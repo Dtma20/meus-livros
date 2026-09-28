@@ -1,15 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-/**
- * The home page's layout depends on who is asking, and that decision has to be
- * made before either side renders. It used to live in `index.vue`'s `setup()`,
- * which raised NUXT_E2007 and made the server emit the anonymous shell while
- * the client hydrated the member one — every node under `<nav>` mismatched.
- *
- * These tests pin the decision to the middleware. If someone moves it back into
- * a component, the middleware stops existing and they go red.
- */
-
 const layoutCalls: string[] = []
 let sessionState: Record<string, unknown> = {}
 let meResponse: unknown = null
@@ -85,7 +75,7 @@ describe('home-layout middleware', () => {
       hasProfile: true,
       fetched: true,
     }
-    meRejects = true // would throw if the middleware asked
+    meRejects = true
     await run()
     expect(layoutCalls).toEqual(['app'])
   })

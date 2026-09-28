@@ -3,7 +3,6 @@ import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
-/** Prefix for every row this file creates, so cleanup finds them all. */
 const MARKER = `zz-search-${Date.now()}`
 
 describe.skipIf(!hasDatabaseUrl)('Search service', () => {
@@ -27,7 +26,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     sqlOp = await import('drizzle-orm')
     search = await import('../../server/services/search')
 
-    // Create a test user
     const [user] = await db
       .insert(schema.users)
       .values({
@@ -40,7 +38,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     if (!user) throw new Error('Não foi possível criar o usuário de teste.')
     userId = user.id
 
-    // Author: Dostoiévski (with accents)
     const [authorDosto] = await db
       .insert(schema.authors)
       .values({ name: 'Fiodor Dostoiévski', slug: `${MARKER}-fiodor-dostoievski`, created_by: userId })
@@ -48,7 +45,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
 
     if (!authorDosto) throw new Error('Falha ao criar autor.')
 
-    // Work 1: by Dostoiévski — to test accent-insensitive author search
     const [workDosto] = await db
       .insert(schema.works)
       .values({
@@ -67,7 +63,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
       position: 0,
     })
 
-    // Work 2: title contains "Ficção" — to test accent-insensitive title search
     const [workFiccao] = await db
       .insert(schema.works)
       .values({
@@ -80,7 +75,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     if (!workFiccao) throw new Error('Falha ao criar obra Ficção.')
     workFiccaoId = workFiccao.id
 
-    // Work 3: title "O Retorno do Rei" — to test partial title match
     const [workRetorno] = await db
       .insert(schema.works)
       .values({
@@ -93,7 +87,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     if (!workRetorno) throw new Error('Falha ao criar obra Retorno.')
     workRetornoId = workRetorno.id
 
-    // Works 4 & 5: identical search-text prefix, different log_count to test ranking
     const [workPopular] = await db
       .insert(schema.works)
       .values({
@@ -118,8 +111,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     if (!workUnpopular) throw new Error('Falha ao criar obra unpopular.')
     workUnpopularId = workUnpopular.id
 
-    // Give "popular" 5 log entries (user logs the same work multiple times
-    // — no unique constraint, by design)
     await db.insert(schema.reading_logs).values(
       Array.from({ length: 5 }, () => ({
         user_id: userId,
@@ -136,10 +127,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
       await client?.end()
     }
   })
-
-  // -------------------------------------------------------------------------
-  // Core acceptance criteria
-  // -------------------------------------------------------------------------
 
   it('dostoievski (unaccented) returns the Dostoiévski work', async () => {
     const works = await search.searchWorks('dostoievski', null)
@@ -170,33 +157,20 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
   })
 
   it('q of % returns 200 and does not return every row', async () => {
-    // % typed by user is a literal in their search, not a SQL wildcard.
-    // The query wraps it as '%' || f_unaccent(lower('%')) || '%'
-    // which matches nothing, so we expect zero or few results, certainly
-    // not the full table.
+
     const works = await search.searchWorks('%', null)
-    // At most 20 — this is the LIMIT. The test dataset has no works whose
-    // search_text contains the literal '%', so we expect 0 results.
+
     expect(works.length).toBe(0)
   })
 
-  // NOTE: there is deliberately no "symbols match nothing" test here. With
-  // the fuzzy branches restored (spec: queries like `harry_potter` must keep
-  // trigram matching), a `%`/`_` query legitimately matches similar titles
-  // via similarity — that is fuzzy, not a wildcard. Wildcard injection
-  // itself stays closed by escaping + bound parameters, covered in
-  // tests/unit/search-escape.test.ts. The O_Retorno test below pins the
-  // required fuzzy behavior.
-
   it('returns at most 20 results', async () => {
-    // Use a term common to all our marker works.
+
     const works = await search.searchWorks(MARKER.slice(0, 20), null)
     expect(works.length).toBeLessThanOrEqual(20)
   })
 
   it('a work with 5 logs ranks above an equally-matching work with 0', async () => {
-    // Both "Popular" and "Unpopular" start with MARKER.
-    // "Popular" has 5 logs; "Unpopular" has 0.
+
     const works = await search.searchWorks(MARKER.slice(0, 20), null)
     const idxPopular = works.findIndex((w) => w.id === workPopularId)
     const idxUnpopular = works.findIndex((w) => w.id === workUnpopularId)
@@ -213,17 +187,14 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     expect(typeof w.slug).toBe('string')
     expect(typeof w.title).toBe('string')
     expect(Array.isArray(w.authors)).toBe(true)
-    // first_published_year may be null; cover_url may be null
+
     expect('first_published_year' in w).toBe(true)
     expect('cover_url' in w).toBe(true)
     expect(typeof w.log_count).toBe('number')
   })
 
-  // -------------------------------------------------------------------------
-  // Performance: p95 under 150ms with 1,500 works
-  // -------------------------------------------------------------------------
   it('p95 latency under 150ms with 1,500 works seeded', async () => {
-    // Seed 1,500 synthetic rows (on top of what we already have).
+
     const SEED_COUNT = 1500
     const BATCH = 250
     const seedIds: string[] = []
@@ -243,10 +214,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
 
     const SAMPLES = 20
 
-    // Wall-clock from here includes the round trip to Neon in São Paulo, which
-    // is not what the criterion is about and swings by tens of milliseconds
-    // between runs. Measure a trivial round trip alongside it and report the
-    // difference, so the assertion is about the query and not about the network.
     const measure = async (run: () => Promise<unknown>): Promise<number[]> => {
       const times: number[] = []
       for (let i = 0; i < SAMPLES; i++) {
@@ -266,16 +233,12 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
 
       expect(queryCost).toBeLessThan(150)
     } finally {
-      // Clean up seeded rows — the test suite runs against the real database.
+
       if (seedIds.length > 0) {
         await db.delete(schema.works).where(sqlOp.inArray(schema.works.id, seedIds))
       }
     }
   }, 60_000)
-
-  // -------------------------------------------------------------------------
-  // TASK-026: search_misses instrumentation
-  // -------------------------------------------------------------------------
 
   it('a zero-result search inserts exactly one row with the exact query text', async () => {
     const missQuery = `${MARKER} Livro Inexistente 123`
@@ -352,12 +315,10 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
   }, 20_000)
 
   it('a simulated insert failure does not affect or throw in recordSearchMiss', async () => {
-    // Calling with an invalid foreign key UUID simulates a DB failure;
-    // recordSearchMiss catches and logs it without throwing or rejecting.
+
     const nonExistentUserId = '00000000-0000-0000-0000-000000000000'
     await expect(
       search.recordSearchMiss(`${MARKER} simulated failure`, nonExistentUserId),
     ).resolves.not.toThrow()
   }, 20_000)
 })
-

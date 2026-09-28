@@ -9,16 +9,6 @@ import { db } from '../db'
 import { authors, editions, reading_logs, users, work_authors, works } from '../db/schema'
 import { visibleLogs, type Viewer } from './visibility'
 
-/**
- * Service to fetch the recent reading logs feed.
- *
- * Rules (TASK-018):
- * - Authenticated: up to 10 most recent visible entries.
- * - ORDER BY created_at DESC LIMIT 10.
- * - No pagination, no cursor, no tab, no infinite scroll.
- * - Filter through visibleLogs(viewer).
- * - limit capped at 10 server-side regardless of caller input.
- */
 export async function getRecentFeed(
   viewer: Viewer,
   limit: number = 10,
@@ -64,7 +54,6 @@ export async function getRecentFeed(
     return { entries: [] }
   }
 
-  // Batch query authors for all returned works
   const workIds = [...new Set(rows.map((r) => r.work.id))]
   const authorsRows = await db
     .select({

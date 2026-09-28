@@ -24,8 +24,6 @@ export async function getBlocksForLog(
       edition_page_count: editions.page_count,
     })
     .from(reading_logs)
-    // edition_id is intentionally nullable. When null, fall back to the work's
-    // first edition so page_count (and thus total_pages in progress) resolves.
     .leftJoin(
       editions,
       sql`editions.id = COALESCE(
@@ -121,7 +119,6 @@ export async function createBlock(
     })
   }
 
-  // Touch the reading log's updated_at
   await db
     .update(reading_logs)
     .set({ updated_at: new Date() })
@@ -170,7 +167,6 @@ export async function updateBlock(
     .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
     .returning()
 
-  // Touch the reading log's updated_at
   await db
     .update(reading_logs)
     .set({ updated_at: new Date() })

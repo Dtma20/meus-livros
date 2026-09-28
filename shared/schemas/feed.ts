@@ -55,9 +55,6 @@ export type FeedUserView = z.infer<typeof feedUserSchema>
 export type FeedEntry = z.infer<typeof feedEntrySchema>
 export type FeedResponse = z.infer<typeof feedResponseSchema>
 
-/**
- * Builds a clean plain-text review excerpt (up to maxLength characters).
- */
 export function buildReviewExcerpt(review: string | null | undefined, maxLength = 200): string | null {
   if (!review) return null
   const clean = review.trim()

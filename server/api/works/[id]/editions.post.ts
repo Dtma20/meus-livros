@@ -12,7 +12,6 @@ export default defineApiHandler(async (event) => {
 
   const id = getRouterParam(event, 'id')
   const parsed = workIdSchema.safeParse(id)
-  // A malformed id and an id nobody has are the same answer: it does not exist.
   if (!parsed.success) {
     throw createError({
       statusCode: 404,

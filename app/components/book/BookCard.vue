@@ -29,7 +29,6 @@ const props = defineProps<{
   olCoverId?: number | string | null
   isbn13?: string | null
   href?: string | null
-  /** 'eager' for above-the-fold cards. Forwarded to the <img>. */
   loading?: 'lazy' | 'eager'
 }>()
 

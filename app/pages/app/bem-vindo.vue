@@ -14,7 +14,6 @@
       </div>
 
       <form class="welcome-form" @submit.prevent="handleSubmit">
-        <!-- Display Name -->
         <div class="form-group">
           <label for="display_name" class="form-label">Nome de exibição</label>
           <input
@@ -32,7 +31,6 @@
           <span id="display-name-hint" class="field-hint">Como você quer ser chamado nas resenhas e no perfil.</span>
         </div>
 
-        <!-- Handle -->
         <div class="form-group">
           <label for="handle" class="form-label">Nome de usuário (handle)</label>
           <div class="handle-input-wrapper">
@@ -55,18 +53,15 @@
           <span id="handle-hint" class="field-hint">Entre 3 e 20 caracteres: letras minúsculas, números e sublinhado (_).</span>
         </div>
 
-        <!-- Live URL preview -->
         <div class="preview-box">
           <span class="preview-label">Seu endereço público:</span>
           <span class="preview-url">meulivros.app/@{{ previewHandle }}</span>
         </div>
 
-        <!-- Inline error message -->
         <p v-if="errorMessage" id="bem-vindo-error" class="error-message" role="alert">
           {{ errorMessage }}
         </p>
 
-        <!-- Collision suggestions -->
         <div v-if="suggestions.length > 0" class="suggestions-container">
           <span class="suggestions-label">Sugestões disponíveis:</span>
           <div class="suggestions-list">
@@ -82,7 +77,6 @@
           </div>
         </div>
 
-        <!-- Submit button -->
         <button
           type="submit"
           class="submit-btn"
@@ -145,7 +139,6 @@ onMounted(async () => {
       errorMessage.value = TIMEOUT_MESSAGE
       return
     }
-    // Unauthenticated handled by middleware
   }
 })
 
@@ -203,10 +196,6 @@ async function handleSubmit() {
   try {
     const res = await $fetch<{ id: string; handle: string; display_name: string }>('/api/users', {
       method: 'POST',
-      // Without a timeout this promise can never settle: a request lost
-      // without the server answering or closing leaves `finally` unreached,
-      // `loading` stuck true, and the button reading "Salvando..." forever
-      // with no error and no way out but a reload. Observed in the wild.
       timeout: 15_000,
       body: {
         handle: handle.value,

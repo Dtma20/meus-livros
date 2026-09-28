@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import http from 'node:http'
 import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
@@ -21,9 +20,7 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
   let child: ChildProcess
   let baseUrl: string
   let entryPath: string | null = null
-  // Seeded by this file and dropped in afterAll: see routes.test.ts for why the
-  // literal slug `1984` — and reading whatever work happened to be there —
-  // both made this depend on something other than the page under test.
+
   const workMarker = `zz-teste-axe-${Date.now()}`
   let seededWorkId: string | null = null
   let workPath: string | null = null
@@ -65,7 +62,7 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
     }
 
     const profileRes = await httpGet(`${baseUrl}/@dtma23`)
-    // A rota quebrada (500) nunca pode passar em silêncio via fallback do banco.
+
     expect(profileRes.status).toBe(200)
     const match = profileRes.body.match(/href="(\/entrada\/[^"]+)"/)
     if (match && match[1]) {
@@ -90,7 +87,6 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
           .where(sqlOp.eq(schemaModule.users.handle, 'dtma23'))
           .limit(1)
 
-        // The work this file seeded, not whichever one another file left behind.
         const work = seededWorkId ? { id: seededWorkId } : null
 
         if (user && work) {
@@ -115,9 +111,7 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
 
   afterAll(async () => {
     try {
-      // Finds the seeded work by its marker, and the log on it first
-      // (reading_logs.work_id is RESTRICT), even if setup stopped before
-      // recording either id.
+
       await removeFixtures(workMarker)
     } finally {
       if (child) {
@@ -131,23 +125,20 @@ describe('Automated accessibility (axe-core) tests on public routes', () => {
     expect(res.status).toBe(200)
     const html = res.body
 
-    // Criterion 10: <html lang="pt-BR"> in SSR response
     expect(html).toMatch(/<html[^>]*\blang="pt-BR"/i)
 
     document.documentElement.removeAttribute('lang')
     document.documentElement.innerHTML = html
     document.documentElement.setAttribute('lang', 'pt-BR')
 
-    // Criterion 2: Every <img> in rendered output has an alt attribute
     const images = Array.from(document.querySelectorAll('img'))
     for (const img of images) {
       expect(img.hasAttribute('alt')).toBe(true)
     }
 
-    // Criterion 8: axe-core reports zero critical violations
     const results = await axe.run(document.documentElement, {
       rules: {
-        // happy-dom lacks layout and CSS computation engine for color-contrast evaluation
+
         'color-contrast': { enabled: false },
       },
     })

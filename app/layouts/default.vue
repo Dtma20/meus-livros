@@ -137,8 +137,6 @@ import AppLogo from '~/components/ui/AppLogo.vue'
   color: var(--highlight);
 }
 
-/* Full-bleed, on the same side padding as .header-inner, so the content edge
-   lines up with the logo and the nav instead of stopping short of them. */
 .container {
   margin: 0 auto;
   padding: var(--space-5) var(--space-8);

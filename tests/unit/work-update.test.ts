@@ -6,13 +6,7 @@ import {
 } from '../../shared/schemas/work'
 import { COUNTRIES, countryCodeFor, countryLabelFor } from '../../shared/constants/countries'
 
-/**
- * These tests pin the one behaviour the PATCH routes are built on: an absent
- * key and an explicit null are different instructions. If Zod ever stops
- * preserving that, a form editing only the title starts blanking every other
- * column and nothing else in the suite would notice.
- */
-describe('workUpdateSchema — PATCH semantics', () => {
+describe('workUpdateSchema - PATCH semantics', () => {
   it('omits keys that were not sent', () => {
     const parsed = workUpdateSchema.parse({ title: 'Dom Casmurro' })
 
@@ -31,9 +25,7 @@ describe('workUpdateSchema — PATCH semantics', () => {
   })
 
   it('treats an undefined value as absent, not as a clear', () => {
-    // JSON cannot carry undefined, but the schema is also parsed in the form
-    // and in tests, where it can. A stray undefined must not write NULL over a
-    // real value.
+
     const parsed = workUpdateSchema.parse({ title: 'Dom Casmurro', series_name: undefined })
 
     expect(hasField(parsed, 'series_name')).toBe(false)
@@ -62,8 +54,7 @@ describe('workUpdateSchema — PATCH semantics', () => {
   })
 
   it('rejects a genre id outside the smallint range', () => {
-    // genres.id is smallint. Unbounded, 99999 reaches Postgres and the caller
-    // gets a 500 for what is really a 400.
+
     expect(workUpdateSchema.safeParse({ genre_ids: [99999] }).success).toBe(false)
     expect(workUpdateSchema.safeParse({ genre_ids: [0] }).success).toBe(false)
     expect(workUpdateSchema.safeParse({ genre_ids: [-1] }).success).toBe(false)
@@ -146,7 +137,7 @@ describe('country options', () => {
   })
 
   it('resolves common names that are not the table label', () => {
-    // 'EUA' is what the legacy corpus uses; the migration depends on it.
+
     expect(countryCodeFor('EUA')).toBe('US')
     expect(countryCodeFor('Inglaterra')).toBe('GB')
     expect(countryCodeFor('Holanda')).toBe('NL')

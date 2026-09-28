@@ -93,4 +93,3 @@ describe('TASK-026: searchQuerySchema (unit)', () => {
     expect(result.success).toBe(false)
   })
 })
-

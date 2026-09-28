@@ -10,7 +10,6 @@
       </p>
 
       <form class="profile-form" @submit.prevent="handleSave">
-        <!-- Handle (Immutable) -->
         <div class="form-group">
           <label for="profile-handle" class="form-label">Nome de usuário</label>
           <div class="handle-input-wrapper">
@@ -30,7 +29,6 @@
           </span>
         </div>
 
-        <!-- Display Name -->
         <div class="form-group">
           <label for="profile-name" class="form-label">Nome de exibição</label>
           <input
@@ -47,7 +45,6 @@
           <span id="profile-name-hint" class="field-hint">Como seu nome aparecerá nas leituras e no perfil.</span>
         </div>
 
-        <!-- Bio -->
         <div class="form-group">
           <div class="label-row">
             <label for="profile-bio" class="form-label">Biografia</label>
@@ -68,7 +65,6 @@
           <span id="profile-bio-hint" class="field-hint">Apresentação curta no seu perfil público. Máximo 500 caracteres.</span>
         </div>
 
-        <!-- Profile Visibility -->
         <fieldset class="form-group visibility-fieldset">
           <legend class="form-label">
             Visibilidade do perfil
@@ -107,7 +103,6 @@
           </div>
         </fieldset>
 
-        <!-- Messages -->
         <p v-if="successMessage" class="success-message" role="status">
           {{ successMessage }}
         </p>
@@ -116,7 +111,6 @@
           {{ errorMessage }}
         </p>
 
-        <!-- Submit Button -->
         <button
           type="submit"
           class="submit-btn"
@@ -127,7 +121,6 @@
       </form>
     </div>
 
-    <!-- Alterar senha -->
     <div class="profile-card password-card">
       <h2 class="profile-title section-title">
         Alterar senha
@@ -248,7 +241,6 @@ const loading = ref(false)
 const successMessage = ref('')
 const errorMessage = ref('')
 
-// Password change state
 const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
@@ -289,7 +281,6 @@ onMounted(async () => {
       errorMessage.value = TIMEOUT_MESSAGE
       return
     }
-    // Handled by middleware
   }
 })
 
@@ -313,10 +304,6 @@ async function handleSave() {
       profile_visibility: 'publico' | 'privado'
     }>('/api/users/me', {
       method: 'PATCH',
-      // Without a timeout this promise can never settle: a request lost
-      // without the server answering or closing leaves `finally` unreached,
-      // `loading` stuck true, and the button reading "Salvando..." forever
-      // with no error and no way out but a reload. Observed in the wild.
       timeout: 15_000,
       body: {
         display_name: displayName.value,

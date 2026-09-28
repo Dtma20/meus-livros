@@ -16,13 +16,11 @@ import type {
   works,
 } from './schema'
 
-// Enums
 export type Visibility = (typeof visibilityEnum.enumValues)[number]
 export type DatePrecision = (typeof datePrecisionEnum.enumValues)[number]
 export type BookFormat = (typeof bookFormatEnum.enumValues)[number]
 export type GenreKind = (typeof genreKindEnum.enumValues)[number]
 
-// Tables
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 

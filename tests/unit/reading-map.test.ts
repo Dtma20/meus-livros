@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import { createApp, nextTick, type Component } from 'vue'
 import ReadingMap from '../../app/components/profile/ReadingMap.vue'
@@ -178,14 +177,14 @@ describe('getMapColorTier (unit)', () => {
   })
 
   it('returns tiers 1 to 4 according to ratio against maxCount', () => {
-    // maxCount = 100
-    expect(getMapColorTier(15, 100)).toBe(1) // <= 25%
-    expect(getMapColorTier(25, 100)).toBe(1) // = 25%
-    expect(getMapColorTier(35, 100)).toBe(2) // 26-50%
-    expect(getMapColorTier(50, 100)).toBe(2) // = 50%
-    expect(getMapColorTier(65, 100)).toBe(3) // 51-75%
-    expect(getMapColorTier(75, 100)).toBe(3) // = 75%
-    expect(getMapColorTier(90, 100)).toBe(4) // > 75%
+
+    expect(getMapColorTier(15, 100)).toBe(1)
+    expect(getMapColorTier(25, 100)).toBe(1)
+    expect(getMapColorTier(35, 100)).toBe(2)
+    expect(getMapColorTier(50, 100)).toBe(2)
+    expect(getMapColorTier(65, 100)).toBe(3)
+    expect(getMapColorTier(75, 100)).toBe(3)
+    expect(getMapColorTier(90, 100)).toBe(4)
   })
 })
 
@@ -241,13 +240,11 @@ describe('ReadingMap.vue (component unit)', () => {
       },
     })
 
-    // Find the group for Brazil (BR)
     const groups = wrapper.findAll('g.country-group')
-    // Look for group that has .has-books and contains BR
+
     const brGroup = groups.find((g) => g.classList.contains('has-books'))
     expect(brGroup).not.toBeNull()
 
-    // Trigger click on Brazil
     brGroup?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await nextTick()
 

@@ -1,7 +1,4 @@
 {
-  // https://nuxt.com/docs/guide/concepts/typescript
-  // `strict` vem de `typescript.strict: true` em nuxt.config.ts e é propagado
-  // para os quatro tsconfigs gerados em .nuxt/.
   "files": [],
   "references": [
     { "path": "./.nuxt/tsconfig.app.json" },

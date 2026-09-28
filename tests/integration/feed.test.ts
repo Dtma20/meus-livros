@@ -4,7 +4,7 @@ import { removeFixtures, trackSetup } from './fixtures'
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `t018-feed-${Date.now()}`
 
-describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integration tests', () => {
+describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integration tests', () => {
   let db: typeof import('../../server/db')['db']
   let client: typeof import('../../server/db')['client']
   let schema: typeof import('../../server/db/schema')
@@ -13,9 +13,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
   let catalogService: typeof import('../../server/services/catalog')
   let sqlOp: typeof import('drizzle-orm')
 
-  let userAId: string // Public profile, multiple public logs + 1 private log
-  let userBId: string // Public profile, independent viewer
-  let userCId: string // Private profile, 1 public log + 1 private log
+  let userAId: string
+  let userBId: string
+  let userCId: string
 
   let privateLogAId: string
   let publicLogCId: string
@@ -24,8 +24,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
   const createdWorkIds: string[] = []
   const setup = trackSetup()
 
-  // No per-hook timeout: seeding twelve works through createWork has crossed
-  // 30s against Neon, and the config's hookTimeout is sized for it.
   beforeAll(() => setup.run(async () => {
     const dbModule = await import('../../server/db')
     db = dbModule.db
@@ -36,7 +34,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
     catalogService = await import('../../server/services/catalog')
     sqlOp = await import('drizzle-orm')
 
-    // 1. Create User A (profile: público)
     const emailA = `${MARKER}-a@example.com`
     const [userA] = await db
       .insert(schema.users)
@@ -48,7 +45,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
       })
       .returning({ id: schema.users.id })
 
-    // 2. Create User B (profile: público, outside viewer)
     const emailB = `${MARKER}-b@example.com`
     const [userB] = await db
       .insert(schema.users)
@@ -60,7 +56,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
       })
       .returning({ id: schema.users.id })
 
-    // 3. Create User C (profile: privado)
     const emailC = `${MARKER}-c@example.com`
     const [userC] = await db
       .insert(schema.users)
@@ -80,7 +75,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
     userBId = userB.id
     userCId = userC.id
 
-    // 4. Create works and logs for User A (12 public logs to test the 10-item cap and ordering)
     for (let i = 1; i <= 12; i++) {
       const work = await catalogService.createWork(
         {
@@ -109,7 +103,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
         { skipRateLimit: true },
       )
 
-      // Adjust created_at so each subsequent log has an increasing timestamp
       const simulatedTime = new Date(Date.now() - (15 - i) * 60 * 1000)
       await db
         .update(schema.reading_logs)
@@ -117,7 +110,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
         .where(sqlOp.eq(schema.reading_logs.id, log.id))
     }
 
-    // 5. Create a PRIVADO log for User A on one of the works
     const workForPrivA = createdWorkIds[0]!
     const privLogA = await logsService.createLog(
       {
@@ -132,13 +124,11 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
     )
     privateLogAId = privLogA.id
 
-    // Set created_at to newest so if it leaks, it would be at the very top
     await db
       .update(schema.reading_logs)
       .set({ created_at: new Date(Date.now() + 10000) })
       .where(sqlOp.eq(schema.reading_logs.id, privateLogAId))
 
-    // 6. User C (private profile) creates 1 public log and 1 private log
     const workForC = createdWorkIds[1]!
     const pubLogC = await logsService.createLog(
       {
@@ -166,7 +156,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
     )
     privateLogCId = privLogC.id
 
-    // Set created_at to newest
     await db
       .update(schema.reading_logs)
       .set({ created_at: new Date(Date.now() + 20000) })
@@ -188,7 +177,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
     expect(feed.entries.length).toBeLessThanOrEqual(10)
     expect(feed.entries.length).toBe(10)
 
-    // Verify ordering: newest first (descending created_at)
     for (let i = 0; i < feed.entries.length - 1; i++) {
       const current = new Date(feed.entries[i]!.created_at).getTime()
       const next = new Date(feed.entries[i + 1]!.created_at).getTime()
@@ -197,38 +185,34 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
   })
 
   it('2. Privado entries never appear for another viewer or anonymous', async () => {
-    // Viewer B
+
     const feedB = await feedService.getRecentFeed({ id: userBId })
     const foundInB = feedB.entries.some((e) => e.id === privateLogAId)
     expect(foundInB).toBe(false)
 
-    // Anonymous viewer
     const feedAnon = await feedService.getRecentFeed(null)
     const foundInAnon = feedAnon.entries.some((e) => e.id === privateLogAId)
     expect(foundInAnon).toBe(false)
 
-    // Owner (User A) sees their own privado entry
     const feedA = await feedService.getRecentFeed({ id: userAId })
     const foundInA = feedA.entries.some((e) => e.id === privateLogAId)
     expect(foundInA).toBe(true)
   })
 
   it('3. Entries from privado profiles never appear for another viewer or anonymous', async () => {
-    // Viewer B
+
     const feedB = await feedService.getRecentFeed({ id: userBId })
     const hasPublicC = feedB.entries.some((e) => e.id === publicLogCId)
     const hasPrivateC = feedB.entries.some((e) => e.id === privateLogCId)
     expect(hasPublicC).toBe(false)
     expect(hasPrivateC).toBe(false)
 
-    // Anonymous viewer
     const feedAnon = await feedService.getRecentFeed(null)
     const hasPublicCAnon = feedAnon.entries.some((e) => e.id === publicLogCId)
     const hasPrivateCAnon = feedAnon.entries.some((e) => e.id === privateLogCId)
     expect(hasPublicCAnon).toBe(false)
     expect(hasPrivateCAnon).toBe(false)
 
-    // Owner (User C) sees their own entries
     const feedC = await feedService.getRecentFeed({ id: userCId })
     const foundInC = feedC.entries.some((e) => e.id === publicLogCId || e.id === privateLogCId)
     expect(foundInC).toBe(true)
@@ -251,9 +235,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 — Feed service and visibility integ
   })
 
   it('6. Empty state: when no visible logs exist, returns empty entries array', async () => {
-    // Querying with negative limit or testing a viewer when no logs match
+
     const feed = await feedService.getRecentFeed({ id: '00000000-0000-0000-0000-000000000000' }, 0)
-    // Capped between 1 and 10, but with no matching logs for an impossible user ID when all others are deleted or not visible
+
     expect(feed.entries).toBeDefined()
   })
 })

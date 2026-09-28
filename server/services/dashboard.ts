@@ -12,11 +12,6 @@ import { db } from '../db'
 import { authors, editions, reading_blocks, reading_logs, work_authors, works } from '../db/schema'
 
 export async function getDashboardData(userId: string): Promise<DashboardResponse> {
-  // 1. In-progress books (finished_on IS NULL)
-  //
-  // Built, not awaited: a Drizzle query builder only issues SQL when it is
-  // awaited, so this and the completed-books query below go out together as
-  // one pipelined wave instead of two back-to-back round trips.
   const inProgressQuery = db
     .select({
       id: reading_logs.id,
@@ -38,7 +33,6 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     .orderBy(desc(reading_logs.updated_at), desc(reading_logs.id))
     .limit(50)
 
-  // 2. Completed books (finished_on IS NOT NULL) ordered by finished_on DESC
   const completedQuery = db
     .select({
       id: reading_logs.id,
@@ -61,7 +55,6 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     .orderBy(desc(reading_logs.finished_on), desc(reading_logs.created_at), desc(reading_logs.id))
     .limit(50)
 
-  // 3. Shelf books: works registered by the user with no reading logs for this user
   const shelfQuery = db
     .select({
       id: works.id,
@@ -93,18 +86,12 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     .orderBy(desc(works.created_at), desc(works.id))
     .limit(50)
 
-  // As in getProfileData, with postgres(url, { max: 1 }) Promise.all pipelines
-  // queries over the single connection rather than running them in parallel
-  // server side. The gain is one fewer round trip — which is the whole cost
-  // here: from Brazil a warm round trip to Neon sa-east-1 is ~45 ms and these
-  // queries execute in ~0 ms.
   const [inProgressRows, completedRows, shelfRows] = await Promise.all([
     inProgressQuery,
     completedQuery,
     shelfQuery,
   ])
 
-  // Collect all work IDs to batch fetch authors and first editions
   const allWorkIds = [
     ...new Set([
       ...inProgressRows.map((r) => r.work.id),
@@ -113,12 +100,8 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     ]),
   ]
 
-  // Fetch blocks for all in-progress books to calculate progress
   const inProgressLogIds = inProgressRows.map((r) => r.id)
 
-  // These depend on wave 1 but not on each other, so they form wave 2. An empty
-  // id list means no query at all — `inArray` on an empty array would spend a
-  // round trip to return nothing.
   const [authorsRows, blocksRows, firstEditionRows] = await Promise.all([
     allWorkIds.length > 0
       ? db

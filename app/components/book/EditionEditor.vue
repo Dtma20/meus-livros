@@ -129,7 +129,7 @@
     </div>
 
     <p v-if="confirmingDelete" class="delete-warning" role="alert">
-      Os registros de leitura que apontam para esta edição não são apagados — apenas deixam de
+      Os registros de leitura que apontam para esta edição não são apagados - apenas deixam de
       indicar qual edição foi lida.
     </p>
   </form>
@@ -145,7 +145,6 @@ import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 const props = defineProps<{
   workId: string
   workTitle: string
-  /** null puts the component in create mode. */
   edition: WorkEditionView | null
 }>()
 
@@ -197,8 +196,6 @@ function intOrNull(value: string): number | null {
 }
 
 function validate(): boolean {
-  // Rebuilt rather than mutated key by key: one assignment is one reactive
-  // update, and there is no way to leave a stale message behind.
   const next: Record<string, string> = {}
 
   const pages = intOrNull(pagesText.value)
@@ -273,10 +270,6 @@ async function handleSubmit(): Promise<void> {
   }
 }
 
-/**
- * Two clicks, not `window.confirm`. The first arms the button and reveals what
- * happens to the reading logs that point here; the second deletes.
- */
 function onDeleteClick(): void {
   serverError.value = ''
   if (!confirmingDelete.value) {

@@ -16,12 +16,9 @@ export interface UpdateUserData {
   display_name?: string
   bio?: string | null
   profile_visibility?: Visibility
-  handle?: string // Explicitly ignored; handle is immutable
+  handle?: string
 }
 
-/**
- * Looks up a user by their primary UUID.
- */
 export async function getUserById(id: string): Promise<User | null> {
   const [row] = await db
     .select()
@@ -32,9 +29,6 @@ export async function getUserById(id: string): Promise<User | null> {
   return row ?? null
 }
 
-/**
- * Looks up a user by email (case-insensitive citext).
- */
 export async function getUserByEmail(email: string): Promise<User | null> {
   const normalized = email.trim().toLowerCase()
   if (!normalized) return null
@@ -48,9 +42,6 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   return row ?? null
 }
 
-/**
- * Looks up a user by handle (case-insensitive citext).
- */
 export async function getUserByHandle(handle: string): Promise<User | null> {
   const normalized = handle.trim().toLowerCase()
   if (!normalized) return null
@@ -64,15 +55,10 @@ export async function getUserByHandle(handle: string): Promise<User | null> {
   return row ?? null
 }
 
-/**
- * Generates up to three verified available handle suggestions upon collision.
- * Checks candidate suggestions against both reserved words and the database.
- */
 export async function getHandleSuggestions(handle: string, displayName?: string): Promise<string[]> {
   const base = handle.trim().toLowerCase()
   const rawCandidates: string[] = []
 
-  // 1. Candidate derived from display name (e.g. "João Silva" -> "joao_silva")
   if (displayName) {
     const fromName = transliterateToHandle(displayName)
     if (fromName && fromName !== base && fromName.length >= 3 && fromName.length <= 20) {
@@ -91,7 +77,6 @@ export async function getHandleSuggestions(handle: string, displayName?: string)
     }
   }
 
-  // 2. Numeric and suffix variations
   const suffixCandidates = [
     `${base.slice(0, 19)}2`,
     `${base.slice(0, 19)}s`,
@@ -107,12 +92,10 @@ export async function getHandleSuggestions(handle: string, displayName?: string)
     }
   }
 
-  // Filter out invalid format and reserved handles
   const validCandidates = rawCandidates.filter(
     (c) => /^[a-z0-9_]{3,20}$/.test(c) && !isReservedHandle(c),
   )
 
-  // Verify candidate availability against the database
   let available: string[] = []
   if (validCandidates.length > 0) {
     const existing = await db
@@ -124,7 +107,6 @@ export async function getHandleSuggestions(handle: string, displayName?: string)
     available = validCandidates.filter((c) => !takenSet.has(c))
   }
 
-  // If we still have fewer than 3 suggestions, generate numeric suffixes in a single batch query
   if (available.length < 3) {
     const fallbackCandidates: string[] = []
     for (let n = 5; n < 100 && fallbackCandidates.length < 30; n++) {
@@ -158,22 +140,11 @@ export async function getHandleSuggestions(handle: string, displayName?: string)
   return available.slice(0, 3)
 }
 
-/**
- * Creates a new profile in the `users` table.
- *
- * Rules:
- * - Email must be present in `allowed_emails`.
- * - User must not already have a `users` row.
- * - Handle must not be reserved.
- * - Handle must not be already registered.
- * - Profile visibility defaults to 'publico'.
- */
 export async function createUser(data: CreateUserData): Promise<User> {
   const normalizedEmail = data.email.trim().toLowerCase()
   const normalizedHandle = data.handle.trim().toLowerCase()
   const displayName = data.display_name.trim()
 
-  // 1. Verify allowlist membership (Requirement 6)
   const allowed = await isEmailAllowed(normalizedEmail)
   if (!allowed) {
     throw createError({
@@ -185,7 +156,6 @@ export async function createUser(data: CreateUserData): Promise<User> {
     })
   }
 
-  // 2. Prevent duplicate profile row (Security requirement & Acceptance criterion)
   const existingUser = await getUserByEmail(normalizedEmail)
   if (existingUser) {
     throw createError({
@@ -197,7 +167,6 @@ export async function createUser(data: CreateUserData): Promise<User> {
     })
   }
 
-  // 3. Reserved handle check (Requirement 3 & Acceptance criterion)
   if (isReservedHandle(normalizedHandle)) {
     const suggestions = await getHandleSuggestions(normalizedHandle, displayName)
     throw createError({
@@ -210,7 +179,6 @@ export async function createUser(data: CreateUserData): Promise<User> {
     })
   }
 
-  // 4. Handle collision check against existing users (Requirement 5)
   const takenUser = await getUserByHandle(normalizedHandle)
   if (takenUser) {
     const suggestions = await getHandleSuggestions(normalizedHandle, displayName)
@@ -224,7 +192,6 @@ export async function createUser(data: CreateUserData): Promise<User> {
     })
   }
 
-  // 5. Insert profile into `users` table with profile_visibility = 'publico' (Requirement 7)
   try {
     const [created] = await db
       .insert(users)
@@ -248,7 +215,6 @@ export async function createUser(data: CreateUserData): Promise<User> {
 
     return created
   } catch (err: unknown) {
-    // Check for PostgreSQL unique constraint violations (code 23505)
     if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {
       const message = String((err as { message?: string }).message ?? '')
       if (message.includes('users_email') || message.includes('email')) {
@@ -276,13 +242,6 @@ export async function createUser(data: CreateUserData): Promise<User> {
   }
 }
 
-/**
- * Updates an existing user's profile.
- *
- * Rules:
- * - Updates display_name, bio (<= 500 chars), profile_visibility.
- * - The handle is immutable in MVP — any handle field in input is ignored.
- */
 export async function updateUserProfile(userId: string, data: UpdateUserData): Promise<User> {
   const existing = await getUserById(userId)
   if (!existing) {
@@ -309,7 +268,6 @@ export async function updateUserProfile(userId: string, data: UpdateUserData): P
     updateData.profile_visibility = data.profile_visibility
   }
 
-  // If no fields to update, return the current row
   if (Object.keys(updateData).length === 0) {
     return existing
   }

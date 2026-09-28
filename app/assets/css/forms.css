@@ -1,17 +1,3 @@
-/**
- * Form primitives, global.
- *
- * These rules existed already, copied into `<style scoped>` blocks across the
- * app: `.form-input` in 22 components, `.submit-btn` in 24, `.form-group` and
- * `.error-message` in 7 each. Every copy was byte-identical to start with and
- * had already drifted in focus colour and min-height by the time this file was
- * written.
- *
- * Only the components added for work editing consume this file so far.
- * Migrating the existing twenty-odd is a separate change: each one has to be
- * read to see which of its local overrides were deliberate, and that does not
- * belong in a diff about editing books.
- */
 
 .form-group {
   display: flex;
@@ -45,9 +31,6 @@
   transition: border-color 0.2s, box-shadow 0.2s;
   box-sizing: border-box;
   width: 100%;
-  /* Not var(--target-min-size): that token is 44px and these two must not
-     drift apart silently, but a future retune of tap targets should move
-     both together. */
   min-height: var(--target-min-size);
 }
 
@@ -84,8 +67,6 @@
     grid-template-columns: 1fr;
   }
 }
-
-/* Buttons */
 
 .btn {
   display: inline-flex;
@@ -143,8 +124,6 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-/* Tabs navigation */
-
 .tabs-nav {
   display: inline-flex;
   background-color: var(--card-bg);
@@ -188,8 +167,6 @@
   line-height: 1.25;
 }
 
-/* On a phone, equal halves wrap the longer label onto three lines. Sizing by
-   content keeps both labels at two lines at most, still filling the card. */
 @media (max-width: 600px) {
   .tabs-nav--full .tab-btn {
     flex: 1 1 auto;

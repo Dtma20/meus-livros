@@ -74,7 +74,7 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
         genre: ['Romance'],
       },
       {
-        // Leitura em andamento: sem páginas, editora, isbn nem ano de leitura.
+
         title: `${MARKER} Livro Em Andamento`,
         author: 'Autora Paciente',
         source: 'Físico',
@@ -82,13 +82,11 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
       },
     ]
 
-    // 1. Executar importação
     const result = await transferService.importUserLibrary(testUserId, sampleBooks)
     expect(result.importedCount).toBe(3)
     expect(result.skippedCount).toBe(0)
     expect(result.errors.length).toBe(0)
 
-    // 2. Verificar que os registros foram criados no banco
     const userLogs = await db
       .select({
         id: schema.reading_logs.id,
@@ -102,11 +100,9 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
 
     expect(userLogs.length).toBe(3)
 
-    // 3. Executar exportação
     const exportedBooks = await transferService.exportUserLibrary(testUserId)
     expect(exportedBooks.length).toBe(3)
 
-    // Validar primeiro livro exportado
     const book1 = exportedBooks.find((b) => b.title === `${MARKER} Livro Completo`)
     expect(book1).toBeDefined()
     expect(book1?.author).toContain('Autor Teste Um')
@@ -119,7 +115,6 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(book1?.genre).toContain('Ficção')
     expect(book1?.genre).toContain('Aventura')
 
-    // Validar segundo livro exportado
     const book2 = exportedBooks.find((b) => b.title === `${MARKER} Livro Minimal`)
     expect(book2).toBeDefined()
     expect(book2?.author).toBe('Escritor Solo')
@@ -127,7 +122,6 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(book2?.source).toBe('Kindle')
     expect(book2?.genre).toContain('Romance')
 
-    // O livro em andamento exporta nulos que o import aceita de volta.
     const inProgress = exportedBooks.find((b) => b.title === `${MARKER} Livro Em Andamento`)
     expect(inProgress).toBeDefined()
     expect(inProgress?.pages).toBeNull()
@@ -135,7 +129,6 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(inProgress?.isbn).toBeNull()
     expect(inProgress?.read_in).toBeNull()
 
-    // 4. Fechar o ciclo: o export passa no schema e reimporta sem perdas.
     const reparsed = livroJsonSchema.array().safeParse(exportedBooks)
     expect(reparsed.success).toBe(true)
 

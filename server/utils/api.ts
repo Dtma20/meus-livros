@@ -3,15 +3,6 @@ import { createError, defineEventHandler, getRequestHeader, isError, setResponse
 import type { ZodType } from 'zod'
 import { logger } from './logger'
 
-/**
- * The one place the project's error shape is produced.
- *
- * Routes stay thin — validate, authorise, call a service, shape the response —
- * and services throw `createError({ statusCode, data })`. This wrapper turns
- * that into the documented body, attaches the correlation/request ID, logs the
- * outcome at the appropriate level, and keeps h3's default envelope, which
- * carries a stack trace, off the wire.
- */
 export interface ApiError {
   error: string
   message: string
@@ -73,7 +64,6 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
       const result = await handler(event)
       const durationMs = Math.round(performance.now() - startTime)
 
-      // Emit slow operation warning if API response crosses threshold (1s)
       if (durationMs >= 1000) {
         logger.warn(`Requisição lenta à API: ${method} ${path} demorou ${durationMs}ms`, {
           ...reqContext,
@@ -81,14 +71,12 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
           http: { method, path, statusCode: 200, durationMs },
         })
       } else if (method !== 'GET') {
-        // Log state mutations at INFO level
         logger.info(`API ${method} ${path} concluída com sucesso`, {
           ...reqContext,
           durationMs,
           http: { method, path, statusCode: 200, durationMs },
         })
       } else {
-        // Log reads at DEBUG level to avoid noisy production logs
         logger.debug(`API ${method} ${path} concluída`, {
           ...reqContext,
           durationMs,
@@ -100,7 +88,6 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
     } catch (caught) {
       const durationMs = Math.round(performance.now() - startTime)
 
-      // 1. Handled H3 Errors (thrown intentionally by services / validations)
       if (isError(caught)) {
         const statusCode = caught.statusCode || 500
         setResponseStatus(event, statusCode)
@@ -134,9 +121,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         return responseData
       }
 
-      // 2. Postgres Database Errors (mapped to safe project error shapes)
       if (isPostgresError(caught)) {
-        // Log detailed DB error with stack and details on server only
         logger.error(`Erro de banco de dados no endpoint ${method} ${path} [Postgres ${caught.code}]`, {
           ...reqContext,
           durationMs,
@@ -154,7 +139,6 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         })
 
         if (caught.code === '23505') {
-          // Unique violation
           setResponseStatus(event, 409)
           return {
             error: 'conflito',
@@ -164,7 +148,6 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         }
 
         if (caught.code === '23503') {
-          // Foreign key violation
           setResponseStatus(event, 400)
           return {
             error: 'referencia_invalida',
@@ -174,7 +157,6 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         }
 
         if (caught.code === '57014') {
-          // Query canceled / statement timeout
           setResponseStatus(event, 504)
           return {
             error: 'tempo_esgotado',
@@ -183,7 +165,6 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
           }
         }
 
-        // Generic database error fallback (never leak SQL or table names)
         setResponseStatus(event, 500)
         return {
           error: 'erro_banco',
@@ -192,7 +173,6 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         }
       }
 
-      // 3. Unhandled exceptions (never leak internal stack traces)
       logger.error(`[api] erro não tratado no endpoint ${method} ${path}`, {
         ...reqContext,
         durationMs,
@@ -210,11 +190,6 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
   })
 }
 
-/**
- * Parse with Zod and fail in the project's error shape.
- *
- * Client-side validation is a convenience; this is the gate.
- */
 export function parseOrThrow<S extends ZodType>(schema: S, value: unknown): ReturnType<S['parse']> {
   const result = schema.safeParse(value)
   if (!result.success) {

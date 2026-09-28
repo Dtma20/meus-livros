@@ -13,20 +13,6 @@ import type {
   WorkUpdateInput,
 } from '../../shared/schemas/work'
 
-/**
- * The catalogue is shared property: anyone with a session may add to it and
- * anyone with a session may correct it. No row here carries visibility.
- *
- * Editing is deliberately not restricted to whoever created the row. A work is
- * shared by everyone who logged it, so "only the creator may fix the title"
- * means the typo is permanent for everybody the moment that member stops using
- * the site — and a mistyped work cannot be deleted either, because `deleteWork`
- * refuses once any reading log points at it. `updated_by` is the trade: an
- * invite-only cohort of about thirty people who know each other offline does
- * not need approval flows, it needs a name next to the change.
- */
-
-/** Works a single user may create per hour. */
 const WORKS_PER_HOUR = 30
 
 function conflict(message: string, extra: Record<string, unknown> = {}) {
@@ -43,12 +29,6 @@ function badRequest(message: string) {
   })
 }
 
-/**
- * Postgres unique-violation. A repeated ISBN is a conflict, never a 500.
- *
- * Drizzle wraps the driver error, so the SQLSTATE lives on `cause`, not on the
- * error itself. Checking only the top level silently misses every violation.
- */
 function isUniqueViolation(error: unknown): boolean {
   const code = (error as { code?: unknown, cause?: { code?: unknown } } | null)?.code
     ?? (error as { cause?: { code?: unknown } } | null)?.cause?.code
@@ -74,7 +54,6 @@ async function assertUnderRateLimit(userId: string, conn: DbOrTx = db): Promise<
   }
 }
 
-/** Match an author by slug, or create one. Returns the author id. */
 export async function findOrCreateAuthor(
   name: string,
   userId: string,
@@ -101,19 +80,11 @@ export async function findOrCreateAuthor(
 
   if (created) return created.id
 
-  // Lost the race against a concurrent insert: the row exists now.
   const [raced] = await conn.select({ id: authors.id }).from(authors).where(eq(authors.slug, slug))
   if (!raced) throw new Error(`O autor "${name}" não pôde ser criado nem encontrado.`)
   return raced.id
 }
 
-/**
- * A probable duplicate: identical unaccented lowercase title AND at least one
- * author in common. Title alone is not enough — different authors write books
- * with the same name.
- *
- * `excludeWorkId` is for updates: a work being edited always matches itself.
- */
 export async function findDuplicateWork(
   title: string,
   authorSlugs: string[],
@@ -158,10 +129,6 @@ async function insertEdition(
   input: EditionInput,
   userId: string,
 ): Promise<{ id: string }> {
-  // Normalise before inserting: the partial unique index only means something
-  // if every stored ISBN is in the same shape. Anything that is not an ISBN —
-  // the corpus carries three Amazon ASINs — becomes null, which is legal and
-  // repeatable by design.
   const isbn13 = normalizeIsbn(input.isbn ?? null)
 
   try {
@@ -198,16 +165,7 @@ export interface CreateWorkResult {
 
 export interface CreateWorkOptions {
   force?: boolean
-  /**
-   * Pula a verificação de limite de taxa (WORKS_PER_HOUR).
-   * Existe só para scripts de migração rodados da máquina do mantenedor,
-   * NUNCA a partir de rota HTTP (server/api/).
-   */
   skipRateLimit?: boolean
-  /**
-   * Transação ou conexão Drizzle para operações em lote dentro de uma mesma transação.
-   * Existe só para scripts de migração rodados da máquina do mantenedor.
-   */
   tx?: DbOrTx
 }
 
@@ -274,7 +232,6 @@ export async function createWork(
 
     if (!work) throw new Error('A obra não pôde ser criada.')
 
-    // Array order is authorship order, so position preserves it.
     if (authorIds.length > 0) {
       await tx
         .insert(work_authors)
@@ -331,14 +288,6 @@ export async function createEdition(
   return result
 }
 
-/**
- * Deletes a work from the catalogue if created by the user and without reading logs.
- *
- * Rules:
- * - Creator check in the query: non-creator receives 404 (never 403).
- * - A work with existing reading logs cannot be deleted (returns 400).
- * - Cascades to work_authors, work_genres, and editions via DB foreign keys.
- */
 export async function deleteWork(workId: string, userId: string): Promise<void> {
   const [work] = await db
     .select({ id: works.id, created_by: works.created_by })
@@ -378,20 +327,6 @@ export async function deleteWork(workId: string, userId: string): Promise<void> 
   })
 }
 
-/**
- * Sets an author's country when it is still unknown.
- *
- * `findOrCreateAuthor` returns early on an existing row, so an author first
- * created without a country — which is every author added through the add-book
- * form, because that form has no country field — stays without one forever and
- * no amount of editing books reaches it. The reading map is built entirely from
- * `authors.country_code`, so those authors are permanently invisible on it.
- *
- * Only fills a blank. An author who already carries a country is left alone:
- * one member editing one of their books must not silently rewrite a fact every
- * other book by that author depends on. Replacing a country that is already
- * set is an author-level edit and belongs on an author-level route.
- */
 async function backfillAuthorCountry(
   authorId: string,
   country: { code?: string | null, label?: string | null },
@@ -410,24 +345,11 @@ async function backfillAuthorCountry(
     .where(
       and(
         eq(authors.id, authorId),
-        // The guard is in the WHERE clause rather than in an if-statement after
-        // a read: two members saving two books by the same author at the same
-        // moment would both see a blank and both write.
         sql`${authors.country_code} IS NULL AND ${authors.country_label} IS NULL`,
       ),
     )
 }
 
-/**
- * Applies a partial update to a work.
- *
- * Absent keys are left untouched; an explicit `null` clears the column. See
- * `workUpdateSchema` for why that distinction is load-bearing.
- *
- * `authors` and `genre_ids` are full replacements, not merges: both are lists
- * the form renders in their entirety, so what was sent is the complete
- * intended state. Array order is authorship order, preserved as `position`.
- */
 export async function updateWork(
   workId: string,
   input: WorkUpdateInput,
@@ -446,10 +368,6 @@ export async function updateWork(
     })
   }
 
-  // Same rule as createWork: renaming a work, or changing its authors, into a
-  // title-and-author pair another work already has is a duplicate. Only checked
-  // when one of those two fields is sent, so a pair forced in on create does
-  // not block every later edit of its year or series.
   if (hasField(input, 'title') || hasField(input, 'authors')) {
     const authorSlugs = input.authors
       ? input.authors.map((a) => slugify(a.name)).filter(Boolean)
@@ -478,8 +396,6 @@ export async function updateWork(
   }
 
   return db.transaction(async (tx) => {
-    // `slug` is absent from this object on purpose: it is the permalink, and a
-    // corrected title must not break links already pasted into WhatsApp.
     const patch: Partial<typeof works.$inferInsert> = {
       updated_by: userId,
       updated_at: new Date(),
@@ -513,10 +429,6 @@ export async function updateWork(
         authorIds.push(authorId)
       }
 
-      // Replace rather than merge. Deleting first is what lets an author be
-      // removed and what lets the rest be renumbered: `position` is part of the
-      // payload, not of the primary key, so an upsert would leave a dropped
-      // author behind and reorderings half-applied.
       await tx.delete(work_authors).where(eq(work_authors.work_id, workId))
       if (authorIds.length > 0) {
         await tx
@@ -550,14 +462,6 @@ export async function updateWork(
   })
 }
 
-/**
- * Applies a partial update to an edition.
- *
- * `isbn` arrives as free text and is normalised exactly as on create, so the
- * partial unique index keeps meaning something. Clearing it — sending `null` —
- * is legal and repeatable: that index is partial precisely so that "no ISBN" is
- * not a collision.
- */
 export async function updateEdition(
   editionId: string,
   input: EditionUpdateInput,
@@ -612,17 +516,6 @@ export async function updateEdition(
   return { id: edition.id, work_id: edition.work_id }
 }
 
-/**
- * Deletes an edition.
- *
- * Safe while reading logs point at it: `reading_logs.edition_id` is
- * `ON DELETE set null`, and a null `edition_id` is the ordinary state for most
- * logs anyway — picking an edition is optional by design. The log keeps its
- * rating, review and dates; it only stops claiming which printing was read.
- *
- * No "last edition" guard, for the same reason: a work with no editions is
- * legal, and it is what every work created without edition details already is.
- */
 export async function deleteEdition(editionId: string, userId: string): Promise<void> {
   const [edition] = await db
     .select({ id: editions.id, work_id: editions.work_id })

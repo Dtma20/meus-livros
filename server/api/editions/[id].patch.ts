@@ -7,13 +7,6 @@ import { requireSessionUser } from '../../utils/session'
 
 const idSchema = z.string().uuid()
 
-/**
- * PATCH /api/editions/:id
- *
- * Editions are addressed directly rather than under their work: an edition id
- * is already unique, and the work it belongs to is not a fact the client needs
- * to get right for the update to be safe.
- */
 export default defineApiHandler(async (event) => {
   const user = await requireSessionUser(event)
 

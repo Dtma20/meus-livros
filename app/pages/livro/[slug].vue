@@ -210,11 +210,6 @@ const session = typeof useState === 'function'
 
 const nuxtApp = typeof useNuxtApp === 'function' ? useNuxtApp() : null
 
-// Awaited on purpose. This page exists to be server-rendered: the crawler that
-// builds the WhatsApp preview reads the first response and runs no JavaScript,
-// and a missing work has to answer 404 rather than 200 with an error box. Without
-// the await, `error.value` is still null when the check below runs, the throw
-// never fires, and every unknown slug returns 200.
 const { data: work, pending, error } = await useAsyncData<WorkWithDetails>(
   `work-${slug.value}`,
   () => requestFetch<WorkWithDetails>(`/api/works/${encodeURIComponent(slug.value)}`),
@@ -271,7 +266,7 @@ const ogDescription = computed(() => {
   const count = work.value.log_count
   const countStr = `${count} ${count === 1 ? 'leitura' : 'leituras'}`
   const meta = parts.length > 0 ? `${parts.join(' · ')}. ${countStr}.` : `${countStr}.`
-  return `${work.value.title} — ${meta}`
+  return `${work.value.title} - ${meta}`
 })
 
 const absoluteCoverUrl = computed(() => {
@@ -310,8 +305,6 @@ const userLog = computed(() => {
   return work.value.logs.find((l) => l.user.id === session.value?.user?.id) ?? null
 })
 
-// Deleting stays restricted to the creator of a work nobody has logged.
-// Editing deliberately is not: see the module comment in services/catalog.ts.
 const canDeleteWork = computed(() => {
   if (!work.value || !session.value?.user?.id) return false
   return work.value.created_by === session.value.user.id && work.value.log_count === 0

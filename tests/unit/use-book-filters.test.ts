@@ -239,34 +239,29 @@ describe('app/composables/useBookFilters', () => {
       resetFilters,
     } = useBookFilters(logs)
 
-    // Initially, no filters active
     expect(hasActiveFilters.value).toBe(false)
     expect(globalStats.value.totalBooks).toBe(2)
     expect(globalStats.value.uniqueAuthors).toBe(2)
-    expect(globalStats.value.uniqueCountries).toBe(2) // Brasil + Roma Antiga
+    expect(globalStats.value.uniqueCountries).toBe(2)
     expect(globalStats.value.totalPages).toBe(400)
     expect(globalStats.value.averagePages).toBe(200)
 
     expect(filteredStats.value.totalBooks).toBe(2)
     expect(filteredStats.value.totalPages).toBe(400)
 
-    // Filter by Ficção
     filterGenre.value = 'Ficção'
     expect(hasActiveFilters.value).toBe(true)
     expect(sortedBooks.value).toHaveLength(1)
     expect(sortedBooks.value[0]?.id).toBe('log-1')
 
-    // Header counters remain global (2 books, 2 authors, 2 countries)
     expect(globalStats.value.totalBooks).toBe(2)
     expect(globalStats.value.uniqueAuthors).toBe(2)
     expect(globalStats.value.uniqueCountries).toBe(2)
 
-    // Footer counters follow active filter (1 book, 300 pages)
     expect(filteredStats.value.totalBooks).toBe(1)
     expect(filteredStats.value.totalPages).toBe(300)
     expect(filteredStats.value.averagePages).toBe(300)
 
-    // Reset filters
     resetFilters()
     expect(hasActiveFilters.value).toBe(false)
     expect(sortedBooks.value).toHaveLength(2)
