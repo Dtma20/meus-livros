@@ -54,7 +54,7 @@
                   {{ formatRating(work.average_rating) }} · {{ work.log_count }} {{ work.log_count === 1 ? 'leitura' : 'leituras' }}
                 </span>
               </div>
-              <RatingHistogram :ratings="logRatings" />
+              <RatingHistogram v-if="showHistogram" :ratings="logRatings" />
             </div>
 
             <div class="work-actions">
@@ -94,116 +94,118 @@
           </div>
         </header>
 
-        <section v-if="userLogs.length > 0" class="user-logs-section">
-          <h2 class="section-title">Suas leituras ({{ userLogs.length }})</h2>
-          <ul class="user-logs-list">
-            <li
-              v-for="log in userLogs"
-              :key="log.id"
-              class="user-log-item"
-            >
-              <div class="user-log-meta">
-                <span class="user-log-date">
-                  {{ log.finished_on ? formatReadingDate(log.finished_on, log.finished_precision) : 'Lendo agora' }}
-                </span>
-                <div v-if="log.rating !== null && log.rating > 0" class="user-log-stars">
-                  <StarRating :rating="log.rating" />
+        <div class="work-main">
+          <section v-if="userLogs.length > 0" class="user-logs-section">
+            <h2 class="section-title">Suas leituras ({{ userLogs.length }})</h2>
+            <ul class="user-logs-list">
+              <li
+                v-for="log in userLogs"
+                :key="log.id"
+                class="user-log-item"
+              >
+                <div class="user-log-meta">
+                  <span class="user-log-date">
+                    {{ log.finished_on ? formatReadingDate(log.finished_on, log.finished_precision) : 'Lendo agora' }}
+                  </span>
+                  <div v-if="log.rating !== null && log.rating > 0" class="user-log-stars">
+                    <StarRating :rating="log.rating" />
+                  </div>
                 </div>
-              </div>
-              <NuxtLink :to="`/entrada/${log.id}`" class="user-log-link">
-                Ver leitura →
-              </NuxtLink>
-            </li>
-          </ul>
-        </section>
+                <NuxtLink :to="`/entrada/${log.id}`" class="user-log-link">
+                  Ver leitura →
+                </NuxtLink>
+              </li>
+            </ul>
+          </section>
 
-        <section class="logs-section">
-          <h2 class="section-title">
-            Registros de leitura
-            <span v-if="work.log_count > 0" class="logs-count">({{ work.log_count }})</span>
-          </h2>
+          <section class="logs-section">
+            <h2 class="section-title">
+              Registros de leitura
+              <span v-if="work.log_count > 0" class="logs-count">({{ work.log_count }})</span>
+            </h2>
 
-          <div v-if="work.logs.length === 0" class="empty-logs">
-            <EmptyState
-              title="Ninguém registrou esse livro ainda."
-              action-label="Registrar leitura"
-              :action-href="`/app/novo?work_id=${work.id}`"
-            />
+            <div v-if="work.logs.length === 0" class="empty-logs">
+              <EmptyState
+                title="Ninguém registrou esse livro ainda."
+                action-label="Registrar leitura"
+                :action-href="`/app/novo?work_id=${work.id}`"
+              />
+            </div>
+
+            <ul v-else class="logs-list">
+              <li
+                v-for="log in work.logs"
+                :key="log.id"
+                class="log-item"
+              >
+                <div class="log-header">
+                  <NuxtLink :to="'/@' + log.user.handle" class="user-link">
+                    @{{ log.user.handle }}
+                  </NuxtLink>
+
+                  <div v-if="log.rating !== null && log.rating > 0" class="log-rating">
+                    <StarRating :rating="log.rating" />
+                  </div>
+                </div>
+
+                <div v-if="log.review" class="log-review">
+                  <ReviewText :text="getExcerpt(log.review)" />
+                </div>
+
+                <div class="log-footer">
+                  <NuxtLink :to="'/entrada/' + log.id" class="entry-link">
+                    Ver registro completo →
+                  </NuxtLink>
+                </div>
+              </li>
+            </ul>
+          </section>
+
+          <section v-if="hasEditionsToShow" class="editions-section">
+            <h2 class="section-title">Edições cadastradas</h2>
+            <ul class="editions-list">
+              <li
+                v-for="edition in work.editions"
+                :key="edition.id"
+                class="edition-item"
+              >
+                <span v-if="edition.publisher" class="edition-publisher">{{ edition.publisher }}</span>
+                <span v-if="edition.published_year" class="edition-year">({{ edition.published_year }})</span>
+                <span v-if="edition.page_count" class="edition-pages">· {{ edition.page_count }} págs.</span>
+                <span v-if="edition.isbn13" class="edition-isbn">· ISBN {{ edition.isbn13 }}</span>
+                <span v-if="edition.language" class="edition-lang">· {{ edition.language.toUpperCase() }}</span>
+              </li>
+            </ul>
+          </section>
+
+          <div v-if="canDeleteWork" class="work-creator-actions">
+            <button
+              type="button"
+              class="delete-work-btn"
+              :disabled="isDeletingWork"
+              @click="handleDeleteWork"
+            >
+              <svg
+                class="btn-icon"
+                viewBox="0 0 24 24"
+                width="14"
+                height="14"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>{{ isDeletingWork ? 'Excluindo livro...' : 'Excluir livro do catálogo' }}</span>
+            </button>
+            <p v-if="deleteWorkError" class="delete-error-msg" role="alert">
+              {{ deleteWorkError }}
+            </p>
           </div>
-
-          <ul v-else class="logs-list">
-            <li
-              v-for="log in work.logs"
-              :key="log.id"
-              class="log-item"
-            >
-              <div class="log-header">
-                <NuxtLink :to="'/@' + log.user.handle" class="user-link">
-                  @{{ log.user.handle }}
-                </NuxtLink>
-
-                <div v-if="log.rating !== null && log.rating > 0" class="log-rating">
-                  <StarRating :rating="log.rating" />
-                </div>
-              </div>
-
-              <div v-if="log.review" class="log-review">
-                <ReviewText :text="getExcerpt(log.review)" />
-              </div>
-
-              <div class="log-footer">
-                <NuxtLink :to="'/entrada/' + log.id" class="entry-link">
-                  Ver registro completo →
-                </NuxtLink>
-              </div>
-            </li>
-          </ul>
-        </section>
-
-        <section v-if="hasEditionsToShow" class="editions-section">
-          <h2 class="section-title">Edições cadastradas</h2>
-          <ul class="editions-list">
-            <li
-              v-for="edition in work.editions"
-              :key="edition.id"
-              class="edition-item"
-            >
-              <span v-if="edition.publisher" class="edition-publisher">{{ edition.publisher }}</span>
-              <span v-if="edition.published_year" class="edition-year">({{ edition.published_year }})</span>
-              <span v-if="edition.page_count" class="edition-pages">· {{ edition.page_count }} págs.</span>
-              <span v-if="edition.isbn13" class="edition-isbn">· ISBN {{ edition.isbn13 }}</span>
-              <span v-if="edition.language" class="edition-lang">· {{ edition.language.toUpperCase() }}</span>
-            </li>
-          </ul>
-        </section>
-
-        <div v-if="canDeleteWork" class="work-creator-actions">
-          <button
-            type="button"
-            class="delete-work-btn"
-            :disabled="isDeletingWork"
-            @click="handleDeleteWork"
-          >
-            <svg
-              class="btn-icon"
-              viewBox="0 0 24 24"
-              width="14"
-              height="14"
-              stroke="currentColor"
-              stroke-width="2"
-              fill="none"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            </svg>
-            <span>{{ isDeletingWork ? 'Excluindo livro...' : 'Excluir livro do catálogo' }}</span>
-          </button>
-          <p v-if="deleteWorkError" class="delete-error-msg" role="alert">
-            {{ deleteWorkError }}
-          </p>
         </div>
       </article>
     </div>
@@ -370,6 +372,8 @@ const logRatings = computed<number[]>(() => {
     .map((l) => l.rating)
     .filter((r): r is number => typeof r === 'number' && r > 0)
 })
+
+const showHistogram = computed(() => logRatings.value.length >= 3)
 
 const canDeleteWork = computed(() => {
   if (!work.value || !session.value?.user?.id) return false
@@ -623,7 +627,7 @@ async function handleDeleteWork(): Promise<void> {
   color: #fff;
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
-  padding: 4px 10px;
+  padding: var(--space-1) var(--space-3);
   line-height: 1;
 }
 
@@ -844,5 +848,35 @@ async function handleDeleteWork(): Promise<void> {
   color: var(--danger);
   font-size: var(--font-size-sm);
   margin: 0;
+}
+
+@media (min-width: 1024px) {
+  .page-container {
+    max-width: 1100px;
+  }
+
+  .work-card {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: var(--space-8);
+    align-items: start;
+  }
+
+  .work-header {
+    position: sticky;
+    top: var(--space-6);
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: 0;
+  }
+
+  .work-cover-wrapper {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .work-details {
+    width: 100%;
+  }
 }
 </style>
