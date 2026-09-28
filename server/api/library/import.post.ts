@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { defineApiHandler } from '../../utils/api'
 import { requireSessionUser } from '../../utils/session'
 import { importUserLibrary } from '../../services/library-transfer'
+import { checkRateLimit } from '../../services/rate-limit'
 import { livroJsonSchema } from '../../../shared/schemas/export-import'
 
 const payloadSchema = z.union([
@@ -14,6 +15,18 @@ const payloadSchema = z.union([
 
 export default defineApiHandler(async (event) => {
   const user = await requireSessionUser(event)
+
+  const allowed = await checkRateLimit(`import:user:${user.id}`, 3)
+  if (!allowed) {
+    throw createError({
+      statusCode: 429,
+      data: {
+        error: 'muitas_tentativas',
+        message: 'Muitas importações em pouco tempo. Tente de novo daqui a uma hora.',
+      },
+    })
+  }
+
   const rawBody = await readBody(event)
 
   const parsed = payloadSchema.safeParse(rawBody)

@@ -1,9 +1,10 @@
 import { z } from 'zod'
 
 export const emailSchema = z
-  .email({ error: 'Informe um e-mail válido.' })
+  .string({ error: 'Informe um e-mail válido.' })
   .trim()
   .toLowerCase()
+  .pipe(z.email({ error: 'Informe um e-mail válido.' }))
 
 export const otpSchema = z
   .string({ error: 'Informe o código.' })
