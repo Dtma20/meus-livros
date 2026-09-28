@@ -7,6 +7,7 @@
         ref="inputRef"
         v-model="query"
         type="search"
+        role="combobox"
         class="search-input"
         placeholder="Buscar livros…"
         autocomplete="off"
