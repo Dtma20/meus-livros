@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref, Suspense } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { useBookFilters } from '../../app/composables/useBookFilters'
-import ProfilePage from '../../app/pages/@[handle].vue'
+import ProfilePage from '../../app/pages/@[handle]/index.vue'
 import type { AuthSessionUser } from '../../app/middleware/auth'
 import type { ProfileLogItem, ProfileResponse } from '../../shared/schemas/profile'
 import { formatCountryName } from '../../shared/schemas/profile'
@@ -417,7 +417,7 @@ async function chooseOption(container: HTMLElement, value: string) {
   await flushAsync()
 }
 
-describe('app/pages/@[handle].vue: header and footer stats agree', () => {
+describe('app/pages/@[handle]/index.vue: header and footer stats agree', () => {
   function sampleProfile(): ProfileResponse {
     return {
       user: {

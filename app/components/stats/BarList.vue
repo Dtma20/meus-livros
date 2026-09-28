@@ -40,6 +40,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { formatThousands } from '~/utils/number'
 
 export interface BarListItem {
   label: string
@@ -63,12 +64,6 @@ const props = withDefaults(
     unit: () => ({ one: 'livro', other: 'livros' }),
   },
 )
-
-function formatThousands(num: number): string {
-  const str = Math.trunc(Math.abs(num)).toString()
-  const formatted = str.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  return num < 0 ? `-${formatted}` : formatted
-}
 
 const maxCount = computed(() => {
   if (!props.items || props.items.length === 0) return 0

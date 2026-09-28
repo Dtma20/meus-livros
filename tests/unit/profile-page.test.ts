@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, type Component, defineComponent, h, nextTick, ref, Suspense } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
-import ProfilePage from '../../app/pages/@[handle].vue'
+import ProfilePage from '../../app/pages/@[handle]/index.vue'
 import type { ProfileResponse } from '../../shared/schemas/profile'
 import type { AuthSessionUser } from '../../app/middleware/auth'
 
@@ -91,7 +91,7 @@ function mount<T extends Component>(component: T, props: Record<string, unknown>
   }
 }
 
-describe('ProfilePage (app/pages/@[handle].vue) - Visibility switcher and owner controls', () => {
+describe('ProfilePage (app/pages/@[handle]/index.vue) - Visibility switcher and owner controls', () => {
   const sampleProfile: ProfileResponse = {
     user: {
       id: 'user-1',
