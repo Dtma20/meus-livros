@@ -6,6 +6,15 @@ import { removeFixtures, trackSetup } from './fixtures'
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `t035-members-${Date.now()}`
 
+function uniqueTestIsbn13(): string {
+  const body = `979${String(Date.now() % 1_000_000_000).padStart(9, '0')}`
+  let sum = 0
+  for (let index = 0; index < body.length; index++) {
+    sum += Number(body[index]) * (index % 2 === 0 ? 1 : 3)
+  }
+  return body + String((10 - (sum % 10)) % 10)
+}
+
 describe.skipIf(!hasDatabaseUrl)('TASK-035 - Members page and service integration tests', () => {
   let db: typeof import('../../server/db')['db']
   let client: typeof import('../../server/db')['client']
@@ -24,6 +33,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-035 - Members page and service integratio
   let userAHandle: string
   let userBHandle: string
   let userCHandle: string
+  let userDHandle: string
+  let isbnOnly: string
 
   const createdWorkIds: string[] = []
   const setup = trackSetup()
@@ -83,7 +94,18 @@ describe.skipIf(!hasDatabaseUrl)('TASK-035 - Members page and service integratio
       })
       .returning({ id: schema.users.id })
 
-    if (!userA || !userB || !userC) {
+    userDHandle = `u35d_${Date.now() % 10000000}`
+    const [userD] = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}-d@example.com`,
+        handle: userDHandle,
+        display_name: 'Membro Teste D',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+
+    if (!userA || !userB || !userC || !userD) {
       throw new Error('Falha ao criar usuários para testes de membros.')
     }
 
@@ -172,6 +194,35 @@ describe.skipIf(!hasDatabaseUrl)('TASK-035 - Members page and service integratio
       userCId,
       { skipRateLimit: true },
     )
+
+    isbnOnly = uniqueTestIsbn13()
+    const work3 = await catalogService.createWork(
+      {
+        title: `${MARKER} Obra Tres`,
+        authors: [{ name: `${MARKER} Autor Tres` }],
+        genre_ids: [],
+        edition: {
+          publisher: 'Editora Teste',
+          isbn: isbnOnly,
+        },
+      },
+      userD.id,
+      { skipRateLimit: true },
+    )
+    createdWorkIds.push(work3.id)
+
+    await logsService.createLog(
+      {
+        work_id: work3.id,
+        edition_id: work3.edition?.id,
+        rating: 4.0,
+        finished_on: '2026-03-05',
+        finished_precision: 'dia',
+        visibility: 'publico',
+      },
+      userD.id,
+      { skipRateLimit: true },
+    )
   }))
 
   afterAll(async () => {
@@ -243,5 +294,26 @@ describe.skipIf(!hasDatabaseUrl)('TASK-035 - Members page and service integratio
     expect(scopedMembers[1]?.handle).toBe(userBHandle)
     expect(scopedMembers[1]?.visible_log_count).toBe(0)
     expect(scopedMembers[1]?.last_activity_at).toBeNull()
+  }, 30_000)
+
+  it('5. Recent covers carry isbn13 and ol_cover_id when the edition has no cover_url', async () => {
+    const list = await membersService.listMembers({ id: userBId })
+    const memberD = list.members.find((m) => m.handle === userDHandle)
+
+    expect(memberD).toBeDefined()
+    expect(memberD!.recent_covers).toHaveLength(1)
+    expect(memberD!.recent_covers[0]).toEqual({
+      work_title: `${MARKER} Obra Tres`,
+      cover_url: null,
+      ol_cover_id: null,
+      isbn13: isbnOnly,
+    })
+
+    const memberA = list.members.find((m) => m.handle === userAHandle)
+    expect(memberA!.recent_covers[0]).toMatchObject({
+      cover_url: 'https://example.com/capa1.jpg',
+      ol_cover_id: null,
+      isbn13: null,
+    })
   }, 30_000)
 })

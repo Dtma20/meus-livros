@@ -42,6 +42,8 @@ export async function listMembers(viewer: Viewer): Promise<MembersResponse> {
     user_id: string
     work_title: string
     cover_url: string | null
+    ol_cover_id: number | null
+    isbn13: string | null
   }>(sql`
     WITH ranked_logs AS (
       SELECT
@@ -57,6 +59,26 @@ export async function listMembers(viewer: Viewer): Promise<MembersResponse> {
             LIMIT 1
           )
         ) AS cover_url,
+        COALESCE(
+          ${editions.ol_cover_id},
+          (
+            SELECT e.ol_cover_id
+            FROM ${editions} e
+            WHERE e.work_id = ${works.id} AND e.ol_cover_id IS NOT NULL
+            ORDER BY e.created_at, e.id
+            LIMIT 1
+          )
+        ) AS ol_cover_id,
+        COALESCE(
+          ${editions.isbn13},
+          (
+            SELECT e.isbn13
+            FROM ${editions} e
+            WHERE e.work_id = ${works.id} AND e.isbn13 IS NOT NULL
+            ORDER BY e.created_at, e.id
+            LIMIT 1
+          )
+        ) AS isbn13,
         ${reading_logs.created_at} AS created_at,
         ROW_NUMBER() OVER (
           PARTITION BY ${reading_logs.user_id}
@@ -68,7 +90,7 @@ export async function listMembers(viewer: Viewer): Promise<MembersResponse> {
       LEFT JOIN ${editions} ON ${editions.id} = ${reading_logs.edition_id}
       WHERE ${whereLogsCondition}
     )
-    SELECT user_id, work_title, cover_url
+    SELECT user_id, work_title, cover_url, ol_cover_id, isbn13
     FROM ranked_logs
     WHERE rn <= 4
     ORDER BY user_id, rn ASC
@@ -96,6 +118,8 @@ export async function listMembers(viewer: Viewer): Promise<MembersResponse> {
       list.push({
         work_title: c.work_title,
         cover_url: c.cover_url ?? null,
+        ol_cover_id: c.ol_cover_id === null ? null : Number(c.ol_cover_id),
+        isbn13: c.isbn13 ?? null,
       })
     }
   }

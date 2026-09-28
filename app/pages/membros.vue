@@ -53,6 +53,8 @@
               alt=""
               :title="cover.work_title"
               :cover-url="cover.cover_url"
+              :ol-cover-id="cover.ol_cover_id"
+              :isbn13="cover.isbn13"
               loading="lazy"
             />
           </div>
