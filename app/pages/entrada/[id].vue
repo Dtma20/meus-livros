@@ -253,7 +253,7 @@ const reqUrl = typeof useRequestURL === 'function' ? useRequestURL() : null
 const origin = computed(() => reqUrl?.origin || 'http://localhost:3000')
 
 const event = import.meta.server && typeof useRequestEvent === 'function' ? useRequestEvent() : null
-const sessionCookie = typeof useCookie === 'function' ? useCookie('better-auth.session_token') : null
+const sessionCookie = typeof useCookie === 'function' ? useCookie('__Secure-better-auth.session_token') : null
 
 const session = typeof useState === 'function'
   ? useState<{ user?: { id?: string; handle?: string } | null }>('auth:session', () => ({ user: null }))
@@ -267,7 +267,7 @@ const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
     try {
       const result = await requestFetch<LogWithDetails>(`/api/logs/${id.value}` as string)
       if (event) {
-        const hasSession = Boolean(sessionCookie?.value)
+        const hasSession = Boolean(sessionCookie?.value || session.value?.user?.id)
         if (hasSession || result.visibility === 'privado') {
           setResponseHeader(event, 'Cache-Control', 'private, no-store')
         } else {
