@@ -1,6 +1,5 @@
 <template>
   <div class="log-form-wrap">
-    <!-- Step 1: Book Selection (if creating and no work chosen yet) -->
     <div v-if="!selectedWork" class="book-selection-section">
       <span class="form-label mb-2">Buscar livro</span>
       <p class="section-hint">
@@ -12,9 +11,7 @@
       />
     </div>
 
-    <!-- Step 2: Book Details & Reading Log Form -->
     <div v-else class="log-form-content">
-      <!-- Selected Book Card Header -->
       <div class="selected-book-banner">
         <div class="selected-book-cover">
           <BookCover
@@ -45,7 +42,6 @@
       </div>
 
       <form class="log-form" @submit.prevent="handleSubmit">
-        <!-- Currently Reading Toggle -->
         <div class="form-group reading-status-group">
           <label class="status-checkbox-label">
             <input
@@ -61,7 +57,6 @@
           </label>
         </div>
 
-        <!-- Rating -->
         <div v-if="!isCurrentlyReading" class="form-group">
           <span id="log-rating-label" class="form-label">Sua avaliação</span>
           <RatingInput
@@ -70,7 +65,6 @@
           />
         </div>
 
-        <!-- Finished date & precision -->
         <div v-if="!isCurrentlyReading" class="form-row">
           <div class="form-group flex-1">
             <label for="log-finished-on" class="form-label">Data de término</label>
@@ -100,7 +94,6 @@
           </div>
         </div>
 
-        <!-- Optional start date -->
         <div class="form-group">
           <button
             type="button"
@@ -123,7 +116,6 @@
           </div>
         </div>
 
-        <!-- Review (Plain text, max 10,000) -->
         <div class="form-group">
           <div class="label-row">
             <label for="log-review" class="form-label">Resenha (opcional)</label>
@@ -144,7 +136,6 @@
           <span id="log-review-hint" class="field-hint">Texto puro. Quebras de linha são preservadas.</span>
         </div>
 
-        <!-- Format: Físico, Ebook, Áudio -->
         <div class="form-group">
           <span id="log-format-label" class="form-label">Formato</span>
           <div class="format-buttons" role="group" aria-labelledby="log-format-label">
@@ -181,7 +172,6 @@
           </div>
         </div>
 
-        <!-- Edition Picker (collapsed by default) -->
         <div class="form-group">
           <button
             type="button"
@@ -357,7 +347,6 @@
           </div>
         </div>
 
-        <!-- Visibility Toggle -->
         <fieldset class="form-group visibility-fieldset">
           <legend class="form-label">Visibilidade</legend>
           <div class="visibility-options">
@@ -393,12 +382,10 @@
           </div>
         </fieldset>
 
-        <!-- Error Message -->
         <p v-if="errorMessage" id="log-form-error" class="error-message" role="alert">
           {{ errorMessage }}
         </p>
 
-        <!-- Form Actions -->
         <div class="form-actions">
           <button
             type="submit"
@@ -452,7 +439,6 @@ const props = withDefaults(
 
 const DRAFT_KEY = 'meus-livros:log-draft'
 
-/** Computes current browser local date in YYYY-MM-DD */
 function getBrowserLocalDate(): string {
   const now = new Date()
   const year = now.getFullYear()
@@ -461,7 +447,6 @@ function getBrowserLocalDate(): string {
   return `${year}-${month}-${day}`
 }
 
-// Form state
 interface SelectedWorkState {
   id: string
   title: string
@@ -554,14 +539,11 @@ async function loadEditions(): Promise<void> {
       `/api/works/${selectedWork.value.id}/editions`,
       {
         timeout: 15_000,
-        // ofetch retries non-payload methods once, which would make the
-        // effective wait 30s. The point here is a bound, not a retry.
         retry: 0,
       },
     )
     editionsList.value = res.editions
   } catch {
-    // Optional edition lookup stays silent and must not overwrite a save error.
   } finally {
     loadingEditions.value = false
   }
@@ -636,7 +618,6 @@ async function handleCreateEdition(): Promise<void> {
       return
     }
     const fetchErr = err as { data?: { message?: string } }
-    // Keep typed values on every failure, especially duplicate ISBN (409).
     newEditionErrors.value = {
       form: fetchErr.data?.message ?? 'Não foi possível cadastrar a edição.',
     }
@@ -645,11 +626,10 @@ async function handleCreateEdition(): Promise<void> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Draft Persistence (Requirement 10)
-// ---------------------------------------------------------------------------
+let isDraftRestored = false
+
 function saveDraft(): void {
-  if (props.mode !== 'create') return
+  if (props.mode !== 'create' || !isDraftRestored) return
   try {
     const draft = {
       work: selectedWork.value,
@@ -665,7 +645,6 @@ function saveDraft(): void {
     }
     localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
   } catch {
-    // Gracefully handle private browsing / storage disabled
   }
 }
 
@@ -687,7 +666,8 @@ function restoreDraft(): void {
     if (draft.showStartDate !== undefined) showStartDate.value = draft.showStartDate
     else if (draft.startedOn) showStartDate.value = true
   } catch {
-    // Gracefully ignore corrupt draft
+  } finally {
+    isDraftRestored = true
   }
 }
 
@@ -695,11 +675,9 @@ function clearDraft(): void {
   try {
     localStorage.removeItem(DRAFT_KEY)
   } catch {
-    // Ignore
   }
 }
 
-// Watch inputs to persist draft in create mode
 watch(
   [
     selectedWork,
@@ -736,7 +714,6 @@ watch(
   { immediate: true },
 )
 
-// Initialize from props or draft
 onMounted(() => {
   if (props.mode === 'edit' && props.initialLog) {
     const log = props.initialLog
@@ -773,9 +750,6 @@ onMounted(() => {
   }
 })
 
-// ---------------------------------------------------------------------------
-// Form Submission & Deletion
-// ---------------------------------------------------------------------------
 async function handleSubmit(): Promise<void> {
   if (!selectedWork.value) {
     errorMessage.value = 'Selecione uma obra para registrar.'
@@ -803,10 +777,6 @@ async function handleSubmit(): Promise<void> {
     if (props.mode === 'edit' && props.initialLog) {
       await $fetch(`/api/logs/${props.initialLog.id}`, {
         method: 'PATCH',
-        // Without a timeout this promise can never settle: a request lost
-        // without the server answering or closing leaves `finally` unreached,
-        // `submitting` stuck true, and the button reading "Salvando..." forever
-        // with no error and no way out but a reload. Observed in the wild.
         timeout: 15_000,
         retry: 0,
         body: payload,
@@ -827,7 +797,6 @@ async function handleSubmit(): Promise<void> {
       errorMessage.value = TIMEOUT_MESSAGE
       return
     }
-    // Retain typed input — NEVER clear on failed save!
     const fetchErr = err as { data?: { message?: string } }
     errorMessage.value = fetchErr.data?.message ?? 'Não foi possível salvar o registro de leitura.'
   } finally {
