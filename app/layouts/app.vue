@@ -105,7 +105,7 @@ async function handleSignOut() {
   text-decoration: none;
   font-size: var(--font-size-sm);
   min-height: 28px;
-  padding: 4px 10px;
+  padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
@@ -149,7 +149,7 @@ async function handleSignOut() {
   background: none;
   border: 0;
   font-family: inherit;
-  font-size: inherit;
+  font-size: var(--font-size-sm);
   line-height: inherit;
   cursor: pointer;
 }
@@ -174,11 +174,11 @@ async function handleSignOut() {
   align-items: center;
   justify-content: center;
   min-height: 52px;
-  padding: 6px 2px;
+  padding: var(--space-2) var(--space-1);
   color: var(--text-color);
   text-decoration: none;
   font-size: var(--font-size-xs);
-  gap: 3px;
+  gap: var(--space-1);
   transition: color 0.2s ease;
   box-sizing: border-box;
 }

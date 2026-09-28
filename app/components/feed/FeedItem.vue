@@ -119,7 +119,7 @@ const authorsText = computed(() => {
 
 .feed-work-title {
   font-family: var(--font-serif);
-  font-size: 1.05rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: #fff;
