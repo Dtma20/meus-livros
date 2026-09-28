@@ -138,10 +138,55 @@ taken before launching.
 
 ## 5. Current state
 
-`develop` at `b06015d`. Lint 0, typecheck 0, **397 tests passing**, `npm run build` clean.
+`develop` at `d618e70` (2026-09-28). Lint 0, typecheck 0, `npm run build` clean,
+**670 of 671 tests passing** against the local docker database, axe included. The one
+failure is environmental: `routes.test.ts` expects the Neon display name `Diogo Amorim`,
+and locally the 86 books belong to `MeusLivros` ("suporte").
 
-**Twenty-three of the twenty-seven tasks are merged.** `npm run test` now requires a
+**Every task from 001 to 062 is merged except 022, 023 and 024.** `npm run test` requires a
 current bundle and says so if it is missing - run `npm run build` first.
+
+What entered after `b06015d` (the 027 merge, 2026-09-21):
+
+- **Work outside the task numbering**, before the UX round. Among it: security fixes
+  against `security.md` - CSP in `routeRules`, the cross-origin mutation check in
+  `server/middleware/origin.ts`, one redirect guard and one cover-URL predicate
+  (`bd00067`, `ab3d549`, `69846c3`, `efdfd96`); reading blocks and progress (`8eb335f`,
+  migration 0003, which also enables `pg_trgm`); trigram similarity in search
+  (`31edc28`); the dashboard (`70e8954`) and its shelf section (`8c07e24`); JSON
+  import and export (`c05004f`); structured logging (`56d7b6d`); editable works and
+  editions (`648cfdc`, migration 0004); the backup workflow (`8eccfaf`, the first half
+  of 022); PRs #4 to #8 (manual book form, Open Library dropped, fixture cleanup, book
+  editing from the reading edit screen); the editorial landing (`1e7e207`); a docker
+  compose Postgres and `scripts/dev.ts` (`5fd7791`).
+- **UX round, 028-038** (planned in `77ff5de`, 2026-09-27): real sign-out, search-first
+  log flow, book page as hub, header search, copy cleanup, title on the poster card,
+  diary view, members page, activity page, mobile bottom nav, admin invites
+  (`users.is_admin`, migration 0005, `1e69281` - applied to the local database, Neon
+  untouched, per that commit).
+- **Frontend polish, 039-048** (planned in `9fd3040`, 2026-09-27).
+- **Visual audit, 049-059** (planned in `5987164`, 2026-09-28). 051 has no task file:
+  the reviewer redrew `public/og-fallback.png` directly in `74a1402`.
+- **Reading statistics, 060-062** (planned in `9edd034`, 2026-09-28):
+  `GET /api/users/:handle/stats`, the `BarList` and `YearColumns` components, and the
+  pages `/@handle/estatisticas` and `/@handle/ano/<ano>`.
+
+**012 was merged and later undone.** `09274c8` (2026-09-24) removed the Open Library
+lookup; books enter by manual entry only. Cover URLs built from `ol_cover_id` and
+`isbn13` still point at `covers.openlibrary.org`.
+
+**Open:**
+
+- **022** - `.github/workflows/backup.yml` and `docs/runbook-restore.md` exist, but
+  `.github/backup-key.pub.asc` is not committed and the workflow refuses to dump without
+  it. No restore is recorded; the runbook's "Status desta task" lists what is left.
+- **023** - no commit. `nuxt.config.ts` has carried the `vercel` preset and `gru1` since
+  the scaffold; nearly every acceptance criterion needs a live deployment.
+- **024** - not run as a pass, and it depends on 023. Three of the fifteen items in
+  `security.md` §13 are ticked (log redaction, CSP, `cover_url` schemes). The prompt
+  for it is [agent-prompts/pre-deploy-security-review.md](agent-prompts/pre-deploy-security-review.md).
+
+The subsections below are the historical record, written up to 2026-09-24 and mostly around `b06015d`. They are kept as written.
 
 ### The performance round, 2026-09-21
 

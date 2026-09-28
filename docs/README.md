@@ -2,7 +2,7 @@
 
 **What we're building:** a small social reading platform in Brazilian Portuguese - "Letterboxd for books" - for the owner's ~30-person university friend group. Read → log → rate/review → share to WhatsApp → someone else discovers → logs their own.
 
-**Status:** implementation under way. Twenty-three of 27 tasks are merged - scaffold, database, schema, migration, design system, routing shell, catalog services and search. The database holds the 86 migrated books. Current state and what is still in flight: [agent-workflow.md](agent-workflow.md) §5.
+**Status:** built, not deployed. Every task from 001 to 062 is on `develop` - the MVP plan (001-027), a UX round (028-038), frontend polish (039-048), a visual audit (049-059) and reading statistics (060-062) - except the launch gates: 023 deploy and 024 security hardening pass are open, and 022 backups has its workflow but no tested restore. Current state and what is still open: [agent-workflow.md](agent-workflow.md) §5.
 
 ---
 

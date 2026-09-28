@@ -4,31 +4,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-**Today:** a static, single-page personal reading library (pt-BR, Letterboxd-style dark grid). No build step, no package manager, no tests - Vue 3 and Google Charts load from CDN `<script>` tags in `index.html`.
+**Today:** a Nuxt 4 application at the repository root, built task by task from the plan in `docs/`. Tasks 001-062 are on `develop`, except the launch gates: 023 (deploy to Vercel) has not been done, 024 (security hardening pass) is open, and 022 (backups) has its workflow and runbook but no committed public key - without which the workflow refuses to dump - and no recorded restore. 012's Open Library lookup was merged and then removed on 2026-09-24; books enter by manual entry only. The app has not been deployed. The original static site is kept in `legacy/`.
 
-**Where it is going:** a small social reading platform for the owner's ~30-person university friend group. Multi-user, pt-BR-first, invite-only, zero infrastructure cost. Planning is complete; implementation has not started.
+**Where it is going:** a small social reading platform for the owner's ~30-person university friend group. Multi-user, pt-BR-first, invite-only, zero infrastructure cost. What is left before the first invite is deployment and the pre-launch checks - see [docs/agent-workflow.md](docs/agent-workflow.md) §5.
 
-**Read [docs/README.md](docs/README.md) before doing any architectural work.** The full plan lives in `docs/`, and `docs/tasks/` holds 26 executable tasks.
+**Read [docs/README.md](docs/README.md) before doing any architectural work.** The full plan lives in `docs/`, and `docs/tasks/` holds the task files, 001-062 (051 has none - the reviewer did it directly).
 
 ---
 
-## Current state (pre-migration)
+## Current state
 
-Must be served over HTTP - the app `fetch`es `livros.json`, so `file://` fails on CORS.
+The Nuxt app is the root: `app/`, `server/`, `shared/`, `package.json`. `npm run dev` runs it against the database in `.env`. For a local database, `docker-compose.yml` defines a Postgres container, and `npx tsx scripts/dev.ts` starts Docker, waits for Postgres, seeds the genres and runs `nuxt dev` (it is not wired into `package.json`). `npm run test` refuses to run against a missing or stale `.vercel/output` bundle - run `npm run build` first.
+
+The root also holds `REPORT-012.md` and `REPORT-018.md`, agent reports from those two tasks' correction rounds.
+
+The pre-Nuxt site lives in `legacy/` and stays runnable until the new app reaches parity. It must be served over HTTP - it `fetch`es `livros.json`, so `file://` fails on CORS.
 
 ```bash
+cd legacy
 python -m http.server 8000
 ```
 
-| File | Role |
+| File (`legacy/`) | Role |
 |---|---|
-| `index.html` | The whole app: markup + one inline `createApp({ setup() })` block. All state, filtering, sorting, stats and the map |
-| `livros.json` | The runtime data source - 86 books |
+| `index.html` | The whole legacy app: markup + one inline `createApp({ setup() })` block. Vue 3 and Google Charts load from CDN `<script>` tags. All state, filtering, sorting, stats and the map |
+| `livros.json` | The legacy data source - 86 books, already imported into Postgres by TASK-019 (`scripts/migrate-livros.ts`) |
 | `styles.css` | CSS custom properties on `:root`. Dark only, one 600px breakpoint |
 | `generos.txt` | Genre vocabulary (drifted: 26 labels in the data vs ~15 here) |
-| `livros_lidos_atualizado.csv` | **Stale.** 83 records vs 86. Not read at runtime. Deleted in TASK-019 |
+| `README.md` | How to run it, in Portuguese |
 
-Once TASK-001 runs, these move to `legacy/` and stay runnable until the new app reaches parity.
+`livros_lidos_atualizado.csv`, the stale 83-record export, was deleted in TASK-019.
 
 ### Book record shape
 

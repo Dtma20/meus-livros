@@ -1,6 +1,6 @@
 # Implementation tasks
 
-27 tasks. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
+62 tasks, numbered 001-062. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
 
 **Read [../README.md](../README.md) first.** The two blocking questions in [../open-questions.md](../open-questions.md) were settled on 2026-09-19 - Q2 resolved, Q1's risk accepted with a mitigation due before [023](023-deploy-to-vercel.md). 001 is complete.
 
@@ -60,7 +60,7 @@
 | [048](048-nav-touch-targets.md) | Header links big enough to tap | 10 Frontend polish | 1h | - |
 | [049](049-platform-reset.md) | Global element reset and platform finish | 11 Visual audit | 1-2h | - |
 | [050](050-retire-blue-and-greens.md) | Retire the old blue and the ad-hoc greens | 11 Visual audit | 1-2h | - |
-| [051](051-og-fallback.md) | OG fallback in the current brand (done by the reviewer) | 11 Visual audit | 1-2h | - |
+| 051 | OG fallback in the current brand (done by the reviewer in `74a1402`; no task file, spec in [../visual-audit-2026-09-28.md](../visual-audit-2026-09-28.md)) | 11 Visual audit | 1-2h | - |
 | [052](052-profile-above-the-fold.md) | Profile: books above the fold, quieter handle | 11 Visual audit | 1-2h | - |
 | [053](053-permalink-review-first.md) | Permalink: the review comes first | 11 Visual audit | 1-2h | - |
 | [054](054-dashboard-content-first.md) | Dashboard: content before empty states | 11 Visual audit | 1-2h | - |
@@ -69,8 +69,11 @@
 | [057](057-member-real-covers.md) | Member cards show real covers | 11 Visual audit | 1-2h | - |
 | [058](058-book-page-wide.md) | Book page on wide screens | 11 Visual audit | 1-2h | - |
 | [059](059-sign-in-finish.md) | Sign-in finish | 11 Visual audit | 1-2h | - |
+| [060](060-stats-service.md) | Reading statistics: service and route | 12 Statistics | - | - |
+| [061](061-stats-components.md) | Reading statistics: chart components | 12 Statistics | - | - |
+| [062](062-stats-pages.md) | Reading statistics: pages | 12 Statistics | - | 060, 061 |
 
-Roughly 79 hours of focused work - about four weeks part-time.
+There is no total estimate: 049-059 carry ranges and 060-062 carry none.
 
 ---
 
