@@ -1,8 +1,12 @@
+import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const serverPath = path.resolve('.vercel/output/functions/__fallback.func/index.mjs')
+const serverPath = [
+  path.resolve('.vercel/output/functions/__fallback.func/index.mjs'),
+  path.resolve('.vercel/output/functions/__nitro.func/index.mjs'),
+].find((p) => fs.existsSync(p)) ?? path.resolve('.vercel/output/functions/__fallback.func/index.mjs')
 const { default: handler } = await import(pathToFileURL(serverPath).href)
 const server = http.createServer(handler)
 

@@ -1,25 +1,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-/**
- * Refuses to run the suite against a stale production bundle.
- *
- * `tests/integration/routes.test.ts` spawns the built Nitro server, so it needs
- * `.vercel/output` to match the current sources. It used to build one itself
- * from `beforeAll`, which runs inside a worker while the other workers are
- * importing components and resolving modules against the same `.nuxt`
- * directory the build is rewriting. That produced a run failing two or three
- * tests with `Could not resolve ...` or `does not provide an export named 'g'`,
- * which then passed on a second attempt with nothing changed — six times in one
- * evening, and the kind of flake that teaches people to re-run instead of read.
- *
- * Building here instead does not work: Vitest starts, this hook builds, and
- * then the run ends having executed no tests at all and exited 0. A suite that
- * reports success without running is far worse than one that is flaky, so this
- * hook only ever checks and complains.
- */
-
-const serverPath = path.resolve('.vercel/output/functions/__fallback.func/index.mjs')
+const serverPath = [
+  path.resolve('.vercel/output/functions/__fallback.func/index.mjs'),
+  path.resolve('.vercel/output/functions/__nitro.func/index.mjs'),
+].find((p) => fs.existsSync(p)) ?? path.resolve('.vercel/output/functions/__fallback.func/index.mjs')
 
 function newestMtime(dir: string): number {
   if (!fs.existsSync(dir)) return 0
