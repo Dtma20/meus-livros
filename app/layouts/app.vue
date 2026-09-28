@@ -2,29 +2,55 @@
   <NuxtLayout name="default">
     <template #nav>
       <NuxtLink to="/app/novo" class="nav-link">
-        Cadastrar livro
+        Registrar leitura
       </NuxtLink>
       <NuxtLink :to="profileLink" class="nav-link">
         Perfil
       </NuxtLink>
-      <NuxtLink to="/entrar" class="nav-link">
-        Sair
-      </NuxtLink>
+      <button
+        type="button"
+        class="nav-link nav-btn"
+        :disabled="isSigningOut"
+        @click="handleSignOut"
+      >
+        {{ isSigningOut ? 'Saindo…' : 'Sair' }}
+      </button>
     </template>
     <slot />
   </NuxtLayout>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { AuthSessionState } from '~/middleware/auth'
+import { authClient } from '~/utils/auth-client'
 
 const session = useState<AuthSessionState>('auth:session')
+const isSigningOut = ref(false)
 
 const profileLink = computed(() => {
   const handle = session.value?.user?.handle
   return handle ? `/@${handle}` : '/app/perfil'
 })
+
+async function handleSignOut() {
+  if (isSigningOut.value) {
+    return
+  }
+  isSigningOut.value = true
+
+  try {
+    await Promise.race([
+      authClient.signOut().catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 10000)),
+    ])
+  }
+  catch {
+  }
+
+  session.value = { user: null, fetched: false }
+  await navigateTo('/', { external: true })
+}
 </script>
 
 <style scoped>
@@ -49,5 +75,24 @@ const profileLink = computed(() => {
 .nav-link:focus-visible {
   outline: 2px solid var(--highlight);
   outline-offset: 2px;
+}
+
+.nav-btn {
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}
+
+.nav-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nav-btn:disabled:hover {
+  background-color: transparent;
+  color: var(--text-color);
 }
 </style>
