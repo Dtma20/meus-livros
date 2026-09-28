@@ -212,6 +212,49 @@ describe('AddBookForm component', () => {
     form.unmount()
   })
 
+  it('navigates to returnTo with work_id after choosing "É este livro" with explicit returnTo="/app/novo"', async () => {
+    mockFetch.mockRejectedValueOnce({
+      status: 409,
+      data: {
+        error: 'conflito',
+        message: 'Já existe uma obra...',
+        work: {
+          id: 'existing-dup-456',
+          slug: 'outro-livro',
+          title: 'Outro Livro',
+          cover_url: null,
+        },
+      },
+    })
+
+    const form = await mountForm({ returnTo: '/app/novo' })
+
+    const titleEl = form.titleInput()!
+    titleEl.value = 'Outro Livro'
+    titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+
+    const authorEl = form.authorInput()!
+    authorEl.value = 'Outro Autor'
+    authorEl.dispatchEvent(new Event('input', { bubbles: true }))
+    form.addAuthorBtn()!.click()
+    await nextTick()
+
+    form.submitBtn()!.click()
+    await nextTick()
+    await nextTick()
+
+    const chooseBtn = Array.from(form.host.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('É este livro'),
+    )
+    expect(chooseBtn).toBeTruthy()
+    chooseBtn!.click()
+    await nextTick()
+
+    expect(navigatedTo).toBe('/app/novo?work_id=existing-dup-456')
+
+    form.unmount()
+  })
+
   it('rejects a cover URL of javascript:alert(1) with an inline error', async () => {
     const form = await mountForm()
 

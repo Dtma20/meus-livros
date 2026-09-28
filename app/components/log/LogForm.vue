@@ -488,7 +488,7 @@ const errorMessage = ref('')
 
 const submitButtonLabel = computed(() => {
   if (submitting.value) return 'Salvando...'
-  return props.mode === 'edit' ? 'Salvar alterações' : 'Registrar livro'
+  return props.mode === 'edit' ? 'Salvar alterações' : 'Registrar leitura'
 })
 
 function formatAuthors(authors?: Array<{ name: string }>): string {

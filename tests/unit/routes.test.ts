@@ -331,7 +331,10 @@ describe('Page stubs and route parameters', () => {
     wWelcome.unmount()
 
     const wNew = mount(NewBookPage)
-    expect(wNew.text()).toContain('Cadastrar livro')
+    expect(wNew.text()).toContain('Registrar leitura')
+    expect(wNew.text()).toContain('Buscar no catálogo')
+    expect(wNew.text()).toContain('Adicionar livro novo')
+    expect(wNew.text()).toContain('Importar JSON')
     wNew.unmount()
 
     const wProfile = mount(EditProfilePage)
