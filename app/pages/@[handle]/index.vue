@@ -61,6 +61,11 @@
           <StatBox :value="filteredStats.uniqueCountries" label="Países" />
         </div>
         <small v-if="hasActiveFilters" class="filter-indicator stats-filter-indicator">(filtros ativos)</small>
+        <div class="stats-action">
+          <NuxtLink :to="`/@${profile.user.handle}/estatisticas`" class="stats-link">
+            Ver estatísticas
+          </NuxtLink>
+        </div>
       </header>
 
       <div v-if="logs.length === 0" class="empty-collection">
@@ -227,7 +232,7 @@
 
           <footer v-if="sortedBooks.length > 0" class="paginometer" aria-label="Estatísticas de páginas dos livros exibidos">
             <div class="page-stat">
-              <strong>{{ filteredStats.totalPages.toLocaleString('pt-BR') }}</strong>
+              <strong>{{ formatThousands(filteredStats.totalPages) }}</strong>
               <span class="page-stat-label">
                 Páginas Lidas
                 <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
@@ -265,6 +270,7 @@ import { useBookFilters } from '~/composables/useBookFilters'
 import { aggregateReadingMapData } from '~/utils/reading-map'
 import type { ProfileResponse } from '~~/shared/schemas/profile'
 import type { AuthSessionUser } from '~/middleware/auth'
+import { formatThousands } from '~/utils/number'
 
 const ReadingMap = defineAsyncComponent(() => import('~/components/profile/ReadingMap.vue'))
 
@@ -725,6 +731,32 @@ onBeforeUnmount(() => {
 
 .stats:has(+ .stats-filter-indicator) {
   margin-bottom: var(--space-2, 8px);
+}
+
+.stats-action {
+  margin-top: var(--space-2, 8px);
+}
+
+.stats-link {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--highlight, #f59e0b);
+  text-decoration: none;
+  min-height: var(--target-min-size, 44px);
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  border-radius: var(--radius-sm, 4px);
+  transition: color 0.2s;
+}
+
+.stats-link:hover {
+  text-decoration: underline;
+  color: var(--highlight-hover, #d97706);
+}
+
+.stats-link:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline-offset: var(--focus-ring-offset, 2px);
 }
 
 .is-diary-view :deep(.sort-label),

@@ -95,7 +95,7 @@ describe('home-layout middleware', () => {
       '../../app/pages/index.vue',
       '../../app/pages/entrada/[id].vue',
       '../../app/pages/livro/[slug].vue',
-      '../../app/pages/@[handle].vue',
+      '../../app/pages/@[handle]/index.vue',
     ]
 
     for (const pageRel of pages) {
