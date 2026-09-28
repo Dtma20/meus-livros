@@ -28,7 +28,7 @@
       />
 
       <div v-else class="dashboard-content">
-        <section class="dashboard-section in-progress-section">
+        <section v-if="inProgressBooks.length > 0" class="dashboard-section in-progress-section">
           <div class="section-header">
             <div>
               <h2 class="section-title">Lendo atualmente</h2>
@@ -38,14 +38,7 @@
             </div>
           </div>
 
-          <div v-if="inProgressBooks.length === 0" class="empty-in-progress">
-            <p class="empty-in-progress-text">Você não tem nenhuma leitura em andamento no momento.</p>
-            <NuxtLink to="/app/novo" class="btn-secondary-link">
-              Começar a ler um livro →
-            </NuxtLink>
-          </div>
-
-          <div v-else class="in-progress-grid">
+          <div class="in-progress-grid">
             <article
               v-for="book in inProgressBooks"
               :key="book.id"
@@ -114,7 +107,7 @@
           </div>
         </section>
 
-        <ShelfSection :books="shelfBooks" />
+        <ShelfSection v-if="shelfBooks.length > 0" :books="shelfBooks" />
 
         <ReadingCarousel
           v-if="completedBooks.length > 0"
@@ -148,6 +141,19 @@
             />
           </div>
         </section>
+
+        <section
+          v-if="inProgressBooks.length === 0"
+          class="dashboard-empty-row in-progress-empty-row"
+          aria-label="Lendo atualmente"
+        >
+          <p class="dashboard-empty-row-text">Nada em leitura agora</p>
+          <NuxtLink to="/app/novo" class="dashboard-empty-row-link">
+            Começar a ler →
+          </NuxtLink>
+        </section>
+
+        <ShelfSection v-if="shelfBooks.length === 0" :books="shelfBooks" />
       </div>
     </div>
   </div>
@@ -567,18 +573,49 @@ useHead({
   opacity: 0.9;
 }
 
-.empty-in-progress {
-  padding: var(--space-6) var(--space-4);
+.dashboard-empty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
   background-color: var(--card-bg);
-  border: 1px dashed var(--input-bg);
+  border: 1px solid var(--input-bg);
   border-radius: var(--radius-md);
-  text-align: center;
+  box-sizing: border-box;
 }
 
-.empty-in-progress-text {
-  font-size: var(--font-size-sm);
+.dashboard-empty-row-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-tight);
   color: var(--text-color);
-  margin: 0 0 var(--space-3) 0;
+}
+
+.dashboard-empty-row-link {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: var(--target-min-size);
+  padding: 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--highlight);
+  text-decoration: none;
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+.dashboard-empty-row-link:hover {
+  text-decoration: underline;
+}
+
+.dashboard-empty-row-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .btn-secondary-link {

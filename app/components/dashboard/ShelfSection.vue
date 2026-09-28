@@ -1,33 +1,26 @@
 <template>
-  <section class="dashboard-section shelf-section">
+  <section
+    v-if="books.length === 0"
+    class="shelf-empty-row"
+    aria-label="Minha estante"
+  >
+    <p class="shelf-empty-row-text">Nenhum livro esperando na estante</p>
+    <NuxtLink to="/app/novo?tab=novo" class="shelf-empty-row-link">
+      Adicionar livro →
+    </NuxtLink>
+  </section>
+
+  <section v-else class="dashboard-section shelf-section">
     <div class="section-header">
       <div>
         <h2 class="section-title">Minha estante</h2>
         <p class="section-subtitle">
-          <template v-if="books.length > 0">
-            {{ books.length }} {{ books.length === 1 ? 'livro cadastrado aguardando leitura' : 'livros cadastrados aguardando leitura' }}
-          </template>
-          <template v-else>
-            Livros cadastrados no catálogo sem nenhuma atividade de leitura registrada
-          </template>
+          {{ books.length }} {{ books.length === 1 ? 'livro cadastrado aguardando leitura' : 'livros cadastrados aguardando leitura' }}
         </p>
       </div>
-
-      <NuxtLink to="/app/novo" class="btn-cadastrar-shelf">
-        +
-      </NuxtLink>
     </div>
 
-    <div v-if="books.length === 0" class="empty-shelf">
-      <p class="empty-shelf-text">
-        Você não tem nenhum livro cadastrado sem atividade na sua estante no momento.
-      </p>
-      <NuxtLink to="/app/novo" class="btn-secondary-link">
-        Cadastrar um livro na estante →
-      </NuxtLink>
-    </div>
-
-    <div v-else class="shelf-grid">
+    <div class="shelf-grid">
       <article
         v-for="item in books"
         :key="item.id"
@@ -122,53 +115,49 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   margin: var(--space-1) 0 0;
 }
 
-.btn-cadastrar-shelf {
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: var(--highlight);
+.shelf-empty-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
   background-color: var(--card-bg);
   border: 1px solid var(--input-bg);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  transition: border-color 0.2s, background-color 0.2s;
-  white-space: nowrap;
-}
-
-.btn-cadastrar-shelf:hover {
-  border-color: var(--highlight);
-  background-color: var(--input-bg);
-}
-
-.btn-cadastrar-shelf:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: 2px;
-}
-
-.empty-shelf {
-  padding: var(--space-6) var(--space-4);
-  background-color: var(--card-bg);
-  border: 1px dashed var(--input-bg);
   border-radius: var(--radius-md);
-  text-align: center;
+  box-sizing: border-box;
 }
 
-.empty-shelf-text {
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  margin: 0 0 var(--space-3) 0;
-}
-
-.btn-secondary-link {
-  display: inline-block;
+.shelf-empty-row-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
   font-size: var(--font-size-xs);
+  line-height: var(--line-height-tight);
+  color: var(--text-color);
+}
+
+.shelf-empty-row-link {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: var(--target-min-size);
+  padding: 0 var(--space-1);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--highlight);
   text-decoration: none;
+  white-space: nowrap;
+  box-sizing: border-box;
 }
 
-.btn-secondary-link:hover {
+.shelf-empty-row-link:hover {
   text-decoration: underline;
+}
+
+.shelf-empty-row-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .shelf-grid {
@@ -222,7 +211,7 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 
 .shelf-title {
   font-family: var(--font-serif);
-  font-size: 1.05rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: #fff;
@@ -249,7 +238,7 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 
 .shelf-year {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--text-color);
   opacity: 0.7;
   margin-top: 2px;
