@@ -1,7 +1,7 @@
 import type { Transporter } from 'nodemailer'
 import { eq, inArray, sql } from 'drizzle-orm'
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { getSessionUserByHeaders, handleAuthRequest } from '../../server/services/auth'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { auth, getSessionUserByHeaders, handleAuthRequest } from '../../server/services/auth'
 import { setTransport } from '../../server/utils/email'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
@@ -819,4 +819,169 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
 
     expect(sentEmails.length).toBe(0)
   }, 20000)
+
+  it('reset with password equal to member handle returns 400 validacao, and forbidden password for address with no users row returns same status and body', async () => {
+    const handleResetRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: allowedEmail, otp: '123456', password: testHandle }),
+      }),
+    )
+    expect(handleResetRes.status).toBe(400)
+    const handleResetBody = await handleResetRes.json()
+    expect(handleResetBody.error).toBe('validacao')
+    expect(handleResetBody.message).toBe('Senha inválida ou muito fraca.')
+
+    const noUserRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: nonAllowedEmail, otp: '123456', password: 'senha123' }),
+      }),
+    )
+    expect(noUserRes.status).toBe(400)
+    const noUserBody = await noUserRes.json()
+    expect(noUserBody).toEqual(handleResetBody)
+  }, 20000)
+
+  it('the 11th set-password within an hour for one session returns 429 muitas_tentativas', async () => {
+    const rlEmail = `test-rl-setpw-${testId}@example.com`
+    createdEmails.push(rlEmail)
+    createdRateLimitKeys.push(`setpw:email:${rlEmail}`)
+    await db.insert(schema.allowed_emails).values({ email: rlEmail, note: 'TASK-064 RL' })
+
+    await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: rlEmail, type: 'sign-in' }),
+      }),
+    )
+
+    const match = (await waitForEmail()).text.match(/\b\d{6}\b/)
+    expect(match).not.toBeNull()
+
+    const verifyRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: rlEmail, otp: match![0] }),
+      }),
+    )
+    expect(verifyRes.status).toBe(200)
+    const cookie = cookieHeaderFrom(verifyRes)
+    expect(cookie).toBeTruthy()
+
+    for (let i = 0; i < 10; i++) {
+      const res = await handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/set-password', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'cookie': cookie!,
+            'x-forwarded-for': testIp,
+          },
+          body: JSON.stringify({ newPassword: 'FirstValidPassword123' }),
+        }),
+      )
+      expect(res.status).toBeLessThan(429)
+    }
+
+    const eleventhRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/set-password', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'cookie': cookie!,
+          'x-forwarded-for': testIp,
+        },
+        body: JSON.stringify({ newPassword: 'FirstValidPassword123' }),
+      }),
+    )
+    expect(eleventhRes.status).toBe(429)
+    const body = await eleventhRes.json()
+    expect(body.error).toBe('muitas_tentativas')
+    expect(body.message).toBe('Muitas tentativas. Aguarde uma hora e tente novamente.')
+  }, 30000)
+
+  it('set-password for a session whose address already has a password returns 400 validacao without reaching better-auth setPassword', async () => {
+    const existingPwEmail = `test-existing-pw-${testId}@example.com`
+    createdEmails.push(existingPwEmail)
+    createdRateLimitKeys.push(`setpw:email:${existingPwEmail}`)
+    await db.insert(schema.allowed_emails).values({ email: existingPwEmail, note: 'TASK-064 existing PW' })
+
+    await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: existingPwEmail, type: 'sign-in' }),
+      }),
+    )
+
+    const match = (await waitForEmail()).text.match(/\b\d{6}\b/)
+    expect(match).not.toBeNull()
+
+    const verifyRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: existingPwEmail, otp: match![0] }),
+      }),
+    )
+    expect(verifyRes.status).toBe(200)
+    const cookie = cookieHeaderFrom(verifyRes)
+    expect(cookie).toBeTruthy()
+
+    const firstSetRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/set-password', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'cookie': cookie!,
+          'x-forwarded-for': testIp,
+        },
+        body: JSON.stringify({ newPassword: 'OriginalPassword123' }),
+      }),
+    )
+    expect(firstSetRes.status).toBe(200)
+
+    const [accountBefore] = await db.execute(sql<{ password: string; updatedAt: Date }>`
+      SELECT a.password, a."updatedAt"
+      FROM account a
+      JOIN ba_user u ON u.id = a."userId"
+      WHERE u.email = ${existingPwEmail}
+    `)
+    expect(accountBefore?.password).toBeTruthy()
+
+    const setPasswordSpy = vi.spyOn(auth.api, 'setPassword')
+
+    const secondSetRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/set-password', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'cookie': cookie!,
+          'x-forwarded-for': testIp,
+        },
+        body: JSON.stringify({ newPassword: 'AttemptNewPassword999' }),
+      }),
+    )
+
+    expect(secondSetRes.status).toBe(400)
+    const secondSetBody = await secondSetRes.json()
+    expect(secondSetBody.error).toBe('validacao')
+    expect(secondSetBody.message).toBe('Não foi possível definir a senha.')
+
+    expect(setPasswordSpy).not.toHaveBeenCalled()
+    setPasswordSpy.mockRestore()
+
+    const [accountAfter] = await db.execute(sql<{ password: string; updatedAt: Date }>`
+      SELECT a.password, a."updatedAt"
+      FROM account a
+      JOIN ba_user u ON u.id = a."userId"
+      WHERE u.email = ${existingPwEmail}
+    `)
+    expect(accountAfter?.password).toBe(accountBefore?.password)
+  }, 30000)
 })

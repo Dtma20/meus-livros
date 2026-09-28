@@ -14,6 +14,7 @@ import { withRetry } from '../utils/retry'
 import {
   checkOtpRequestLimit,
   checkPasswordChangeLimit,
+  checkRateLimit,
   checkSignInLimit,
 } from './rate-limit'
 
@@ -431,6 +432,24 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       )
     }
 
+    const rateLimitOk = await checkRateLimit(`setpw:email:${sessionEmail}`, 10)
+    if (!rateLimitOk) {
+      return Response.json(
+        {
+          error: 'muitas_tentativas',
+          message: 'Muitas tentativas. Aguarde uma hora e tente novamente.',
+        },
+        { status: 429, headers: { 'content-type': 'application/json' } },
+      )
+    }
+
+    if (await hasPassword(sessionEmail)) {
+      return Response.json(
+        { error: 'validacao', message: 'Não foi possível definir a senha.' },
+        { status: 400, headers: { 'content-type': 'application/json' } },
+      )
+    }
+
     const body = parseJsonObject(await request.text())
     if (!body) {
       return Response.json(
@@ -562,10 +581,18 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
     const newPassword = typeof body.password === 'string' ? body.password : ''
 
+    const [appUser] = email
+      ? await db
+          .select({ handle: users.handle })
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1)
+      : []
+
     if (
       newPassword.length < 8 ||
       newPassword.length > 128 ||
-      isForbiddenPassword(newPassword, { email })
+      isForbiddenPassword(newPassword, { email, handle: appUser?.handle })
     ) {
       return Response.json(
         { error: 'validacao', message: 'Senha inválida ou muito fraca.' },
