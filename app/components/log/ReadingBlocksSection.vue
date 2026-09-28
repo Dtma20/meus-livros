@@ -1,5 +1,8 @@
 <template>
-  <section class="reading-blocks-container" aria-labelledby="reading-progress-title">
+  <p v-if="showFinishedSummary && finishedPageCount" class="finished-summary">
+    Lido por completo · {{ finishedPageCount }} págs.
+  </p>
+  <section v-else-if="!showFinishedSummary" class="reading-blocks-container" aria-labelledby="reading-progress-title">
     <div class="section-header">
       <div class="header-text">
         <h2 id="reading-progress-title" class="section-heading">Progresso da leitura</h2>
@@ -184,7 +187,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { ReadingBlockView, ReadingProgressView } from '~~/shared/schemas/reading-block'
 import { calculateReadingProgress } from '~~/shared/utils/reading-progress'
 
@@ -234,6 +237,9 @@ watch(
   },
   { deep: true },
 )
+
+const showFinishedSummary = computed(() => !props.isOwner && props.isFinished && blocks.value.length === 0)
+const finishedPageCount = computed(() => progress.value.total_pages || props.editionPageCount || null)
 
 function updateLocalProgress(): void {
   const intervals = blocks.value.map((b) => ({
@@ -392,6 +398,12 @@ function formatBlockDate(dateStr: string): string {
 </script>
 
 <style scoped>
+.finished-summary {
+  margin: 0 0 var(--space-6);
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+}
+
 .reading-blocks-container {
   margin-top: var(--space-6);
   padding-top: var(--space-6);

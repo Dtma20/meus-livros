@@ -184,15 +184,6 @@
         </div>
       </div>
 
-      <ReadingBlocksSection
-        :log-id="logData.id"
-        :initial-blocks="logData.blocks || []"
-        :initial-progress="logData.progress"
-        :is-owner="isOwner"
-        :edition-page-count="logData.edition?.page_count"
-        :is-finished="Boolean(logData.finished_on)"
-      />
-
       <section class="review-section">
         <h2 class="review-heading">Resenha</h2>
         <div v-if="logData.review" class="review-body">
@@ -204,6 +195,15 @@
           </p>
         </div>
       </section>
+
+      <ReadingBlocksSection
+        :log-id="logData.id"
+        :initial-blocks="logData.blocks || []"
+        :initial-progress="logData.progress"
+        :is-owner="isOwner"
+        :edition-page-count="logData.edition?.page_count"
+        :is-finished="Boolean(logData.finished_on)"
+      />
 
       <footer class="entry-footer">
         <NuxtLink :to="`/@${logData.user.handle}`" class="footer-link">
@@ -481,6 +481,12 @@ async function handleDeleteEntry(): Promise<void> {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
+@media (max-width: 540px) {
+  .entry-article {
+    padding: var(--space-4);
+  }
+}
+
 .entry-header {
   display: flex;
   justify-content: space-between;
@@ -494,8 +500,9 @@ async function handleDeleteEntry(): Promise<void> {
 
 .reader-link {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: var(--space-2);
+  gap: var(--space-1) var(--space-2);
   text-decoration: none;
   color: inherit;
   transition: opacity 0.2s;
@@ -514,6 +521,7 @@ async function handleDeleteEntry(): Promise<void> {
 .reader-prefix {
   color: var(--text-color);
   font-size: var(--font-size-sm);
+  white-space: nowrap;
 }
 
 .reader-name {
@@ -639,14 +647,16 @@ async function handleDeleteEntry(): Promise<void> {
 
 .actions-row {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: var(--space-3);
   margin-top: auto;
 }
 
-@media (max-width: 540px) {
+@media (min-width: 541px) {
   .actions-row {
-    justify-content: center;
+    justify-content: flex-start;
   }
 }
 
@@ -678,9 +688,9 @@ async function handleDeleteEntry(): Promise<void> {
 }
 
 .share-btn.is-copied {
-  background-color: #1a3826;
-  border-color: #3fb950;
-  color: #3fb950;
+  background-color: color-mix(in srgb, var(--success) 12%, transparent);
+  border-color: var(--success);
+  color: var(--success);
 }
 
 .btn-icon {
@@ -729,7 +739,7 @@ async function handleDeleteEntry(): Promise<void> {
 }
 
 .delete-btn:hover:not(:disabled) {
-  color: var(--danger);
+  color: var(--danger-text);
   border-color: rgba(239, 68, 68, 0.3);
   background-color: rgba(239, 68, 68, 0.08);
 }
@@ -745,7 +755,7 @@ async function handleDeleteEntry(): Promise<void> {
 }
 
 .delete-error-msg {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-sm);
   margin-top: var(--space-2);
   margin-bottom: 0;
