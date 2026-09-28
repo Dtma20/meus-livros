@@ -3,7 +3,8 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { emailOTP } from 'better-auth/plugins/email-otp'
 import { and, eq, isNotNull } from 'drizzle-orm'
 import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
-import { isForbiddenPassword } from '../../shared/schemas/auth'
+import { z } from 'zod'
+import { isForbiddenPassword, requestOtpSchema } from '../../shared/schemas/auth'
 import { db } from '../db'
 import { getClientIp } from '../utils/client-ip'
 import { allowed_emails, users } from '../db/schema'
@@ -69,9 +70,38 @@ const verification = pgTable('verification', {
   updatedAt: timestamp('updatedAt', { withTimezone: true }).notNull().defaultNow(),
 })
 
+type BetterAuthLogLevel = 'debug' | 'info' | 'warn' | 'error'
+
+function describeBetterAuthLogArg(arg: unknown): Record<string, string> {
+  if (!(arg instanceof Error)) {
+    return { type: typeof arg }
+  }
+  const cause: unknown = arg.cause
+  const code =
+    typeof cause === 'object' && cause !== null && 'code' in cause && typeof cause.code === 'string'
+      ? cause.code
+      : undefined
+  return code ? { name: arg.name, code } : { name: arg.name }
+}
+
+function logBetterAuth(level: BetterAuthLogLevel, message: string, ...args: unknown[]): void {
+  const safeMessage = String(message).replace(/failed query[\s\S]*/i, 'Failed query [SQL omitido]')
+  const context = {
+    module: 'auth',
+    source: 'service' as const,
+    operation: 'better_auth',
+    ...(args.length > 0 ? { context: { args: args.map(describeBetterAuthLogArg) } } : {}),
+  }
+  logger[level](`[better-auth] ${safeMessage}`, context)
+}
+
 export const auth = betterAuth({
   secret: betterAuthSecret,
   baseURL: betterAuthUrl,
+
+  logger: {
+    log: logBetterAuth,
+  },
 
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -259,29 +289,101 @@ export async function getSessionUserByHeaders(headers: Headers): Promise<Session
   }
 }
 
+const activationOtpRequestSchema = requestOtpSchema.extend({
+  type: z.literal('sign-in'),
+})
+
+const FORWARDED_HEADERS = [
+  'cookie',
+  'origin',
+  'referer',
+  'sec-fetch-site',
+  'sec-fetch-mode',
+  'sec-fetch-dest',
+  'user-agent',
+  'x-forwarded-for',
+  'x-real-ip',
+] as const
+
+function parseJsonObject(text: string): Record<string, unknown> | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    return null
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    return null
+  }
+  return parsed as Record<string, unknown>
+}
+
+async function readJsonBody(request: Request): Promise<Record<string, unknown> | null> {
+  const mediaType = request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
+  if (mediaType !== 'application/json') {
+    return null
+  }
+  return parseJsonObject(await request.text())
+}
+
+function invalidOtpRequestResponse(): Response {
+  return Response.json(
+    { error: 'requisicao_invalida', message: 'Corpo da requisição inválido.' },
+    { status: 400, headers: { 'content-type': 'application/json' } },
+  )
+}
+
+function genericOtpResponse(): Response {
+  return Response.json(
+    { success: true },
+    { status: 200, headers: { 'content-type': 'application/json' } },
+  )
+}
+
+async function forwardOtpRequest(
+  request: Request,
+  body: { email: string; type?: 'sign-in' },
+  operation: string,
+): Promise<Response> {
+  const headers = new Headers({ 'content-type': 'application/json' })
+  for (const name of FORWARDED_HEADERS) {
+    const value = request.headers.get(name)
+    if (value !== null) {
+      headers.set(name, value)
+    }
+  }
+
+  const response = await auth.handler(
+    new Request(request.url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+    }),
+  )
+
+  if (!response.ok) {
+    logger.warn(`[auth] O better-auth recusou o pedido de código para ${redactEmail(body.email)}`, {
+      module: 'auth',
+      source: 'service',
+      operation,
+      context: { status: response.status },
+    })
+  }
+
+  return genericOtpResponse()
+}
+
 export async function handleAuthRequest(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const authPath = url.pathname.replace(/^\/api\/auth/, '').replace(/\/$/, '')
 
   if (request.method === 'POST' && authPath === '/email-otp/send-verification-otp') {
-    const bodyText = await request.text()
-    let body: Record<string, unknown>
-    try {
-      body = JSON.parse(bodyText)
-    } catch {
-      return Response.json(
-        {
-          error: 'requisicao_invalida',
-          message: 'Corpo da requisição inválido.',
-        },
-        {
-          status: 400,
-          headers: { 'content-type': 'application/json' },
-        },
-      )
+    const parsed = activationOtpRequestSchema.safeParse(await readJsonBody(request))
+    if (!parsed.success) {
+      return invalidOtpRequestResponse()
     }
 
-    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+    const { email, type } = parsed.data
     const ip = getClientIp(request.headers)
 
     const rateLimitExceeded = await checkOtpRequestLimit(email, ip)
@@ -294,35 +396,11 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
 
     await import('nodemailer')
 
-    const allowed = await isEmailAllowed(email)
-    if (!allowed) {
-      return Response.json(
-        { success: true },
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        },
-      )
+    if (!(await isEmailAllowed(email)) || (await hasPassword(email))) {
+      return genericOtpResponse()
     }
 
-    const alreadyActivated = await hasPassword(email)
-    if (alreadyActivated) {
-      return Response.json(
-        { success: true },
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        },
-      )
-    }
-
-    return auth.handler(
-      new Request(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: bodyText,
-      }),
-    )
+    return forwardOtpRequest(request, { email, type }, 'send_activation_otp')
   }
 
   if (request.method === 'POST' && authPath === '/sign-in/email-otp') {
@@ -353,11 +431,8 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       )
     }
 
-    const bodyText = await request.text()
-    let body: Record<string, unknown>
-    try {
-      body = JSON.parse(bodyText)
-    } catch {
+    const body = parseJsonObject(await request.text())
+    if (!body) {
       return Response.json(
         { error: 'validacao', message: 'Corpo da requisição inválido.' },
         { status: 400, headers: { 'content-type': 'application/json' } },
@@ -396,11 +471,8 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
   }
 
   if (request.method === 'POST' && authPath === '/entrar') {
-    const bodyText = await request.text()
-    let body: Record<string, unknown>
-    try {
-      body = JSON.parse(bodyText)
-    } catch {
+    const body = parseJsonObject(await request.text())
+    if (!body) {
       return Response.json(
         { error: 'validacao', message: 'E-mail, usuário ou senha incorretos.' },
         { status: 400, headers: { 'content-type': 'application/json' } },
@@ -450,18 +522,12 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
   }
 
   if (request.method === 'POST' && authPath === '/forget-password/email-otp') {
-    const bodyText = await request.text()
-    let body: Record<string, unknown>
-    try {
-      body = JSON.parse(bodyText)
-    } catch {
-      return Response.json(
-        { error: 'requisicao_invalida', message: 'Corpo da requisição inválido.' },
-        { status: 400, headers: { 'content-type': 'application/json' } },
-      )
+    const parsed = requestOtpSchema.safeParse(await readJsonBody(request))
+    if (!parsed.success) {
+      return invalidOtpRequestResponse()
     }
 
-    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+    const { email } = parsed.data
     const ip = getClientIp(request.headers)
 
     const rateLimitExceeded = await checkOtpRequestLimit(email, ip)
@@ -477,27 +543,16 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     const allowed = await isEmailAllowed(email)
     const hasExistingPassword = await hasPassword(email)
     if (!allowed || !hasExistingPassword) {
-      return Response.json(
-        { success: true },
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      )
+      return genericOtpResponse()
     }
 
-    return auth.handler(
-      new Request(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: bodyText,
-      }),
-    )
+    return forwardOtpRequest(request, { email }, 'send_reset_otp')
   }
 
   if (request.method === 'POST' && authPath === '/email-otp/reset-password') {
     const bodyText = await request.text()
-    let body: Record<string, unknown>
-    try {
-      body = JSON.parse(bodyText)
-    } catch {
+    const body = parseJsonObject(bodyText)
+    if (!body) {
       return Response.json(
         { error: 'validacao', message: 'Corpo da requisição inválido.' },
         { status: 400, headers: { 'content-type': 'application/json' } },
@@ -553,11 +608,8 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       })
     }
 
-    const bodyText = await request.text()
-    let body: Record<string, unknown>
-    try {
-      body = JSON.parse(bodyText)
-    } catch {
+    const body = parseJsonObject(await request.text())
+    if (!body) {
       return Response.json(
         { error: 'validacao', message: 'Corpo da requisição inválido.' },
         { status: 400, headers: { 'content-type': 'application/json' } },
