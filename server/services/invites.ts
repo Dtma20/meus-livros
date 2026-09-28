@@ -4,6 +4,8 @@ import { createError } from 'h3'
 import type { AddInviteInput, InviteView } from '../../shared/schemas/invites'
 import { db } from '../db'
 import { allowed_emails, users } from '../db/schema'
+import { redactEmail } from '../utils/email'
+import { logger } from '../utils/logger'
 
 const baUser = pgTable('ba_user', {
   id: text('id').primaryKey(),
@@ -130,18 +132,48 @@ export async function removeInvite(
     })
   }
 
-  const deleted = await db
-    .delete(allowed_emails)
-    .where(eq(allowed_emails.email, normalizedEmailToRemove))
-    .returning({ email: allowed_emails.email })
+  let deletedSessionsCount = 0
 
-  if (deleted.length === 0) {
-    throw createError({
-      statusCode: 404,
-      data: {
-        error: 'nao_encontrado',
-        message: 'Convite não encontrado.',
-      },
-    })
-  }
+  await db.transaction(async (tx) => {
+    const deleted = await tx
+      .delete(allowed_emails)
+      .where(eq(allowed_emails.email, normalizedEmailToRemove))
+      .returning({ email: allowed_emails.email })
+
+    if (deleted.length === 0) {
+      throw createError({
+        statusCode: 404,
+        data: {
+          error: 'nao_encontrado',
+          message: 'Convite não encontrado.',
+        },
+      })
+    }
+
+    const deletedSessions = await tx.execute<{ id: string }>(sql`
+      DELETE FROM "session"
+      WHERE "userId" IN (
+        SELECT id FROM ba_user WHERE email = ${normalizedEmailToRemove}
+      )
+      RETURNING id
+    `)
+
+    deletedSessionsCount = Array.isArray(deletedSessions) ? deletedSessions.length : 0
+
+    await tx.execute(sql`
+      DELETE FROM "account"
+      WHERE "providerId" = 'credential'
+        AND "userId" IN (
+          SELECT id FROM ba_user WHERE email = ${normalizedEmailToRemove}
+        )
+    `)
+  })
+
+  logger.info(
+    `[invites] Convite removido para ${redactEmail(normalizedEmailToRemove)} (${deletedSessionsCount} sessões encerradas)`,
+    {
+      module: 'invites',
+      sessionsDeleted: deletedSessionsCount,
+    },
+  )
 }

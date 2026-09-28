@@ -12,6 +12,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
   let client: typeof import('../../server/db')['client']
   let schema: typeof import('../../server/db/schema')
   let invitesService: typeof import('../../server/services/invites')
+  let handleAuthRequest: typeof import('../../server/services/auth')['handleAuthRequest']
 
   let server: Server | null = null
   let apiUrl: string
@@ -33,6 +34,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
     client = dbModule.client
     schema = await import('../../server/db/schema')
     invitesService = await import('../../server/services/invites')
+    const authModule = await import('../../server/services/auth')
+    handleAuthRequest = authModule.handleAuthRequest
 
     const app = createApp()
     app.use(defineEventHandler((event) => {
@@ -104,6 +107,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
     }
     try {
       if (db) {
+        await db.execute(sql`
+          DELETE FROM "session" WHERE "userId" IN (SELECT id FROM ba_user WHERE email LIKE ${`%${MARKER}%`})
+        `)
         await db.execute(sql`
           DELETE FROM account WHERE "userId" IN (SELECT id FROM ba_user WHERE email LIKE ${`%${MARKER}%`})
         `)
@@ -370,5 +376,193 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
     expect(regularRes.status).toBe(200)
     const regularMe = (await regularRes.json()) as { is_admin?: boolean }
     expect(regularMe?.is_admin).toBe(false)
+  }, 30_000)
+
+  it('removing invite of activated member revokes sessions and credential account while keeping other member sessions', async () => {
+    const adminHeaders = {
+      'x-test-user-id': adminUserId,
+      'x-test-user-email': adminEmail,
+      'content-type': 'application/json',
+    }
+
+    const activatedEmail = `${MARKER}-act-revoke@example.com`
+    const activatedHandle = `rev${Date.now()}`.slice(0, 20)
+    const activatedBaUserId = `ba-rev-${Date.now()}`.slice(0, 30)
+    const activatedAccountId = `acc-rev-${Date.now()}`.slice(0, 30)
+    const session1Id = `sess1-${Date.now()}`.slice(0, 30)
+    const session2Id = `sess2-${Date.now()}`.slice(0, 30)
+
+    const otherEmail = `${MARKER}-other-keep@example.com`
+    const otherHandle = `oth${Date.now()}`.slice(0, 20)
+    const otherBaUserId = `ba-oth-${Date.now()}`.slice(0, 30)
+    const otherAccountId = `acc-oth-${Date.now()}`.slice(0, 30)
+    const otherSessionId = `sess-oth-${Date.now()}`.slice(0, 30)
+
+    await invitesService.addInvite(adminUserId, {
+      email: activatedEmail,
+      note: `${MARKER} activated member to be revoked`,
+    })
+    await db.insert(schema.users).values({
+      email: activatedEmail,
+      handle: activatedHandle,
+      display_name: 'Usuário Revogado',
+      is_admin: false,
+    })
+    await db.execute(sql`
+      INSERT INTO ba_user (id, name, email, "emailVerified", "createdAt", "updatedAt")
+      VALUES (${activatedBaUserId}, 'Usuario Revogado', ${activatedEmail}, true, now(), now())
+    `)
+    await db.execute(sql`
+      INSERT INTO account (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+      VALUES (${activatedAccountId}, ${activatedEmail}, 'credential', ${activatedBaUserId}, 'hashed_sample', now(), now())
+    `)
+    await db.execute(sql`
+      INSERT INTO "session" (id, "expiresAt", token, "createdAt", "updatedAt", "userId")
+      VALUES
+        (${session1Id}, now() + interval '30 days', ${`tok1-${Date.now()}`}, now(), now(), ${activatedBaUserId}),
+        (${session2Id}, now() + interval '30 days', ${`tok2-${Date.now()}`}, now(), now(), ${activatedBaUserId})
+    `)
+
+    await invitesService.addInvite(adminUserId, {
+      email: otherEmail,
+      note: `${MARKER} other member`,
+    })
+    await db.insert(schema.users).values({
+      email: otherEmail,
+      handle: otherHandle,
+      display_name: 'Outro Usuario',
+      is_admin: false,
+    })
+    await db.execute(sql`
+      INSERT INTO ba_user (id, name, email, "emailVerified", "createdAt", "updatedAt")
+      VALUES (${otherBaUserId}, 'Outro Usuario', ${otherEmail}, true, now(), now())
+    `)
+    await db.execute(sql`
+      INSERT INTO account (id, "accountId", "providerId", "userId", password, "createdAt", "updatedAt")
+      VALUES (${otherAccountId}, ${otherEmail}, 'credential', ${otherBaUserId}, 'hashed_other', now(), now())
+    `)
+    await db.execute(sql`
+      INSERT INTO "session" (id, "expiresAt", token, "createdAt", "updatedAt", "userId")
+      VALUES (${otherSessionId}, now() + interval '30 days', ${`tok-oth-${Date.now()}`}, now(), now(), ${otherBaUserId})
+    `)
+
+    const sessionsBefore = await db.execute(sql`
+      SELECT s.id
+      FROM "session" s
+      JOIN ba_user u ON u.id = s."userId"
+      WHERE u.email = ${activatedEmail}
+    `)
+    expect(sessionsBefore).toHaveLength(2)
+
+    const accountsBefore = await db.execute(sql`
+      SELECT a.id
+      FROM account a
+      JOIN ba_user u ON u.id = a."userId"
+      WHERE u.email = ${activatedEmail} AND a."providerId" = 'credential'
+    `)
+    expect(accountsBefore).toHaveLength(1)
+
+    const otherSessionsBefore = await db.execute(sql`
+      SELECT s.id
+      FROM "session" s
+      JOIN ba_user u ON u.id = s."userId"
+      WHERE u.email = ${otherEmail}
+    `)
+    expect(otherSessionsBefore).toHaveLength(1)
+
+    const delRes = await fetch(apiUrl, {
+      method: 'DELETE',
+      headers: adminHeaders,
+      body: JSON.stringify({ email: activatedEmail }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    expect(delRes.status).toBe(204)
+
+    const inviteRow = await db
+      .select()
+      .from(schema.allowed_emails)
+      .where(eq(schema.allowed_emails.email, activatedEmail))
+    expect(inviteRow).toHaveLength(0)
+
+    const sessionsAfter = await db.execute(sql`
+      SELECT s.id
+      FROM "session" s
+      JOIN ba_user u ON u.id = s."userId"
+      WHERE u.email = ${activatedEmail}
+    `)
+    expect(sessionsAfter).toHaveLength(0)
+
+    const accountsAfter = await db.execute(sql`
+      SELECT a.id
+      FROM account a
+      JOIN ba_user u ON u.id = a."userId"
+      WHERE u.email = ${activatedEmail} AND a."providerId" = 'credential'
+    `)
+    expect(accountsAfter).toHaveLength(0)
+
+    const userRow = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.email, activatedEmail))
+    expect(userRow).toHaveLength(1)
+
+    const otherSessionsAfter = await db.execute(sql`
+      SELECT s.id
+      FROM "session" s
+      JOIN ba_user u ON u.id = s."userId"
+      WHERE u.email = ${otherEmail}
+    `)
+    expect(otherSessionsAfter).toHaveLength(1)
+
+    const signInRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ identificador: activatedHandle, senha: 'QualquerSenha123' }),
+      }),
+    )
+    expect(signInRes.status).toBe(400)
+    const signInBody = (await signInRes.json()) as { error?: string; message?: string }
+    expect(signInBody.error).toBe('validacao')
+    expect(signInBody.message).toBe('E-mail, usuário ou senha incorretos.')
+  }, 30_000)
+
+  it('removing a never-activated invite still works and deletes no session of anyone', async () => {
+    const adminHeaders = {
+      'x-test-user-id': adminUserId,
+      'x-test-user-email': adminEmail,
+      'content-type': 'application/json',
+    }
+    const neverActivatedEmail = `${MARKER}-never-act@example.com`
+
+    await invitesService.addInvite(adminUserId, {
+      email: neverActivatedEmail,
+      note: `${MARKER} never activated invite`,
+    })
+
+    const countBeforeRows = await db.execute<{ count: string }>(sql`
+      SELECT count(*)::text as count FROM "session"
+    `)
+    const totalSessionsBefore = countBeforeRows[0]?.count
+
+    const delRes = await fetch(apiUrl, {
+      method: 'DELETE',
+      headers: adminHeaders,
+      body: JSON.stringify({ email: neverActivatedEmail }),
+      signal: AbortSignal.timeout(10_000),
+    })
+    expect(delRes.status).toBe(204)
+
+    const remaining = await db
+      .select()
+      .from(schema.allowed_emails)
+      .where(eq(schema.allowed_emails.email, neverActivatedEmail))
+    expect(remaining).toHaveLength(0)
+
+    const countAfterRows = await db.execute<{ count: string }>(sql`
+      SELECT count(*)::text as count FROM "session"
+    `)
+    const totalSessionsAfter = countAfterRows[0]?.count
+    expect(totalSessionsAfter).toBe(totalSessionsBefore)
   }, 30_000)
 })
