@@ -54,21 +54,49 @@ describe('BookCard.vue', () => {
     })
 
     expect(wrapper.find('.caption-author')).toBeNull()
-    expect(wrapper.find('.overlay-author')).toBeNull()
     wrapper.unmount()
   })
 
-  it('marks visible text elements with aria-hidden="true"', () => {
+  it('marks the text block with aria-hidden="true"', () => {
     const wrapper = mount(BookCard, {
       title: 'Dom Casmurro',
       author: 'Machado de Assis'
     })
 
-    const overlay = wrapper.find('.overlay')
-    expect(overlay?.getAttribute('aria-hidden')).toBe('true')
-
     const caption = wrapper.find('.caption')
     expect(caption?.getAttribute('aria-hidden')).toBe('true')
+    expect(caption?.querySelector('.caption-title')).not.toBeNull()
+    expect(caption?.querySelector('.caption-author')).not.toBeNull()
+    wrapper.unmount()
+  })
+
+  it('renders the title and author text exactly once', () => {
+    const wrapper = mount(BookCard, {
+      title: 'Dom Casmurro',
+      author: 'Machado de Assis',
+      rating: 4.5
+    })
+
+    const text = wrapper.container.textContent ?? ''
+    expect(text.split('Dom Casmurro').length - 1).toBe(1)
+    expect(text.split('Machado de Assis').length - 1).toBe(1)
+    expect(wrapper.findAll('.caption')).toHaveLength(1)
+    expect(wrapper.findAll('.caption-title')).toHaveLength(1)
+    expect(wrapper.findAll('.caption-author')).toHaveLength(1)
+    expect(wrapper.find('.overlay')).toBeNull()
+    wrapper.unmount()
+  })
+
+  it('keeps the text block outside the poster so it can flow under it', () => {
+    const wrapper = mount(BookCard, {
+      title: 'Dom Casmurro',
+      author: 'Machado de Assis'
+    })
+
+    const poster = wrapper.find('.poster')
+    expect(poster).not.toBeNull()
+    expect(poster?.querySelector('.caption')).toBeNull()
+    expect(wrapper.find('.media > .caption')).not.toBeNull()
     wrapper.unmount()
   })
 
