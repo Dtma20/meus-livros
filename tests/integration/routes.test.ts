@@ -10,6 +10,7 @@ describe('Route integration HTTP tests', () => {
 
   const workMarker = `zz-teste-rota-${Date.now()}`
   let realWork: { id: string; slug: string; title: string } | null = null
+  let publicLogId: string | null = null
 
   beforeAll(async () => {
 
@@ -46,6 +47,28 @@ describe('Route integration HTTP tests', () => {
         title: schemaModule.works.title,
       })
     realWork = row ?? null
+
+    const [owner] = await dbModule.db
+      .insert(schemaModule.users)
+      .values({
+        email: `${workMarker}@teste.invalid`,
+        handle: `ucache_${Date.now() % 10000000}`,
+        display_name: 'Usuário Cache',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schemaModule.users.id })
+    const [log] = await dbModule.db
+      .insert(schemaModule.reading_logs)
+      .values({
+        user_id: owner!.id,
+        work_id: realWork!.id,
+        finished_on: '2024-01-01',
+        finished_precision: 'dia',
+        format: 'fisico',
+        visibility: 'publico',
+      })
+      .returning({ id: schemaModule.reading_logs.id })
+    publicLogId = log?.id ?? null
   }, 120000)
 
   afterAll(async () => {
@@ -109,6 +132,21 @@ describe('Route integration HTTP tests', () => {
     expect(html).toContain('Entrada não encontrada')
 
     expect(html).not.toContain('ID da entrada:')
+  })
+
+  it('GET /entrada/<public id> is shared-cacheable for an anonymous visitor', async () => {
+    const res = await fetch(`${baseUrl}/entrada/${publicLogId}`, { redirect: 'manual' })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('public, max-age=60, s-maxage=60')
+  })
+
+  it('GET /entrada/<public id> with the session cookie is never shared-cacheable', async () => {
+    const res = await fetch(`${baseUrl}/entrada/${publicLogId}`, {
+      redirect: 'manual',
+      headers: { cookie: '__Secure-better-auth.session_token=qualquer' },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
   })
 
   it('GET /entrar returns 200 and renders login stub', async () => {
