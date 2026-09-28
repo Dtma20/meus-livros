@@ -209,12 +209,24 @@
         </button>
       </form>
     </div>
+
+    <div v-if="isAdmin" class="profile-card admin-card">
+      <h2 class="profile-title section-title">
+        Administração
+      </h2>
+      <p class="profile-desc">
+        Acesso restrito para administradores da plataforma.
+      </p>
+      <NuxtLink to="/app/admin/convites" class="admin-link">
+        Gerenciar convites
+      </NuxtLink>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import type { AuthSessionState, AuthSessionUser } from '~/middleware/auth'
 import { authClient } from '~/utils/auth-client'
 import { isForbiddenPassword, senhaSchema } from '~~/shared/schemas/auth'
@@ -229,6 +241,7 @@ useSeoMeta({
 })
 
 const session = useState<AuthSessionState>('auth:session')
+const isAdmin = computed(() => Boolean(session.value?.user?.is_admin))
 
 const handle = ref(session.value?.user?.handle ?? '')
 const displayName = ref(String(session.value?.user?.display_name ?? ''))
@@ -660,6 +673,29 @@ async function handleChangePassword() {
 .submit-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.admin-card {
+  margin-top: 0;
+}
+
+.admin-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--highlight);
+  font-weight: 500;
+  text-decoration: underline;
+  min-height: 44px;
+}
+
+.admin-link:hover {
+  opacity: 0.8;
+}
+
+.admin-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
