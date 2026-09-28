@@ -7,8 +7,8 @@ const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
 describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (Neon)', () => {
   let dbClient: { end: () => Promise<void> } | undefined
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let db: any
+
+  let db: typeof import('../../server/db/index').db | undefined
 
   beforeAll(async () => {
     const dbModule = await import('../../server/db/index')
@@ -93,7 +93,6 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
       `)
       expect(workRow[0]?.search_text).toBe('o hobbit: teste')
 
-      // Assert writing to search_text directly fails
       await expect(
         db.execute(sql`
           INSERT INTO works (id, slug, title, search_text)
@@ -117,14 +116,12 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
       await db.execute(sql`
         INSERT INTO works (id, slug, title) VALUES (${workId}, 'test-editions-work', 'Test Editions');
       `)
-      // Two editions with isbn13 = NULL can coexist
+
       await db.execute(sql`INSERT INTO editions (id, work_id, isbn13) VALUES (${ed1}, ${workId}, NULL);`)
       await db.execute(sql`INSERT INTO editions (id, work_id, isbn13) VALUES (${ed2}, ${workId}, NULL);`)
 
-      // An edition with ISBN succeeds
       await db.execute(sql`INSERT INTO editions (id, work_id, isbn13) VALUES (${ed3}, ${workId}, ${testIsbn});`)
 
-      // A second edition with the same ISBN fails
       await expect(
         db.execute(sql`INSERT INTO editions (id, work_id, isbn13) VALUES (${ed4}, ${workId}, ${testIsbn});`),
       ).rejects.toThrow()
@@ -149,7 +146,6 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
         INSERT INTO works (id, slug, title) VALUES (${workId}, 'test-rating-work', 'Rating Work');
       `)
 
-      // Rating 3.7 raises check violation
       await expect(
         db.execute(sql`
           INSERT INTO reading_logs (id, user_id, work_id, rating)
@@ -157,7 +153,6 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
         `),
       ).rejects.toThrow()
 
-      // Rating 4.5 succeeds
       await db.execute(sql`
         INSERT INTO reading_logs (id, user_id, work_id, rating)
         VALUES (${log2}, ${userId}, ${workId}, 4.5);
@@ -188,12 +183,11 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
         INSERT INTO works (id, slug, title) VALUES (${workId}, 'test-reread-work', 'Reread Work');
       `)
 
-      // First read: 4.0 in 2016
       await db.execute(sql`
         INSERT INTO reading_logs (id, user_id, work_id, rating, finished_on, finished_precision)
         VALUES (${log1}, ${userId}, ${workId}, 4.0, '2016-01-01', 'ano');
       `)
-      // Second read: 5.0 in 2024
+
       await db.execute(sql`
         INSERT INTO reading_logs (id, user_id, work_id, rating, finished_on, finished_precision)
         VALUES (${log2}, ${userId}, ${workId}, 5.0, '2024-01-01', 'ano');

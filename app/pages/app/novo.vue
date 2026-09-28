@@ -1,6 +1,5 @@
 <template>
   <div class="log-page-container">
-    <!-- Fluxo 1: Registrar leitura a partir de um livro selecionado na estante (?work_id=...) -->
     <div v-if="isLoggingFromShelf" class="log-page-card wide-card">
       <div class="shelf-back-nav">
         <NuxtLink to="/" class="shelf-back-link">
@@ -30,7 +29,6 @@
       />
     </div>
 
-    <!-- Fluxo 2: Adicionar livros ao catálogo/estante ou importar via JSON -->
     <div v-else class="log-page-card" :class="{ 'wide-card': activeTab === 'cadastrar' }">
       <h1 class="page-title">{{ pageTitle }}</h1>
       <p class="page-desc">
@@ -84,25 +82,22 @@ definePageMeta({
   middleware: 'auth',
 })
 
-let route: any = undefined
+let route: ReturnType<typeof useRoute> | undefined
 try {
   route = useRoute()
 } catch {
-  // outside vue-router context (e.g. unit tests)
 }
 
-let router: any = undefined
+let router: ReturnType<typeof useRouter> | undefined
 try {
   router = useRouter()
 } catch {
-  // outside vue-router context (e.g. unit tests)
 }
 
 type TabKey = 'cadastrar' | 'json'
 
 const activeTab = ref<TabKey>('cadastrar')
 
-// Inicializar aba a partir da query
 function parseTab(tabParam: unknown): TabKey {
   if (tabParam === 'json' || tabParam === 'importar') return 'json'
   return 'cadastrar'
@@ -131,7 +126,6 @@ function selectTab(tab: TabKey) {
   }
 }
 
-// Obter workId opcional para leitura a partir da estante
 const workId = computed(() => {
   const q = route?.query?.work_id || route?.query?.workId
   return typeof q === 'string' ? q.trim() : ''

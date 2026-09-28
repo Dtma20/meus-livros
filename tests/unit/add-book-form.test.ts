@@ -1,6 +1,5 @@
-// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, nextTick } from 'vue'
+import { type Component, createApp, nextTick } from 'vue'
 
 const DRAFT_KEY = 'meus-livros:add-book-draft'
 
@@ -14,16 +13,16 @@ vi.hoisted(() => {
   }
 })
 
-let AddBookForm: unknown
+let AddBookForm: Component | undefined
 
 async function mountForm(props: Record<string, unknown> = {}) {
   if (!AddBookForm) {
-    AddBookForm = (await import('../../app/components/search/AddBookForm.vue')).default
+    AddBookForm = (await import('../../app/components/search/AddBookForm.vue')).default as Component
   }
   const host = document.createElement('div')
   document.body.appendChild(host)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const app = createApp(AddBookForm as any, { ...props })
+
+  const app = createApp(AddBookForm, { ...props })
   app.mount(host)
   await nextTick()
   await nextTick()
@@ -70,13 +69,11 @@ describe('AddBookForm component', () => {
   it('submitting only title + author succeeds and redirects to returnTo with work_id', async () => {
     const form = await mountForm()
 
-    // 1. Enter title
     const titleEl = form.titleInput()!
     titleEl.value = 'Memórias Póstumas de Brás Cubas'
     titleEl.dispatchEvent(new Event('input', { bubbles: true }))
     await nextTick()
 
-    // 2. Add an author
     const authorEl = form.authorInput()!
     authorEl.value = 'Machado de Assis'
     authorEl.dispatchEvent(new Event('input', { bubbles: true }))
@@ -86,10 +83,8 @@ describe('AddBookForm component', () => {
     await nextTick()
     await nextTick()
 
-    // Author should now be listed in tags
     expect(form.text()).toContain('Machado de Assis')
 
-    // 3. Submit
     form.submitBtn()!.click()
     await nextTick()
     await nextTick()
@@ -107,14 +102,13 @@ describe('AddBookForm component', () => {
       }),
     )
 
-    // Should navigate to returnTo carrying work_id
     expect(navigatedTo).toBe('/app/novo?work_id=work-new-1')
 
     form.unmount()
   })
 
   it('shows duplicate prompt on 409 and allows forcing creation with ?forcar=1', async () => {
-    // Mock 409 on first call, success on second call
+
     mockFetch.mockRejectedValueOnce({
       status: 409,
       data: {
@@ -132,7 +126,6 @@ describe('AddBookForm component', () => {
 
     const form = await mountForm()
 
-    // Enter title & author
     const titleEl = form.titleInput()!
     titleEl.value = 'Dom Casmurro'
     titleEl.dispatchEvent(new Event('input', { bubbles: true }))
@@ -143,17 +136,14 @@ describe('AddBookForm component', () => {
     form.addAuthorBtn()!.click()
     await nextTick()
 
-    // Submit -> triggers 409
     form.submitBtn()!.click()
     await nextTick()
     await nextTick()
     await nextTick()
 
-    // Duplicate prompt is visible
     expect(form.text()).toContain('Obra encontrada no catálogo')
     expect(form.text()).toContain('É este o livro que você procura?')
 
-    // Click "Não, criar assim mesmo"
     const forceBtn = Array.from(form.host.querySelectorAll('button')).find(
       (b) => b.textContent?.includes('Não, criar assim mesmo'),
     )
@@ -210,7 +200,6 @@ describe('AddBookForm component', () => {
     await nextTick()
     await nextTick()
 
-    // Click "✓ É este livro"
     const chooseBtn = Array.from(form.host.querySelectorAll('button')).find(
       (b) => b.textContent?.includes('É este livro'),
     )
@@ -218,7 +207,6 @@ describe('AddBookForm component', () => {
     chooseBtn!.click()
     await nextTick()
 
-    // Redirects carrying existing work_id
     expect(navigatedTo).toBe('/app/novo?work_id=existing-dup-999')
 
     form.unmount()
@@ -227,7 +215,6 @@ describe('AddBookForm component', () => {
   it('rejects a cover URL of javascript:alert(1) with an inline error', async () => {
     const form = await mountForm()
 
-    // Expand edition disclosure
     const disclosureBtn = Array.from(form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle')).find(
       (b) => b.textContent?.includes('detalhes desta edição'),
     )
@@ -235,7 +222,6 @@ describe('AddBookForm component', () => {
     disclosureBtn!.click()
     await nextTick()
 
-    // Set title and author
     const titleEl = form.titleInput()!
     titleEl.value = 'Livro Teste'
     titleEl.dispatchEvent(new Event('input', { bubbles: true }))
@@ -246,7 +232,6 @@ describe('AddBookForm component', () => {
     form.addAuthorBtn()!.click()
     await nextTick()
 
-    // Set invalid cover_url
     const coverEl = form.host.querySelector<HTMLInputElement>('#edition-cover-url')!
     expect(coverEl).toBeTruthy()
     coverEl.value = 'javascript:alert(1)'
@@ -254,7 +239,6 @@ describe('AddBookForm component', () => {
     coverEl.dispatchEvent(new Event('blur', { bubbles: true }))
     await nextTick()
 
-    // Submit
     form.submitBtn()!.click()
     await nextTick()
     await nextTick()
@@ -279,14 +263,12 @@ describe('AddBookForm component', () => {
     first.addAuthorBtn()!.click()
     await nextTick()
 
-    // Verify localStorage has draft
     const raw = localStorage.getItem(DRAFT_KEY)
     expect(raw).toBeTruthy()
     expect(JSON.parse(raw!).title).toBe('Título em Andamento')
 
     first.unmount()
 
-    // Second mount restores draft
     const second = await mountForm()
     expect(second.titleInput()?.value).toBe('Título em Andamento')
     expect(second.text()).toContain('Autor do Rascunho')
@@ -310,7 +292,6 @@ describe('AddBookForm component', () => {
     await nextTick()
     await nextTick()
 
-    // Expand both disclosures
     const disclosures = form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle')
     disclosures.forEach((d) => d.click())
     await nextTick()
@@ -424,7 +405,7 @@ describe('AddBookForm component', () => {
     first.unmount()
 
     const second = await mountForm()
-    // Disclosures reopen from the draft flags
+
     expect(second.host.querySelector<HTMLInputElement>('#author-country')?.value).toBe('Portugal')
     expect(second.host.querySelector<HTMLSelectElement>('#edition-language')?.value).toBe('pt')
 
@@ -456,7 +437,6 @@ describe('AddBookForm component', () => {
   it('every input in the form has an associated label', async () => {
     const form = await mountForm()
 
-    // Expand both disclosures so all optional inputs are rendered
     const disclosures = form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle')
     disclosures.forEach((d) => d.click())
     await nextTick()
@@ -478,16 +458,16 @@ describe('AddBookForm component', () => {
 })
 
 describe('GenrePicker component', () => {
-  let GenrePicker: unknown
+  let GenrePicker: Component | undefined
 
   async function mountGenrePicker(props: Record<string, unknown> = {}) {
     if (!GenrePicker) {
-      GenrePicker = (await import('../../app/components/search/GenrePicker.vue')).default
+      GenrePicker = (await import('../../app/components/search/GenrePicker.vue')).default as Component
     }
     const host = document.createElement('div')
     document.body.appendChild(host)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const app = createApp(GenrePicker as any, { ...props })
+
+    const app = createApp(GenrePicker, { ...props })
     app.mount(host)
     await nextTick()
 
@@ -531,7 +511,6 @@ describe('GenrePicker component', () => {
       },
     })
 
-    // Click another genre (e.g. Romance, id: 3)
     const romancePill = Array.from(picker.pills()).find((p) => p.textContent?.includes('Romance'))
     expect(romancePill).toBeTruthy()
     romancePill!.click()
@@ -553,4 +532,3 @@ describe('GenrePicker component', () => {
     picker.unmount()
   })
 })
-

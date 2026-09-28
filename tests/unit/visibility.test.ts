@@ -5,17 +5,12 @@ import { visibleLogs } from '../../server/services/visibility'
 
 describe('server/services/visibility.ts - visibleLogs unit contract', () => {
   it('requires exactly 1 parameter (viewer is mandatory)', () => {
-    // TypeScript compiles visibleLogs(viewer: Viewer).
-    // In JavaScript, function.length reports the number of formal parameters before the first default.
     expect(visibleLogs.length).toBe(1)
   })
 
   it('throws TypeError if viewer is undefined at runtime', () => {
-    // Protects against callers passing undefined from un-typed code or runtime omissions
-    // @ts-expect-error - testing runtime defense against undefined
-    expect(() => visibleLogs(undefined)).toThrow(TypeError)
-    // @ts-expect-error - testing runtime defense against 0 arguments
-    expect(() => visibleLogs()).toThrow(TypeError)
+    expect(() => (visibleLogs as unknown as (v?: unknown) => unknown)(undefined)).toThrow(TypeError)
+    expect(() => (visibleLogs as unknown as () => unknown)()).toThrow(TypeError)
   })
 
   it('accepts null for unauthenticated / anonymous viewers', () => {
