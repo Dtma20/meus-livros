@@ -36,5 +36,6 @@ export default defineApiHandler(async (event) => {
     display_name: user.display_name,
     bio: user.bio,
     profile_visibility: user.profile_visibility,
+    is_admin: user.is_admin,
   }
 })

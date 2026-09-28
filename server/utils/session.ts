@@ -2,6 +2,7 @@ import type { H3Event } from 'h3'
 import { createError } from 'h3'
 import { getSessionUserByHeaders } from '../services/auth'
 import type { SessionUser } from '../services/auth'
+import { getAdminUser } from '../services/invites'
 
 export type { SessionUser }
 
@@ -27,4 +28,16 @@ export async function requireSessionUser(event: H3Event): Promise<SessionUser> {
     })
   }
   return user
+}
+
+export async function requireAdmin(event: H3Event): Promise<{ id: string; email: string }> {
+  const user = await requireSessionUser(event)
+  const admin = await getAdminUser(user.id)
+  if (!admin) {
+    throw createError({
+      statusCode: 404,
+      data: { error: 'nao_encontrado', message: 'Página não encontrada.' },
+    })
+  }
+  return admin
 }
