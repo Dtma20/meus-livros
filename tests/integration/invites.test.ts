@@ -540,10 +540,17 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
       note: `${MARKER} never activated invite`,
     })
 
-    const countBeforeRows = await db.execute<{ count: string }>(sql`
-      SELECT count(*)::text as count FROM "session"
+    const bystanderEmail = `${MARKER}-bystander@example.com`
+    const bystanderBaUserId = `ba-bys-${Date.now()}`.slice(0, 30)
+    const bystanderSessionId = `sess-bys-${Date.now()}`
+    await db.execute(sql`
+      INSERT INTO ba_user (id, name, email, "emailVerified", "createdAt", "updatedAt")
+      VALUES (${bystanderBaUserId}, 'Espectador', ${bystanderEmail}, true, now(), now())
     `)
-    const totalSessionsBefore = countBeforeRows[0]?.count
+    await db.execute(sql`
+      INSERT INTO "session" (id, "expiresAt", token, "createdAt", "updatedAt", "userId")
+      VALUES (${bystanderSessionId}, now() + interval '30 days', ${`tok-bys-${Date.now()}`}, now(), now(), ${bystanderBaUserId})
+    `)
 
     const delRes = await fetch(apiUrl, {
       method: 'DELETE',
@@ -559,10 +566,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
       .where(eq(schema.allowed_emails.email, neverActivatedEmail))
     expect(remaining).toHaveLength(0)
 
-    const countAfterRows = await db.execute<{ count: string }>(sql`
-      SELECT count(*)::text as count FROM "session"
+    const bystanderSessions = await db.execute<{ id: string }>(sql`
+      SELECT id FROM "session" WHERE id = ${bystanderSessionId}
     `)
-    const totalSessionsAfter = countAfterRows[0]?.count
-    expect(totalSessionsAfter).toBe(totalSessionsBefore)
+    expect(bystanderSessions).toHaveLength(1)
   }, 30_000)
 })
