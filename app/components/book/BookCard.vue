@@ -9,6 +9,14 @@
         :isbn13="isbn13"
         :loading="loading"
       />
+      <div class="overlay" aria-hidden="true">
+        <span class="title overlay-title">{{ title }}</span>
+        <span v-if="author" class="author overlay-author">{{ author }}</span>
+      </div>
+    </div>
+    <div class="caption" aria-hidden="true">
+      <span class="title caption-title">{{ title }}</span>
+      <span v-if="author" class="author caption-author">{{ author }}</span>
     </div>
     <div v-if="rating" class="info">
       <StarRating :rating="rating" />
@@ -75,6 +83,7 @@ const cardAriaLabel = computed(() => {
   cursor: pointer;
   transition: transform 0.2s;
   outline-offset: 4px;
+  width: 100%;
 }
 
 .card:hover {
@@ -92,6 +101,10 @@ const cardAriaLabel = computed(() => {
     transition: none;
   }
   .card:hover {
+    transform: none;
+  }
+  .overlay {
+    transition: none;
     transform: none;
   }
 }
@@ -112,8 +125,113 @@ const cardAriaLabel = computed(() => {
   border-color: var(--poster-border, #fff);
 }
 
+.overlay {
+  display: none;
+}
+
+.caption {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-2);
+  width: 100%;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.caption-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-tight);
+  font-weight: 500;
+  color: var(--poster-border);
+}
+
+.caption-author {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-tight);
+  color: var(--text-color);
+  margin-top: var(--space-1);
+}
+
+@media (hover: none) {
+  .overlay {
+    display: none;
+  }
+
+  .caption {
+    display: flex;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .caption {
+    display: none;
+  }
+
+  .overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--space-4) var(--space-2) var(--space-2);
+    background: linear-gradient(to bottom, transparent, var(--bg-color));
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    text-align: center;
+    box-sizing: border-box;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(var(--space-1));
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+
+  .card:hover .overlay,
+  .card:focus-visible .overlay {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .overlay-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-tight);
+    font-weight: 600;
+    color: var(--poster-border);
+  }
+
+  .overlay-author {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    line-height: var(--line-height-tight);
+    color: var(--text-color);
+    margin-top: var(--space-1);
+  }
+}
+
 .info {
-  margin-top: var(--space-2, 8px);
+  margin-top: var(--space-2);
   text-align: center;
 }
 </style>
