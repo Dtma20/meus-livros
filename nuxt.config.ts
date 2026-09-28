@@ -7,8 +7,8 @@ export default defineNuxtConfig({
       },
       title: 'Meus Livros',
       link: [
+        { rel: 'icon', href: '/favicon.ico?v=3', sizes: 'any' },
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=3' },
-        { rel: 'alternate icon', type: 'image/x-icon', href: '/favicon.ico?v=3' },
         { rel: 'preconnect', href: 'https://covers.openlibrary.org', crossorigin: '' },
         { rel: 'preconnect', href: 'https://m.media-amazon.com', crossorigin: '' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
