@@ -6,6 +6,9 @@ export default defineNuxtConfig({
         lang: 'pt-BR'
       },
       title: 'Meus Livros',
+      meta: [
+        { name: 'theme-color', content: '#14181c' },
+      ],
       link: [
         { rel: 'icon', href: '/favicon.ico?v=3', sizes: 'any' },
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=3' },

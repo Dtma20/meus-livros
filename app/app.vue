@@ -21,6 +21,28 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+button, input, select, textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+a, button, [role="button"], summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--highlight);
+  color: var(--bg-color);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-color);
+  opacity: 1;
+}
+
 h1, h2, h3 {
   font-family: var(--font-serif);
   font-weight: 600;
