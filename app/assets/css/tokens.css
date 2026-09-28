@@ -1,4 +1,6 @@
 :root {
+  color-scheme: dark;
+
   --bg-color: #14181c;
   --card-bg: #232a31;
   --text-color: #9ab;
@@ -9,6 +11,10 @@
   --input-bg: #2c3440;
 
   --danger: #ef4444;
+  --danger-text: #f87171;
+  --success: #34d399;
+  --highlight-soft: rgba(245, 158, 11, 0.12);
+  --highlight-glow: rgba(245, 158, 11, 0.25);
 
   --space-1: 4px;
   --space-2: 8px;
