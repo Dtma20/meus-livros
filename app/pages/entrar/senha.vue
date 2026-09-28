@@ -2,13 +2,12 @@
   <div class="login-container">
     <div class="login-card">
       <div class="login-logo-header">
-        <AppLogo :size="44" badge />
+        <AppLogo :size="44" />
       </div>
       <h1 class="login-title">
         Esqueci minha senha
       </h1>
 
-      <!-- Success State -->
       <div v-if="successReset" class="success-state">
         <p class="success-text" role="status">
           Sua senha foi redefinida com sucesso!
@@ -18,7 +17,6 @@
         </NuxtLink>
       </div>
 
-      <!-- Step 1: Request OTP -->
       <form v-else-if="step === 'email'" class="login-form" @submit.prevent="handleRequestOtp">
         <p class="login-desc">
           Digite seu e-mail para receber um código de 6 dígitos e redefinir sua senha.
@@ -56,7 +54,6 @@
         </div>
       </form>
 
-      <!-- Step 2: Verify OTP + Set New Password -->
       <form v-else class="login-form" @submit.prevent="handleResetPassword">
         <p class="login-desc">
           Enviamos um código de 6 dígitos para seu e-mail. Digite o código e sua nova senha.

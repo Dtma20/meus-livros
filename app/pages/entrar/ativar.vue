@@ -2,13 +2,12 @@
   <div class="login-container">
     <div class="login-card">
       <div class="login-logo-header">
-        <AppLogo :size="44" badge />
+        <AppLogo :size="44" />
       </div>
       <h1 class="login-title">
         Primeiro acesso
       </h1>
 
-      <!-- Step 1: Request OTP -->
       <form v-if="step === 'email'" class="login-form" @submit.prevent="handleRequestOtp">
         <p class="login-desc">
           Digite seu e-mail cadastrado para receber um código de ativação e criar sua senha.
@@ -46,7 +45,6 @@
         </div>
       </form>
 
-      <!-- Step 2: Verify OTP + Choose Password -->
       <form v-else class="login-form" @submit.prevent="handleActivate">
         <p class="login-desc">
           Enviamos um código de 6 dígitos para seu e-mail. Digite o código e escolha sua nova senha.
@@ -290,7 +288,6 @@ async function handleActivate() {
 
   loading.value = true
   try {
-    // 1. Verify OTP and obtain session
     const { error: signInError } = await authClient.signIn.emailOtp({
       email: email.value.trim().toLowerCase(),
       otp: parsedOtp.data,
@@ -303,9 +300,6 @@ async function handleActivate() {
       return
     }
 
-    // 2. Set the first password. better-auth marks setPassword server-only, so
-    // it is absent from the client; our own route calls auth.api.setPassword
-    // behind the session the step above just issued.
     try {
       await $fetch('/api/auth/set-password', {
         method: 'POST',
@@ -316,7 +310,6 @@ async function handleActivate() {
       return
     }
 
-    // Invalidate cached auth session so middleware fetches fresh profile
     session.value = { user: null, fetched: false }
 
     const redirectPath = getSafeRedirectUrl(route.query.next)

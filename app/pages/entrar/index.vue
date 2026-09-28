@@ -2,7 +2,7 @@
   <div class="login-container">
     <div class="login-card">
       <div class="login-logo-header">
-        <AppLogo :size="44" badge />
+        <AppLogo :size="44" />
       </div>
       <h1 class="login-title">
         Entrar
@@ -130,7 +130,6 @@ async function handleSignIn() {
       return
     }
 
-    // Invalidate cached auth session so middleware fetches fresh profile
     session.value = { user: null, fetched: false }
 
     const redirectPath = getSafeRedirectUrl(route.query.next)

@@ -13,32 +13,18 @@
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
     >
-      <!-- Optional subtle squircle badge backdrop -->
-      <rect
-        v-if="badge"
-        x="1"
-        y="1"
-        width="46"
-        height="46"
-        rx="12"
-        class="logo-badge-bg"
-      />
-
-      <!-- Left page with gentle curve -->
       <path
         d="M24 37C18.5 34.5 12 34.5 8 36V13C12 11.5 18.5 11.5 24 14V37Z"
         fill="url(#logoLeftPageGrad)"
         class="logo-page-left"
       />
 
-      <!-- Right page with gentle curve -->
       <path
         d="M24 37C29.5 34.5 36 34.5 40 36V13C36 11.5 29.5 11.5 24 14V37Z"
         fill="url(#logoRightPageGrad)"
         class="logo-page-right"
       />
 
-      <!-- Decorative page lines left -->
       <path
         d="M12 19C15.5 18.2 19 18.5 21 19.5"
         stroke="#ffffff"
@@ -61,7 +47,6 @@
         stroke-linecap="round"
       />
 
-      <!-- Decorative page lines right -->
       <path
         d="M27 19.5C29 18.5 32.5 18.2 36 19"
         stroke="#ffffff"
@@ -84,7 +69,6 @@
         stroke-linecap="round"
       />
 
-      <!-- Book center spine line -->
       <line
         x1="24"
         y1="13.5"
@@ -95,14 +79,12 @@
         stroke-linecap="round"
       />
 
-      <!-- Cute amber ribbon bookmark -->
       <path
         d="M22.5 13V24.5L24 23L25.5 24.5V13H22.5Z"
         fill="url(#logoRibbonGrad)"
         class="logo-ribbon"
       />
 
-      <!-- Cute little sparkle star in top-right corner -->
       <path
         d="M37 6.5C37 8.5 38.5 9 39.5 9.5C38.5 10 37 10.5 37 12.5C37 10.5 35.5 10 34.5 9.5C35.5 9 37 8.5 37 6.5Z"
         fill="#fde047"
@@ -110,7 +92,6 @@
       />
       <circle cx="37" cy="9.5" r="0.75" fill="#ffffff" />
 
-      <!-- Gradients -->
       <defs>
         <linearGradient id="logoLeftPageGrad" x1="8" y1="12" x2="24" y2="37" gradientUnits="userSpaceOnUse">
           <stop stop-color="#fbbf24" />
@@ -169,12 +150,6 @@ const resolvedSize = computed(() => {
   display: block;
   flex-shrink: 0;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
-}
-
-.with-badge .logo-badge-bg {
-  fill: #1a1e24;
-  stroke: #332a20;
-  stroke-width: 1.5;
 }
 
 .logo-text {
