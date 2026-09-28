@@ -20,11 +20,12 @@ Requires Node 22+ (the host has v24.15.0) and npm 10+.
 ```bash
 npm install
 cp .env.example .env     # fill in the values from §2
-npm run db:migrate       # applies committed migrations to your Neon branch
+docker compose up -d     # local Postgres (container meus-livros-db)
+npm run db:migrate       # applies committed migrations; needs DATABASE_URL_DIRECT in the shell
 npm run dev              # http://localhost:3000
 ```
 
-**The local database is a Neon branch, not a local Postgres.** Neon free allows 100 projects with 10 branches each, and a branch is a copy-on-write fork created in seconds. This means development runs against the real Postgres version and the real extensions, with no Docker and no "works on my machine" divergence. Branches are disposable - delete and recreate freely.
+**The local database is a Postgres container** from `docker-compose.yml` (since 2026-09-25; `npx tsx scripts/dev.ts` starts it, waits for it, seeds the genres and runs `nuxt dev`). The plan was a Neon branch, and a Neon branch still works - point `DATABASE_URL` at one - but it is not what `.env` uses today. Production and Preview are Neon.
 
 The one thing that *is* local: `npm run db:studio` (Drizzle Studio) for inspecting rows.
 
@@ -40,8 +41,9 @@ The one thing that *is* local: `npm run db:studio` (Drizzle Studio) for inspecti
 | `db:generate` | Generate a migration from `schema.ts` diffs |
 | `db:migrate` | Apply migrations (uses `DATABASE_URL_DIRECT`) |
 | `db:studio` | Drizzle Studio |
-| `db:seed:genres` | Seed the 26 genres |
-| `migrate:livros` | The one-off `livros.json` import |
+| `db:seed` | Seed the 26 genres (`scripts/seed-genres.ts`) |
+
+The one-off `livros.json` import is not a script entry: `npx tsx scripts/migrate-livros.ts`, with `DATABASE_URL`, `DATABASE_URL_DIRECT` and `OWNER_EMAIL`/`OWNER_HANDLE`/`OWNER_NAME` in the shell.
 
 ---
 
@@ -122,11 +124,12 @@ git push                 # then deploy the code
 
 The free tier has **no automated backups**. This is the least comfortable part of the zero-cost constraint: the database will hold 13 years of irreplaceable reading history and 56 original reviews.
 
-**One GitHub Actions workflow, every 3 days:**
+**One GitHub Actions workflow, twice a week (Monday and Thursday, 06:00 UTC):**
 
 ```yaml
 on:
-  schedule: [{ cron: '0 6 */3 * *' }]
+  schedule:
+    - cron: '0 6 * * 1,4'
   workflow_dispatch:
 ```
 
