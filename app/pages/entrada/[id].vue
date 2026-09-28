@@ -220,7 +220,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { setResponseHeader } from 'h3'
+import { getCookie, setResponseHeader } from 'h3'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
@@ -253,7 +253,6 @@ const reqUrl = typeof useRequestURL === 'function' ? useRequestURL() : null
 const origin = computed(() => reqUrl?.origin || 'http://localhost:3000')
 
 const event = import.meta.server && typeof useRequestEvent === 'function' ? useRequestEvent() : null
-const sessionCookie = typeof useCookie === 'function' ? useCookie('__Secure-better-auth.session_token') : null
 
 const session = typeof useState === 'function'
   ? useState<{ user?: { id?: string; handle?: string } | null }>('auth:session', () => ({ user: null }))
@@ -267,7 +266,7 @@ const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
     try {
       const result = await requestFetch<LogWithDetails>(`/api/logs/${id.value}` as string)
       if (event) {
-        const hasSession = Boolean(sessionCookie?.value || session.value?.user?.id)
+        const hasSession = Boolean(getCookie(event, '__Secure-better-auth.session_token') || session.value?.user?.id)
         if (hasSession || result.visibility === 'privado') {
           setResponseHeader(event, 'Cache-Control', 'private, no-store')
         } else {
