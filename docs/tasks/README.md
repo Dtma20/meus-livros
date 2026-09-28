@@ -37,6 +37,16 @@
 | [025](025-reading-map.md) | Reading map *(should-have)* | 8 Optional | 4h | 016 |
 | [026](026-search-misses-instrumentation.md) | `search_misses` instrumentation | 8 Optional | 1h | 010 |
 | [027](027-password-sign-in.md) | Password sign-in; OTP narrowed to activation and reset | 2 Identity | 5h | 007, 008 |
+| [028](028-real-sign-out-and-nav-copy.md) | Real sign-out, nav copy | 9 UX round | 1h | - |
+| [029](029-search-first-log-flow.md) | Search first, then register the reading | 9 UX round | 3h | - |
+| [030](030-book-page-hub.md) | Book page as hub: action, own readings, histogram | 9 UX round | 3h | - |
+| [031](031-header-search.md) | Search in the header | 9 UX round | 2h | - |
+| [032](032-user-facing-copy-cleanup.md) | Remove internal wording from copy | 9 UX round | 0.5h | - |
+| [033](033-book-card-title.md) | Title and author on the poster card | 9 UX round | 1h | - |
+| [034](034-profile-diary-view.md) | Diary view on the profile | 9 UX round | 3h | - |
+| [035](035-members-page.md) | Members page | 9 UX round | 3h | - |
+| [036](036-activity-page.md) | Activity page with cursor pagination | 9 UX round | 3h | - |
+| [037](037-mobile-bottom-nav.md) | Mobile bottom nav and new nav entries | 9 UX round | 2h | 028, 031, 035, 036 |
 
 Roughly 79 hours of focused work - about four weeks part-time.
 
