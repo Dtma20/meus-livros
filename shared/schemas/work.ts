@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { DatePrecision } from './log'
 
 export function isHttpsCoverUrl(url: string | null | undefined): boolean {
   if (typeof url !== 'string') return false
@@ -168,6 +169,7 @@ export interface WorkLogView {
   rating: number | null
   review: string | null
   finished_on: string | null
+  finished_precision: DatePrecision
   created_at: Date | string
   user: WorkLogUserView
 }

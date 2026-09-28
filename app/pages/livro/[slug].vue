@@ -48,10 +48,22 @@
               v-if="work.average_rating !== null && work.average_rating > 0"
               class="work-rating-row"
             >
-              <StarRating :rating="work.average_rating" />
-              <span class="rating-text">
-                {{ formatRating(work.average_rating) }} · {{ work.log_count }} {{ work.log_count === 1 ? 'leitura' : 'leituras' }}
-              </span>
+              <div class="work-rating-average">
+                <StarRating :rating="work.average_rating" />
+                <span class="rating-text">
+                  {{ formatRating(work.average_rating) }} · {{ work.log_count }} {{ work.log_count === 1 ? 'leitura' : 'leituras' }}
+                </span>
+              </div>
+              <RatingHistogram :ratings="logRatings" />
+            </div>
+
+            <div class="work-actions">
+              <NuxtLink
+                :to="primaryActionHref"
+                class="work-primary-action"
+              >
+                {{ primaryActionLabel }}
+              </NuxtLink>
             </div>
 
             <div v-if="work.series_name" class="work-series">
@@ -82,26 +94,25 @@
           </div>
         </header>
 
-        <div v-if="userLog" class="user-logged-banner">
-          <span>Você já registrou este livro na sua biblioteca.</span>
-          <NuxtLink :to="`/entrada/${userLog.id}`" class="user-logged-link">
-            Ver ou gerenciar leitura →
-          </NuxtLink>
-        </div>
-
-        <section v-if="hasEditionsToShow" class="editions-section">
-          <h2 class="section-title">Edições cadastradas</h2>
-          <ul class="editions-list">
+        <section v-if="userLogs.length > 0" class="user-logs-section">
+          <h2 class="section-title">Suas leituras ({{ userLogs.length }})</h2>
+          <ul class="user-logs-list">
             <li
-              v-for="edition in work.editions"
-              :key="edition.id"
-              class="edition-item"
+              v-for="log in userLogs"
+              :key="log.id"
+              class="user-log-item"
             >
-              <span v-if="edition.publisher" class="edition-publisher">{{ edition.publisher }}</span>
-              <span v-if="edition.published_year" class="edition-year">({{ edition.published_year }})</span>
-              <span v-if="edition.page_count" class="edition-pages">· {{ edition.page_count }} págs.</span>
-              <span v-if="edition.isbn13" class="edition-isbn">· ISBN {{ edition.isbn13 }}</span>
-              <span v-if="edition.language" class="edition-lang">· {{ edition.language.toUpperCase() }}</span>
+              <div class="user-log-meta">
+                <span class="user-log-date">
+                  {{ log.finished_on ? formatReadingDate(log.finished_on, log.finished_precision) : 'Lendo agora' }}
+                </span>
+                <div v-if="log.rating !== null && log.rating > 0" class="user-log-stars">
+                  <StarRating :rating="log.rating" />
+                </div>
+              </div>
+              <NuxtLink :to="`/entrada/${log.id}`" class="user-log-link">
+                Ver leitura →
+              </NuxtLink>
             </li>
           </ul>
         </section>
@@ -115,8 +126,8 @@
           <div v-if="work.logs.length === 0" class="empty-logs">
             <EmptyState
               title="Ninguém registrou esse livro ainda."
-              action-label="Registrar"
-              action-href="/app/novo"
+              action-label="Registrar leitura"
+              :action-href="`/app/novo?work_id=${work.id}`"
             />
           </div>
 
@@ -145,6 +156,23 @@
                   Ver registro completo →
                 </NuxtLink>
               </div>
+            </li>
+          </ul>
+        </section>
+
+        <section v-if="hasEditionsToShow" class="editions-section">
+          <h2 class="section-title">Edições cadastradas</h2>
+          <ul class="editions-list">
+            <li
+              v-for="edition in work.editions"
+              :key="edition.id"
+              class="edition-item"
+            >
+              <span v-if="edition.publisher" class="edition-publisher">{{ edition.publisher }}</span>
+              <span v-if="edition.published_year" class="edition-year">({{ edition.published_year }})</span>
+              <span v-if="edition.page_count" class="edition-pages">· {{ edition.page_count }} págs.</span>
+              <span v-if="edition.isbn13" class="edition-isbn">· ISBN {{ edition.isbn13 }}</span>
+              <span v-if="edition.language" class="edition-lang">· {{ edition.language.toUpperCase() }}</span>
             </li>
           </ul>
         </section>
@@ -186,10 +214,12 @@
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import BookCover from '~/components/book/BookCover.vue'
+import RatingHistogram from '~/components/book/RatingHistogram.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
+import { formatReadingDate } from '~/utils/entry'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import type { WorkAuthorView, WorkWithDetails } from '~~/shared/schemas/work'
 import { formatCountry, formatLanguage, formatPublicationYear } from '~~/shared/schemas/work'
@@ -300,9 +330,45 @@ useHead({
   ],
 })
 
-const userLog = computed(() => {
-  if (!work.value || !session.value?.user?.id) return null
-  return work.value.logs.find((l) => l.user.id === session.value?.user?.id) ?? null
+const isMember = computed(() => Boolean(session.value?.user?.id))
+
+const userLogs = computed(() => {
+  if (!work.value || !session.value?.user?.id) return []
+  const userId = session.value.user.id
+  return work.value.logs
+    .filter((l) => l.user.id === userId)
+    .slice()
+    .sort((a, b) => {
+      const dateA = a.finished_on ? new Date(a.finished_on).getTime() : (a.created_at ? new Date(a.created_at).getTime() : 0)
+      const dateB = b.finished_on ? new Date(b.finished_on).getTime() : (b.created_at ? new Date(b.created_at).getTime() : 0)
+      const diff = dateB - dateA
+      if (diff !== 0) return diff
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0
+      return timeB - timeA
+    })
+})
+
+const primaryActionHref = computed(() => {
+  if (!work.value) return '#'
+  if (isMember.value) {
+    return `/app/novo?work_id=${work.value.id}`
+  }
+  return `/entrar?next=/livro/${work.value.slug}`
+})
+
+const primaryActionLabel = computed(() => {
+  if (!isMember.value) {
+    return 'Entrar para registrar'
+  }
+  return userLogs.value.length > 0 ? 'Registrar releitura' : 'Registrar leitura'
+})
+
+const logRatings = computed<number[]>(() => {
+  if (!work.value?.logs) return []
+  return work.value.logs
+    .map((l) => l.rating)
+    .filter((r): r is number => typeof r === 'number' && r > 0)
 })
 
 const canDeleteWork = computed(() => {
@@ -397,6 +463,10 @@ async function handleDeleteWork(): Promise<void> {
     align-items: center;
     text-align: center;
   }
+
+  .work-rating-row {
+    align-items: center;
+  }
 }
 
 .work-cover-wrapper {
@@ -441,15 +511,56 @@ async function handleDeleteWork(): Promise<void> {
 
 .work-rating-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-2);
   margin-bottom: var(--space-3);
+}
+
+.work-rating-average {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .work-rating-average {
+    justify-content: center;
+  }
 }
 
 .rating-text {
   color: var(--text-color);
   font-size: var(--font-size-sm);
   font-weight: 500;
+}
+
+.work-actions {
+  margin-bottom: var(--space-4);
+}
+
+.work-primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--highlight);
+  color: #000;
+  font-weight: 700;
+  font-size: var(--font-size-sm);
+  padding: 0 var(--space-4);
+  min-height: var(--target-min-size, 44px);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: opacity 0.2s;
+}
+
+.work-primary-action:hover {
+  opacity: 0.9;
+}
+
+.work-primary-action:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .work-series {
@@ -469,6 +580,12 @@ async function handleDeleteWork(): Promise<void> {
 .meta-item {
   display: flex;
   gap: var(--space-2);
+}
+
+@media (max-width: 640px) {
+  .meta-item {
+    justify-content: center;
+  }
 }
 
 .meta-dt,
@@ -494,6 +611,12 @@ async function handleDeleteWork(): Promise<void> {
   margin-top: var(--space-3);
 }
 
+@media (max-width: 640px) {
+  .work-genres {
+    justify-content: center;
+  }
+}
+
 .genre-chip {
   display: inline-block;
   background-color: var(--input-bg);
@@ -516,6 +639,64 @@ async function handleDeleteWork(): Promise<void> {
   color: var(--text-color);
   font-size: var(--font-size-base);
   font-weight: normal;
+}
+
+.user-logs-section {
+  margin-bottom: var(--space-8);
+}
+
+.user-logs-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.user-log-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  background-color: var(--bg-color);
+  border: 1px solid var(--input-bg);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+}
+
+.user-log-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.user-log-date {
+  color: #fff;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.user-log-link {
+  color: var(--highlight);
+  text-decoration: none;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  min-height: var(--target-min-size, 44px);
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-log-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+.user-log-link:hover {
+  text-decoration: underline;
 }
 
 .editions-section {
@@ -545,7 +726,7 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 .logs-section {
-  margin-top: var(--space-6);
+  margin-bottom: var(--space-8);
 }
 
 .logs-list {
@@ -610,31 +791,6 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 .entry-link:hover {
-  text-decoration: underline;
-}
-
-.user-logged-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-sm);
-  margin-top: var(--space-6);
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-}
-
-.user-logged-link {
-  color: var(--highlight);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.user-logged-link:hover {
   text-decoration: underline;
 }
 
