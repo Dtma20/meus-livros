@@ -400,6 +400,73 @@ describe('DiaryList.vue (component unit)', () => {
 
     wrapper.unmount()
   })
+
+  it('renders no month heading when a year only has year-precision logs', () => {
+    const logA = createSampleLog({
+      id: 'year-only-a',
+      finished_on: '2019-01-01',
+      finished_precision: 'ano',
+    })
+    const logB = createSampleLog({
+      id: 'year-only-b',
+      finished_on: '2019-01-01',
+      finished_precision: 'ano',
+    })
+
+    const wrapper = mountComponent(DiaryList, { logs: [logA, logB] })
+
+    expect(wrapper.find('.diary-group-title')?.textContent?.trim()).toBe('2019')
+    expect(wrapper.findAll('.diary-month-title')).toHaveLength(0)
+    expect(wrapper.text()).not.toContain('Sem mês')
+    expect(wrapper.findAll('.diary-row')).toHaveLength(2)
+
+    wrapper.unmount()
+  })
+
+  it('renders "Março" then "Sem mês" when a year mixes March and year-precision logs', () => {
+    const marchLog = createSampleLog({
+      id: 'march-log',
+      finished_on: '2024-03-10',
+      finished_precision: 'dia',
+    })
+    const yearOnlyLog = createSampleLog({
+      id: 'year-only-log',
+      finished_on: '2024-01-01',
+      finished_precision: 'ano',
+    })
+
+    const wrapper = mountComponent(DiaryList, { logs: [yearOnlyLog, marchLog] })
+
+    const monthTitles = wrapper
+      .findAll('.diary-month-title')
+      .map((el) => el.textContent?.trim())
+    expect(monthTitles).toEqual(['Março', 'Sem mês'])
+
+    wrapper.unmount()
+  })
+
+  it('keeps "Lendo agora" without a month heading next to a year-only year', () => {
+    const readingLog = createSampleLog({
+      id: 'reading-now',
+      finished_on: null,
+    })
+    const yearOnlyLog = createSampleLog({
+      id: 'year-only',
+      finished_on: '2020-01-01',
+      finished_precision: 'ano',
+    })
+
+    const wrapper = mountComponent(DiaryList, { logs: [yearOnlyLog, readingLog] })
+
+    const groupTitles = wrapper
+      .findAll('.diary-group-title')
+      .map((el) => el.textContent?.trim())
+    expect(groupTitles).toEqual(['Lendo agora', '2020'])
+    expect(wrapper.findAll('.diary-month-title')).toHaveLength(0)
+    expect(wrapper.findAll('.diary-row')).toHaveLength(2)
+
+    wrapper.unmount()
+  })
 })
 
 describe('ProfilePage diary integration', () => {

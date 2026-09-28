@@ -19,7 +19,7 @@
         class="diary-month-section"
       >
         <h3
-          v-if="monthBucket.month"
+          v-if="showMonthTitle(group, monthBucket)"
           class="diary-month-title"
         >
           {{ monthBucket.month }}
@@ -99,7 +99,7 @@ import { computed } from 'vue'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import type { ProfileLogItem } from '~~/shared/schemas/profile'
-import { getDiaryDay, groupDiary } from '~/utils/diary'
+import { getDiaryDay, groupDiary, type DiaryGroup, type DiaryMonthBucket } from '~/utils/diary'
 import { formatBookFormat } from '~/utils/entry'
 
 const props = defineProps<{
@@ -107,6 +107,11 @@ const props = defineProps<{
 }>()
 
 const diaryGroups = computed(() => groupDiary(props.logs))
+
+function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
+  if (!bucket.month) return false
+  return bucket.monthNumber !== null || group.months.length > 1
+}
 </script>
 
 <style scoped>
