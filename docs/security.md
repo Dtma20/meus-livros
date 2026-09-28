@@ -241,8 +241,9 @@ Registration is invite-only and the cohort knows each other offline, so the ordi
 
 | Risk | Control |
 |---|---|
-| A leaked allowlist address | Remove the row. Existing sessions are revocable |
-| Catalog vandalism (anyone can create works) | Rate limited; `created_by` recorded; no delete endpoint. Repair is SQL |
+| A leaked allowlist address | Remove the invite on `/app/admin/convites`. Since TASK-063 that also deletes the person's sessions and password credential in the same transaction; a cookie already cached keeps working for up to 5 minutes (`cookieCache`, see `CLAUDE.md`). Their readings stay |
+| Catalog vandalism (anyone can create works) | Rate limited (the JSON import too, 3 per hour since TASK-067); `created_by`/`updated_by` recorded. A work can be deleted only by its creator and only with no readings; an edition only by an admin, or by its creator while no one else's reading uses it (TASK-066). Repair is SQL |
+| Probing for private readings through `DELETE /api/works/:id` | **Accepted (B-2 of the 2026-09-28 review).** The creator of a work sees a 400 instead of a 204 when a reading they cannot see exists. It only works on a work the prober created, and a negative answer deletes the work, so it cannot be repeated |
 | A friendship going wrong | The owner can delete any row with `psql`. **No admin UI in the MVP** - accepted because it is one person with database access and 30 people who know each other |
 
 **No report, block or mute in the MVP.** This is a real deferral, not an oversight: those exist to handle strangers, and there are none. **If public registration is ever opened, moderation tooling must ship first.** That is a hard gate, recorded in [open-questions.md](open-questions.md).
@@ -255,7 +256,7 @@ Registration is invite-only and the cohort knows each other offline, so the ordi
 - [ ] The four visibility integration tests pass
 - [ ] A `privado` entry returns 404, not 403, for a second user
 - [ ] Rating validation rejects `3.7` and `6` server-side
-- [ ] Requesting an activation or reset code for a non-allowlisted address is indistinguishable from an allowlisted one
+- [ ] Requesting an activation or reset code for a non-allowlisted address is indistinguishable from an allowlisted one - malformed requests (`text/plain`, missing `type`) leaked the state until `9ba2aab` and are covered by `tests/integration/auth.test.ts` now; tick after checking production
 - [ ] A sign-in with an unknown handle and one with a wrong password return the same body and comparable timing
 - [ ] Changing a password without supplying the current one is rejected
 - [ ] A password change deletes the user's other sessions and keeps the current one
