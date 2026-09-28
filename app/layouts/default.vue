@@ -173,6 +173,20 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   margin: 0;
 }
 
+@media (max-width: 767.98px) {
+  .site-title {
+    min-height: var(--target-min-size);
+    box-sizing: border-box;
+  }
+
+  .nav-link {
+    min-height: var(--target-min-size);
+    min-width: var(--target-min-size);
+    box-sizing: border-box;
+    justify-content: center;
+  }
+}
+
 @media (max-width: 600px) {
   .header-inner {
     padding: var(--space-3) var(--space-4);
