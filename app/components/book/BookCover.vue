@@ -1,17 +1,24 @@
 <template>
-  <img
-    :src="currentSrc"
-    :alt="alt"
-    :loading="loading ?? 'lazy'"
-    :fetchpriority="loading === 'eager' ? 'high' : undefined"
+  <span
     class="book-cover"
-    @error="onError"
+    :class="{ 'is-loading': hidden, 'is-loaded': loaded }"
   >
+    <img
+      ref="imgRef"
+      :src="currentSrc"
+      :alt="alt"
+      :loading="loading ?? 'lazy'"
+      :fetchpriority="loading === 'eager' ? 'high' : undefined"
+      class="book-cover-img"
+      @load="onLoad"
+      @error="onError"
+    >
+  </span>
 </template>
 
 <script setup lang="ts">
 import { isHttpsCoverUrl } from '~~/shared/schemas/work'
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   alt: string
@@ -24,6 +31,9 @@ const props = defineProps<{
 }>()
 
 const failed = ref(false)
+const loaded = ref(false)
+const hidden = ref(false)
+const imgRef = ref<HTMLImageElement | null>(null)
 
 watch(
   () => [
@@ -103,17 +113,91 @@ const currentSrc = computed(() => {
   return generatePlaceholderSvg(props.title)
 })
 
+function syncWithImage() {
+  const img = imgRef.value
+  if (!img) return
+  if (img.complete) {
+    hidden.value = false
+    loaded.value = true
+    return
+  }
+  loaded.value = false
+  hidden.value = !currentSrc.value.startsWith('data:')
+}
+
+watch(currentSrc, syncWithImage, { flush: 'post' })
+
+onMounted(syncWithImage)
+
+function onLoad() {
+  hidden.value = false
+  loaded.value = true
+}
+
 function onError() {
+  hidden.value = false
   failed.value = true
 }
 </script>
 
 <style scoped>
 .book-cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background-color: var(--card-bg);
+  background-image: linear-gradient(
+    100deg,
+    transparent 20%,
+    var(--input-bg) 50%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: book-cover-shimmer 1.8s ease-in-out infinite;
+}
+
+.book-cover.is-loaded {
+  background-image: none;
+  animation: none;
+}
+
+.book-cover-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
-  aspect-ratio: 2 / 3;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}
+
+.book-cover.is-loading .book-cover-img {
+  opacity: 0;
+  transition: none;
+}
+
+@keyframes book-cover-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .book-cover {
+    background-image: none;
+    animation: none;
+  }
+
+  .book-cover-img {
+    transition: none;
+  }
 }
 </style>
