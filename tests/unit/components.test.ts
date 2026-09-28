@@ -104,7 +104,7 @@ describe('BookCover.vue', () => {
     wrapper.unmount()
   })
 
-  it('starts with data:image/svg+xml and contains initials when no cover data is provided', () => {
+  it('starts with data:image/svg+xml and draws the title when no cover data is provided', () => {
     const wrapper = mount(BookCover, {
       alt: 'Capa de Dom Casmurro',
       title: 'Dom Casmurro'
@@ -113,7 +113,7 @@ describe('BookCover.vue', () => {
     expect(img).not.toBeNull()
     const src = img?.getAttribute('src') ?? ''
     expect(src.startsWith('data:image/svg+xml')).toBe(true)
-    expect(src).toContain('DC')
+    expect(decodeURIComponent(src)).toContain('Dom Casmurro')
     expect(img?.getAttribute('alt')).toBe('Capa de Dom Casmurro')
     wrapper.unmount()
   })
@@ -178,7 +178,7 @@ describe('BookCover.vue', () => {
 
     const newSrc = img?.getAttribute('src') ?? ''
     expect(newSrc.startsWith('data:image/svg+xml')).toBe(true)
-    expect(newSrc).toContain('LD')
+    expect(decodeURIComponent(newSrc)).toContain('Desconhecido')
     wrapper.unmount()
   })
 

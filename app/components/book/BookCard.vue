@@ -83,6 +83,7 @@ const cardAriaLabel = computed(() => {
   transition: transform 0.2s;
   outline-offset: 4px;
   width: 100%;
+  height: 100%;
 }
 
 .card:hover {
@@ -121,6 +122,7 @@ const cardAriaLabel = computed(() => {
   display: flex;
   flex-direction: column;
   margin-top: var(--space-2);
+  min-height: calc(var(--font-size-xs) * var(--line-height-tight) * 3 + var(--space-1));
   width: 100%;
   text-align: center;
   box-sizing: border-box;
@@ -164,6 +166,7 @@ const cardAriaLabel = computed(() => {
     left: var(--poster-border-width);
     right: var(--poster-border-width);
     width: auto;
+    min-height: 0;
     margin-top: 0;
     padding: var(--space-4) var(--space-2) var(--space-2);
     background: linear-gradient(to bottom, transparent, var(--bg-color));
@@ -187,7 +190,8 @@ const cardAriaLabel = computed(() => {
 }
 
 .info {
-  margin-top: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-2);
   text-align: center;
 }
 

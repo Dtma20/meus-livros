@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createApp, type Component } from 'vue'
 import BookCard from '../../app/components/book/BookCard.vue'
@@ -136,5 +138,50 @@ describe('BookCard.vue', () => {
     const interactive = link?.querySelectorAll('a, button, input, select, textarea')
     expect(interactive?.length).toBe(0)
     wrapper.unmount()
+  })
+})
+
+describe('BookCard.vue row alignment styles', () => {
+  const source = readFileSync(
+    resolve(process.cwd(), 'app/components/book/BookCard.vue'),
+    'utf-8'
+  )
+
+  function ruleBody(selector: string): string {
+    const start = source.indexOf(`\n${selector} {`)
+    expect(start).toBeGreaterThan(-1)
+    const open = source.indexOf('{', start)
+    return source.slice(open, source.indexOf('}', open) + 1)
+  }
+
+  function hoverBlock(): string {
+    const start = source.indexOf('@media (hover: hover) and (pointer: fine)')
+    expect(start).toBeGreaterThan(-1)
+    const open = source.indexOf('{', start)
+    let depth = 0
+    for (let i = open; i < source.length; i++) {
+      if (source[i] === '{') depth++
+      if (source[i] === '}') depth--
+      if (depth === 0) return source.slice(open, i + 1)
+    }
+    return ''
+  }
+
+  it('fills the grid cell as a column flex so the stars can sink to the bottom', () => {
+    const card = ruleBody('.card')
+    expect(card).toMatch(/display:\s*flex/)
+    expect(card).toMatch(/flex-direction:\s*column/)
+    expect(card).toMatch(/height:\s*100%/)
+    expect(ruleBody('.info')).toMatch(/margin-top:\s*auto/)
+  })
+
+  it('reserves two title lines and one author line under the cover on touch', () => {
+    expect(ruleBody('.caption')).toMatch(
+      /min-height:\s*calc\(var\(--font-size-xs\)\s*\*\s*var\(--line-height-tight\)\s*\*\s*3\s*\+\s*var\(--space-1\)\)/
+    )
+  })
+
+  it('leaves the desktop overlay without the reserved height', () => {
+    expect(hoverBlock()).toMatch(/\.caption\s*\{[^}]*min-height:\s*0/)
   })
 })
