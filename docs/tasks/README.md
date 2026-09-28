@@ -47,6 +47,7 @@
 | [035](035-members-page.md) | Members page | 9 UX round | 3h | - |
 | [036](036-activity-page.md) | Activity page with cursor pagination | 9 UX round | 3h | - |
 | [037](037-mobile-bottom-nav.md) | Mobile bottom nav and new nav entries | 9 UX round | 2h | 028, 031, 035, 036 |
+| [038](038-admin-invites.md) | Admin page for invites | 9 UX round | 3h | - |
 
 Roughly 79 hours of focused work - about four weeks part-time.
 
