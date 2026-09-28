@@ -240,7 +240,7 @@ export class Logger {
       (mergedContext.context as { _rawError?: unknown } | undefined)?._rawError
 
     if (level === 'ERROR' || level === 'FATAL') {
-      if (rawErrorArg !== undefined) {
+      if (rawErrorArg instanceof Error) {
         console.error(formatted, rawErrorArg)
       } else {
         console.error(formatted)

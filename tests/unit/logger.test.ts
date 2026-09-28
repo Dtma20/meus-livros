@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { LogEntry } from '../../shared/types/logger'
 import { Logger, sanitizeLogData } from '../../server/utils/logger'
 
@@ -229,6 +229,27 @@ describe('Logger unit tests', () => {
       expect(entries[0]!.level).toBe('ERROR')
       expect(entries[0]!.message).toContain('Operação falhou: failing_op')
       expect(entries[0]!.error?.message).toBe('Falha catastrófica')
+    })
+  })
+
+  describe('Handling of _rawError', () => {
+    it('passes _rawError as second argument only when it is an Error instance', () => {
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      const testLogger = new Logger({ minLevel: 'DEBUG' })
+
+      const errorInstance = new Error('x')
+      testLogger.error('mensagem com Error', { _rawError: errorInstance })
+
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
+      expect(consoleErrorSpy).toHaveBeenLastCalledWith(expect.any(String), errorInstance)
+
+      testLogger.error('mensagem com texto', { _rawError: 'texto' })
+
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(2)
+      expect(consoleErrorSpy.mock.calls[1]).toHaveLength(1)
+      expect(consoleErrorSpy.mock.calls[1]![0]).toEqual(expect.any(String))
+
+      consoleErrorSpy.mockRestore()
     })
   })
 })

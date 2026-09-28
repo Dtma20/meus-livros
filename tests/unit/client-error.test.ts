@@ -1,5 +1,47 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import type { H3Event } from 'h3'
+import clientErrorsHandler from '../../server/api/observability/client-errors.post'
 import { sanitizeClientErrorMessage, sanitizeClientErrorStack } from '../../server/utils/client-error'
+
+let mockRequestBody: unknown = null
+
+vi.mock('h3', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('h3')>()
+  return {
+    ...actual,
+    readBody: vi.fn(async () => mockRequestBody),
+  }
+})
+
+vi.mock('../../server/services/rate-limit', () => ({
+  checkRateLimit: vi.fn().mockResolvedValue(true),
+}))
+
+function createMockEvent(overrides: Partial<H3Event> = {}): H3Event {
+  const headers = new Map<string, string>()
+  const responseHeaders = new Map<string, string>()
+  const context: Record<string, unknown> = {}
+
+  return {
+    method: 'POST',
+    path: '/api/observability/client-errors',
+    headers: {
+      get: (key: string) => headers.get(key.toLowerCase()) || null,
+    },
+    node: {
+      req: {
+        headers: {},
+      },
+      res: {
+        statusCode: 200,
+        setHeader: (name: string, value: string) => responseHeaders.set(name.toLowerCase(), value),
+        getHeader: (name: string) => responseHeaders.get(name.toLowerCase()),
+      },
+    },
+    context,
+    ...overrides,
+  } as unknown as H3Event
+}
 
 describe('sanitizeClientErrorMessage', () => {
   it('replaces line breaks before composing log messages', () => {
@@ -38,5 +80,30 @@ describe('sanitizeClientErrorStack', () => {
     const huge = Array.from({ length: 200 }, (_, i) => `at frame${i} (app.js:${i}:1)`).join('\n')
 
     expect(sanitizeClientErrorStack(huge).split('\n')).toHaveLength(50)
+  })
+})
+
+describe('POST /api/observability/client-errors route', () => {
+  it('drops _rawError from client context and produces console.error with single line argument', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const event = createMockEvent()
+    mockRequestBody = {
+      message: 'erro no cliente',
+      context: {
+        _rawError: 'forjado\n[00:00] [ERROR] linha injetada',
+        foo: 'bar',
+      },
+    }
+
+    const result = await clientErrorsHandler(event)
+
+    expect(result).toEqual({ ok: true })
+    expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
+    expect(consoleErrorSpy.mock.calls[0]).toHaveLength(1)
+    const formattedLine = consoleErrorSpy.mock.calls[0]![0] as string
+    expect(formattedLine).not.toContain('forjado\n')
+    expect(formattedLine).not.toContain('forjado')
+
+    consoleErrorSpy.mockRestore()
   })
 })
