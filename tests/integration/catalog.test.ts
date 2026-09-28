@@ -34,6 +34,8 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
   let catalog: typeof import('../../server/services/catalog')
   let sqlOp: typeof import('drizzle-orm')
   let userId: string
+  let otherUserId: string
+  let adminUserId: string
   let patchServer: Server
   let patchUrl: string
 
@@ -45,17 +47,34 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     catalog = await import('../../server/services/catalog')
     sqlOp = await import('drizzle-orm')
 
-    const [user] = await db
+    const createdUsers = await db
       .insert(schema.users)
-      .values({
-        email: `${MARKER}@example.com`,
-        handle: `t${Date.now()}`.slice(0, 20),
-        display_name: 'Usuário de teste',
-      })
+      .values([
+        {
+          email: `${MARKER}@example.com`,
+          handle: `t${Date.now()}`.slice(0, 20),
+          display_name: 'Usuário de teste',
+        },
+        {
+          email: `${MARKER}-outro@example.com`,
+          handle: `to${Date.now()}`.slice(0, 20),
+          display_name: 'Outro usuário de teste',
+        },
+        {
+          email: `${MARKER}-admin@example.com`,
+          handle: `ta${Date.now()}`.slice(0, 20),
+          display_name: 'Admin de teste',
+          is_admin: true,
+        },
+      ])
       .returning({ id: schema.users.id })
 
-    if (!user) throw new Error('Não foi possível criar o usuário de teste.')
-    userId = user.id
+    if (createdUsers.length !== 3 || !createdUsers[0] || !createdUsers[1] || !createdUsers[2]) {
+      throw new Error('Não foi possível criar os usuários de teste.')
+    }
+    userId = createdUsers[0].id
+    otherUserId = createdUsers[1].id
+    adminUserId = createdUsers[2].id
 
     const app = createApp()
     const router = createRouter()
@@ -251,25 +270,172 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     expect(rows.every((row) => row.isbn13 === null)).toBe(true)
   })
 
-  it('deletes an orphan edition without checking its creator', async () => {
+  it('refuses deletion of an edition created by member A when requested by member B with 403', async () => {
     const work = await catalog.createWork(
       {
-        title: `${MARKER} Edição órfã`,
-        authors: [{ name: `${MARKER} Autor edição órfã` }],
+        title: `${MARKER} Edição por A`,
+        authors: [{ name: `${MARKER} Autor A` }],
         genre_ids: [],
-        edition: { publisher: 'Editora' },
+        edition: { publisher: 'Editora A' },
       },
       userId,
     )
     if (!work.edition) throw new Error('A edição de teste não foi criada.')
 
-    await catalog.deleteEdition(work.edition.id, '00000000-0000-4000-8000-000000000000')
+    let caught: unknown
+    try {
+      await catalog.deleteEdition(work.edition.id, otherUserId)
+    } catch (error) {
+      caught = error
+    }
+
+    const err = asError(caught)
+    expect(err.statusCode).toBe(403)
+    expect(err.data?.error).toBe('sem_permissao')
+    expect(err.data?.message).toBe(
+      'Só quem cadastrou esta edição pode excluí-la, e só enquanto ninguém mais a usa em uma leitura.',
+    )
+
+    const [edition] = await db
+      .select({ id: schema.editions.id })
+      .from(schema.editions)
+      .where(sqlOp.eq(schema.editions.id, work.edition.id))
+    expect(edition).toBeDefined()
+  })
+
+  it('allows creator A to delete their own edition used only by their own reading', async () => {
+    const work = await catalog.createWork(
+      {
+        title: `${MARKER} Edição própria lida por A`,
+        authors: [{ name: `${MARKER} Autor Próprio` }],
+        genre_ids: [],
+        edition: { publisher: 'Editora Própria' },
+      },
+      userId,
+    )
+    if (!work.edition) throw new Error('A edição de teste não foi criada.')
+
+    const [log] = await db
+      .insert(schema.reading_logs)
+      .values({
+        user_id: userId,
+        work_id: work.id,
+        edition_id: work.edition.id,
+        rating: '5.0',
+      })
+      .returning({ id: schema.reading_logs.id })
+    if (!log) throw new Error('O registro de leitura de teste não foi criado.')
+
+    await catalog.deleteEdition(work.edition.id, userId)
 
     const [edition] = await db
       .select({ id: schema.editions.id })
       .from(schema.editions)
       .where(sqlOp.eq(schema.editions.id, work.edition.id))
     expect(edition).toBeUndefined()
+
+    const [survivor] = await db
+      .select({ id: schema.reading_logs.id, edition_id: schema.reading_logs.edition_id })
+      .from(schema.reading_logs)
+      .where(sqlOp.eq(schema.reading_logs.id, log.id))
+    expect(survivor?.id).toBe(log.id)
+    expect(survivor?.edition_id).toBeNull()
+  })
+
+  it('refuses deletion by creator A when another user B references the edition with 403', async () => {
+    const work = await catalog.createWork(
+      {
+        title: `${MARKER} Edição por A lida por B`,
+        authors: [{ name: `${MARKER} Autor Compartilhado` }],
+        genre_ids: [],
+        edition: { publisher: 'Editora Compartilhada' },
+      },
+      userId,
+    )
+    if (!work.edition) throw new Error('A edição de teste não foi criada.')
+
+    const [logB] = await db
+      .insert(schema.reading_logs)
+      .values({
+        user_id: otherUserId,
+        work_id: work.id,
+        edition_id: work.edition.id,
+        rating: '4.0',
+      })
+      .returning({ id: schema.reading_logs.id })
+    if (!logB) throw new Error('O registro de leitura de teste não foi criado.')
+
+    let caught: unknown
+    try {
+      await catalog.deleteEdition(work.edition.id, userId)
+    } catch (error) {
+      caught = error
+    }
+
+    const err = asError(caught)
+    expect(err.statusCode).toBe(403)
+    expect(err.data?.error).toBe('sem_permissao')
+    expect(err.data?.message).toBe(
+      'Só quem cadastrou esta edição pode excluí-la, e só enquanto ninguém mais a usa em uma leitura.',
+    )
+
+    const [edition] = await db
+      .select({ id: schema.editions.id })
+      .from(schema.editions)
+      .where(sqlOp.eq(schema.editions.id, work.edition.id))
+    expect(edition).toBeDefined()
+  })
+
+  it('allows an admin to delete an edition created by B and used by A', async () => {
+    const work = await catalog.createWork(
+      {
+        title: `${MARKER} Edição por B lida por A`,
+        authors: [{ name: `${MARKER} Autor Para Admin` }],
+        genre_ids: [],
+        edition: { publisher: 'Editora Para Admin' },
+      },
+      otherUserId,
+    )
+    if (!work.edition) throw new Error('A edição de teste não foi criada.')
+
+    const [logA] = await db
+      .insert(schema.reading_logs)
+      .values({
+        user_id: userId,
+        work_id: work.id,
+        edition_id: work.edition.id,
+        rating: '3.0',
+      })
+      .returning({ id: schema.reading_logs.id })
+    if (!logA) throw new Error('O registro de leitura de teste não foi criado.')
+
+    await catalog.deleteEdition(work.edition.id, adminUserId)
+
+    const [edition] = await db
+      .select({ id: schema.editions.id })
+      .from(schema.editions)
+      .where(sqlOp.eq(schema.editions.id, work.edition.id))
+    expect(edition).toBeUndefined()
+
+    const [survivor] = await db
+      .select({ id: schema.reading_logs.id, edition_id: schema.reading_logs.edition_id })
+      .from(schema.reading_logs)
+      .where(sqlOp.eq(schema.reading_logs.id, logA.id))
+    expect(survivor?.id).toBe(logA.id)
+    expect(survivor?.edition_id).toBeNull()
+  })
+
+  it('returns 404 when deleting an unknown edition id', async () => {
+    let caught: unknown
+    try {
+      await catalog.deleteEdition('00000000-0000-4000-8000-000000000000', userId)
+    } catch (error) {
+      caught = error
+    }
+
+    const err = asError(caught)
+    expect(err.statusCode).toBe(404)
+    expect(err.data?.error).toBe('nao_encontrado')
   })
 
   it('returns 401 for a work PATCH without a session', async () => {
