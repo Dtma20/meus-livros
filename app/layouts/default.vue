@@ -10,6 +10,7 @@
           <AppLogo :size="28" />
           <span>Meus Livros</span>
         </NuxtLink>
+        <HeaderSearch />
         <nav class="site-nav" aria-label="Navegação principal">
           <slot name="nav">
             <NuxtLink to="/entrar" class="nav-link">
@@ -27,7 +28,7 @@
     <footer class="site-footer">
       <div class="footer-inner">
         <p class="attribution">
-          Dados bibliográficos parcialmente do Open Library
+          Capas de livros via Open Library
         </p>
       </div>
     </footer>
@@ -36,6 +37,7 @@
 
 <script setup lang="ts">
 import AppLogo from '~/components/ui/AppLogo.vue'
+import HeaderSearch from '~/components/search/HeaderSearch.vue'
 </script>
 
 <style scoped>
@@ -51,6 +53,8 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 .site-header {
   border-bottom: 1px solid var(--input-bg);
   background-color: var(--bg-color);
+  position: relative;
+  z-index: 100;
 }
 
 .header-inner {
@@ -99,6 +103,7 @@ import AppLogo from '~/components/ui/AppLogo.vue'
   border-radius: var(--radius-md);
   background-color: transparent;
   transition: background-color 0.25s ease 0.05s, color 0.25s ease 0.05s;
+  flex-shrink: 0;
 }
 
 .site-title:hover {
@@ -184,6 +189,18 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 
   .site-nav {
     gap: var(--space-3);
+  }
+}
+
+@media (max-width: 400px) {
+  .header-inner {
+    padding: var(--space-3) var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .site-title {
+    font-size: 1.15rem;
+    padding: 4px 6px;
   }
 }
 </style>
