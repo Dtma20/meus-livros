@@ -156,6 +156,7 @@ import { nextTick, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AuthSessionState } from '~/middleware/auth'
 import { authClient } from '~/utils/auth-client'
+import AppLogo from '~/components/ui/AppLogo.vue'
 import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/shared/schemas/auth'
 
 const route = useRoute()
