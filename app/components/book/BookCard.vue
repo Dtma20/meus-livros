@@ -1,22 +1,20 @@
 <template>
   <a :href="href || '#'" class="card" :aria-label="cardAriaLabel">
-    <div class="poster">
-      <BookCover
-        :alt="altText"
-        :title="title"
-        :cover-url="coverUrl"
-        :ol-cover-id="olCoverId"
-        :isbn13="isbn13"
-        :loading="loading"
-      />
-      <div class="overlay" aria-hidden="true">
-        <span class="title overlay-title">{{ title }}</span>
-        <span v-if="author" class="author overlay-author">{{ author }}</span>
+    <div class="media">
+      <div class="poster">
+        <BookCover
+          :alt="altText"
+          :title="title"
+          :cover-url="coverUrl"
+          :ol-cover-id="olCoverId"
+          :isbn13="isbn13"
+          :loading="loading"
+        />
       </div>
-    </div>
-    <div class="caption" aria-hidden="true">
-      <span class="title caption-title">{{ title }}</span>
-      <span v-if="author" class="author caption-author">{{ author }}</span>
+      <div class="caption" aria-hidden="true">
+        <span class="caption-title">{{ title }}</span>
+        <span v-if="author" class="caption-author">{{ author }}</span>
+      </div>
     </div>
     <div v-if="rating" class="info">
       <StarRating :rating="rating" />
@@ -75,6 +73,7 @@ const cardAriaLabel = computed(() => {
 
 <style scoped>
 .card {
+  --poster-border-width: 1px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -96,37 +95,26 @@ const cardAriaLabel = computed(() => {
   border-radius: var(--radius-sm, 4px);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .card {
-    transition: none;
-  }
-  .card:hover {
-    transform: none;
-  }
-  .overlay {
-    transition: none;
-    transform: none;
-  }
+.media {
+  position: relative;
+  width: 100%;
 }
 
 .poster {
   width: 100%;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm, 4px);
-  border: 1px solid var(--input-bg, #2c3440);
+  border: var(--poster-border-width) solid var(--input-bg, #2c3440);
   background-color: #1e2328;
   overflow: hidden;
   position: relative;
+  box-sizing: border-box;
   transition: border-color 0.2s;
 }
 
 .card:hover .poster,
 .poster:hover {
   border-color: var(--poster-border, #fff);
-}
-
-.overlay {
-  display: none;
 }
 
 .caption {
@@ -164,74 +152,57 @@ const cardAriaLabel = computed(() => {
   margin-top: var(--space-1);
 }
 
-@media (hover: none) {
-  .overlay {
-    display: none;
-  }
-
-  .caption {
-    display: flex;
-  }
-}
-
 @media (hover: hover) and (pointer: fine) {
-  .caption {
-    display: none;
+  .media {
+    overflow: hidden;
+    border-radius: var(--radius-sm, 4px);
   }
 
-  .overlay {
+  .caption {
     position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    bottom: var(--poster-border-width);
+    left: var(--poster-border-width);
+    right: var(--poster-border-width);
+    width: auto;
+    margin-top: 0;
     padding: var(--space-4) var(--space-2) var(--space-2);
     background: linear-gradient(to bottom, transparent, var(--bg-color));
-    display: flex;
-    flex-direction: column;
+    border-radius: 0 0 calc(var(--radius-sm, 4px) - var(--poster-border-width)) calc(var(--radius-sm, 4px) - var(--poster-border-width));
     justify-content: flex-end;
-    text-align: center;
-    box-sizing: border-box;
     pointer-events: none;
     opacity: 0;
     transform: translateY(var(--space-1));
     transition: opacity 0.2s ease, transform 0.2s ease;
   }
 
-  .card:hover .overlay,
-  .card:focus-visible .overlay {
+  .card:hover .caption,
+  .card:focus-visible .caption {
     opacity: 1;
     transform: translateY(0);
   }
 
-  .overlay-title {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-family: var(--font-sans);
-    font-size: var(--font-size-xs);
-    line-height: var(--line-height-tight);
+  .caption-title {
     font-weight: 600;
-    color: var(--poster-border);
-  }
-
-  .overlay-author {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-family: var(--font-sans);
-    font-size: var(--font-size-xs);
-    line-height: var(--line-height-tight);
-    color: var(--text-color);
-    margin-top: var(--space-1);
   }
 }
 
 .info {
   margin-top: var(--space-2);
   text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .poster,
+  .caption {
+    transition: none;
+  }
+
+  .card:hover,
+  .caption,
+  .card:hover .caption,
+  .card:focus-visible .caption {
+    transform: none;
+  }
 }
 </style>
