@@ -26,11 +26,13 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
   const nonAllowedEmail = `test-blocked-${testId}@example.com`
 
   const activationEmail = `test-ativar-${testId}@example.com`
+  const pendingEmail = `test-pendente-${testId}@example.com`
   const testIp = `192.0.2.${(testId % 200) + 1}`
   const activationIp = `192.0.2.${((testId + 3) % 200) + 1}`
+  const enumerationIp = `198.18.0.${(testId % 200) + 1}`
 
   const sentEmails: Array<{ to: string; subject: string; text: string }> = []
-  const createdEmails: string[] = [allowedEmail, nonAllowedEmail, activationEmail]
+  const createdEmails: string[] = [allowedEmail, nonAllowedEmail, activationEmail, pendingEmail]
   const customIp = `198.51.100.${(testId % 200) + 1}`
   const gateIp = `203.0.113.${(testId % 200) + 1}`
   const signInIdIp = `192.0.2.${((testId + 1) % 200) + 1}`
@@ -43,6 +45,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     `signin:ip:${signInIpLimitIp}`,
     `otp:ip:${activationIp}`,
     `signin:ip:${activationIp}`,
+    `otp:ip:${enumerationIp}`,
+    `signin:ip:${enumerationIp}`,
   ]
 
   const testHandle = `ta${testId % 1000000000}`
@@ -69,6 +73,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
       { email: allowedEmail, note: 'TASK-027 integration test' },
 
       { email: activationEmail, note: 'TASK-027 first-access test' },
+
+      { email: pendingEmail, note: 'A-1 invited, never activated' },
     ])
 
     await db.insert(schema.users).values({
@@ -702,5 +708,115 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     const headers = new Headers()
     headers.set('cookie', cookie!)
     expect(await getSessionUserByHeaders(headers)).toBeNull()
+  }, 20000)
+
+  type MalformedVariant = {
+    label: string
+    headers: Record<string, string>
+    body: (email: string) => BodyInit
+  }
+
+  async function answerFor(
+    path: string,
+    email: string,
+    variant: MalformedVariant,
+  ): Promise<{ status: number; text: string }> {
+    const res = await handleAuthRequest(
+      new Request(`http://localhost:3000/api/auth${path}`, {
+        method: 'POST',
+        headers: { ...variant.headers, 'x-forwarded-for': enumerationIp },
+        body: variant.body(email),
+      }),
+    )
+    return { status: res.status, text: await res.text() }
+  }
+
+  it('a malformed activation request answers the same for an invitee who never activated and for an unknown address', async () => {
+    await purgeTestRateLimits()
+
+    const variants: MalformedVariant[] = [
+      {
+        label: 'text/plain',
+        headers: { 'content-type': 'text/plain' },
+        body: (email) => JSON.stringify({ email, type: 'sign-in' }),
+      },
+      {
+        label: 'no content-type',
+        headers: {},
+        body: (email) => new Blob([JSON.stringify({ email, type: 'sign-in' })]),
+      },
+      {
+        label: 'JSON without type',
+        headers: { 'content-type': 'application/json' },
+        body: (email) => JSON.stringify({ email }),
+      },
+      {
+        label: 'JSON with type change-email',
+        headers: { 'content-type': 'application/json' },
+        body: (email) => JSON.stringify({ email, type: 'change-email' }),
+      },
+    ]
+
+    for (const variant of variants) {
+      const invited = await answerFor('/email-otp/send-verification-otp', pendingEmail, variant)
+      const unknown = await answerFor('/email-otp/send-verification-otp', nonAllowedEmail, variant)
+      expect(invited, variant.label).toEqual(unknown)
+    }
+
+    expect(sentEmails.length).toBe(0)
+  }, 20000)
+
+  it('a malformed reset request answers the same for an active member and for an unknown address', async () => {
+    await purgeTestRateLimits()
+
+    const variants: MalformedVariant[] = [
+      {
+        label: 'text/plain',
+        headers: { 'content-type': 'text/plain' },
+        body: (email) => JSON.stringify({ email }),
+      },
+      {
+        label: 'no content-type',
+        headers: {},
+        body: (email) => new Blob([JSON.stringify({ email })]),
+      },
+    ]
+
+    for (const variant of variants) {
+      const member = await answerFor('/forget-password/email-otp', allowedEmail, variant)
+      const unknown = await answerFor('/forget-password/email-otp', nonAllowedEmail, variant)
+      expect(member, variant.label).toEqual(unknown)
+    }
+
+    expect(sentEmails.length).toBe(0)
+  }, 20000)
+
+  it('a JSON body that is not an object is a 400 with no stack, on every route that parses one', async () => {
+    const routes = [
+      '/api/auth/email-otp/send-verification-otp',
+      '/api/auth/forget-password/email-otp',
+      '/api/auth/entrar',
+      '/api/auth/email-otp/reset-password',
+    ]
+
+    for (const route of routes) {
+      for (const rawBody of ['null', '[]', '42']) {
+        const res = await handleAuthRequest(
+          new Request(`http://localhost:3000${route}`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-forwarded-for': enumerationIp },
+            body: rawBody,
+          }),
+        )
+        expect(res.status, `${route} ${rawBody}`).toBe(400)
+        const text = await res.text()
+        expect(text).not.toMatch(/TypeError|\bat\s+\S+:\d+/)
+        const body = JSON.parse(text)
+        expect(typeof body.error).toBe('string')
+        expect(typeof body.message).toBe('string')
+      }
+    }
+
+    expect(sentEmails.length).toBe(0)
   }, 20000)
 })
