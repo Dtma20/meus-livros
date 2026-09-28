@@ -235,6 +235,13 @@ async function handleSignOut() {
     display: none;
   }
 
+  .nav-link {
+    min-height: var(--target-min-size);
+    min-width: var(--target-min-size);
+    box-sizing: border-box;
+    justify-content: center;
+  }
+
   .bottom-nav {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
