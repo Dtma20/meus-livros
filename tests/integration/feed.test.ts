@@ -240,4 +240,162 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
 
     expect(feed.entries).toBeDefined()
   })
+
+  describe('TASK-036 - Keyset pagination (getFeedPage)', () => {
+    let userPId: string
+    let userOtherId: string
+    let log1Id: string
+    let log2Id: string
+    let log3Id: string
+    let privLogId: string
+    const MARKER_036 = `t036-feed-${Date.now()}`
+
+    beforeAll(async () => {
+      const emailP = `${MARKER_036}-p@example.com`
+      const [userP] = await db
+        .insert(schema.users)
+        .values({
+          email: emailP,
+          handle: `up_${Date.now() % 10000000}`,
+          display_name: 'Usuário P (Público)',
+          profile_visibility: 'publico',
+        })
+        .returning({ id: schema.users.id })
+
+      const emailO = `${MARKER_036}-o@example.com`
+      const [userO] = await db
+        .insert(schema.users)
+        .values({
+          email: emailO,
+          handle: `uo_${Date.now() % 10000000}`,
+          display_name: 'Usuário Outro',
+          profile_visibility: 'publico',
+        })
+        .returning({ id: schema.users.id })
+
+      userPId = userP!.id
+      userOtherId = userO!.id
+
+      const w1 = await catalogService.createWork(
+        { title: `${MARKER_036} Livro 1`, authors: [{ name: `${MARKER_036} Autor 1` }], genre_ids: [] },
+        userPId,
+        { skipRateLimit: true },
+      )
+      const l1 = await logsService.createLog(
+        { work_id: w1.id, rating: 4, review: 'Resenha 1', finished_precision: 'dia', visibility: 'publico' },
+        userPId,
+        { skipRateLimit: true },
+      )
+      log1Id = l1.id
+
+      const w2 = await catalogService.createWork(
+        { title: `${MARKER_036} Livro 2`, authors: [{ name: `${MARKER_036} Autor 2` }], genre_ids: [] },
+        userPId,
+        { skipRateLimit: true },
+      )
+      const l2 = await logsService.createLog(
+        { work_id: w2.id, rating: 5, review: 'Resenha 2', finished_precision: 'dia', visibility: 'publico' },
+        userPId,
+        { skipRateLimit: true },
+      )
+      log2Id = l2.id
+
+      const w3 = await catalogService.createWork(
+        { title: `${MARKER_036} Livro 3`, authors: [{ name: `${MARKER_036} Autor 3` }], genre_ids: [] },
+        userPId,
+        { skipRateLimit: true },
+      )
+      const l3 = await logsService.createLog(
+        { work_id: w3.id, rating: 3, review: 'Resenha 3', finished_precision: 'dia', visibility: 'publico' },
+        userPId,
+        { skipRateLimit: true },
+      )
+      log3Id = l3.id
+
+      const w4 = await catalogService.createWork(
+        { title: `${MARKER_036} Livro 4`, authors: [{ name: `${MARKER_036} Autor 4` }], genre_ids: [] },
+        userPId,
+        { skipRateLimit: true },
+      )
+      const l4 = await logsService.createLog(
+        { work_id: w4.id, rating: 1, review: 'Resenha Privada', finished_precision: 'dia', visibility: 'privado' },
+        userPId,
+        { skipRateLimit: true },
+      )
+      privLogId = l4.id
+
+      const baseTime = Date.now() + 1_000_000
+      await db.update(schema.reading_logs).set({ created_at: new Date(baseTime + 10_000) }).where(sqlOp.eq(schema.reading_logs.id, log1Id))
+      await db.update(schema.reading_logs).set({ created_at: new Date(baseTime + 20_000) }).where(sqlOp.eq(schema.reading_logs.id, log2Id))
+      await db.update(schema.reading_logs).set({ created_at: new Date(baseTime + 30_000) }).where(sqlOp.eq(schema.reading_logs.id, log3Id))
+      await db.update(schema.reading_logs).set({ created_at: new Date(baseTime + 40_000) }).where(sqlOp.eq(schema.reading_logs.id, privLogId))
+    }, 30000)
+
+    afterAll(async () => {
+      await removeFixtures(MARKER_036)
+    }, 30000)
+
+    it('limit=2 returns the 2 newest visible logs and a non-null nextCursor', async () => {
+      const page1 = await feedService.getFeedPage({ id: userOtherId }, { limit: 2 })
+      const fixtureEntries = page1.entries.filter((e) => [log1Id, log2Id, log3Id, privLogId].includes(e.id))
+      expect(fixtureEntries.map((e) => e.id)).toEqual([log3Id, log2Id])
+      expect(page1.nextCursor).not.toBeNull()
+      expect(page1.entries.some((e) => e.id === privLogId)).toBe(false)
+    }, 30000)
+
+    it('following nextCursor returns the third visible log and no already seen entry', async () => {
+      const page1 = await feedService.getFeedPage({ id: userOtherId }, { limit: 2 })
+      expect(page1.nextCursor).not.toBeNull()
+
+      const page2 = await feedService.getFeedPage({ id: userOtherId }, { cursor: page1.nextCursor, limit: 2 })
+      const page1Ids = page1.entries.map((e) => e.id)
+      const hasAnyPage1 = page2.entries.some((e) => page1Ids.includes(e.id))
+      expect(hasAnyPage1).toBe(false)
+
+      const foundLog1 = page2.entries.some((e) => e.id === log1Id)
+      expect(foundLog1).toBe(true)
+      expect(page2.entries.some((e) => e.id === privLogId)).toBe(false)
+    }, 30000)
+
+    it('private fixture log never appears for another viewer or anonymous', async () => {
+      const pageOther = await feedService.getFeedPage({ id: userOtherId }, { limit: 10 })
+      expect(pageOther.entries.some((e) => e.id === privLogId)).toBe(false)
+
+      const pageAnon = await feedService.getFeedPage(null, { limit: 10 })
+      expect(pageAnon.entries.some((e) => e.id === privLogId)).toBe(false)
+    }, 30000)
+
+    it('malformed cursor throws 400 cursor_invalido', async () => {
+      await expect(
+        feedService.getFeedPage({ id: userOtherId }, { cursor: 'malformed_not_base64_json' })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        data: { error: 'cursor_invalido' },
+      })
+
+      const invalidJsonBase64 = Buffer.from('{"t":123}', 'utf8').toString('base64url')
+      await expect(
+        feedService.getFeedPage({ id: userOtherId }, { cursor: invalidJsonBase64 })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        data: { error: 'cursor_invalido' },
+      })
+
+      const invalidDateBase64 = Buffer.from('{"t":"invalid-date","id":"00000000-0000-0000-0000-000000000000"}', 'utf8').toString('base64url')
+      await expect(
+        feedService.getFeedPage({ id: userOtherId }, { cursor: invalidDateBase64 })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        data: { error: 'cursor_invalido' },
+      })
+
+      const invalidUuidBase64 = Buffer.from('{"t":"2026-01-01T00:00:00Z","id":"invalid-uuid"}', 'utf8').toString('base64url')
+      await expect(
+        feedService.getFeedPage({ id: userOtherId }, { cursor: invalidUuidBase64 })
+      ).rejects.toMatchObject({
+        statusCode: 400,
+        data: { error: 'cursor_invalido' },
+      })
+    }, 30000)
+  })
 })

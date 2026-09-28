@@ -6,6 +6,13 @@ export const feedQuerySchema = z.object({
 
 export type FeedQuery = z.infer<typeof feedQuerySchema>
 
+export const feedCursorQuerySchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(30).optional().default(20),
+})
+
+export type FeedCursorQuery = z.infer<typeof feedCursorQuerySchema>
+
 export const feedAuthorSchema = z.object({
   id: z.string().uuid(),
   name: z.string(),
@@ -46,6 +53,7 @@ export const feedEntrySchema = z.object({
 
 export const feedResponseSchema = z.object({
   entries: z.array(feedEntrySchema),
+  nextCursor: z.string().nullable().optional(),
 })
 
 export type FeedAuthorView = z.infer<typeof feedAuthorSchema>
@@ -54,6 +62,10 @@ export type FeedEditionView = z.infer<typeof feedEditionSchema>
 export type FeedUserView = z.infer<typeof feedUserSchema>
 export type FeedEntry = z.infer<typeof feedEntrySchema>
 export type FeedResponse = z.infer<typeof feedResponseSchema>
+export type FeedPageResponse = {
+  entries: FeedEntry[]
+  nextCursor: string | null
+}
 
 export function buildReviewExcerpt(review: string | null | undefined, maxLength = 200): string | null {
   if (!review) return null

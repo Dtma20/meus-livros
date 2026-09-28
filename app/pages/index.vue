@@ -10,7 +10,7 @@
         </div>
         <div class="dashboard-header-actions">
           <NuxtLink to="/app/novo" class="btn-primary btn-register">
-            + Cadastrar livro
+            + Registrar leitura
           </NuxtLink>
         </div>
       </header>
@@ -127,66 +127,25 @@
               <h2 class="section-title">Atividade recente do grupo</h2>
               <p class="section-subtitle">Últimas leituras registradas pelos membros</p>
             </div>
+            <NuxtLink to="/atividade" class="btn-secondary-link">
+              Ver toda a atividade →
+            </NuxtLink>
           </div>
 
           <EmptyState
             v-if="entries.length === 0"
             title="Ninguém registrou nada ainda. Seja o primeiro."
-            action-label="Registrar livro"
+            action-label="Registrar leitura"
             action-href="/app/novo"
           />
 
           <div v-else class="feed-list">
-            <article
+            <FeedItem
               v-for="(entry, i) in entries"
               :key="entry.id"
-              class="feed-row"
-            >
-              <div class="feed-cover-col">
-                <NuxtLink
-                  :to="`/entrada/${entry.id}`"
-                  class="feed-cover-link"
-                  tabindex="-1"
-                  aria-hidden="true"
-                >
-                  <BookCover
-                    :alt="formatAuthors(entry.work.authors) ? `Capa de ${entry.work.title}, de ${formatAuthors(entry.work.authors)}` : `Capa de ${entry.work.title}`"
-                    :title="entry.work.title"
-                    :cover-url="entry.edition?.cover_url || entry.work.cover_url"
-                    :ol-cover-id="entry.edition?.ol_cover_id"
-                    :isbn13="entry.edition?.isbn13"
-                    :loading="i < 2 ? 'eager' : 'lazy'"
-                  />
-                </NuxtLink>
-              </div>
-
-              <div class="feed-body-col">
-                <div class="feed-row-header">
-                  <NuxtLink :to="`/entrada/${entry.id}`" class="feed-work-title">
-                    {{ entry.work.title }}
-                  </NuxtLink>
-                  <span class="feed-relative-date" :title="formatFullDate(entry.created_at)">
-                    {{ formatRelativeDate(entry.created_at) }}
-                  </span>
-                </div>
-
-                <div class="feed-meta">
-                  <span class="feed-reader">
-                    por
-                    <NuxtLink :to="`/@${entry.user.handle}`" class="feed-user-link">
-                      @{{ entry.user.handle }}
-                    </NuxtLink>
-                  </span>
-                  <div v-if="entry.rating" class="feed-rating">
-                    <StarRating :rating="entry.rating" />
-                  </div>
-                </div>
-
-                <p v-if="entry.review_excerpt" class="feed-review-excerpt">
-                  {{ entry.review_excerpt }}
-                </p>
-              </div>
-            </article>
+              :entry="entry"
+              :loading="i < 2 ? 'eager' : 'lazy'"
+            />
           </div>
         </section>
       </div>
@@ -198,13 +157,12 @@
 import { computed } from 'vue'
 import LandingView from '~/components/landing/LandingView.vue'
 import BookCover from '~/components/book/BookCover.vue'
-import StarRating from '~/components/book/StarRating.vue'
 import ReadingCarousel from '~/components/dashboard/ReadingCarousel.vue'
 import ShelfSection from '~/components/dashboard/ShelfSection.vue'
+import FeedItem from '~/components/feed/FeedItem.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
-import { formatFullDate, formatRelativeDate } from '~/utils/date'
 import type { AuthSessionState } from '~/middleware/auth'
 import type { FeedEntry, FeedResponse } from '~~/shared/schemas/feed'
 import type {
