@@ -54,7 +54,7 @@ Vitest. Teste unitário para lógica pura e para o componente que você mudou (`
 
 ## 6. Relatório
 
-Escreva `REPORT.md` na raiz do worktree (fora do commit) e imprima só:
+Sua mensagem final é o relatório, e só ele (subagentes não conseguem gravar `REPORT.md`):
 
 ```
 ARQUIVOS: <um por linha, + novo, ~ alterado>
