@@ -764,7 +764,7 @@ useHead({
 
 .feed-review-excerpt {
   font-size: var(--font-size-sm);
-  color: #c9d1d9;
+  color: var(--text-bright);
   line-height: var(--line-height-relaxed);
   margin: 0;
   display: -webkit-box;

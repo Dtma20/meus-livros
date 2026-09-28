@@ -161,7 +161,7 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 
 .kicker-detail {
   font-size: var(--font-size-xs);
-  color: #c9d1d9;
+  color: var(--text-bright);
   font-weight: 500;
 }
 
@@ -437,7 +437,7 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 .log-quote-text {
   font-family: var(--font-serif);
   font-size: 0.88rem;
-  color: #c9d1d9;
+  color: var(--text-bright);
   line-height: var(--line-height-relaxed);
   font-style: italic;
   margin: 0 0 var(--space-3) 0;

@@ -642,7 +642,7 @@ async function handleDeleteEntry(): Promise<void> {
 }
 
 .publisher-pill {
-  color: #c9d1d9;
+  color: var(--text-bright);
 }
 
 .actions-row {
@@ -775,7 +775,7 @@ async function handleDeleteEntry(): Promise<void> {
 
 .review-body {
   font-size: var(--font-size-base);
-  color: #d0d7de;
+  color: var(--text-bright);
   max-width: 640px;
 }
 

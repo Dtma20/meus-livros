@@ -310,7 +310,7 @@
   align-items: center;
   gap: 6px;
   font-size: 0.75rem;
-  color: #c9d1d9;
+  color: var(--text-bright);
 }
 
 .preview-circle-green {
@@ -376,7 +376,7 @@
 .search-shortcut {
   font-size: 0.65rem;
   background: var(--input-bg);
-  color: #c9d1d9;
+  color: var(--text-bright);
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 1px 4px;
   border-radius: 3px;

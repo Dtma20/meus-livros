@@ -281,7 +281,7 @@ onMounted(() => {
 .card-review-excerpt {
   font-size: var(--font-size-xs);
   font-style: italic;
-  color: #94a3b8;
+  color: var(--text-color);
   margin: var(--space-2) 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
