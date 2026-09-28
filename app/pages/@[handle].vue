@@ -142,7 +142,8 @@
           />
         </ClientOnly>
 
-        <div :class="{ 'is-diary-view': currentView === 'diario' }">
+        <div class="controls-row">
+        <div class="controls-filters" :class="{ 'is-diary-view': currentView === 'diario' }">
           <FilterBar
             v-model:genre="filterGenre"
             v-model:country="filterCountry"
@@ -179,6 +180,7 @@
               Diário
             </button>
           </div>
+        </div>
         </div>
 
         <div v-if="hasActiveFilters && sortedBooks.length === 0" class="empty-filter-results">
@@ -561,19 +563,21 @@ onBeforeUnmount(() => {
 
 .handle {
   font-family: inherit;
-  font-size: var(--font-size-3xl, 2rem);
-  font-weight: 700;
+  font-size: var(--font-size-lg, 1.125rem);
+  font-weight: 500;
   line-height: var(--line-height-tight, 1.2);
-  color: var(--highlight, #f59e0b);
+  color: var(--text-color, #9ab);
   background: none;
   border: none;
   padding: 0;
+  min-height: var(--target-min-size, 44px);
   cursor: pointer;
-  transition: opacity 0.2s;
+  transition: color 0.2s;
 }
 
-.handle:hover {
-  opacity: 0.8;
+.handle:hover,
+.handle:focus-visible {
+  color: var(--highlight, #f59e0b);
 }
 
 .handle:focus-visible {
@@ -728,10 +732,34 @@ onBeforeUnmount(() => {
   display: none;
 }
 
+.controls-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+}
+
+.controls-filters {
+  flex: 1;
+  min-width: 0;
+}
+
 .view-toggle-bar {
   display: flex;
   justify-content: center;
+  margin-top: var(--space-2);
   margin-bottom: var(--space-6, 24px);
+}
+
+@media (max-width: 640px) {
+  .controls-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .view-toggle-bar {
+    margin-top: 0;
+  }
 }
 
 .view-nav {
