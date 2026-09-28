@@ -1,6 +1,6 @@
 # Implementation tasks
 
-62 tasks, numbered 001-062. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
+68 tasks, numbered 001-068. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
 
 **Read [../README.md](../README.md) first.** The two blocking questions in [../open-questions.md](../open-questions.md) were settled on 2026-09-19 - Q2 resolved, Q1's risk accepted with a mitigation due before [023](023-deploy-to-vercel.md). 001 is complete.
 
@@ -72,8 +72,14 @@
 | [060](060-stats-service.md) | Reading statistics: service and route | 12 Statistics | - | - |
 | [061](061-stats-components.md) | Reading statistics: chart components | 12 Statistics | - | - |
 | [062](062-stats-pages.md) | Reading statistics: pages | 12 Statistics | - | 060, 061 |
+| [063](063-invite-removal-revokes-access.md) | Removing an invite revokes access | 13 Security round | - | - |
+| [064](064-password-endpoints-parity.md) | Password endpoints: one rule, a rate limit, no wasted scrypt | 13 Security round | - | - |
+| [065](065-no-session-token-in-bodies.md) | The session token never reaches JavaScript | 13 Security round | - | - |
+| [066](066-edition-deletion-permission.md) | Who may delete an edition | 13 Security round | - | - |
+| [067](067-rate-limit-hardening.md) | Rate limits: bounded keys, cleanup, no lockout, import limit | 13 Security round | - | - |
+| [068](068-anonymous-writes.md) | Anonymous writes: no forged log lines, bounded search misses | 13 Security round | - | - |
 
-There is no total estimate: 049-059 carry ranges and 060-062 carry none.
+There is no total estimate: 049-059 carry ranges and 060-068 carry none.
 
 ---
 
