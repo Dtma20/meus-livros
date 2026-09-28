@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, type Component, nextTick } from 'vue'
 import EmptyState from '../../app/components/ui/EmptyState.vue'
@@ -7,11 +6,6 @@ import LoadingSkeleton from '../../app/components/ui/LoadingSkeleton.vue'
 import SearchBox from '../../app/components/search/SearchBox.vue'
 import JsonImportSection from '../../app/components/log/JsonImportSection.vue'
 
-// SearchBox reaches for three Nuxt auto-imports that a bare createApp does not
-// provide: useId for the listbox ids, plus navigateTo and useRoute in goToAdd.
-// Without them the component throws on mount and every assertion below reports
-// a missing element rather than the real cause. tests/unit/routes.test.ts stubs
-// the same three for the same reason.
 vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
   globalScope.useId = () => 'test-search-id'
@@ -46,12 +40,12 @@ function mount<T extends Component>(component: T, props: Record<string, unknown>
 describe('EmptyState.vue', () => {
   it('renders icon, title and message correctly', () => {
     const wrapper = mount(EmptyState, {
-      icon: '📚',
+      icon: '★',
       title: 'Você ainda não registrou nenhum livro.',
       message: 'Assim que registrar seus primeiros livros, eles aparecerão aqui.',
     })
 
-    expect(wrapper.text()).toContain('📚')
+    expect(wrapper.text()).toContain('★')
     expect(wrapper.text()).toContain('Você ainda não registrou nenhum livro.')
     expect(wrapper.text()).toContain('Assim que registrar seus primeiros livros, eles aparecerão aqui.')
     wrapper.unmount()
@@ -164,7 +158,7 @@ describe('LoadingSkeleton.vue', () => {
 
 describe('SearchBox.vue - Empty state on search miss', () => {
   it('renders "Não encontramos esse livro." with "Adicionar à mão" as action', async () => {
-    // Mock global fetch to return zero works
+
     const originalFetch = global.fetch
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -176,12 +170,10 @@ describe('SearchBox.vue - Empty state on search miss', () => {
     const input = wrapper.find<HTMLInputElement>('input')
     if (!input) throw new Error('input element not found')
 
-    // Focus input and type a query
     input.dispatchEvent(new Event('focus'))
     input.value = 'Livro Inexistente Brasileiro'
     input.dispatchEvent(new Event('input'))
 
-    // Wait for debounced search (250ms)
     await new Promise((resolve) => setTimeout(resolve, 350))
     await nextTick()
 
@@ -224,7 +216,6 @@ describe('SearchBox.vue - Empty state on search miss', () => {
     input.value = 'Dom Casmurro'
     input.dispatchEvent(new Event('input'))
 
-    // Wait for debounced search (250ms)
     await new Promise((resolve) => setTimeout(resolve, 350))
     await nextTick()
 
@@ -263,5 +254,3 @@ describe('JsonImportSection.vue - Format Guide', () => {
     wrapper.unmount()
   })
 })
-
-

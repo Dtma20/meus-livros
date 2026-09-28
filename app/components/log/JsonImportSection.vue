@@ -36,7 +36,11 @@
           @change="handleFileChange"
         >
         <div class="drop-content">
-          <div class="drop-icon">📁</div>
+          <div class="drop-icon">
+            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 20h16a2 2 0 002-2V8a2 2 0 00-2-2h-7.93a2 2 0 01-1.66-.9l-.82-1.2A2 2 0 007.93 3H4a2 2 0 00-2 2v13a2 2 0 002 2z" />
+            </svg>
+          </div>
           <p class="drop-instruction">
             Arraste seu arquivo <strong>.json</strong> aqui ou
           </p>
@@ -46,12 +50,10 @@
         </div>
       </div>
 
-      <!-- Erro de parsing do cliente -->
       <div v-if="parseError" class="error-banner" role="alert">
         {{ parseError }}
       </div>
 
-      <!-- Pré-visualização antes da importação -->
       <div v-if="previewBooks.length > 0" class="preview-section">
         <div class="preview-header">
           <h3 class="preview-title">
@@ -72,7 +74,6 @@
           ... e mais {{ totalParsedBooks - previewBooks.length }} livros no arquivo.
         </p>
 
-        <!-- Erro da API no envio -->
         <div v-if="apiError" class="error-banner mt-3" role="alert">
           {{ apiError }}
         </div>
@@ -98,7 +99,6 @@
         </div>
       </div>
 
-      <!-- Guia / Descrição do formato JSON esperado -->
       <details
         class="json-format-guide"
         :open="isGuideOpen"
@@ -310,7 +310,6 @@ async function copyTemplate() {
         copied.value = false
       }, 2000)
     } catch {
-      // Ignora restrições do navegador sobre clipboard
     }
   }
 }
@@ -355,7 +354,6 @@ function readFile(file: File) {
         return
       }
 
-      // Validação básica dos primeiros itens
       const validBooks: LivroJson[] = []
       for (const item of list) {
         if (item && typeof item === 'object' && typeof item.title === 'string' && typeof item.author === 'string') {
@@ -643,7 +641,6 @@ function reset() {
   text-decoration: none;
 }
 
-/* Guia de Formato JSON */
 .json-format-guide {
   margin-top: var(--space-6, 24px);
   background-color: rgba(255, 255, 255, 0.02);
