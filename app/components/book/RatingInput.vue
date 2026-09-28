@@ -308,6 +308,17 @@ function onKeydown(e: KeyboardEvent): void {
   outline-offset: 2px;
 }
 
+@media (hover: none) {
+  .stars-track {
+    gap: 0;
+  }
+
+  .star-wrapper {
+    width: var(--space-12);
+    height: var(--target-min-size);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rating-input,
   .clear-rating-btn {
