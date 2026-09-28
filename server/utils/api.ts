@@ -27,13 +27,28 @@ function resolveRequestId(event: H3Event): string {
   return generated
 }
 
-function isPostgresError(err: unknown): err is Error & { code: string; detail?: string; constraint_name?: string } {
+type PostgresErrorLike = Error & { code: string; detail?: string; constraint_name?: string }
+
+function isPostgresError(err: unknown): err is PostgresErrorLike {
   return (
     err instanceof Error &&
     'code' in err &&
     typeof (err as { code: unknown }).code === 'string' &&
     ((err as { name?: string }).name === 'PostgresError' || 'routine' in err)
   )
+}
+
+function findPostgresError(err: unknown): PostgresErrorLike | null {
+  if (isPostgresError(err)) {
+    return err
+  }
+  if (err instanceof Error) {
+    const cause: unknown = (err as { cause?: unknown }).cause
+    if (isPostgresError(cause)) {
+      return cause
+    }
+  }
+  return null
 }
 
 export function defineApiHandler<T extends EventHandlerRequest, D>(
@@ -121,24 +136,25 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         return responseData
       }
 
-      if (isPostgresError(caught)) {
-        logger.error(`Erro de banco de dados no endpoint ${method} ${path} [Postgres ${caught.code}]`, {
+      const pgError = findPostgresError(caught)
+      if (pgError) {
+        logger.error(`Erro de banco de dados no endpoint ${method} ${path} [Postgres ${pgError.code}]`, {
           ...reqContext,
           durationMs,
           source: 'database',
           error: {
-            name: caught.name,
-            message: caught.message,
-            code: caught.code,
-            stack: caught.stack,
+            name: pgError.name,
+            message: pgError.message,
+            code: pgError.code,
+            stack: pgError.stack,
             details: {
-              detail: caught.detail,
-              constraint: caught.constraint_name,
+              detail: pgError.detail,
+              constraint: pgError.constraint_name,
             },
           },
         })
 
-        if (caught.code === '23505') {
+        if (pgError.code === '23505') {
           setResponseStatus(event, 409)
           return {
             error: 'conflito',
@@ -147,7 +163,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
           }
         }
 
-        if (caught.code === '23503') {
+        if (pgError.code === '23503') {
           setResponseStatus(event, 400)
           return {
             error: 'referencia_invalida',
@@ -156,7 +172,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
           }
         }
 
-        if (caught.code === '57014') {
+        if (pgError.code === '57014') {
           setResponseStatus(event, 504)
           return {
             error: 'tempo_esgotado',

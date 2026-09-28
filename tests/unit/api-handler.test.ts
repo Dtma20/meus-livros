@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DrizzleQueryError } from 'drizzle-orm'
 import { createError, type H3Event } from 'h3'
 import { z } from 'zod'
 import { defineApiHandler, parseOrThrow } from '../../server/utils/api'
@@ -148,6 +149,42 @@ describe('API Handler (defineApiHandler)', () => {
     expect(result.error).toBe('tempo_esgotado')
     expect(result.message).toBe('A operação no banco de dados demorou demais.')
     expect(result.requestId).toBeDefined()
+  })
+
+  it.each([
+    ['23505', 409, 'conflito', 'O registro já existe no sistema.'],
+    ['23503', 400, 'referencia_invalida', 'Referência a recurso inexistente.'],
+    ['57014', 504, 'tempo_esgotado', 'A operação no banco de dados demorou demais.'],
+  ])('maps Postgres %s wrapped in a DrizzleQueryError cause to %i %s', async (code, status, error, message) => {
+    const event = createMockEvent()
+    const pgError = Object.assign(new Error('duplicate key value violates unique constraint "users_email_unique"'), {
+      name: 'PostgresError',
+      code,
+      routine: '_bt_check_unique',
+      detail: 'Key (email)=(pessoa@example.com) already exists.',
+      constraint_name: 'users_email_unique',
+    })
+    const wrapped = new DrizzleQueryError(
+      'insert into "users" ("email") values ($1)',
+      ['pessoa@example.com'],
+      pgError,
+    )
+
+    const handler = defineApiHandler(async () => {
+      throw wrapped
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(status)
+    expect(result.error).toBe(error)
+    expect(result.message).toBe(message)
+    expect(result.requestId).toBeDefined()
+    const body = JSON.stringify(result)
+    expect(body).not.toContain('insert into')
+    expect(body).not.toContain('pessoa@example.com')
+    expect(body).not.toContain('users_email_unique')
+    expect(body).not.toContain('_bt_check_unique')
   })
 
   it('never leaks internal stack traces or raw messages on unhandled 500 errors', async () => {
