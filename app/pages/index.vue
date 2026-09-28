@@ -1,34 +1,7 @@
 <template>
   <div class="home-page">
-    <!-- Anonymous state: stranger landing -->
-    <div v-if="!isAuthenticated" class="landing-hero">
-      <div class="landing-card">
-        <div class="landing-logo-container">
-          <AppLogo :size="56" badge />
-        </div>
-        <div class="landing-badge">Início</div>
-        <h1 class="landing-title">Meus Livros</h1>
-        <p class="landing-tagline">
-          Uma pequena biblioteca compartilhada de leituras entre amigos.
-        </p>
-        <p class="landing-description">
-          Acompanhe o que o grupo está lendo, registre seus livros,
-          escreva resenhas e preserve seu histórico de leitura.
-        </p>
+    <LandingView v-if="!isAuthenticated" />
 
-        <div class="landing-actions">
-          <NuxtLink to="/entrar" class="btn-primary btn-lg">
-            Entrar
-          </NuxtLink>
-        </div>
-
-        <p class="landing-note">
-          Acesso restrito para convidados. Se você já tem acesso, entre com seu e-mail cadastrado.
-        </p>
-      </div>
-    </div>
-
-    <!-- Authenticated state: reading dashboard & community feed -->
     <div v-else class="dashboard-container">
       <header class="dashboard-header">
         <div class="dashboard-header-text">
@@ -42,12 +15,10 @@
         </div>
       </header>
 
-      <!-- Loading state while dashboard/feed is fetching -->
       <div v-if="pending" class="dashboard-loading">
         <LoadingSkeleton :count="4" />
       </div>
 
-      <!-- Error state when data fails to load -->
       <ErrorState
         v-else-if="hasFeedError"
         title="Algo deu errado. Tente de novo."
@@ -57,7 +28,6 @@
       />
 
       <div v-else class="dashboard-content">
-        <!-- 1. LENDO ATUALMENTE SECTION -->
         <section class="dashboard-section in-progress-section">
           <div class="section-header">
             <div>
@@ -109,7 +79,6 @@
                   </p>
                 </div>
 
-                <!-- Progress indicators -->
                 <div class="in-progress-stats">
                   <div class="progress-bar-wrap" role="progressbar" :aria-valuenow="book.percentage ?? (book.total_pages ? Math.min(100, Math.round((book.pages_read / book.total_pages) * 100)) : 0)" aria-valuemin="0" aria-valuemax="100">
                     <div
@@ -145,16 +114,13 @@
           </div>
         </section>
 
-        <!-- 2. MINHA ESTANTE SECTION -->
         <ShelfSection :books="shelfBooks" />
 
-        <!-- 3. LIVROS JÁ LIDOS CAROUSEL -->
         <ReadingCarousel
           v-if="completedBooks.length > 0"
           :books="completedBooks"
         />
 
-        <!-- 4. FEED / ATIVIDADE DO GRUPO -->
         <section class="dashboard-section feed-section">
           <div class="section-header">
             <div>
@@ -230,7 +196,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import AppLogo from '~/components/ui/AppLogo.vue'
+import LandingView from '~/components/landing/LandingView.vue'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReadingCarousel from '~/components/dashboard/ReadingCarousel.vue'
@@ -258,9 +224,6 @@ interface HomeAsyncData {
   redirectTo?: string
 }
 
-// `/` is the one route whose layout depends on the viewer. That decision lives
-// in middleware and not here: `setPageLayout` inside `setup()` raises
-// NUXT_E2007 and hands the client a different shell than the server rendered.
 definePageMeta({
   middleware: 'home-layout',
 })
@@ -270,18 +233,11 @@ const reqUrl = typeof useRequestURL === 'function' ? useRequestURL() : null
 const origin = computed(() => reqUrl?.origin || 'http://localhost:3000')
 const nuxtApp = typeof useNuxtApp === 'function' ? useNuxtApp() : null
 
-// The `home-layout` middleware has already resolved `/api/users/me` into the
-// shared `auth:session` state, on whichever side is rendering. Reading it here
-// keeps this page at one round trip instead of asking the same question twice.
 const session = useState<AuthSessionState>('auth:session', () => ({
   user: null,
   fetched: false,
 }))
 
-// Server-rendered with useAsyncData. Three states of the session:
-// 1. no user: unauthenticated stranger -> landing, and no book data in the payload.
-// 2. user without profile: verified identity with no `users` row -> /app/bem-vindo.
-// 3. user with profile: member -> fetch the dashboard and feed.
 const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('home-dashboard', async () => {
   const current = session.value
 
@@ -357,7 +313,6 @@ function formatAuthors(authors?: { name: string }[]): string {
   return authors.map((a) => a.name).join(', ')
 }
 
-// Open Graph / SEO metadata
 useSeoMeta({
   title: 'Meus Livros',
   ogTitle: 'Meus Livros',
@@ -388,79 +343,6 @@ useHead({
   width: 100%;
 }
 
-/* Landing state for strangers */
-.landing-hero {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: var(--space-8) 0;
-}
-
-.landing-card {
-  width: 100%;
-  max-width: 560px;
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-8);
-  text-align: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-}
-
-.landing-logo-container {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-4);
-}
-
-.landing-badge {
-  display: inline-block;
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--highlight);
-  font-weight: 700;
-  margin-bottom: var(--space-2);
-}
-
-.landing-title {
-  font-size: var(--font-size-3xl);
-  font-weight: 800;
-  color: #fff;
-  margin: 0 0 var(--space-3) 0;
-  line-height: var(--line-height-tight);
-}
-
-.landing-tagline {
-  font-size: var(--font-size-lg);
-  color: #fff;
-  margin: 0 0 var(--space-4) 0;
-  line-height: var(--line-height-normal);
-}
-
-.landing-description {
-  font-size: var(--font-size-base);
-  color: var(--text-color);
-  line-height: var(--line-height-relaxed);
-  margin: 0 auto var(--space-6) auto;
-  max-width: 440px;
-}
-
-.landing-actions {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-6);
-}
-
-.landing-note {
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-  margin: 0;
-  line-height: var(--line-height-normal);
-  opacity: 0.85;
-}
-
-/* Buttons */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -487,11 +369,6 @@ useHead({
 .btn-primary:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
-}
-
-.btn-lg {
-  padding: var(--space-3) var(--space-8);
-  font-size: var(--font-size-base);
 }
 
 .btn-register {
@@ -529,7 +406,6 @@ useHead({
   outline-offset: var(--focus-ring-offset);
 }
 
-/* Authenticated dashboard */
 .dashboard-container {
   width: 100%;
 }
@@ -601,7 +477,6 @@ useHead({
   margin: var(--space-1) 0 0;
 }
 
-/* In-progress section & cards */
 .in-progress-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
@@ -760,7 +635,6 @@ useHead({
   text-decoration: underline;
 }
 
-/* Feed section */
 .feed-section {
   margin-top: var(--space-2);
 }
