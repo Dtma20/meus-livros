@@ -7,6 +7,7 @@ import {
   ISO_IDIOMA,
   parseAuthors,
   parseFormat,
+  parseImportVisibility,
 } from '../../server/services/library-transfer'
 import { livroJsonSchema } from '../../shared/schemas/export-import'
 
@@ -67,6 +68,45 @@ describe('library-transfer unit tests', () => {
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'javascript:alert(1)' }).success).toBe(false)
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'http://exemplo.com/a.jpg' }).success).toBe(false)
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'https://exemplo.com/a.jpg' }).success).toBe(true)
+    })
+
+    it('keeps the visibility field instead of stripping it', () => {
+      const result = livroJsonSchema.safeParse({ title: 'T', author: 'A', visibility: 'privado' })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.visibility).toBe('privado')
+      }
+    })
+
+    it('lets an unknown visibility through so the import fails only that book', () => {
+      const result = livroJsonSchema.safeParse({ title: 'T', author: 'A', visibility: 'secreto' })
+      expect(result.success).toBe(true)
+    })
+
+    it('treats a missing visibility as absent', () => {
+      const result = livroJsonSchema.safeParse({ title: 'T', author: 'A' })
+      expect(result.success).toBe(true)
+      if (result.success) {
+        expect(result.data.visibility).toBeUndefined()
+      }
+    })
+  })
+
+  describe('parseImportVisibility', () => {
+    it('keeps each valid visibility', () => {
+      expect(parseImportVisibility('privado')).toBe('privado')
+      expect(parseImportVisibility('publico')).toBe('publico')
+    })
+
+    it('defaults to publico when the field is absent', () => {
+      expect(parseImportVisibility(undefined)).toBe('publico')
+      expect(parseImportVisibility(null)).toBe('publico')
+    })
+
+    it('rejects values outside the enum', () => {
+      expect(() => parseImportVisibility('secreto')).toThrow()
+      expect(() => parseImportVisibility('Privado')).toThrow()
+      expect(() => parseImportVisibility('')).toThrow()
     })
   })
 
