@@ -147,6 +147,7 @@ export function useBookFilters(initialLogs: MaybeRefOrGetter<ProfileLogItem[]>) 
     const authorSet = new Set<string>()
     const countrySet = new Set<string>()
     let totalPages = 0
+    let finishedBooks = 0
 
     for (const item of items) {
       for (const author of item.work.authors || []) {
@@ -154,10 +155,13 @@ export function useBookFilters(initialLogs: MaybeRefOrGetter<ProfileLogItem[]>) 
         const country = formatCountryName(author.country_code, author.country_label)
         if (country) countrySet.add(country)
       }
-      totalPages += item.edition?.page_count || 0
+      if (item.finished_on !== null) {
+        finishedBooks++
+        totalPages += item.edition?.page_count || 0
+      }
     }
 
-    const averagePages = totalBooks === 0 ? 0 : Math.round(totalPages / totalBooks)
+    const averagePages = finishedBooks === 0 ? 0 : Math.round(totalPages / finishedBooks)
 
     return {
       totalBooks,
@@ -167,8 +171,6 @@ export function useBookFilters(initialLogs: MaybeRefOrGetter<ProfileLogItem[]>) 
       averagePages,
     }
   }
-
-  const globalStats = computed(() => calculateStats(logs.value))
 
   const filteredStats = computed(() => calculateStats(sortedBooks.value))
 
@@ -183,7 +185,6 @@ export function useBookFilters(initialLogs: MaybeRefOrGetter<ProfileLogItem[]>) 
     hasActiveFilters,
     resetFilters,
     sortedBooks,
-    globalStats,
     filteredStats,
   }
 }

@@ -10,7 +10,7 @@
         heading-tag="h1"
         title="Perfil não encontrado"
         :message="`O perfil @${handle} não foi encontrado ou é privado.`"
-        action-label="Voltar ao início"
+        action-label="Ir para o início"
         action-href="/"
       />
       <ErrorState
@@ -55,11 +55,12 @@
         </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
 
-        <div class="stats" aria-label="Estatísticas gerais do acervo">
-          <StatBox :value="globalStats.totalBooks" label="Livros" />
-          <StatBox :value="globalStats.uniqueAuthors" label="Autores" />
-          <StatBox :value="globalStats.uniqueCountries" label="Países" />
+        <div class="stats" aria-label="Estatísticas dos livros exibidos">
+          <StatBox :value="filteredStats.totalBooks" label="Livros" />
+          <StatBox :value="filteredStats.uniqueAuthors" label="Autores" />
+          <StatBox :value="filteredStats.uniqueCountries" label="Países" />
         </div>
+        <small v-if="hasActiveFilters" class="filter-indicator stats-filter-indicator">(filtros ativos)</small>
       </header>
 
       <div v-if="logs.length === 0" class="empty-collection">
@@ -222,7 +223,7 @@
             </div>
           </BookGrid>
 
-          <footer class="paginometer" aria-label="Estatísticas de páginas dos livros exibidos">
+          <footer v-if="sortedBooks.length > 0" class="paginometer" aria-label="Estatísticas de páginas dos livros exibidos">
             <div class="page-stat">
               <strong>{{ filteredStats.totalPages.toLocaleString('pt-BR') }}</strong>
               <span class="page-stat-label">
@@ -446,7 +447,6 @@ const {
   hasActiveFilters,
   resetFilters,
   sortedBooks,
-  globalStats,
   filteredStats,
 } = useBookFilters(displayedLogs)
 
@@ -717,6 +717,10 @@ onBeforeUnmount(() => {
 .identity:has(.profile-actions) + .stats,
 .identity:has(.profile-actions) + .bio + .stats {
   margin-top: 0;
+}
+
+.stats:has(+ .stats-filter-indicator) {
+  margin-bottom: var(--space-2, 8px);
 }
 
 .is-diary-view :deep(.sort-label),
