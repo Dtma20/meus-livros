@@ -3,6 +3,8 @@ import { z } from 'zod'
 export const memberRecentCoverSchema = z.object({
   work_title: z.string(),
   cover_url: z.string().nullable(),
+  ol_cover_id: z.number().int().nullable(),
+  isbn13: z.string().nullable(),
 })
 
 export const memberViewSchema = z.object({
