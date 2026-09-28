@@ -1,8 +1,42 @@
-import { describe, expect, it } from 'vitest'
-import { ref } from 'vue'
+import { describe, expect, it, vi } from 'vitest'
+import { createApp, defineComponent, h, nextTick, ref, Suspense } from 'vue'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import { useBookFilters } from '../../app/composables/useBookFilters'
-import type { ProfileLogItem } from '../../shared/schemas/profile'
+import ProfilePage from '../../app/pages/@[handle].vue'
+import type { AuthSessionUser } from '../../app/middleware/auth'
+import type { ProfileLogItem, ProfileResponse } from '../../shared/schemas/profile'
 import { formatCountryName } from '../../shared/schemas/profile'
+
+const mockPageData = ref<{
+  profile: ProfileResponse | null
+  currentUser: AuthSessionUser | null
+}>({
+  profile: null,
+  currentUser: null,
+})
+const mockPending = ref(false)
+const mockError = ref<unknown>(null)
+
+vi.hoisted(() => {
+  const globalScope = globalThis as unknown as Record<string, unknown>
+  globalScope.defineNuxtRouteMiddleware = (fn: unknown) => fn
+  globalScope.definePageMeta = () => {}
+  globalScope.useId = () => 'test-id'
+  globalScope.useAsyncData = () => ({
+    data: mockPageData,
+    pending: mockPending,
+    error: mockError,
+    refresh: vi.fn(),
+  })
+  globalScope.useState = (_key: string, init?: () => unknown) => ({
+    value: init ? init() : null,
+  })
+  globalScope.useRequestFetch = () => vi.fn()
+  globalScope.useRequestURL = () => new URL('http://localhost:3000/@diogo')
+  globalScope.useSeoMeta = () => {}
+  globalScope.useHead = () => {}
+  globalScope.createError = (err: unknown) => err
+})
 
 function createSampleLog(overrides: Partial<ProfileLogItem> & {
   title?: string
@@ -211,7 +245,7 @@ describe('app/composables/useBookFilters', () => {
     expect(sortedBooks.value[1]?.id).toBe('log-B')
   })
 
-  it('Requirement 6: header counters are global; footer counters follow active filters', () => {
+  it('stats follow the active filters, for header and footer alike', () => {
     const log1 = createSampleLog({
       id: 'log-1',
       title: 'Livro Ficção',
@@ -233,32 +267,26 @@ describe('app/composables/useBookFilters', () => {
     const {
       filterGenre,
       sortedBooks,
-      globalStats,
       filteredStats,
       hasActiveFilters,
       resetFilters,
     } = useBookFilters(logs)
 
     expect(hasActiveFilters.value).toBe(false)
-    expect(globalStats.value.totalBooks).toBe(2)
-    expect(globalStats.value.uniqueAuthors).toBe(2)
-    expect(globalStats.value.uniqueCountries).toBe(2)
-    expect(globalStats.value.totalPages).toBe(400)
-    expect(globalStats.value.averagePages).toBe(200)
-
     expect(filteredStats.value.totalBooks).toBe(2)
+    expect(filteredStats.value.uniqueAuthors).toBe(2)
+    expect(filteredStats.value.uniqueCountries).toBe(2)
     expect(filteredStats.value.totalPages).toBe(400)
+    expect(filteredStats.value.averagePages).toBe(200)
 
     filterGenre.value = 'Ficção'
     expect(hasActiveFilters.value).toBe(true)
     expect(sortedBooks.value).toHaveLength(1)
     expect(sortedBooks.value[0]?.id).toBe('log-1')
 
-    expect(globalStats.value.totalBooks).toBe(2)
-    expect(globalStats.value.uniqueAuthors).toBe(2)
-    expect(globalStats.value.uniqueCountries).toBe(2)
-
     expect(filteredStats.value.totalBooks).toBe(1)
+    expect(filteredStats.value.uniqueAuthors).toBe(1)
+    expect(filteredStats.value.uniqueCountries).toBe(1)
     expect(filteredStats.value.totalPages).toBe(300)
     expect(filteredStats.value.averagePages).toBe(300)
 
@@ -266,6 +294,38 @@ describe('app/composables/useBookFilters', () => {
     expect(hasActiveFilters.value).toBe(false)
     expect(sortedBooks.value).toHaveLength(2)
     expect(filteredStats.value.totalBooks).toBe(2)
+  })
+
+  it('pages count only finished logs: 100 finished and 300 unfinished give totalPages 100 and averagePages 100', () => {
+    const finished = createSampleLog({ id: 'finished', pageCount: 100, finished_on: '2024-03-01' })
+    const reading = createSampleLog({ id: 'reading', pageCount: 300, finished_on: null })
+
+    const logs = ref([finished, reading])
+    const { filteredStats } = useBookFilters(logs)
+
+    expect(filteredStats.value.totalBooks).toBe(2)
+    expect(filteredStats.value.totalPages).toBe(100)
+    expect(filteredStats.value.averagePages).toBe(100)
+  })
+
+  it('pages are zero when no log is finished', () => {
+    const readingA = createSampleLog({ id: 'reading-a', pageCount: 250, finished_on: null })
+    const readingB = createSampleLog({ id: 'reading-b', pageCount: 400, finished_on: null })
+
+    const logs = ref([readingA, readingB])
+    const { filteredStats } = useBookFilters(logs)
+
+    expect(filteredStats.value.totalBooks).toBe(2)
+    expect(filteredStats.value.totalPages).toBe(0)
+    expect(filteredStats.value.averagePages).toBe(0)
+  })
+
+  it('pages are zero for an empty list', () => {
+    const logs = ref<ProfileLogItem[]>([])
+    const { filteredStats } = useBookFilters(logs)
+
+    expect(filteredStats.value.totalPages).toBe(0)
+    expect(filteredStats.value.averagePages).toBe(0)
   })
 
   it('Decade filtering handles standard decades and ancient / negative years', () => {
@@ -287,5 +347,165 @@ describe('app/composables/useBookFilters', () => {
     filterDecade.value = -50
     expect(sortedBooks.value).toHaveLength(1)
     expect(sortedBooks.value[0]?.id).toBe('ancient')
+  })
+})
+
+const NuxtLinkStub = defineComponent({
+  name: 'NuxtLink',
+  props: { to: { type: String, required: true } },
+  setup(props, { slots }) {
+    return () => h('a', { href: props.to }, slots.default?.())
+  },
+})
+
+const ClientOnlyStub = defineComponent({
+  name: 'ClientOnly',
+  setup(_props, { slots }) {
+    return () => slots.default?.()
+  },
+})
+
+async function flushAsync() {
+  for (let i = 0; i < 5; i++) {
+    await Promise.resolve()
+    await nextTick()
+  }
+}
+
+async function mountProfilePage() {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/@:handle()', name: 'user-profile', component: ProfilePage }],
+  })
+
+  const container = document.createElement('div')
+  document.body.appendChild(container)
+
+  const app = createApp({
+    render: () => h(Suspense, null, { default: () => h(ProfilePage) }),
+  })
+  app.use(router)
+  app.component('NuxtLink', NuxtLinkStub)
+  app.component('ClientOnly', ClientOnlyStub)
+  app.mount(container)
+
+  await router.push('/@diogo')
+  await flushAsync()
+
+  return {
+    container,
+    unmount: () => {
+      app.unmount()
+      container.remove()
+    },
+  }
+}
+
+function headerStat(container: HTMLElement, label: string): string {
+  const boxes = Array.from(container.querySelectorAll('.profile-header .stat-box'))
+  const box = boxes.find((b) => b.querySelector('.stat-label')?.textContent?.trim() === label)
+  return box?.querySelector('.stat-value')?.textContent?.trim() ?? ''
+}
+
+async function chooseOption(container: HTMLElement, value: string) {
+  const selects = Array.from(container.querySelectorAll<HTMLSelectElement>('select'))
+  const select = selects.find((s) => Array.from(s.options).some((o) => o.value === value))
+  expect(select).toBeDefined()
+  if (!select) return
+  select.value = value
+  select.dispatchEvent(new Event('change'))
+  await flushAsync()
+}
+
+describe('app/pages/@[handle].vue: header and footer stats agree', () => {
+  function sampleProfile(): ProfileResponse {
+    return {
+      user: {
+        id: 'user-1',
+        handle: 'diogo',
+        display_name: 'Diogo',
+        bio: null,
+        profile_visibility: 'publico',
+        created_at: new Date('2024-01-01'),
+      },
+      stats: { totalBooks: 3, uniqueAuthors: 3, uniqueCountries: 2, totalPages: 600, averagePages: 200 },
+      logs: [
+        createSampleLog({
+          id: 'log-ficcao-1',
+          title: 'Ficção Um',
+          authorName: 'Autora Um',
+          authorCountryCode: 'BR',
+          genres: [{ id: 1, slug: 'ficcao', label_pt: 'Ficção' }],
+          pageCount: 100,
+        }),
+        createSampleLog({
+          id: 'log-ficcao-2',
+          title: 'Ficção Dois',
+          authorName: 'Autora Dois',
+          authorCountryCode: 'BR',
+          genres: [{ id: 1, slug: 'ficcao', label_pt: 'Ficção' }],
+          pageCount: 300,
+          finished_on: null,
+        }),
+        createSampleLog({
+          id: 'log-filosofia',
+          title: 'Filosofia Um',
+          authorName: 'Autor Três',
+          authorCountryCode: 'PT',
+          genres: [{ id: 2, slug: 'filosofia', label_pt: 'Filosofia' }],
+          pageCount: 200,
+        }),
+      ],
+    }
+  }
+
+  it('with a filter active, header "Livros" equals the number of cards and shows the marker', async () => {
+    mockPageData.value = { profile: sampleProfile(), currentUser: null }
+    const wrapper = await mountProfilePage()
+
+    expect(headerStat(wrapper.container, 'Livros')).toBe('3')
+    expect(wrapper.container.querySelector('.profile-header')?.textContent).not.toContain('(filtros ativos)')
+
+    await chooseOption(wrapper.container, 'Ficção')
+
+    const cards = wrapper.container.querySelectorAll('.book-card-item')
+    expect(cards).toHaveLength(2)
+    expect(headerStat(wrapper.container, 'Livros')).toBe(String(cards.length))
+    expect(headerStat(wrapper.container, 'Autores')).toBe('2')
+    expect(headerStat(wrapper.container, 'Países')).toBe('1')
+    expect(wrapper.container.querySelector('.profile-header')?.textContent).toContain('(filtros ativos)')
+    expect(wrapper.container.querySelector('.paginometer strong')?.textContent?.trim()).toBe('100')
+
+    wrapper.unmount()
+  })
+
+  it('zero results leave no "Páginas Lidas" in the DOM', async () => {
+    mockPageData.value = { profile: sampleProfile(), currentUser: null }
+    const wrapper = await mountProfilePage()
+
+    expect(wrapper.container.textContent).toContain('Páginas Lidas')
+
+    await chooseOption(wrapper.container, 'Filosofia')
+    await chooseOption(wrapper.container, 'Brasil')
+
+    expect(wrapper.container.querySelectorAll('.book-card-item')).toHaveLength(0)
+    expect(wrapper.container.textContent).toContain('Nenhum livro com esses filtros.')
+    expect(wrapper.container.textContent).not.toContain('Páginas Lidas')
+    expect(wrapper.container.querySelector('.paginometer')).toBeNull()
+    expect(headerStat(wrapper.container, 'Livros')).toBe('0')
+
+    wrapper.unmount()
+  })
+
+  it('the not-found state links to "Ir para o início"', async () => {
+    mockPageData.value = { profile: null, currentUser: null }
+    mockError.value = { statusCode: 404 }
+    const wrapper = await mountProfilePage()
+
+    expect(wrapper.container.textContent).toContain('Ir para o início')
+    expect(wrapper.container.textContent).not.toContain('Voltar ao início')
+
+    mockError.value = null
+    wrapper.unmount()
   })
 })
