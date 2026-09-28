@@ -12,7 +12,7 @@
         Digite seu e-mail ou nome de usuário e sua senha para entrar.
       </p>
 
-      <form class="login-form" @submit.prevent="handleSignIn">
+      <form class="login-form" novalidate @submit.prevent="handleSignIn">
         <div class="form-group">
           <label for="identificador" class="form-label">E-mail ou usuário</label>
           <input
@@ -21,7 +21,7 @@
             type="text"
             autocomplete="username"
             required
-            placeholder="seu-email@exemplo.com ou usuario"
+            placeholder="e-mail ou usuário"
             class="form-input"
             :disabled="loading"
             :aria-invalid="errorMessage ? 'true' : undefined"
@@ -59,7 +59,7 @@
           {{ errorMessage }}
         </p>
 
-        <button type="submit" class="submit-btn" :disabled="loading || !identificador || !senha">
+        <button type="submit" class="submit-btn" :disabled="loading">
           {{ loading ? 'Entrando...' : 'Entrar' }}
         </button>
 
@@ -110,7 +110,7 @@ async function handleSignIn() {
   })
 
   if (!parsed.success) {
-    errorMessage.value = 'E-mail, usuário ou senha incorretos.'
+    errorMessage.value = 'Preencha e-mail ou usuário e senha.'
     return
   }
 
@@ -119,6 +119,7 @@ async function handleSignIn() {
     try {
       await $fetch('/api/auth/entrar', {
         method: 'POST',
+        timeout: 15_000,
         body: { identificador: parsed.data.identificador, senha: parsed.data.senha },
       })
     } catch (err) {
@@ -298,9 +299,10 @@ async function handleSignIn() {
   color: var(--highlight);
   font-size: var(--font-size-sm);
   text-decoration: underline;
-  min-height: 44px;
+  min-height: var(--target-min-size);
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
 }
 
 .auth-link:hover {
@@ -316,6 +318,17 @@ async function handleSignIn() {
 .link-divider {
   color: var(--text-color);
   font-size: var(--font-size-xs);
+}
+
+@media (max-width: 399px) {
+  .links-container {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .link-divider {
+    display: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
