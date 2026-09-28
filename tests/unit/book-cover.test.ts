@@ -32,6 +32,25 @@ function mount(initial: CoverProps) {
   }
 }
 
+const PLACEHOLDER_PREFIX = 'data:image/svg+xml;utf8,'
+const TOKEN_COLOURS = ['#232a31', '#2c3440', '#f59e0b', '#fff', '#99aabb']
+
+function decodePlaceholder(src: string): string {
+  expect(src.startsWith(PLACEHOLDER_PREFIX)).toBe(true)
+  return decodeURIComponent(src.slice(PLACEHOLDER_PREFIX.length))
+}
+
+function placeholderFor(props: CoverProps): string {
+  const wrapper = mount(props)
+  const src = wrapper.img()?.getAttribute('src') ?? ''
+  wrapper.unmount()
+  return decodePlaceholder(src)
+}
+
+function titleLines(svg: string): string[] {
+  return Array.from(svg.matchAll(/<tspan[^>]*>([^<]*)<\/tspan>/g), match => match[1] ?? '')
+}
+
 function stubImageState(complete: boolean, naturalWidth: number) {
   const proto: object = Object.getPrototypeOf(document.createElement('img'))
   const originals = {
@@ -126,7 +145,7 @@ describe('BookCover.vue loading placeholder', () => {
 
     const src = wrapper.img()?.getAttribute('src') ?? ''
     expect(src.startsWith('data:image/svg+xml')).toBe(true)
-    expect(src).toContain('LD')
+    expect(decodePlaceholder(src)).toContain('>Livro<')
     expect(wrapper.root()?.classList.contains('is-loading')).toBe(false)
     wrapper.unmount()
   })
@@ -160,6 +179,118 @@ describe('BookCover.vue loading placeholder', () => {
   })
 })
 
+describe('BookCover.vue missing-cover placeholder', () => {
+  it('renders the title over a spine for "O retorno do rei"', () => {
+    const svg = placeholderFor({ alt: 'Capa de O retorno do rei', title: 'O retorno do rei' })
+
+    expect(titleLines(svg)).toEqual(['O retorno do', 'rei'])
+    expect(svg).toContain('#f59e0b')
+    expect(svg).toContain('font-family="Lora, Georgia, serif"')
+    expect(svg).toContain('fill-opacity="0.85"')
+    expect(svg).toContain('viewBox="0 0 200 300"')
+  })
+
+  it('escapes & and < in the title', () => {
+    const svg = placeholderFor({ alt: 'Capa de Tom & Jerry <3', title: 'Tom & Jerry <3' })
+
+    expect(titleLines(svg)).toEqual(['Tom &amp; Jerry &lt;3'])
+    expect(svg).not.toContain('Tom & Jerry')
+    expect(svg).not.toContain('<3')
+  })
+
+  it('escapes quotes in the title and the author', () => {
+    const svg = placeholderFor({
+      alt: 'Capa de "Ela" e \'ele\', de O\'Brien & Filhos',
+      title: '"Ela" e \'ele\''
+    })
+
+    expect(svg).toContain('&quot;Ela&quot; e &apos;ele&apos;')
+    expect(svg).toContain('O&apos;Brien &amp; Filhos')
+  })
+
+  it('wraps to at most three lines of about fourteen characters', () => {
+    const svg = placeholderFor({
+      alt: 'Capa',
+      title: 'Crônica de uma morte anunciada e outras histórias'
+    })
+    const lines = titleLines(svg)
+
+    expect(lines.length).toBe(3)
+    for (const line of lines) {
+      expect(Array.from(line).length).toBeLessThanOrEqual(14)
+    }
+    expect(lines[2]?.endsWith('…')).toBe(true)
+  })
+
+  it('cuts a single word longer than a line', () => {
+    const svg = placeholderFor({ alt: 'Capa', title: 'Anticonstitucionalissimamente' })
+    const lines = titleLines(svg)
+
+    expect(lines).toHaveLength(1)
+    expect(Array.from(lines[0] ?? '').length).toBe(14)
+    expect(lines[0]?.endsWith('…')).toBe(true)
+  })
+
+  it('writes the author below the title when the alt names one', () => {
+    const svg = placeholderFor({
+      alt: 'Capa de O retorno do rei, de J. R. R. Tolkien',
+      title: 'O retorno do rei'
+    })
+
+    expect(svg).toMatch(/<text[^>]*fill="#99aabb"[^>]*>J\. R\. R\. Tolkien<\/text>/)
+    expect(svg.indexOf('J. R. R. Tolkien')).toBeGreaterThan(svg.indexOf('>rei<'))
+  })
+
+  it('omits the author when the alt does not name one', () => {
+    const svg = placeholderFor({ alt: 'Capa de O retorno do rei', title: 'O retorno do rei' })
+
+    expect(svg.match(/<text/g)).toHaveLength(1)
+  })
+
+  it('keeps the initials fallback when there is no title', () => {
+    const svg = placeholderFor({ alt: '' })
+
+    expect(svg).not.toContain('<tspan')
+    expect(svg).toContain('>?</text>')
+    expect(svg).toContain('#f59e0b')
+  })
+
+  it('uses only token colours', () => {
+    const samples = [
+      placeholderFor({ alt: 'Capa de O retorno do rei, de J. R. R. Tolkien', title: 'O retorno do rei' }),
+      placeholderFor({ alt: '' })
+    ]
+
+    for (const svg of samples) {
+      const colours = svg.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []
+      expect(colours.length).toBeGreaterThan(0)
+      for (const colour of colours) {
+        expect(TOKEN_COLOURS).toContain(colour.toLowerCase())
+      }
+      expect(svg).not.toMatch(/rgba?\(|hsla?\(/)
+    }
+  })
+
+  it('builds the same placeholder on the server and on the client', async () => {
+    const props: CoverProps = {
+      alt: 'Capa de Tom & Jerry <3, de Hanna-Barbera',
+      title: 'Tom & Jerry <3'
+    }
+    const html = await renderToString(createSSRApp({ render: () => h(BookCover, props) }))
+    const serverSrc = new DOMParser()
+      .parseFromString(html, 'text/html')
+      .querySelector('img')
+      ?.getAttribute('src')
+
+    const wrapper = mount(props)
+    const clientSrc = wrapper.img()?.getAttribute('src')
+    wrapper.unmount()
+
+    expect(serverSrc).toBeTruthy()
+    expect(serverSrc).toBe(clientSrc)
+  })
+})
+
 describe('BookCover.vue styles', () => {
   const source = readFileSync(
     resolve(process.cwd(), 'app/components/book/BookCover.vue'),
@@ -185,6 +316,10 @@ describe('BookCover.vue styles', () => {
     expect(source).toMatch(/animation:\s*book-cover-shimmer/)
     expect(source).toMatch(/transition:\s*opacity 0\.2s/)
     expect(source).toMatch(/\.book-cover\.is-loaded\s*\{[^}]*animation:\s*none/)
+  })
+
+  it('paints a broken cover alt text in the text colour, never UA link blue', () => {
+    expect(source).toMatch(/\.book-cover-img\s*\{[^}]*color:\s*var\(--text-color\)/)
   })
 
   it('turns off the shimmer and the fade under prefers-reduced-motion', () => {
