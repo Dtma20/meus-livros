@@ -2,8 +2,8 @@
   <div class="log-page-container">
     <div v-if="isLoggingFromShelf" class="log-page-card wide-card">
       <div class="shelf-back-nav">
-        <NuxtLink to="/" class="shelf-back-link">
-          ← Voltar para a estante
+        <NuxtLink to="/app/novo" class="shelf-back-link">
+          ← Escolher outro livro
         </NuxtLink>
       </div>
 
@@ -17,8 +17,8 @@
       </div>
       <div v-else-if="workError" class="error-state">
         <p>Não foi possível carregar os detalhes deste livro.</p>
-        <NuxtLink to="/" class="btn btn-secondary mt-3">
-          Voltar para a página inicial
+        <NuxtLink to="/app/novo" class="btn btn-secondary mt-3">
+          Escolher outro livro
         </NuxtLink>
       </div>
       <LogForm
@@ -29,7 +29,7 @@
       />
     </div>
 
-    <div v-else class="log-page-card" :class="{ 'wide-card': activeTab === 'cadastrar' }">
+    <div v-else class="log-page-card" :class="{ 'wide-card': activeTab === 'novo' }">
       <h1 class="page-title">{{ pageTitle }}</h1>
       <p class="page-desc">
         {{ pageDesc }}
@@ -40,11 +40,21 @@
           type="button"
           role="tab"
           class="tab-btn"
-          :class="{ active: activeTab === 'cadastrar' }"
-          :aria-selected="activeTab === 'cadastrar'"
-          @click="selectTab('cadastrar')"
+          :class="{ active: activeTab === 'buscar' }"
+          :aria-selected="activeTab === 'buscar'"
+          @click="selectTab('buscar')"
         >
-          Cadastrar livro
+          Buscar no catálogo
+        </button>
+        <button
+          type="button"
+          role="tab"
+          class="tab-btn"
+          :class="{ active: activeTab === 'novo' }"
+          :aria-selected="activeTab === 'novo'"
+          @click="selectTab('novo')"
+        >
+          Adicionar livro novo
         </button>
         <button
           type="button"
@@ -58,10 +68,16 @@
         </button>
       </div>
 
+      <div v-if="activeTab === 'buscar'" ref="searchContainerRef" class="search-tab-content">
+        <SearchBox
+          :navigate-on-select="false"
+          @select="onWorkSelect"
+        />
+      </div>
       <AddBookForm
-        v-if="activeTab === 'cadastrar'"
+        v-else-if="activeTab === 'novo'"
         hide-header
-        return-to="/"
+        return-to="/app/novo"
       />
       <JsonImportSection v-else />
     </div>
@@ -69,9 +85,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LogForm from '~/components/log/LogForm.vue'
+import SearchBox from '~/components/search/SearchBox.vue'
 import AddBookForm from '~/components/search/AddBookForm.vue'
 import JsonImportSection from '~/components/log/JsonImportSection.vue'
 import type { WorkWithDetails } from '~~/shared/schemas/work'
@@ -94,13 +111,24 @@ try {
 } catch {
 }
 
-type TabKey = 'cadastrar' | 'json'
+type TabKey = 'buscar' | 'novo' | 'json'
 
-const activeTab = ref<TabKey>('cadastrar')
+const activeTab = ref<TabKey>('buscar')
+const searchContainerRef = ref<HTMLElement | null>(null)
+
+function focusSearchInput(): void {
+  if (typeof window === 'undefined') return
+  if (!window.matchMedia('(min-width: 601px)').matches) return
+  nextTick(() => {
+    const input = searchContainerRef.value?.querySelector<HTMLInputElement>('input[type="search"]')
+    input?.focus()
+  })
+}
 
 function parseTab(tabParam: unknown): TabKey {
+  if (tabParam === 'novo' || tabParam === 'cadastrar') return 'novo'
   if (tabParam === 'json' || tabParam === 'importar') return 'json'
-  return 'cadastrar'
+  return 'buscar'
 }
 
 activeTab.value = parseTab(route?.query?.tab)
@@ -110,21 +138,33 @@ if (route) {
     () => route?.query?.tab,
     (val) => {
       activeTab.value = parseTab(val)
+      if (activeTab.value === 'buscar') {
+        focusSearchInput()
+      }
     },
   )
 }
 
 function selectTab(tab: TabKey) {
   activeTab.value = tab
+  if (tab === 'buscar') {
+    focusSearchInput()
+  }
   if (router?.replace && route) {
     void router.replace({
       query: {
         ...(route.query || {}),
-        tab: tab === 'cadastrar' ? undefined : tab,
+        tab: tab === 'buscar' ? undefined : tab,
       },
     })
   }
 }
+
+onMounted(() => {
+  if (!isLoggingFromShelf.value && activeTab.value === 'buscar') {
+    focusSearchInput()
+  }
+})
 
 const workId = computed(() => {
   const q = route?.query?.work_id || route?.query?.workId
@@ -136,6 +176,17 @@ const isLoggingFromShelf = computed(() => Boolean(workId.value))
 const initialWork = ref<SearchResult | null>(null)
 const loadingWork = ref(false)
 const workError = ref(false)
+
+function onWorkSelect(work: SearchResult): void {
+  if (!work?.id) return
+  if (router?.push) {
+    void router.push({
+      query: {
+        work_id: work.id,
+      },
+    })
+  }
+}
 
 watch(
   workId,
@@ -151,7 +202,10 @@ watch(
     workError.value = false
 
     try {
-      const data = await $fetch<WorkWithDetails>(`/api/works/${id}`)
+      const data = await $fetch<WorkWithDetails>(`/api/works/${id}`, {
+        timeout: 15_000,
+        retry: 0,
+      })
       if (data) {
         initialWork.value = {
           id: data.id,
@@ -177,18 +231,22 @@ watch(
 
 const pageTitle = computed(() => {
   if (isLoggingFromShelf.value) return 'Registrar leitura'
+  if (activeTab.value === 'novo') return 'Adicionar livro novo'
   if (activeTab.value === 'json') return 'Importar biblioteca via JSON'
-  return 'Cadastrar livro'
+  return 'Registrar leitura'
 })
 
 const pageDesc = computed(() => {
   if (isLoggingFromShelf.value) {
     return 'Acompanhe seu progresso ou registre a conclusão da leitura deste livro.'
   }
+  if (activeTab.value === 'novo') {
+    return 'Adicione um novo livro à sua estante para começar a ler ou guardar no catálogo.'
+  }
   if (activeTab.value === 'json') {
     return 'Envie um arquivo JSON para importar vários livros e leituras de uma só vez.'
   }
-  return 'Adicione um novo livro à sua estante para começar a ler ou guardar no catálogo.'
+  return 'Procure o livro no catálogo do grupo. Se ninguém cadastrou ainda, adicione-o.'
 })
 
 useSeoMeta({
@@ -249,6 +307,10 @@ useSeoMeta({
   font-size: var(--font-size-sm);
   margin-top: 0;
   margin-bottom: var(--space-6);
+}
+
+.search-tab-content {
+  width: 100%;
 }
 
 .loading-state,

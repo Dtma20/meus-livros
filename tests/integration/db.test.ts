@@ -8,7 +8,7 @@ const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (Neon)', () => {
   let dbClient: { end: () => Promise<void> } | undefined
 
-  let db: typeof import('../../server/db/index').db | undefined
+  let db!: typeof import('../../server/db/index').db
 
   beforeAll(async () => {
     const dbModule = await import('../../server/db/index')
@@ -38,7 +38,7 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
       WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
       ORDER BY table_name;
     `)
-    const tableNames = rows.map((r: { table_name: string }) => r.table_name)
+    const tableNames = (rows as unknown as Array<{ table_name: string }>).map((r) => r.table_name)
     const expectedTables = [
       'allowed_emails',
       'authors',
@@ -213,7 +213,7 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
       SELECT label_pt FROM genres ORDER BY id;
     `)
     expect(genreRows).toHaveLength(26)
-    for (const g of genreRows as Array<{ label_pt: string }>) {
+    for (const g of genreRows as unknown as Array<{ label_pt: string }>) {
       expect(lines).toContain(`- ${g.label_pt}`)
     }
   })

@@ -25,7 +25,7 @@
             >
           </div>
           <span id="profile-handle-hint" class="field-hint immutable-hint">
-            O nome de usuário é definitivo e não pode ser alterado no MVP.
+            O nome de usuário é definitivo: ele faz parte do endereço do seu perfil e dos links que você já compartilhou.
           </span>
         </div>
 

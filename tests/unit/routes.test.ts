@@ -145,7 +145,7 @@ describe('Layout: default.vue', () => {
 })
 
 describe('Layout: app.vue', () => {
-  it('extends default layout and provides authenticated nav (Cadastrar livro / Perfil / Sair)', () => {
+  it('extends default layout and provides authenticated nav (Registrar leitura / Perfil / Sair button)', () => {
     const wrapper = mount(AppLayout)
     const navLinks = wrapper.findAll('nav.site-nav a')
     const linkData = navLinks.map((a) => ({
@@ -154,10 +154,15 @@ describe('Layout: app.vue', () => {
     }))
 
     expect(linkData).toEqual([
-      { href: '/app/novo', text: 'Cadastrar livro' },
-      { href: '/app/perfil', text: 'Perfil' },
-      { href: '/entrar', text: 'Sair' }
+      { href: '/app/novo', text: 'Registrar leitura' },
+      { href: '/app/perfil', text: 'Perfil' }
     ])
+
+    const signOutBtn = wrapper.find('nav.site-nav button')
+    expect(signOutBtn).not.toBeNull()
+    expect(signOutBtn?.getAttribute('type')).toBe('button')
+    expect(signOutBtn?.textContent?.trim()).toBe('Sair')
+    expect(wrapper.find('nav.site-nav a[href="/entrar"]')).toBeNull()
 
     expect(wrapper.text()).toContain('Capas de livros via Open Library')
     wrapper.unmount()
@@ -181,10 +186,16 @@ describe('Layout: app.vue', () => {
     }))
 
     expect(linkData).toEqual([
-      { href: '/app/novo', text: 'Cadastrar livro' },
-      { href: '/@diogo', text: 'Perfil' },
-      { href: '/entrar', text: 'Sair' }
+      { href: '/app/novo', text: 'Registrar leitura' },
+      { href: '/@diogo', text: 'Perfil' }
     ])
+
+    const signOutBtn = wrapper.find('nav.site-nav button')
+    expect(signOutBtn).not.toBeNull()
+    expect(signOutBtn?.getAttribute('type')).toBe('button')
+    expect(signOutBtn?.textContent?.trim()).toBe('Sair')
+    expect(wrapper.find('nav.site-nav a[href="/entrar"]')).toBeNull()
+
     wrapper.unmount()
     globalScope.useState = prevUseState
   })
@@ -331,7 +342,10 @@ describe('Page stubs and route parameters', () => {
     wWelcome.unmount()
 
     const wNew = mount(NewBookPage)
-    expect(wNew.text()).toContain('Cadastrar livro')
+    expect(wNew.text()).toContain('Registrar leitura')
+    expect(wNew.text()).toContain('Buscar no catálogo')
+    expect(wNew.text()).toContain('Adicionar livro novo')
+    expect(wNew.text()).toContain('Importar JSON')
     wNew.unmount()
 
     const wProfile = mount(EditProfilePage)

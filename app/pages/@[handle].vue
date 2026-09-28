@@ -67,7 +67,7 @@
           v-if="isOwner"
           title="Você ainda não registrou nenhum livro."
           message="Assim que registrar seus primeiros livros, eles aparecerão aqui."
-          action-label="Registrar livro"
+          action-label="Registrar leitura"
           action-href="/app/novo"
         />
         <EmptyState
@@ -118,14 +118,14 @@
             v-if="visibilityFilter === 'privado'"
             title="Nenhum livro privado."
             message="Livros marcados como privados ao registrar ou editar aparecerão aqui."
-            action-label="Registrar livro"
+            action-label="Registrar leitura"
             action-href="/app/novo"
           />
           <EmptyState
             v-else-if="visibilityFilter === 'publico'"
             title="Nenhum livro público."
             message="Livros marcados como públicos aparecerão aqui para outros leitores."
-            action-label="Registrar livro"
+            action-label="Registrar leitura"
             action-href="/app/novo"
           />
         </div>
@@ -141,17 +141,44 @@
           />
         </ClientOnly>
 
-        <FilterBar
-          v-model:genre="filterGenre"
-          v-model:country="filterCountry"
-          v-model:decade="filterDecade"
-          v-model:sort-by="sortBy"
-          :available-genres="availableGenres"
-          :available-countries="availableCountries"
-          :available-decades="availableDecades"
-          :has-active-filters="hasActiveFilters"
-          @reset="resetFilters"
-        />
+        <div :class="{ 'is-diary-view': currentView === 'diario' }">
+          <FilterBar
+            v-model:genre="filterGenre"
+            v-model:country="filterCountry"
+            v-model:decade="filterDecade"
+            v-model:sort-by="sortBy"
+            :available-genres="availableGenres"
+            :available-countries="availableCountries"
+            :available-decades="availableDecades"
+            :has-active-filters="hasActiveFilters"
+            @reset="resetFilters"
+          />
+        </div>
+
+        <div class="view-toggle-bar">
+          <div class="view-nav" role="tablist" aria-label="Modo de visualização">
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="currentView === 'grade'"
+              class="view-tab"
+              :class="{ active: currentView === 'grade' }"
+              @click="setView('grade')"
+            >
+              Grade
+            </button>
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="currentView === 'diario'"
+              class="view-tab"
+              :class="{ active: currentView === 'diario' }"
+              @click="setView('diario')"
+            >
+              Diário
+            </button>
+          </div>
+        </div>
 
         <div v-if="hasActiveFilters && sortedBooks.length === 0" class="empty-filter-results">
           <EmptyState
@@ -163,15 +190,25 @@
         </div>
 
         <template v-else>
-          <BookGrid>
+          <DiaryList v-if="currentView === 'diario'" :logs="sortedBooks" />
+
+          <BookGrid v-else>
             <div v-for="(log, i) in sortedBooks" :key="log.id" class="book-card-item">
-              <span
-                v-if="log.visibility === 'privado'"
-                class="private-badge"
-                title="Registro privado - visível apenas para você"
-              >
-                Privado
-              </span>
+              <div v-if="log.finished_on === null || log.visibility === 'privado'" class="card-badges">
+                <span
+                  v-if="log.finished_on === null"
+                  class="reading-badge"
+                >
+                  Lendo
+                </span>
+                <span
+                  v-if="log.visibility === 'privado'"
+                  class="private-badge"
+                  title="Registro privado - visível apenas para você"
+                >
+                  Privado
+                </span>
+              </div>
               <BookCard
                 :title="log.work.title"
                 :author="formatAuthors(log.work.authors)"
@@ -212,9 +249,10 @@
 
 <script setup lang="ts">
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import BookCard from '~/components/book/BookCard.vue'
 import BookGrid from '~/components/book/BookGrid.vue'
+import DiaryList from '~/components/profile/DiaryList.vue'
 import FilterBar from '~/components/profile/FilterBar.vue'
 import StatBox from '~/components/profile/StatBox.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
@@ -232,7 +270,24 @@ definePageMeta({
 })
 
 const route = useRoute()
+const router = typeof useRouter === 'function' ? useRouter() : null
 const handle = computed(() => (route.params.handle as string) || '')
+
+const currentView = computed<'grade' | 'diario'>(() => {
+  return route.query.vista === 'diario' ? 'diario' : 'grade'
+})
+
+function setView(view: 'grade' | 'diario') {
+  const query = { ...route.query }
+  if (view === 'diario') {
+    query.vista = 'diario'
+  } else {
+    delete query.vista
+  }
+  if (router) {
+    void router.push({ query })
+  }
+}
 
 const requestFetch = useRequestFetch()
 const event = import.meta.server && typeof useRequestEvent === 'function' ? useRequestEvent() : null
@@ -664,15 +719,75 @@ onBeforeUnmount(() => {
   margin-top: 0;
 }
 
+.is-diary-view :deep(.sort-label),
+.is-diary-view :deep(.sort-select) {
+  display: none;
+}
+
+.view-toggle-bar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-6, 24px);
+}
+
+.view-nav {
+  display: inline-flex;
+  background-color: var(--card-bg, #232a31);
+  padding: var(--space-1, 4px);
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--input-bg, #2c3440);
+  gap: var(--space-1, 4px);
+}
+
+.view-tab {
+  background: none;
+  border: none;
+  color: var(--text-color, #9ab);
+  font-size: var(--font-size-sm, 0.875rem);
+  font-family: inherit;
+  font-weight: 500;
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.view-tab:hover:not(.active) {
+  color: #fff;
+}
+
+.view-tab.active {
+  background-color: var(--highlight, #f59e0b);
+  color: #14181c;
+  font-weight: 700;
+}
+
+.view-tab:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline-offset: var(--focus-ring-offset, 2px);
+}
+
 .book-card-item {
   position: relative;
 }
 
-.private-badge {
+.card-badges {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.private-badge,
+.reading-badge {
   background-color: rgba(0, 0, 0, 0.85);
   color: var(--highlight, #f59e0b);
   border: 1px solid var(--highlight, #f59e0b);
@@ -681,6 +796,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-sm, 4px);
   font-weight: 600;
   pointer-events: none;
+  white-space: nowrap;
 }
 
 .paginometer {
@@ -740,7 +856,8 @@ onBeforeUnmount(() => {
 @media (prefers-reduced-motion: reduce) {
   .btn-edit-profile,
   .handle,
-  .visibility-tab {
+  .visibility-tab,
+  .view-tab {
     transition: none;
   }
 }
