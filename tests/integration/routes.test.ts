@@ -64,7 +64,7 @@ describe('Route integration HTTP tests', () => {
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('Início')
-    expect(html).toContain('Dados bibliográficos parcialmente do Open Library')
+    expect(html).toContain('Capas de livros via Open Library')
     expect(html).toContain('Meus Livros')
   })
 
@@ -151,7 +151,7 @@ describe('Route integration HTTP tests', () => {
 
     expect(html).toContain('Não encontramos essa página.')
     expect(html).toContain('Ir para o início')
-    expect(html).toContain('Dados bibliográficos parcialmente do Open Library')
+    expect(html).toContain('Capas de livros via Open Library')
     expect(html).not.toContain('stack')
   })
 

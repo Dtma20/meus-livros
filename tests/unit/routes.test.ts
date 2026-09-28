@@ -130,7 +130,7 @@ describe('Layout: default.vue', () => {
     const wrapper = mount(DefaultLayout)
     const footer = wrapper.find('footer.site-footer')
     expect(footer).not.toBeNull()
-    expect(footer?.textContent).toContain('Dados bibliográficos parcialmente do Open Library')
+    expect(footer?.textContent).toContain('Capas de livros via Open Library')
     wrapper.unmount()
   })
 
@@ -164,7 +164,7 @@ describe('Layout: app.vue', () => {
     expect(signOutBtn?.textContent?.trim()).toBe('Sair')
     expect(wrapper.find('nav.site-nav a[href="/entrar"]')).toBeNull()
 
-    expect(wrapper.text()).toContain('Dados bibliográficos parcialmente do Open Library')
+    expect(wrapper.text()).toContain('Capas de livros via Open Library')
     wrapper.unmount()
   })
 
