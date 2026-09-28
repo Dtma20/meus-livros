@@ -96,4 +96,90 @@ describe('FilterBar.vue', () => {
 
     wrapper.unmount()
   })
+
+  it('emits update:* from each of the four selects with the chosen value', () => {
+    const emitted: Record<string, unknown[]> = {
+      genre: [],
+      country: [],
+      decade: [],
+      sortBy: [],
+    }
+    const wrapper = mount(FilterBar, {
+      genre: '',
+      country: '',
+      decade: '',
+      sortBy: 'read_desc',
+      availableGenres: ['Ficção', 'Romance'],
+      availableCountries: ['Brasil', 'Reino Unido'],
+      availableDecades: [2020, 2010],
+      hasActiveFilters: false,
+      'onUpdate:genre': (value: unknown) => emitted.genre?.push(value),
+      'onUpdate:country': (value: unknown) => emitted.country?.push(value),
+      'onUpdate:decade': (value: unknown) => emitted.decade?.push(value),
+      'onUpdate:sortBy': (value: unknown) => emitted.sortBy?.push(value),
+    })
+
+    const choose = (label: string, value: string) => {
+      const select = wrapper.find<HTMLSelectElement>(`select[aria-label="${label}"]`)
+      expect(select).not.toBeNull()
+      if (!select) return
+      select.value = value
+      select.dispatchEvent(new Event('change'))
+    }
+
+    choose('Filtrar por gênero', 'Romance')
+    choose('Filtrar por país', 'Brasil')
+    choose('Filtrar por década', '2010')
+    choose('Ordenar por', 'alpha')
+
+    expect(emitted.genre).toEqual(['Romance'])
+    expect(emitted.country).toEqual(['Brasil'])
+    expect(emitted.decade).toEqual(['2010'])
+    expect(emitted.sortBy).toEqual(['alpha'])
+
+    wrapper.unmount()
+  })
+
+  it('emits the empty string when a filter goes back to "Todos"', () => {
+    const genres: unknown[] = []
+    const wrapper = mount(FilterBar, {
+      genre: 'Ficção',
+      country: '',
+      decade: '',
+      sortBy: 'read_desc',
+      availableGenres: ['Ficção', 'Romance'],
+      availableCountries: ['Brasil'],
+      availableDecades: [2020],
+      hasActiveFilters: true,
+      'onUpdate:genre': (value: unknown) => genres.push(value),
+    })
+
+    const select = wrapper.find<HTMLSelectElement>('select[aria-label="Filtrar por gênero"]')
+    expect(select).not.toBeNull()
+    if (select) {
+      select.value = ''
+      select.dispatchEvent(new Event('change'))
+    }
+    expect(genres).toEqual([''])
+
+    wrapper.unmount()
+  })
+
+  it('keeps the sort select named when its visible label is hidden on phones', () => {
+    const wrapper = mount(FilterBar, {
+      genre: '',
+      country: '',
+      decade: '',
+      sortBy: 'read_desc',
+      availableGenres: [],
+      availableCountries: [],
+      availableDecades: [],
+      hasActiveFilters: false,
+    })
+
+    expect(wrapper.findAll('select.filter-select')).toHaveLength(4)
+    expect(wrapper.find('select.sort-select')?.getAttribute('aria-label')).toBe('Ordenar por')
+
+    wrapper.unmount()
+  })
 })
