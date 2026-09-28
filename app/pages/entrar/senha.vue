@@ -521,7 +521,7 @@ function changeEmail() {
 }
 
 .success-text {
-  color: #34d399;
+  color: var(--success);
   font-size: var(--font-size-base);
   margin: var(--space-2) 0;
 }

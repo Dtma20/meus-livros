@@ -963,7 +963,7 @@ async function handleDelete(): Promise<void> {
 }
 
 .char-count-limit {
-  color: var(--danger);
+  color: var(--danger-text);
   font-weight: bold;
 }
 
@@ -990,7 +990,7 @@ async function handleDelete(): Promise<void> {
 
 .form-input:focus {
   border-color: var(--highlight);
-  box-shadow: 0 0 0 2px rgba(64, 188, 244, 0.2);
+  box-shadow: 0 0 0 2px var(--highlight-glow);
 }
 
 .form-select {
@@ -1056,7 +1056,7 @@ async function handleDelete(): Promise<void> {
 }
 
 .format-btn.is-selected {
-  background-color: rgba(64, 188, 244, 0.15);
+  background-color: var(--highlight-soft);
   border-color: var(--highlight);
   color: #fff;
 }
@@ -1108,7 +1108,7 @@ async function handleDelete(): Promise<void> {
 
 .field-error {
   margin: 0;
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-xs);
 }
 
@@ -1197,7 +1197,7 @@ async function handleDelete(): Promise<void> {
 
 .radio-card.selected {
   border-color: var(--highlight);
-  background-color: rgba(64, 188, 244, 0.08);
+  background-color: var(--highlight-soft);
 }
 
 .radio-input {
@@ -1229,7 +1229,7 @@ async function handleDelete(): Promise<void> {
 }
 
 .error-message {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-sm);
   margin: 0;
 }
@@ -1276,7 +1276,7 @@ async function handleDelete(): Promise<void> {
 
 .delete-btn {
   background: transparent;
-  color: var(--danger);
+  color: var(--danger-text);
   border: 1px solid var(--danger);
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);

@@ -528,7 +528,7 @@ async function handleChangePassword() {
 .form-input:focus {
   outline: none;
   border-color: var(--highlight);
-  box-shadow: 0 0 0 2px rgba(64, 188, 244, 0.2);
+  box-shadow: 0 0 0 2px var(--highlight-glow);
 }
 
 .form-input:focus-visible {
@@ -601,7 +601,7 @@ async function handleChangePassword() {
 
 .radio-card.selected {
   border-color: var(--highlight);
-  background-color: rgba(64, 188, 244, 0.08);
+  background-color: var(--highlight-soft);
 }
 
 .radio-input {
@@ -635,7 +635,7 @@ async function handleChangePassword() {
 }
 
 .success-message {
-  color: #34d399;
+  color: var(--success);
   font-size: var(--font-size-sm);
   margin: 0;
 }

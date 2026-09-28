@@ -437,8 +437,8 @@ function reset() {
 
 .drop-zone.is-dragging,
 .drop-zone:hover {
-  border-color: var(--highlight, #00e054);
-  background-color: rgba(0, 224, 84, 0.04);
+  border-color: var(--highlight);
+  background-color: color-mix(in srgb, var(--highlight) 4%, transparent);
 }
 
 .file-input-hidden {
@@ -458,8 +458,8 @@ function reset() {
 
 .btn-select-file {
   background-color: var(--card-bg, #1e242b);
-  border: 1px solid var(--highlight, #00e054);
-  color: var(--highlight, #00e054);
+  border: 1px solid var(--highlight);
+  color: var(--highlight);
   padding: 8px 16px;
   border-radius: var(--radius-sm, 4px);
   font-weight: 500;
@@ -468,7 +468,7 @@ function reset() {
 }
 
 .btn-select-file:hover {
-  background-color: var(--highlight, #00e054);
+  background-color: var(--highlight);
   color: #14181c;
 }
 
@@ -513,8 +513,8 @@ function reset() {
 }
 
 .badge-valid {
-  background-color: rgba(0, 224, 84, 0.15);
-  color: #3fb950;
+  background-color: color-mix(in srgb, var(--success) 15%, transparent);
+  color: var(--success);
   font-size: var(--font-size-xs, 0.75rem);
   font-weight: 600;
   padding: 4px 8px;
@@ -596,8 +596,8 @@ function reset() {
 .success-card {
   text-align: center;
   padding: var(--space-8, 32px) var(--space-4, 16px);
-  background-color: rgba(0, 224, 84, 0.04);
-  border: 1px solid rgba(0, 224, 84, 0.2);
+  background-color: color-mix(in srgb, var(--success) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--success) 20%, transparent);
   border-radius: var(--radius-md, 8px);
 }
 
@@ -606,7 +606,7 @@ function reset() {
   height: 48px;
   line-height: 48px;
   border-radius: 50%;
-  background-color: #3fb950;
+  background-color: var(--success);
   color: #14181c;
   font-size: 1.5rem;
   font-weight: bold;

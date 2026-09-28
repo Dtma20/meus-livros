@@ -170,12 +170,25 @@ Accessibility fixes the current app needs (it is presently unusable with a scree
 
 ## 8. Design tokens
 
-Port `styles.css` `:root` as-is; it is coherent and the owner's aesthetic:
+The palette lives in `app/assets/css/tokens.css`:
 
 ```css
---bg-color: #14181c;  --card-bg: #232a31;  --text-color: #9ab;
---poster-border: #fff; --star-color: #0083e0; --highlight: #40bcf4;
+color-scheme: dark;
+
+--bg-color: #14181c;
+--card-bg: #232a31;
+--text-color: #9ab;
+--poster-border: #fff;
+--star-color: #f59e0b;
+--highlight: #f59e0b;
+--highlight-hover: #d97706;
 --input-bg: #2c3440;
+
+--danger: #ef4444;
+--danger-text: #f87171;
+--success: #34d399;
+--highlight-soft: rgba(245, 158, 11, 0.12);
+--highlight-glow: rgba(245, 158, 11, 0.25);
 ```
 
 Add only what is missing: a spacing scale, a type scale, radii, and `--danger`.
