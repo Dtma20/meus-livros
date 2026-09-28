@@ -961,12 +961,8 @@ async function handleSubmit(force = false): Promise<void> {
     emit('success', res)
 
     const target = props.returnTo || '/app/novo'
-    if (target === '/') {
-      await navigateTo('/')
-    } else {
-      const sep = target.includes('?') ? '&' : '?'
-      await navigateTo(`${target}${sep}work_id=${res.id}`)
-    }
+    const sep = target.includes('?') ? '&' : '?'
+    await navigateTo(`${target}${sep}work_id=${res.id}`)
   } catch (err: unknown) {
     if (isTimeoutOrAbort(err)) {
       serverError.value = TIMEOUT_MESSAGE
@@ -995,12 +991,8 @@ async function useExistingDuplicate(): Promise<void> {
   if (!duplicateWork.value) return
   clearDraft()
   const target = props.returnTo || '/app/novo'
-  if (target === '/') {
-    await navigateTo('/')
-  } else {
-    const sep = target.includes('?') ? '&' : '?'
-    await navigateTo(`${target}${sep}work_id=${duplicateWork.value.id}`)
-  }
+  const sep = target.includes('?') ? '&' : '?'
+  await navigateTo(`${target}${sep}work_id=${duplicateWork.value.id}`)
 }
 
 async function forceCreateWork(): Promise<void> {
