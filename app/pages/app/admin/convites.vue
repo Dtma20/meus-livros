@@ -254,7 +254,10 @@ async function handleAddInvite() {
 }
 
 async function handleRemoveInvite(invite: InviteView) {
-  const confirmed = window.confirm(`Remover o convite de ${invite.email}?`)
+  const confirmMessage = invite.status === 'ativado'
+    ? `Remover o convite de ${invite.email}? A pessoa perde o acesso: as sessões abertas são encerradas e a senha deixa de valer.`
+    : `Remover o convite de ${invite.email}?`
+  const confirmed = window.confirm(confirmMessage)
   if (!confirmed) return
 
   listError.value = ''
