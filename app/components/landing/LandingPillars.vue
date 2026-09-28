@@ -166,7 +166,7 @@
 
 .pillars-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-5);
 }
 
@@ -417,7 +417,7 @@
 
 @media (max-width: 640px) {
   .pillars-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

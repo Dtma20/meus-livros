@@ -117,6 +117,7 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 <style scoped>
 .landing-hero {
   position: relative;
+  overflow-x: clip;
   padding: var(--space-8) 0 var(--space-12) 0;
 }
 
@@ -510,6 +511,11 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 
   .fan-book {
     display: none;
+  }
+
+  .hero-visual-backdrop {
+    left: 0;
+    width: 100%;
   }
 
   .hero-log-card {
