@@ -1,6 +1,7 @@
 import { relations, sql } from 'drizzle-orm'
 import {
   bigserial,
+  boolean,
   char,
   check,
   customType,
@@ -38,6 +39,7 @@ export const users = pgTable(
     display_name: text('display_name').notNull(),
     bio: text('bio'),
     profile_visibility: visibilityEnum('profile_visibility').notNull().default('publico'),
+    is_admin: boolean('is_admin').notNull().default(false),
     created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
   },
   (table) => [

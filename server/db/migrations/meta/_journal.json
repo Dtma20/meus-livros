@@ -36,6 +36,13 @@
       "when": 1790104208549,
       "tag": "0004_work_edit_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790561133004,
+      "tag": "0005_admin_flag",
+      "breakpoints": true
     }
   ]
 }
