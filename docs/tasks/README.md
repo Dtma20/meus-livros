@@ -58,6 +58,17 @@
 | [046](046-landing-mobile-overflow.md) | Landing without horizontal scroll on a phone | 10 Frontend polish | 1h | - |
 | [047](047-diary-month-heading.md) | Diary without redundant 'Sem mês' headings | 10 Frontend polish | 1h | - |
 | [048](048-nav-touch-targets.md) | Header links big enough to tap | 10 Frontend polish | 1h | - |
+| [049](049-platform-reset.md) | Global element reset and platform finish | 11 Visual audit | 1-2h | - |
+| [050](050-retire-blue-and-greens.md) | Retire the old blue and the ad-hoc greens | 11 Visual audit | 1-2h | - |
+| [051](051-og-fallback.md) | OG fallback in the current brand (done by the reviewer) | 11 Visual audit | 1-2h | - |
+| [052](052-profile-above-the-fold.md) | Profile: books above the fold, quieter handle | 11 Visual audit | 1-2h | - |
+| [053](053-permalink-review-first.md) | Permalink: the review comes first | 11 Visual audit | 1-2h | - |
+| [054](054-dashboard-content-first.md) | Dashboard: content before empty states | 11 Visual audit | 1-2h | - |
+| [055](055-type-scale-and-nav.md) | Type scale and nav spacing | 11 Visual audit | 1-2h | - |
+| [056](056-card-polish.md) | Aligned stars and a placeholder that looks like a book | 11 Visual audit | 1-2h | - |
+| [057](057-member-real-covers.md) | Member cards show real covers | 11 Visual audit | 1-2h | - |
+| [058](058-book-page-wide.md) | Book page on wide screens | 11 Visual audit | 1-2h | - |
+| [059](059-sign-in-finish.md) | Sign-in finish | 11 Visual audit | 1-2h | - |
 
 Roughly 79 hours of focused work - about four weeks part-time.
 
