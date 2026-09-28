@@ -74,9 +74,9 @@
               type="date"
               class="form-input"
               :disabled="submitting || deleting"
-              aria-describedby="log-finished-hint"
+              :aria-describedby="showFinishedHint ? 'log-finished-hint' : undefined"
             >
-            <span id="log-finished-hint" class="field-hint">Preenchida com a data de hoje pelo seu navegador.</span>
+            <span v-if="showFinishedHint" id="log-finished-hint" class="field-hint">Preenchida com a data de hoje pelo seu navegador.</span>
           </div>
 
           <div class="form-group">
@@ -462,7 +462,8 @@ const editionId = ref<string | null>(null)
 const isCurrentlyReading = ref(false)
 const rating = ref<number | null>(null)
 const review = ref('')
-const finishedOn = ref(getBrowserLocalDate())
+const defaultFinishedOn = getBrowserLocalDate()
+const finishedOn = ref(defaultFinishedOn)
 const startedOn = ref('')
 const finishedPrecision = ref<'dia' | 'mes' | 'ano'>('dia')
 const format = ref<'fisico' | 'ebook' | 'audio' | null>(null)
@@ -485,6 +486,10 @@ const newEditionErrors = ref<Record<string, string>>({})
 const submitting = ref(false)
 const deleting = ref(false)
 const errorMessage = ref('')
+
+const showFinishedHint = computed(
+  () => props.mode === 'create' && finishedOn.value === defaultFinishedOn,
+)
 
 const submitButtonLabel = computed(() => {
   if (submitting.value) return 'Salvando...'

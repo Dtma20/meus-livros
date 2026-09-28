@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Component, createApp, nextTick } from 'vue'
+import type { LogWithDetails } from '../../shared/schemas/log'
 import type { SearchResult } from '../../shared/schemas/search'
 
 vi.hoisted(() => {
@@ -144,6 +145,111 @@ describe('LogForm - draft persistence', () => {
 
     expect(el.value).toBe('Digitado sem armazenamento disponível.')
     expect(form.text()).toContain('A Obra')
+    form.unmount()
+  })
+})
+
+function browserToday(): string {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
+function editLog(finishedOn: string): LogWithDetails {
+  return {
+    id: '22222222-2222-4222-8222-222222222222',
+    user_id: '33333333-3333-4333-8333-333333333333',
+    work_id: '11111111-1111-4111-8111-111111111111',
+    edition_id: null,
+    rating: 4,
+    review: null,
+    started_on: null,
+    finished_on: finishedOn,
+    finished_precision: 'dia',
+    format: null,
+    visibility: 'publico',
+    created_at: new Date('2024-01-02T12:00:00Z'),
+    updated_at: new Date('2024-01-02T12:00:00Z'),
+    user: {
+      id: '33333333-3333-4333-8333-333333333333',
+      handle: 'leitora',
+      display_name: 'Leitora',
+      profile_visibility: 'publico',
+    },
+    work: {
+      id: '11111111-1111-4111-8111-111111111111',
+      title: 'A Obra',
+      slug: 'a-obra',
+      first_published_year: 1999,
+      cover_url: null,
+      authors: [{ id: '44444444-4444-4444-8444-444444444444', name: 'Autora', slug: 'autora' }],
+    },
+    edition: null,
+  }
+}
+
+describe('LogForm - finished date hint', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    vi.restoreAllMocks()
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    globalScope.$fetch = vi.fn(async () => ({ id: 'log-1' }))
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    document.body.innerHTML = ''
+  })
+
+  function dateInput(host: HTMLElement): HTMLInputElement {
+    const el = host.querySelector<HTMLInputElement>('#log-finished-on')
+    if (!el) throw new Error('O campo de data de término não foi encontrado.')
+    return el
+  }
+
+  it('shows the hint while the create form still holds the date it filled in', async () => {
+    const form = await mountForm()
+    const input = dateInput(form.host)
+
+    expect(input.value).toBe(browserToday())
+    expect(form.host.querySelector('#log-finished-hint')).not.toBeNull()
+    expect(input.getAttribute('aria-describedby')).toBe('log-finished-hint')
+    form.unmount()
+  })
+
+  it('drops the hint and aria-describedby once the date is changed', async () => {
+    const form = await mountForm()
+    const input = dateInput(form.host)
+
+    input.value = '2024-01-01'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await nextTick()
+
+    expect(form.host.querySelector('#log-finished-hint')).toBeNull()
+    expect(input.hasAttribute('aria-describedby')).toBe(false)
+    form.unmount()
+  })
+
+  it('never renders the hint in edit mode with a stored date', async () => {
+    const form = await mountForm({ mode: 'edit', initialLog: editLog('2024-01-01'), initialWork: null })
+    const input = dateInput(form.host)
+
+    expect(input.value).toBe('2024-01-01')
+    expect(form.host.querySelector('#log-finished-hint')).toBeNull()
+    expect(input.hasAttribute('aria-describedby')).toBe(false)
+    form.unmount()
+  })
+
+  it('never renders the hint in edit mode even when the stored date is today', async () => {
+    const today = browserToday()
+    const form = await mountForm({ mode: 'edit', initialLog: editLog(today), initialWork: null })
+    const input = dateInput(form.host)
+
+    expect(input.value).toBe(today)
+    expect(form.host.querySelector('#log-finished-hint')).toBeNull()
+    expect(input.hasAttribute('aria-describedby')).toBe(false)
     form.unmount()
   })
 })
