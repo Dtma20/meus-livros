@@ -8,7 +8,7 @@ import type {
 } from '../../shared/schemas/reading-block'
 import { calculateReadingProgress } from '../../shared/utils/reading-progress'
 import { db } from '../db'
-import { editions, reading_blocks, reading_logs } from '../db/schema'
+import { editions, reading_blocks, reading_logs, users } from '../db/schema'
 import { visibleLogs, type Viewer } from './visibility'
 
 export async function getBlocksForLog(
@@ -24,6 +24,7 @@ export async function getBlocksForLog(
       edition_page_count: editions.page_count,
     })
     .from(reading_logs)
+    .innerJoin(users, eq(users.id, reading_logs.user_id))
     .leftJoin(
       editions,
       sql`editions.id = COALESCE(

@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm'
-import { createError, isError } from 'h3'
+import { createError } from 'h3'
+import { z } from 'zod'
 import {
   buildReviewExcerpt,
   type FeedAuthorView,
@@ -11,49 +12,40 @@ import { db } from '../db'
 import { authors, editions, reading_logs, users, work_authors, works } from '../db/schema'
 import { visibleLogs, type Viewer } from './visibility'
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const cursorPayloadSchema = z.object({
+  t: z.iso.datetime().refine((t) => !t.startsWith('0000-')),
+  id: z.uuid(),
+})
 
-export interface CursorPayload {
-  t: string
-  id: string
-}
+export type CursorPayload = z.infer<typeof cursorPayloadSchema>
 
 export interface FeedPageOptions {
   cursor?: string | null
   limit?: number
 }
 
+function invalidCursor(): Error {
+  return createError({
+    statusCode: 400,
+    data: {
+      error: 'cursor_invalido',
+      message: 'Cursor de paginação inválido.',
+    },
+  })
+}
+
 export function decodeCursor(cursor: string): CursorPayload {
+  let parsed: unknown
   try {
-    const raw = Buffer.from(cursor, 'base64url').toString('utf8')
-    const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('invalid')
-    }
-    const { t, id } = parsed as Record<string, unknown>
-    if (typeof t !== 'string' || typeof id !== 'string') {
-      throw new Error('invalid')
-    }
-    const time = new Date(t).getTime()
-    if (Number.isNaN(time)) {
-      throw new Error('invalid')
-    }
-    if (!UUID_REGEX.test(id)) {
-      throw new Error('invalid')
-    }
-    return { t, id }
-  } catch (err) {
-    if (isError(err) && (err as { statusCode?: number }).statusCode === 400) {
-      throw err
-    }
-    throw createError({
-      statusCode: 400,
-      data: {
-        error: 'cursor_invalido',
-        message: 'Cursor de paginação inválido.',
-      },
-    })
+    parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'))
+  } catch {
+    throw invalidCursor()
   }
+  const result = cursorPayloadSchema.safeParse(parsed)
+  if (!result.success) {
+    throw invalidCursor()
+  }
+  return result.data
 }
 
 export function encodeCursor(entry: { cursor_created_at?: string; created_at: Date | string; id: string }): string {
