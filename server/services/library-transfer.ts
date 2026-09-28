@@ -13,6 +13,7 @@ import { normalizeIsbn } from '../utils/isbn'
 import { slugify } from '../utils/slug'
 import { logger } from '../utils/logger'
 import type { LivroJson, ImportResult } from '../../shared/schemas/export-import'
+import { logVisibilitySchema, type LogVisibility } from '../../shared/schemas/log'
 
 export const ISO_IDIOMA: Record<string, string> = {
   'inglês': 'en',
@@ -101,6 +102,13 @@ export function formatImportError(bookIndex: number, title: string): string {
   return `Livro #${bookIndex} ("${title}"): não foi possível importar.`
 }
 
+export function parseImportVisibility(value: string | null | undefined): LogVisibility {
+  if (value === undefined || value === null) return 'publico'
+  const parsed = logVisibilitySchema.safeParse(value)
+  if (!parsed.success) throw new Error('Visibilidade inválida.')
+  return parsed.data
+}
+
 export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
   logger.info(`Exportando biblioteca do usuário ${userId}`, { module: 'export', userId })
 
@@ -112,6 +120,7 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
       finished_on: reading_logs.finished_on,
       finished_precision: reading_logs.finished_precision,
       format: reading_logs.format,
+      visibility: reading_logs.visibility,
       work_id: works.id,
       title: works.title,
       original_language: works.original_language,
@@ -208,6 +217,7 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
       genre: genresByWork.get(log.work_id) ?? [],
       isbn: log.isbn13 ?? null,
       cover_url: log.cover_url,
+      visibility: log.visibility,
     }
   })
 }
@@ -236,6 +246,8 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
     const bookIndex = i + 1
 
     try {
+      const visibility = parseImportVisibility(book.visibility)
+
       await db.transaction(async (tx) => {
         const authorNames = parseAuthors(book.author)
         if (authorNames.length === 0) authorNames.push('Autor Desconhecido')
@@ -437,7 +449,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           finished_on: finishedOn,
           finished_precision: finishedPrecision,
           format: parseFormat(book.source),
-          visibility: 'publico',
+          visibility,
         })
 
         importedCount++

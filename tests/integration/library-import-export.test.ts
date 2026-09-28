@@ -149,4 +149,52 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(roundtrip.skippedCount).toBe(0)
     expect(roundtrip.importedCount).toBe(exportedBooks.length)
   })
+
+  it('exports and imports each reading with its own visibility', async () => {
+    const [visibilityUser] = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}-visibility@example.com`,
+        handle: `uv_${Date.now()}`.slice(0, 20),
+        display_name: 'Usuário Visibilidade',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+    if (!visibilityUser) throw new Error('Falha ao criar usuário de visibilidade.')
+
+    const privateTitle = `${MARKER} Livro Privado`
+    const unmarkedTitle = `${MARKER} Livro Sem Campo`
+    const invalidTitle = `${MARKER} Livro Visibilidade Invalida`
+
+    const result = await transferService.importUserLibrary(visibilityUser.id, [
+      { title: privateTitle, author: 'Autor Visibilidade', genre: [], visibility: 'privado' },
+      { title: unmarkedTitle, author: 'Autor Visibilidade', genre: [] },
+      { title: invalidTitle, author: 'Autor Visibilidade', genre: [], visibility: 'secreto' },
+    ])
+
+    expect(result.importedCount).toBe(2)
+    expect(result.skippedCount).toBe(1)
+    expect(result.errors).toEqual([transferService.formatImportError(3, invalidTitle)])
+
+    const stored = await db
+      .select({ title: schema.works.title, visibility: schema.reading_logs.visibility })
+      .from(schema.reading_logs)
+      .innerJoin(schema.works, sqlOp.eq(schema.works.id, schema.reading_logs.work_id))
+      .where(sqlOp.eq(schema.reading_logs.user_id, visibilityUser.id))
+
+    expect(stored).toHaveLength(2)
+    expect(stored.find((row) => row.title === privateTitle)?.visibility).toBe('privado')
+    expect(stored.find((row) => row.title === unmarkedTitle)?.visibility).toBe('publico')
+
+    const invalidWorks = await db
+      .select({ id: schema.works.id })
+      .from(schema.works)
+      .where(sqlOp.eq(schema.works.title, invalidTitle))
+    expect(invalidWorks).toHaveLength(0)
+
+    const exported = await transferService.exportUserLibrary(visibilityUser.id)
+    expect(exported.find((b) => b.title === privateTitle)?.visibility).toBe('privado')
+    expect(exported.find((b) => b.title === unmarkedTitle)?.visibility).toBe('publico')
+    expect(livroJsonSchema.array().safeParse(exported).success).toBe(true)
+  })
 })

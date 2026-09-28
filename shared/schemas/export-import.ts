@@ -19,6 +19,7 @@ export const livroJsonSchema = z.object({
   genre: z.array(z.string().max(50)).optional().default([]),
   isbn: z.string().max(50).optional().nullable(),
   cover_url: coverUrlSchema.optional().nullable(),
+  visibility: z.string().max(50).optional().nullable(),
 })
 
 export type LivroJson = z.infer<typeof livroJsonSchema>
