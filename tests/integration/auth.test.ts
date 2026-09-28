@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { Transporter } from 'nodemailer'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
@@ -111,15 +112,16 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
   })
 
   async function purgeTestRateLimits() {
-
     const exact = [...createdRateLimitKeys, `signin:id:${testHandle}`]
+    const hashedExact = exact.map((k) => createHash('sha256').update(k).digest('hex'))
+    const allKeys = [...exact, ...hashedExact]
     const patterns = [
       ...createdEmails.map((e) => `%${e}%`),
       `signin:id:spray_${testId % 100000}_%`,
     ]
     await db.execute(sql`
       DELETE FROM rate_limit
-      WHERE key IN (${sql.join(exact.map((k) => sql`${k}`), sql`, `)})
+      WHERE key IN (${sql.join(allKeys.map((k) => sql`${k}`), sql`, `)})
          OR ${sql.join(patterns.map((pat) => sql`key LIKE ${pat}`), sql` OR `)}
     `)
   }
@@ -246,6 +248,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
 
     const verifyRes = await handleAuthRequest(verifyReq)
     expect(verifyRes.status).toBe(200)
+    const verifyBody = (await verifyRes.json()) as Record<string, unknown>
+    expect(verifyBody).not.toHaveProperty('token')
     const cookie = cookieHeaderFrom(verifyRes)
     expect(cookie).toBeTruthy()
 
@@ -359,6 +363,66 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     expect(sessionUser?.email).toBe(allowedEmail)
   }, 20000)
 
+  it('TASK-065 - session token is omitted from /entrar and /get-session response bodies while preserving cookies', async () => {
+    createdRateLimitKeys.push(`signin:id:${testHandle}`)
+
+    const signInRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-forwarded-for': testIp,
+        },
+        body: JSON.stringify({
+          identificador: testHandle,
+          senha: initialPassword,
+        }),
+      }),
+    )
+    expect(signInRes.status).toBe(200)
+    expect(signInRes.headers.getSetCookie().length).toBeGreaterThan(0)
+    const signInBody = (await signInRes.json()) as Record<string, unknown>
+    expect(signInBody).toHaveProperty('user')
+    expect(signInBody).not.toHaveProperty('token')
+
+    const cookie = cookieHeaderFrom(signInRes)
+    expect(cookie).toBeTruthy()
+
+    const getSessionRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/get-session', {
+        method: 'GET',
+        headers: {
+          cookie: cookie!,
+          'x-forwarded-for': testIp,
+        },
+      }),
+    )
+    expect(getSessionRes.status).toBe(200)
+    const sessionBody = (await getSessionRes.json()) as {
+      user?: unknown
+      session?: Record<string, unknown>
+      token?: unknown
+    }
+    expect(sessionBody).toHaveProperty('user')
+    expect(sessionBody).toHaveProperty('session')
+    expect(sessionBody.session).not.toHaveProperty('token')
+    expect(sessionBody).not.toHaveProperty('token')
+  }, 20000)
+
+  it('TASK-065 - unauthenticated /get-session passes through unchanged', async () => {
+    const getSessionRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/get-session', {
+        method: 'GET',
+        headers: {
+          'x-forwarded-for': testIp,
+        },
+      }),
+    )
+    expect(getSessionRes.status).toBe(200)
+    const text = await getSessionRes.text()
+    expect(text === 'null' || text === '').toBe(true)
+  }, 20000)
+
   it('wrong password and unknown handle return byte-identical bodies and status 400', async () => {
     const unknownHandle = `unk_${testId % 1000000}`
     createdRateLimitKeys.push(`signin:id:${testHandle}`)
@@ -446,9 +510,12 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
 
   it('the 31st sign-in attempt from one IP within an hour returns 429', async () => {
 
+    const rawIpKey = `signin:ip:${signInIpLimitIp}`
+    const hashedIpKey = createHash('sha256').update(rawIpKey).digest('hex')
+
     await db.execute(sql`
       INSERT INTO rate_limit (key, count, window_start)
-      VALUES (${`signin:ip:${signInIpLimitIp}`}, 29, date_trunc('hour', now()))
+      VALUES (${hashedIpKey}, 29, date_trunc('hour', now()))
       ON CONFLICT (key, window_start) DO UPDATE SET count = 29
     `)
 
@@ -466,7 +533,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
 
     const [counter] = await db.execute(sql<{ count: number }>`
       SELECT count FROM rate_limit
-      WHERE key = ${`signin:ip:${signInIpLimitIp}`}
+      WHERE key = ${hashedIpKey}
         AND window_start = date_trunc('hour', now())
     `)
     expect(Number(counter?.count)).toBe(30)
@@ -610,6 +677,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
       }),
     )
     expect(changePwRes.status).toBe(200)
+    expect(changePwRes.headers.getSetCookie().length).toBeGreaterThan(0)
+    const changePwBody = (await changePwRes.json()) as Record<string, unknown>
+    expect(changePwBody).not.toHaveProperty('token')
 
     const updatedCookieA = cookieHeaderFrom(changePwRes) || cookieA
     const survivingHeaders = new Headers({ cookie: updatedCookieA })
