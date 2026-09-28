@@ -42,6 +42,7 @@
     <div class="map-svg-wrapper">
       <svg
         :viewBox="WORLD_MAP_VIEW_BOX"
+        preserveAspectRatio="xMidYMid meet"
         class="world-map-svg"
         role="img"
         :aria-label="mapAriaLabel"
@@ -300,7 +301,9 @@ function clearSelection() {
 .world-map-svg {
   width: 100%;
   height: auto;
+  max-height: 280px;
   display: block;
+  margin: 0 auto;
 }
 
 .country-path {
