@@ -48,6 +48,16 @@
 | [036](036-activity-page.md) | Activity page with cursor pagination | 9 UX round | 3h | - |
 | [037](037-mobile-bottom-nav.md) | Mobile bottom nav and new nav entries | 9 UX round | 2h | 028, 031, 035, 036 |
 | [038](038-admin-invites.md) | Admin page for invites | 9 UX round | 3h | - |
+| [039](039-book-cover-loading.md) | Cover placeholder while the image loads | 10 Frontend polish | 1h | - |
+| [040](040-book-card-single-caption.md) | One caption element in BookCard | 10 Frontend polish | 1h | - |
+| [041](041-rating-touch-target.md) | Half-star target wide enough to hit on a phone | 10 Frontend polish | 1h | - |
+| [042](042-filter-bar-mobile.md) | Filters fit on a phone | 10 Frontend polish | 1h | - |
+| [043](043-profile-stats-coherent.md) | Profile numbers that agree with each other | 10 Frontend polish | 1h | - |
+| [044](044-log-form-date-hint.md) | The date hint only says what is true | 10 Frontend polish | 1h | - |
+| [045](045-back-home-copy.md) | One wording for 'back to home' | 10 Frontend polish | 1h | - |
+| [046](046-landing-mobile-overflow.md) | Landing without horizontal scroll on a phone | 10 Frontend polish | 1h | - |
+| [047](047-diary-month-heading.md) | Diary without redundant 'Sem mês' headings | 10 Frontend polish | 1h | - |
+| [048](048-nav-touch-targets.md) | Header links big enough to tap | 10 Frontend polish | 1h | - |
 
 Roughly 79 hours of focused work - about four weeks part-time.
 
