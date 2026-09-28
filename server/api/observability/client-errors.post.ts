@@ -30,6 +30,9 @@ export default defineApiHandler(async (event) => {
   const safeMessage = sanitizeClientErrorMessage(input.message)
   const safeStack = input.stack ? sanitizeClientErrorStack(input.stack) : undefined
 
+  const { _rawError: _discardedRawError, ...safeContext } = input.context ?? {}
+  void _discardedRawError
+
   logger.error(`[client] Erro capturado no frontend: ${safeMessage}`, {
     module: 'client',
     source: 'client',
@@ -37,7 +40,7 @@ export default defineApiHandler(async (event) => {
     context: {
       url: input.url,
       component: input.component,
-      ...input.context,
+      ...safeContext,
     },
     error: {
       name: input.name || 'ClientError',
