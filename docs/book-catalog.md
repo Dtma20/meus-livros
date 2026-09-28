@@ -6,14 +6,14 @@ The most measurement-driven document in this set. The discovery phase assumed Op
 
 ## 1. What was measured
 
-Run 2026-09-18 against `livros.json`. Sample: **30 books whose publisher is a Brazilian imprint** — Companhia das Letras, Rocco, Intrínseca, Aleph, Antofágica, Principis, Record, L&PM Pocket, Martin Claret. This is the population the product actually serves.
+Run 2026-09-18 against `livros.json`. Sample: **30 books whose publisher is a Brazilian imprint** - Companhia das Letras, Rocco, Intrínseca, Aleph, Antofágica, Principis, Record, L&PM Pocket, Martin Claret. This is the population the product actually serves.
 
-### Lookup by ISBN — `https://openlibrary.org/isbn/{isbn13}.json`
+### Lookup by ISBN - `https://openlibrary.org/isbn/{isbn13}.json`
 
 | Result | Count |
 |---|---|
-| **Edition record exists** | **12 / 30 — 40%** |
-| Cover exists (`?default=false`) | 17 / 30 — 57% |
+| **Edition record exists** | **12 / 30 - 40%** |
+| Cover exists (`?default=false`) | 17 / 30 - 57% |
 
 Field coverage *among the 12 that exist*: title 12/12, publishers 12/12, publish_date 12/12, linked work 12/12, languages 11/12, number_of_pages 10/12, cover 9/12. **When a record exists it is good. It usually does not exist.**
 
@@ -28,7 +28,7 @@ Martin Claret               2 missing  (Histórias da meia-noite, Pollyanna)
 Also: A Arte da Guerra (Principis), Sapiens (L&PM), 1984 (Antofágica)
 ```
 
-### Search by title + author — `https://openlibrary.org/search.json`
+### Search by title + author - `https://openlibrary.org/search.json`
 
 | Result | Count |
 |---|---|
@@ -36,22 +36,22 @@ Also: A Arte da Guerra (Principis), Sapiens (L&PM), 1984 (Antofágica)
 | Top result carries `cover_i` | 22 / 22 |
 | Top result lists `por` among languages | 21 / 22 |
 
-Confirmed zero-result cases include *Harry Potter e a câmara secreta*, *Harry Potter e o cálice de fogo*, *Histórias da meia-noite* (Machado de Assis — a canonical Brazilian work), *Breve romance de sonho* and *Pollyanna e Pollyanna moça*.
+Confirmed zero-result cases include *Harry Potter e a câmara secreta*, *Harry Potter e o cálice de fogo*, *Histórias da meia-noite* (Machado de Assis - a canonical Brazilian work), *Breve romance de sonho* and *Pollyanna e Pollyanna moça*.
 
-### `number_of_pages_median` — added 2026-09-22
+### `number_of_pages_median` - added 2026-09-22
 
 Run against the first 30 records of `livros.json`, one search per book, top result only.
 
 | Result | Count |
 |---|---|
 | Returned ≥ 1 result | 25 / 30 |
-| Top result carries `number_of_pages_median` | **25 / 25 — 100% of hits** |
+| Top result carries `number_of_pages_median` | **25 / 25 - 100% of hits** |
 
 Coverage is total when a record exists. Accuracy is not:
 
 | | |
 |---|---|
-| Within 10% of the real page count | 10 / 25 — 40% |
+| Within 10% of the real page count | 10 / 25 - 40% |
 | Median relative error | **14.7%** |
 
 The field is the median across every edition Open Library knows for the work, almost all of them anglophone. *Harry Potter e a Pedra filosofal*: OL 302, the Rocco edition 224. *Ordem da fênix*: OL 870, real 704.
@@ -60,7 +60,7 @@ The field is the median across every edition Open Library knows for the work, al
 
 ---
 
-### Latency — the decisive number
+### Latency - the decisive number
 
 | | |
 |---|---|
@@ -87,7 +87,7 @@ Three consequences:
 2. **Manual add is a first-class flow, not an error recovery.** It will be used roughly 60% of the time for Brazilian editions. It gets real design attention, a good form, and the prominent position in the zero-result state.
 3. **The network effect does the work.** A book added by one friend is immediately searchable by the other 29. At 30 readers × ~50 books, the local catalog passes ~1,000 works within weeks and local search starts winning outright.
 
-The 86 migrated books seed this from day one — the first friend to sign up searches a catalog that already has content.
+The 86 migrated books seed this from day one - the first friend to sign up searches a catalog that already has content.
 
 ---
 
@@ -100,9 +100,9 @@ The 86 migrated books seed this from day one — the first friend to sign up sea
 | `works.original_language` | Local, OL-suggested | |
 | `works.ol_work_key` | OL | The only field OL owns outright; the join key for later enrichment |
 | `editions.isbn13` | Local | Normalised on write |
-| `editions.publisher` / `page_count` | Local, OL-suggested | OL's Brazilian publisher data is absent 60% of the time. `page_count` comes from `number_of_pages_median` — 100% present when a record exists, 14.7% median error. See §1 |
+| `editions.publisher` / `page_count` | Local, OL-suggested | OL's Brazilian publisher data is absent 60% of the time. `page_count` comes from `number_of_pages_median` - 100% present when a record exists, 14.7% median error. See §1 |
 | `editions.cover_url` | Local | An absolute URL, whatever its origin |
-| `editions.ol_cover_id` | OL | Preferred over ISBN-keyed cover URLs — see §5 |
+| `editions.ol_cover_id` | OL | Preferred over ISBN-keyed cover URLs - see §5 |
 | genres | **Local only** | OL `subjects` are a free-text mess in English. Never imported |
 
 **Nothing from Open Library ever silently overwrites a local value.** Enrichment proposes; the user disposes. A user who typed a title and then pressed "buscar online" sees a diff, not a replacement.
@@ -117,7 +117,7 @@ The 86 migrated books seed this from day one — the first friend to sign up sea
 |---|---|
 | Persisted | Everything in `works` and `editions` |
 | Fetched live | Only inside `GET /api/search/externo`, only on an explicit button press, only with a session |
-| Cached | Nothing. There is nothing to cache — results are either persisted on accept or discarded |
+| Cached | Nothing. There is nothing to cache - results are either persisted on accept or discarded |
 
 This deletes an entire subsystem the discovery documents assumed: no catalog mirror, no sync job, no cache invalidation, no staleness policy.
 
@@ -130,17 +130,17 @@ Resolution order, in `BookCover.vue`:
 1. `editions.cover_url` if set
 2. `https://covers.openlibrary.org/b/id/{ol_cover_id}-M.jpg` if `ol_cover_id` is set
 3. `https://covers.openlibrary.org/b/isbn/{isbn13}-L.jpg?default=false` if `isbn13` is set
-4. A locally generated placeholder — **an inline SVG data URI with the title's initials**
+4. A locally generated placeholder - **an inline SVG data URI with the title's initials**
 
 **Prefer `ol_cover_id` over ISBN.** Open Library rate-limits cover lookups by identifiers *other than* CoverID and OLID. Search results already carry `cover_i`, so store it at insert time and the rate limit stops applying.
 
 **Always append `?default=false` to ISBN-keyed cover URLs** so a miss is a real `404` and the fallback fires.
 
-**Never proxy covers.** Hotlink directly. Proxying puts us in the path of every image request, burns function invocations, and buys nothing — Open Library already fronts a CDN.
+**Never proxy covers.** Hotlink directly. Proxying puts us in the path of every image request, burns function invocations, and buys nothing - Open Library already fronts a CDN.
 
 **Placeholder is local SVG, not `ui-avatars.com`.** The existing code (`index.html:372`) depends on a third-party service with no SLA, inside a plan whose premise is that nothing external is load-bearing. Ten lines of inline SVG removes the dependency, works offline, and works inside WhatsApp's WebView.
 
-**`og:image` never uses `?default=false`** — a 404 leaves WhatsApp with a broken preview. Serve a static fallback image instead ([frontend.md](frontend.md) §2).
+**`og:image` never uses `?default=false`** - a 404 leaves WhatsApp with a broken preview. Serve a static fallback image instead ([frontend.md](frontend.md) §2).
 
 ---
 
@@ -152,7 +152,7 @@ Resolution order, in `BookCover.vue`:
 strip hyphens and whitespace
 if length 10 → drop the check digit, prefix '978', recompute the EAN-13 check digit
 validate the ISBN-13 checksum
-reject on failure — do not store a malformed ISBN
+reject on failure - do not store a malformed ISBN
 ```
 
 The uniqueness index is **partial** (`WHERE isbn13 IS NOT NULL`), because "no ISBN" must be a repeatable legal state rather than a collision. Most manually added books will have no ISBN, and that is fine.
@@ -163,12 +163,12 @@ The uniqueness index is **partial** (`WHERE isbn13 IS NOT NULL`), because "no IS
 
 In order:
 
-1. **`ol_work_key`** — exact, when the local work already has one.
-2. **ISBN-13 intersection** — normalise ours to ISBN-13, intersect with the result's `isbn` array. Note the array is often empty; this cannot be the only rule.
-3. **Normalised title + overlapping author** — `f_unaccent(lower(title))` equality plus at least one shared author slug.
+1. **`ol_work_key`** - exact, when the local work already has one.
+2. **ISBN-13 intersection** - normalise ours to ISBN-13, intersect with the result's `isbn` array. Note the array is often empty; this cannot be the only rule.
+3. **Normalised title + overlapping author** - `f_unaccent(lower(title))` equality plus at least one shared author slug.
 4. Otherwise, treat it as new.
 
-On manual creation, run rule 3 against local works and, if it hits, return `409` with the existing work so the UI can ask *"é este?"* — but **always allow forcing creation** with `?forcar=1`. A false duplicate block dead-ends the activation path, which is worse than a duplicate row.
+On manual creation, run rule 3 against local works and, if it hits, return `409` with the existing work so the UI can ask *"é este?"* - but **always allow forcing creation** with `?forcar=1`. A false duplicate block dead-ends the activation path, which is worse than a duplicate row.
 
 **Duplicates will happen.** With no merge tooling, repair is hand-written SQL. That is acceptable below roughly 50 duplicates and is a documented ceiling ([architecture.md](architecture.md) §5).
 
@@ -193,7 +193,7 @@ On manual creation, run rule 3 against local works and, if it hits, return `409`
 - Cover lookups by ISBN are rate-limited; lookups by CoverID/OLID are not. §5 exists because of this.
 - A descriptive `User-Agent` identifying the project and a contact address, per Open Library's guidance.
 - Our own cap: 20 external lookups per user per hour.
-- Open Library data is openly licensed and attribution is courteous: a line in the site footer — *"Dados bibliográficos parcialmente do Open Library"* — and a link on any book page carrying an `ol_work_key`.
+- Open Library data is openly licensed and attribution is courteous: a line in the site footer - *"Dados bibliográficos parcialmente do Open Library"* - and a link on any book page carrying an `ol_work_key`.
 
 ---
 
@@ -202,7 +202,7 @@ On manual creation, run rule 3 against local works and, if it hits, return `409`
 | Option | Verdict |
 |---|---|
 | **Open Library as the catalog** | **Rejected on measurement.** 40% coverage, 8.4 s average latency |
-| Google Books API | Likely better Brazilian coverage, but needs a key, has a daily quota, and its terms are more restrictive. **Worth measuring post-MVP** as an enrichment source alongside Open Library — recorded in [open-questions.md](open-questions.md) |
+| Google Books API | Likely better Brazilian coverage, but needs a key, has a daily quota, and its terms are more restrictive. **Worth measuring post-MVP** as an enrichment source alongside Open Library - recorded in [open-questions.md](open-questions.md) |
 | ISBNdb | Paid. Violates the zero-cost constraint |
 | **Wikidata for author country** | **Rejected on measurement.** 90% coverage, wrong semantics. See §11 |
 | Scraping a Brazilian retailer | Fragile, legally murky, and an ongoing maintenance burden |
@@ -211,19 +211,19 @@ On manual creation, run rule 3 against local works and, if it hits, return `409`
 
 ---
 
-## 11. Wikidata for author country — rejected
+## 11. Wikidata for author country - rejected
 
 Measured 2026-09-22 against all 59 distinct authors in `livros.json`, via `wbsearchentities` then `P27` (country of citizenship).
 
 | Result | Count |
 |---|---|
-| QID resolved from the author name | 54 / 59 — 91% |
-| Has a `P27` claim | 53 / 59 — 90% |
+| QID resolved from the author name | 54 / 59 - 91% |
+| Has a `P27` claim | 53 / 59 - 90% |
 | First `P27` value agrees with `livros.json` after label folding | 45 / 53 |
 
 Coverage is excellent. The data is still wrong for this product, for two independent reasons.
 
-**`P27` is citizenship, not origin as a reader means it.** Ordering does not fix it — first and last value each fail a different set:
+**`P27` is citizenship, not origin as a reader means it.** Ordering does not fix it - first and last value each fail a different set:
 
 ```
 Clarice Lispector  → República Socialista Soviética Ucraniana   (ours: Brasil)
@@ -233,7 +233,7 @@ Isaac Asimov       → Rússia bolchevique                          (ours: EUA)
 
 Clarice was born in Ukraine and is the Brazilian author. No heuristic recovers that.
 
-**The labels are historical states.** "Reino da Prússia", "Império Austríaco", "Qi", "Os Reinos e Terras Representados no Conselho Imperial". `authors.country_code` is `char(2)`; ISO 3166 has no code for any of them. The one exact agreement of this kind was Sêneca → "Roma Antiga" — the same value CLAUDE.md lists as a landmine precisely because no ISO code exists for it.
+**The labels are historical states.** "Reino da Prússia", "Império Austríaco", "Qi", "Os Reinos e Terras Representados no Conselho Imperial". `authors.country_code` is `char(2)`; ISO 3166 has no code for any of them. The one exact agreement of this kind was Sêneca → "Roma Antiga" - the same value CLAUDE.md lists as a landmine precisely because no ISO code exists for it.
 
 Latency was ~2 s per author across three sequential requests. A single SPARQL query would fix that, and it would not matter: the field would still be wrong.
 
@@ -248,4 +248,4 @@ The `search_misses` table is the instrument. Two questions it answers:
 1. **Are people failing to find books that exist locally?** → a search problem (stemming, plurals, partial titles). Fixable with better matching.
 2. **Are people failing to find books that are not in the catalog yet?** → expected early, and should decay as the catalog fills. **If it does not decay after ~3 months, the manual-add flow has too much friction** and deserves real work.
 
-If misses stay high and manual adds stay low, that is the signal that the catalog assumption was wrong — and it is the one assumption in this architecture most worth being wrong about early.
+If misses stay high and manual adds stay low, that is the signal that the catalog assumption was wrong - and it is the one assumption in this architecture most worth being wrong about early.

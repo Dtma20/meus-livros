@@ -1,4 +1,4 @@
-# TASK-006 — Layouts and routing shell
+# TASK-006 - Layouts and routing shell
 
 ## Goal
 
@@ -6,7 +6,7 @@ Create the two layouts and stub every MVP route so navigation exists end to end.
 
 ## Context
 
-Establishes the route table before any page has content, so later tasks fill pages rather than inventing URLs. Route shapes are public commitments — `/@handle` and `/entrada/{id}` get pasted into a group chat and must not change afterwards.
+Establishes the route table before any page has content, so later tasks fill pages rather than inventing URLs. Route shapes are public commitments - `/@handle` and `/entrada/{id}` get pasted into a group chat and must not change afterwards.
 
 ## Scope
 
@@ -46,11 +46,11 @@ app/middleware/auth.ts
 
 1. `default.vue`: header with the site name linking to `/`, a container matching `legacy/styles.css .container`, and a footer carrying the Open Library attribution line (*"Dados bibliográficos parcialmente do Open Library"*).
 2. `app.vue`: extends default, adds authenticated nav (Registrar livro / Perfil / Sair).
-3. The `/@handle` route needs care — `@` is not a standard dynamic-segment character. Either a `~/users/[handle].vue` page with a route rule rewriting `/@:handle`, or a catch-all that matches the `@` prefix. **Verify the chosen approach actually resolves `/@diogo` before moving on**; this is the most-shared URL in the product.
+3. The `/@handle` route needs care - `@` is not a standard dynamic-segment character. Either a `~/users/[handle].vue` page with a route rule rewriting `/@:handle`, or a catch-all that matches the `@` prefix. **Verify the chosen approach actually resolves `/@diogo` before moving on**; this is the most-shared URL in the product.
 4. `auth.ts` middleware redirects unauthenticated users from `/app/**` to `/entrar?next=<path>`. It may read a stub session until TASK-007.
 5. Every stub page renders its own name and any route params, so routing is visibly working.
 6. `error.vue` handles 404 and 500 with pt-BR copy and a link home. Never shows a stack trace.
-7. `robots.txt` with `Disallow: /app/`. No sitemap — SEO is explicitly out of scope.
+7. `robots.txt` with `Disallow: /app/`. No sitemap - SEO is explicitly out of scope.
 
 ## Data/API changes
 
@@ -64,7 +64,7 @@ None.
 
 ## Security requirements
 
-- `/app/**` is unreachable without a session, enforced by middleware — not by hiding links.
+- `/app/**` is unreachable without a session, enforced by middleware - not by hiding links.
 - `error.vue` must not render error internals in production.
 
 ## Testing requirements

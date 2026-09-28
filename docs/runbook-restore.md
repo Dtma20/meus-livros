@@ -1,13 +1,13 @@
-# Runbook — restaurar o banco a partir de um backup
+# Runbook - restaurar o banco a partir de um backup
 
 Para ser seguido sob estresse. Leia o aviso, depois execute os passos na ordem.
 
 ---
 
-> ## ⚠️ NUNCA restaure direto em produção
+> ## [!] NUNCA restaure direto em produção
 >
 > Um restore sobrescreve o que estiver lá. Se o banco de produção ainda
-> responde, **restaurar nele apaga o que sobrou** — inclusive o que você ainda
+> responde, **restaurar nele apaga o que sobrou** - inclusive o que você ainda
 > poderia ter salvado.
 >
 > A ordem certa é sempre:
@@ -29,8 +29,8 @@ better-auth. Isso significa que ele carrega **dado sensível**:
 
 | Tabela | O que tem de sensível |
 |---|---|
-| `account` | Hashes de senha — quebráveis offline |
-| `session` | Tokens de sessão vivos — quem tem, está logado |
+| `account` | Hashes de senha - quebráveis offline |
+| `session` | Tokens de sessão vivos - quem tem, está logado |
 | `verification` | Códigos OTP pendentes |
 | `users`, `ba_user`, `allowed_emails` | E-mail de todo mundo |
 | `reading_logs` | Resenhas marcadas como `privado` |
@@ -40,7 +40,7 @@ público e artefatos de workflow herdam a visibilidade do repositório: um dump
 em texto claro aqui seria baixável por qualquer pessoa que abra a aba Actions.
 
 A criptografia é assimétrica de propósito. O workflow tem só a chave **pública**
-— ele consegue escrever um backup e nunca consegue ler nenhum. Não existe chave
+- ele consegue escrever um backup e nunca consegue ler nenhum. Não existe chave
 de descriptografia guardada no GitHub para vazar.
 
 **A consequência é séria e você precisa aceitá-la: se você perder a chave
@@ -86,7 +86,7 @@ shred -u backup-key.SECRET.asc
 ### 4. Configurar o segredo do banco
 
 Em `Settings → Secrets and variables → Actions`, criar `DATABASE_URL_DIRECT`
-com a string de conexão **direta** do Neon — a que não passa pelo pooler. O
+com a string de conexão **direta** do Neon - a que não passa pelo pooler. O
 `pg_dump` precisa de estado de sessão que o pooler de transações não preserva.
 
 ### 5. Rodar uma vez na mão
@@ -98,13 +98,13 @@ produzido e tem mais de 10 KB.
 
 ## Restaurar
 
-### Passo 1 — Baixar o backup
+### Passo 1 - Baixar o backup
 
 `Actions → Backup do banco →` a execução desejada `→ Artifacts`.
 
 Baixe e descompacte o `.zip`. Dentro há um `dump-AAAA-MM-DD.sql.gz.gpg`.
 
-### Passo 2 — Descriptografar
+### Passo 2 - Descriptografar
 
 Com a chave privada importada na máquina:
 
@@ -124,7 +124,7 @@ Confira que o gzip está íntegro antes de continuar:
 gzip -t dump.sql.gz && echo "gzip OK"
 ```
 
-### Passo 3 — Criar uma branch no Neon
+### Passo 3 - Criar uma branch no Neon
 
 No console do Neon: `Branches → Create branch`. Nome sugerido:
 `restore-AAAA-MM-DD`.
@@ -133,16 +133,16 @@ Copie a connection string **direta** dessa branch. Confira olhando: ela contém
 o nome da branch. **Se contiver `main` ou o nome da sua branch de produção,
 pare.** Você está prestes a restaurar em produção.
 
-### Passo 4 — Restaurar na branch
+### Passo 4 - Restaurar na branch
 
 ```bash
 gunzip -c dump.sql.gz | psql "<CONNECTION_STRING_DA_BRANCH_DE_RESTORE>"
 ```
 
-Erros de `role does not exist` podem aparecer e são esperados — o dump é
+Erros de `role does not exist` podem aparecer e são esperados - o dump é
 gerado com `--no-owner --no-privileges` justamente para que não importem.
 
-### Passo 5 — Conferir
+### Passo 5 - Conferir
 
 Rode na branch restaurada:
 
@@ -156,9 +156,9 @@ SELECT
 ```
 
 Compare com o que se esperava do dia do dump. **Um restore que você não
-conferiu não é um restore — é um arquivo que você espera que funcione.**
+conferiu não é um restore - é um arquivo que você espera que funcione.**
 
-### Passo 6 — Decidir
+### Passo 6 - Decidir
 
 Só agora. Promover a branch no Neon, ou copiar seletivamente as linhas
 perdidas de volta para produção. Com o dado já conferido na branch, essa
@@ -171,7 +171,7 @@ decisão deixa de ser urgente.
 ### 1. O GitHub desativa workflows agendados após 60 dias sem commits
 
 Vale para repositórios públicos, e este é público. Se o projeto ficar dois
-meses parado, **os backups param em silêncio** — nenhum e-mail, nenhum aviso.
+meses parado, **os backups param em silêncio** - nenhum e-mail, nenhum aviso.
 
 Defesa: uma vez por mês, abra a aba Actions e confirme que a execução mais
 recente é dos últimos dias. Baixe uma cópia para fora do GitHub na mesma visita.
@@ -182,7 +182,7 @@ Backup que mora só na mesma plataforma que a fonte não é backup de verdade. S
 a conta do GitHub for perdida ou suspensa, some tudo junto.
 
 Defesa: a cópia manual mensal do item anterior. Baixe o `.gpg` e guarde-o em
-outro lugar — ele já está criptografado, então qualquer armazenamento serve.
+outro lugar - ele já está criptografado, então qualquer armazenamento serve.
 
 ### 3. A chave privada é ponto único de falha
 
@@ -200,8 +200,8 @@ TASK-022 exige registrar essa decisão.
 - **Risco:** artefatos herdam a visibilidade do repositório. Um dump em claro
   seria baixável por qualquer um com acesso à aba Actions, expondo hashes de
   senha, tokens de sessão ativos, OTPs pendentes, e-mails e resenhas privadas.
-- **Decisão:** em vez de mover o workflow para um repositório privado — o que
-  TASK-022 sugeria e que partiria o projeto em dois — o dump é criptografado com
+- **Decisão:** em vez de mover o workflow para um repositório privado - o que
+  TASK-022 sugeria e que partiria o projeto em dois - o dump é criptografado com
   GPG assimétrico antes de virar artefato. O workflow só tem a chave pública.
 - **Por que esta opção:** continua valendo se o repositório mudar de
   visibilidade no futuro, não exige um segundo repositório, e não coloca

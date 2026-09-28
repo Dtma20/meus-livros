@@ -1,4 +1,4 @@
-# TASK-027 — Password sign-in, with the OTP narrowed to activation and reset
+# TASK-027 - Password sign-in, with the OTP narrowed to activation and reset
 
 ## Goal
 
@@ -6,7 +6,7 @@ Make the daily sign-in `handle` **or** email + password. Keep the six-digit emai
 
 ## Context
 
-[TASK-007](007-auth-email-otp.md) shipped email OTP as the only sign-in path. It works, and it is not being removed — it is being moved off the critical path.
+[TASK-007](007-auth-email-otp.md) shipped email OTP as the only sign-in path. It works, and it is not being removed - it is being moved off the critical path.
 
 The reason is the distribution channel. A member taps a `/entrada/{id}` link in WhatsApp, which opens Android's in-app WebView. Signing in there with a code means leaving the app for a mail client, waiting on Gmail delivery, copying six digits, and switching back to a WebView that may have reloaded the page underneath them. That happens on first access **and on every 30-day session expiry**. A password is filled by Google Password Manager, iCloud Keychain or Samsung Pass behind a fingerprint, and never leaves the device.
 
@@ -23,8 +23,8 @@ Full reasoning, including what this costs, in [architecture.md](../architecture.
 - better-auth's `emailAndPassword` enabled; `account.password` already exists in migration `0002_better_auth.sql`
 - A resolver that accepts a `handle` **or** an email as the sign-in identifier
 - `/entrar` rebuilt as an identifier + password form
-- `/entrar/ativar` — first access: email → code → choose a password
-- `/entrar/senha` — forgot password: email → code → new password
+- `/entrar/ativar` - first access: email → code → choose a password
+- `/entrar/senha` - forgot password: email → code → new password
 - Change password from `/app/perfil`, requiring the current password
 - Rate limits for sign-in and password change, in the existing `rate_limit` table
 - Opening exactly two previously-denied better-auth routes in the `/api/auth/**` allowlist, each behind the same rate limit and generic response as the existing OTP send
@@ -36,14 +36,14 @@ Full reasoning, including what this costs, in [architecture.md](../architecture.
 - Passkeys / WebAuthn
 - A password-strength meter, `zxcvbn`, or a breach-corpus (HIBP) lookup
 - Password expiry or rotation policies
-- Changing an email address — `request-email-change` stays denied
+- Changing an email address - `request-email-change` stays denied
 - An admin UI for the allowlist. Rows are still inserted by hand
 - Removing the email-OTP plugin. It stays installed; it is the reset mechanism, and it is the documented fallback if members lock themselves out
 
 ## Dependencies
 
 - TASK-007 (merged)
-- TASK-008 (merged) — `users.handle` is what makes the second identifier possible
+- TASK-008 (merged) - `users.handle` is what makes the second identifier possible
 
 ## Expected files/components
 
@@ -63,17 +63,17 @@ No schema migration. `account.password` and `users.handle` both already exist.
 
 ## Implementation requirements
 
-1. **Enable `emailAndPassword`** in the better-auth config with `minPasswordLength: 8` and `maxPasswordLength: 128`. Do not configure a custom hasher — scrypt is the default and is correct.
+1. **Enable `emailAndPassword`** in the better-auth config with `minPasswordLength: 8` and `maxPasswordLength: 128`. Do not configure a custom hasher - scrypt is the default and is correct.
 2. **Identifier resolution.** `POST /api/auth/entrar` takes `{ identificador, senha }`. If `identificador` matches `^[a-z0-9_]{3,20}$` and contains no `@`, look it up in `users.handle` and substitute the email; otherwise treat it as an email. Then delegate to better-auth's `sign-in/email`.
 3. **The not-found branch must not be fast.** If no account resolves, still verify the submitted password against a fixed dummy hash before replying. Returning early makes an unknown handle measurably faster than a wrong password, which is an enumeration oracle.
 4. **One failure message.** Unknown identifier and wrong password both return `400 { error: 'validacao', message: 'E-mail, usuário ou senha incorretos.' }`.
 5. **Weak-password floor.** Reject, in the shared Zod schema: fewer than 8 or more than 128 characters, and a case-insensitive match against `12345678`, `123456789`, `password`, `senha123`, `meuslivros`, the user's own handle, or the local-part of their email. No other composition rule.
-6. **Activation.** `/entrar/ativar` requests a code through the existing `send-verification-otp` path — allowlist check, rate limit and identical-response rule all unchanged. It must also send nothing, with the same generic response, when the address **already has a password**; otherwise the endpoint reports which invitees have signed up. After the code verifies, `POST /api/auth/set-password` sets the first password.
+6. **Activation.** `/entrar/ativar` requests a code through the existing `send-verification-otp` path - allowlist check, rate limit and identical-response rule all unchanged. It must also send nothing, with the same generic response, when the address **already has a password**; otherwise the endpoint reports which invitees have signed up. After the code verifies, `POST /api/auth/set-password` sets the first password.
 7. **Reset.** Open `forget-password/email-otp` and `email-otp/reset-password` in the `/api/auth/**` allowlist. Both carry the same per-email and per-IP rate limits and the same generic response as activation. A reset request for an unknown address sends nothing and looks identical. The code is consumed by the password change, not by its verification.
-8. **Change password.** `POST /api/auth/change-password` with `revokeOtherSessions: true`. The current password is mandatory — a stolen session must not be upgradeable into a permanent takeover. The session performing the change survives; every other session for that user is deleted.
+8. **Change password.** `POST /api/auth/change-password` with `revokeOtherSessions: true`. The current password is mandatory - a stolen session must not be upgradeable into a permanent takeover. The session performing the change survives; every other session for that user is deleted.
 9. **Rate limits**, in the existing Postgres counter (no Redis): 10 sign-in attempts per identifier per hour, 30 per IP per hour, 10 password changes per user per hour. The existing 5/email and 20/IP code limits are unchanged. Count the attempt **before** resolving the identifier, so a spray across unknown handles still trips the IP counter.
 10. **The deny-by-default list stays a list.** Add exactly the two reset routes. Do not replace the allowlist with a prefix match; that is what the default-deny exists to prevent.
-11. **Nothing secret in a log.** No password, no hash, no code — not on a validation failure, not in a 500 correlation record.
+11. **Nothing secret in a log.** No password, no hash, no code - not on a validation failure, not in a 500 correlation record.
 
 ## Data/API changes
 
@@ -85,11 +85,11 @@ No schema migration. `account.password` and `users.handle` both already exist.
 ## UX requirements
 
 - All copy in pt-BR.
-- `/entrar`: one field labelled **"E-mail ou usuário"** with `autocomplete="username"`, one password field with `autocomplete="current-password"`. A `<form>` with both fields present on first paint — password managers do not offer to save a credential they never saw submitted together.
+- `/entrar`: one field labelled **"E-mail ou usuário"** with `autocomplete="username"`, one password field with `autocomplete="current-password"`. A `<form>` with both fields present on first paint - password managers do not offer to save a credential they never saw submitted together.
 - A visible "mostrar senha" toggle. Typing a password blind on a phone keyboard is the main cause of a failed attempt.
 - Links to `/entrar/senha` ("Esqueci minha senha") and `/entrar/ativar` ("Primeiro acesso").
 - Password fields on activation and reset use `autocomplete="new-password"`.
-- `/entrar/ativar` and `/entrar/senha` keep the typed email visible at the code step, and offer "reenviar código" after 60 seconds — matching the flow TASK-007 already built.
+- `/entrar/ativar` and `/entrar/senha` keep the typed email visible at the code step, and offer "reenviar código" after 60 seconds - matching the flow TASK-007 already built.
 - After sign-in, redirect to `?next=` if present and same-origin, else `/`.
 - **Must work inside WhatsApp's in-app browser.** Unchanged, and still the point.
 
@@ -149,12 +149,12 @@ All of [security.md](../security.md) §4 applies. The ones that fail silently if
 
 ## Notes / implementation guidance
 
-The email-OTP plugin stays installed. Do not take this task as licence to remove it — it is the reset mechanism, and [architecture-review.md](../architecture-review.md) §5 names re-adding OTP as a second sign-in option as the documented response if members lock themselves out faster than reset absorbs.
+The email-OTP plugin stays installed. Do not take this task as licence to remove it - it is the reset mechanism, and [architecture-review.md](../architecture-review.md) §5 names re-adding OTP as a second sign-in option as the documented response if members lock themselves out faster than reset absorbs.
 
 `setTransport()` in `server/utils/email.ts` is how tests inject a mock. Never point a test loop at the live Gmail transport.
 
-**`entrar.vue` has to become `entrar/index.vue`.** In Nuxt, a `pages/entrar.vue` sitting beside a `pages/entrar/` directory becomes the *parent* of those routes and must render `<NuxtPage />` — which silently turns `/entrar` into a shell. Move the file into the directory instead. The route path does not change.
+**`entrar.vue` has to become `entrar/index.vue`.** In Nuxt, a `pages/entrar.vue` sitting beside a `pages/entrar/` directory becomes the *parent* of those routes and must render `<NuxtPage />` - which silently turns `/entrar` into a shell. Move the file into the directory instead. The route path does not change.
 
-The existing two-step `/entrar` markup is a good starting point for `/entrar/ativar` and `/entrar/senha` — both are the same shape. Move it rather than rewriting it, and leave the "reenviar código" timer intact.
+The existing two-step `/entrar` markup is a good starting point for `/entrar/ativar` and `/entrar/senha` - both are the same shape. Move it rather than rewriting it, and leave the "reenviar código" timer intact.
 
 The WhatsApp WebView criterion cannot be verified in a desktop browser, and the password-manager half of it cannot be verified at all without a real phone. It is the criterion that motivated the whole task.

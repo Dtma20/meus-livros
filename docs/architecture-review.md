@@ -1,4 +1,4 @@
-# Architecture review — the overengineering pass
+# Architecture review - the overengineering pass
 
 A deliberate audit performed before finalising the plan. The test applied to every component:
 
@@ -17,7 +17,7 @@ Several things were removed on that basis. They are listed here so nobody adds t
 | **Postgres FTS + `pg_trgm`** | "Proper" search | Same. Dictionary config, GIN indexes and ranking are engineering for a corpus 30× larger. Documented ceiling: ~50k works |
 | **Message queues / background workers** | Catalog sync, feed fan-out, OG generation, imports | Every one of those jobs belongs to a deferred feature. There is no background work in the MVP |
 | **A separate API service or repo** | "Clean separation" | Nuxt server routes in the same project. One repo, one deploy, one language |
-| **Microservices, CQRS, event sourcing** | — | Ten tables and CRUD |
+| **Microservices, CQRS, event sourcing** | - | Ten tables and CRUD |
 | **Row-level security** | Público/privado | One server-side helper. RLS is mandatory when a browser talks to PostgREST directly; nothing does here, so it would be a second authorization model in a second language for zero added safety |
 | **ISR / edge caching** | Fast public pages | Plain SSR. 30 users ≈ 2,000 views/month ≈ **0.2%** of Vercel's 1M invocations. A cache saves nothing measurable and breaks read-your-own-write |
 | **A staging environment** | Safe deploys | Vercel preview deployments plus a Neon branch. A staging env is a second place for config to drift |
@@ -35,7 +35,7 @@ Several things were removed on that basis. They are listed here so nobody adds t
 | **A 15-event analytics taxonomy** | Product insight | One `search_misses` table. Most proposed events are already columns: `signed_up` is `users.created_at`, `book_logged` is `reading_logs.created_at` |
 | **`ui-avatars.com`** | Placeholder covers | Inline SVG data URI. Ten lines, no third party, works offline and inside WhatsApp's WebView |
 | **Google OAuth + a WebView interstitial + `intent://` links** | Sign-in | A password, with an email code for activation and reset. Three pieces of fragile machinery replaced by the one credential every phone already stores |
-| **Passkeys / WebAuthn** | Sign-in without a password | A password. Cross-device passkey sync is still uneven on the Android versions this cohort runs, and the fallback for every gap is a password anyway — so passkeys add a second path without removing the first |
+| **Passkeys / WebAuthn** | Sign-in without a password | A password. Cross-device passkey sync is still uneven on the Android versions this cohort runs, and the fallback for every gap is a password anyway - so passkeys add a second path without removing the first |
 | **A password-strength meter and a breach-corpus check** | Password quality | A length floor and a five-entry deny-list. `zxcvbn` is ~400 KB into the client bundle to police a cohort of thirty |
 | **A keep-alive cron + monitoring for that cron** | Keeping the DB awake | Choosing Neon. One decision deleted four moving parts |
 
@@ -51,7 +51,7 @@ Every reversal below came from a measurement or a verified vendor fact, not from
 | Google OAuth as primary sign-in | Google returns `403 disallowed_useragent` for OAuth in embedded WebViews. WhatsApp Android is one. Brazil is overwhelmingly Android | Google policy, in force since 2017 |
 | Open Library is a viable catalog; manual add is a fallback | **40%** of Brazilian editions present; search averages **8.4 s** (range 2.5–21 s, with hard timeouts). Harry Potter/Rocco: 5 of 7 missing | Measured against the real corpus |
 | RLS enforces visibility | Correct for a browser→PostgREST design. This is not that design | Architecture change |
-| Statistics / year-in-review is P0 — "the growth loop" | At launch only the *owner* can generate one. Everyone else has 0–3 books. It becomes powerful in December | Reasoning from cohort state |
+| Statistics / year-in-review is P0 - "the growth loop" | At launch only the *owner* can generate one. Everyone else has 0–3 books. It becomes powerful in December | Reasoning from cohort state |
 | Sanitise review HTML into `review_html` + `review_text` | The corpus contains one tag type (`<br>` ×178). Plain text is strictly safer and simpler | Measured tag census |
 
 Three data facts that would have broken a naive implementation and were found only by inspecting the file: `year` reaches **−500** (signed integer required), `series_number` contains `'1-2'` and `'0.1'` (text, not numeric), and 22 of 86 ISBNs are ISBN-10 (normalisation required before any uniqueness constraint).
@@ -66,18 +66,18 @@ Not everything simple is right. Four places where we deliberately paid a cost.
 
 The scope analysis argued for collapsing them into one `books` table, and at 30 users that is defensible. **Kept separate anyway**, for two reasons:
 
-1. **It is the product's stated premise.** "pt-BR first, with real Brazilian editions" *is* the Work/Edition distinction. Collapsing it means two friends reading different translations of *Crime e Castigo* produce two unrelated rows, and the one aggregation the product cares about — "quem mais leu isso" — silently fails.
+1. **It is the product's stated premise.** "pt-BR first, with real Brazilian editions" *is* the Work/Edition distinction. Collapsing it means two friends reading different translations of *Crime e Castigo* produce two unrelated rows, and the one aggregation the product cares about - "quem mais leu isso" - silently fails.
 2. **The cost is nearly zero.** `reading_logs.edition_id` is nullable and usually null. The normal flow never touches an edition. We pay one extra table and one nullable FK; the alternative is a data migration under load later.
 
 This is the one place where "expensive to change later" beat "simplest today".
 
 ### Drizzle rather than raw SQL
 
-Raw `postgres.js` would work. Drizzle earns its place on migration tooling — versioned, committed, reviewable SQL generated from a typed schema — which hand-rolled SQL files do not give. Escape hatch to raw SQL remains one tagged template away.
+Raw `postgres.js` would work. Drizzle earns its place on migration tooling - versioned, committed, reviewable SQL generated from a typed schema - which hand-rolled SQL files do not give. Escape hatch to raw SQL remains one tagged template away.
 
 ### better-auth rather than hand-rolled sessions
 
-Never hand-roll auth. The alternative — a cookie, a sessions table, scrypt parameters, OTP generation, expiry, rate limiting, revocation, "log out my other devices" — is more than a week of work and the highest-consequence code in the app. The move from a one-time code to a password made this pay for itself a second time: `account.password` and the hashing already existed.
+Never hand-roll auth. The alternative - a cookie, a sessions table, scrypt parameters, OTP generation, expiry, rate limiting, revocation, "log out my other devices" - is more than a week of work and the highest-consequence code in the app. The move from a one-time code to a password made this pay for itself a second time: `account.password` and the hashing already existed.
 
 ### `search_misses`
 
@@ -107,17 +107,17 @@ Each is a monitored number with a known, pre-decided response. None is built tod
 
 | Trigger | Response | Rewrite? |
 |---|---|---|
-| Search > 100 ms, or > 50k works | `tsvector` + GIN, `portuguese` config | No — one migration |
-| p95 TTFB > 800 ms | ISR on the four public routes | No — route-rule config |
+| Search > 100 ms, or > 50k works | `tsvector` + GIN, `portuguese` config | No - one migration |
+| p95 TTFB > 800 ms | ISR on the four public routes | No - route-rule config |
 | > 200k invocations/month | Vercel Pro, or add caching | No |
 | Neon storage > 0.4 GB | Neon Launch (~US$5/mo) | No |
-| **Any monetisation** | Vercel Pro — **mandatory, not optional** | No |
-| > 200 users | Add `follows` + a feed filter | No — purely additive |
+| **Any monetisation** | Vercel Pro - **mandatory, not optional** | No |
+| > 200 users | Add `follows` + a feed filter | No - purely additive |
 | Logs > ~100k | Cursor pagination everywhere, cached aggregates | No |
 | > ~50 duplicate works | A merge UI and `merged_into_id` | No |
 | Public registration | **Moderation tooling first. Hard gate** | No |
 | > 100 activations or resets/day | A domain plus a paid transactional sender | No |
-| Members lock themselves out faster than reset absorbs | Re-add OTP as a *second* sign-in option beside the password | No — the plugin is still installed |
+| Members lock themselves out faster than reset absorbs | Re-add OTP as a *second* sign-in option beside the password | No - the plugin is still installed |
 | Hand-reading logs stops working | Sentry | No |
 
 **Nothing on this list requires rewriting the application.** That is the actual test of whether an architecture is appropriately simple: not that it scales, but that each ceiling has a local fix.
@@ -133,7 +133,7 @@ Each is a monitored number with a known, pre-decided response. None is built tod
 | Gmail SMTP → any other sender | Yes | One `nodemailer` transport, behind `setTransport()` |
 | Open Library → Google Books | Yes | One service file. It is already isolated behind `/api/search/externo` and is non-blocking by design |
 | Drizzle → Kysely / raw SQL | Mostly | Queries rewrite; the schema and migrations survive |
-| better-auth → anything else | Painful | Owns its own tables. Accepted — this is why it was not hand-rolled |
+| better-auth → anything else | Painful | Owns its own tables. Accepted - this is why it was not hand-rolled |
 | Nuxt → another framework | No | It is the application |
 
 The two irreplaceable choices are Nuxt and the schema. Both were made deliberately and are documented at length.
@@ -144,12 +144,12 @@ The two irreplaceable choices are Nuxt and the schema. Both were made deliberate
 
 | Weakness | Why accepted |
 |---|---|
-| **No automated backups** on the free tier | Mitigated by a 3-day `pg_dump` to GitHub artifacts plus a monthly manual copy — but it *is* the least comfortable part of the zero-cost constraint. Neon Launch at ~US$5/mo is the most defensible first dollar this project would spend |
+| **No automated backups** on the free tier | Mitigated by a 3-day `pg_dump` to GitHub artifacts plus a monthly manual copy - but it *is* the least comfortable part of the zero-cost constraint. Neon Launch at ~US$5/mo is the most defensible first dollar this project would spend |
 | GitHub disables cron after 60 days without commits on public repos | Backups stop *silently*. The monthly manual copy exists specifically as the check |
 | No admin UI | Repair is `psql`. Acceptable for one owner and 30 friends who know each other |
 | No merge tooling for duplicate works | Hand-written SQL below ~50 duplicates |
 | A direct `psql` session bypasses every authorization control | Only the owner and the deploy environment hold the connection string |
-| Catalog vandalism is possible — any member can create works | Rate limited, `created_by` recorded, no delete endpoint. Invite-only cohort |
+| Catalog vandalism is possible - any member can create works | Rate limited, `created_by` recorded, no delete endpoint. Invite-only cohort |
 | Open Library enrichment will often return nothing | By design. 60% miss rate is the *expected* case, which is why manual add is a primary path and not an error state |
 | The `index.html` port is real work, not a copy-paste | Budgeted honestly in [tasks/005](tasks/005-port-design-tokens-and-components.md) rather than hidden inside "framework migration" |
 
@@ -159,6 +159,6 @@ The two irreplaceable choices are Nuxt and the schema. Both were made deliberate
 
 Three managed services, ten tables, six route shapes, one deployment unit, one language, zero dollars.
 
-The architecture is not sophisticated, and that is the point. The binding uncertainty on this project is whether ~30 friends will log books — not whether the system can serve them. Every hour spent on infrastructure that 30 users cannot exercise is an hour not spent finding that out.
+The architecture is not sophisticated, and that is the point. The binding uncertainty on this project is whether ~30 friends will log books - not whether the system can serve them. Every hour spent on infrastructure that 30 users cannot exercise is an hour not spent finding that out.
 
 **The single most valuable action available is not in this document. It is Q1 in [open-questions.md](open-questions.md): ask the group whether they want this, before writing any code.**

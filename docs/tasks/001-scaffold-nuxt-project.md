@@ -1,4 +1,4 @@
-# TASK-001 — Scaffold the Nuxt 4 project
+# TASK-001 - Scaffold the Nuxt 4 project
 
 ## Goal
 
@@ -6,7 +6,7 @@ Stand up a Nuxt 4 + TypeScript project in this repository without breaking the e
 
 ## Context
 
-The repository is currently five files with no build step. Everything downstream needs a working Nuxt app with strict TypeScript, linting and a test runner. The existing site must keep running until the new app reaches parity — see [migration.md](../migration.md) §9.
+The repository is currently five files with no build step. Everything downstream needs a working Nuxt app with strict TypeScript, linting and a test runner. The existing site must keep running until the new app reaches parity - see [migration.md](../migration.md) §9.
 
 ## Scope
 
@@ -43,9 +43,9 @@ legacy/{index.html,styles.css,livros.json,generos.txt,livros_lidos_atualizado.cs
 ## Implementation requirements
 
 1. Nuxt 4 with `typescript.strict: true` and `typescript.typeCheck: true`.
-2. `nuxt.config.ts` sets `nitro: { preset: 'vercel' }` and `vercel: { regions: ['gru1'] }` (São Paulo — a wrong region adds ~200ms per query).
+2. `nuxt.config.ts` sets `nitro: { preset: 'vercel' }` and `vercel: { regions: ['gru1'] }` (São Paulo - a wrong region adds ~200ms per query).
 3. ESLint config includes **two non-negotiable rules**:
-   - `vue/no-v-html: 'error'` — reviews are plain text, see [security.md](../security.md) §1
+   - `vue/no-v-html: 'error'` - reviews are plain text, see [security.md](../security.md) §1
    - `no-restricted-imports` forbidding `~/server/db` outside `server/services/**`
 4. Scripts: `dev`, `build`, `typecheck`, `lint`, `test`.
 5. `.gitignore` covers `.env`, `.nuxt`, `.output`, `node_modules`.
@@ -59,7 +59,7 @@ None.
 
 ## UX requirements
 
-None — no user-facing surface yet. The default page may be a placeholder.
+None - no user-facing surface yet. The default page may be a placeholder.
 
 ## Security requirements
 

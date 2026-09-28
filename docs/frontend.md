@@ -1,6 +1,6 @@
 # Frontend
 
-Nuxt 4, Vue 3 `<script setup>`, TypeScript. No component library, no CSS framework — the existing `styles.css` tokens are ported and extended.
+Nuxt 4, Vue 3 `<script setup>`, TypeScript. No component library, no CSS framework - the existing `styles.css` tokens are ported and extended.
 
 ---
 
@@ -10,10 +10,10 @@ Eleven route shapes. Four carry Open Graph tags; four are authenticated; three a
 
 | Route | Auth | Rendering | Indexable | Purpose |
 |---|---|---|---|---|
-| `/` | optional | SSR | — | Landing for strangers; 10 most recent visible entries for members |
-| `/@[handle]` | optional | SSR + **OG** | — | Profile: poster grid, filters, stat counters, map |
-| `/livro/[slug]` | optional | SSR + **OG** | — | Work page: metadata + everyone's visible entries |
-| `/entrada/[id]` | optional | SSR + **OG** | — | **The review permalink. The object pasted into WhatsApp** |
+| `/` | optional | SSR | - | Landing for strangers; 10 most recent visible entries for members |
+| `/@[handle]` | optional | SSR + **OG** | - | Profile: poster grid, filters, stat counters, map |
+| `/livro/[slug]` | optional | SSR + **OG** | - | Work page: metadata + everyone's visible entries |
+| `/entrada/[id]` | optional | SSR + **OG** | - | **The review permalink. The object pasted into WhatsApp** |
 | `/entrar` | public | SSR | no | Sign-in: `handle` or email + password |
 | `/entrar/ativar` | public | SSR | no | First access: email → 6-digit code → choose a password |
 | `/entrar/senha` | public | SSR | no | Forgot password: email → 6-digit code → new password |
@@ -22,7 +22,7 @@ Eleven route shapes. Four carry Open Graph tags; four are authenticated; three a
 | `/app/entrada/[id]/editar` | session + owner | SSR | no | Edit an entry |
 | `/app/perfil` | session | SSR | no | Edit bio, display name, profile visibility |
 
-**There is no sitemap and no `robots.txt` beyond `Disallow: /app/`.** The channel is a group chat, not Google. SEO is explicitly out of scope ([mvp-definition.md](mvp-definition.md) §3). Public pages are *shareable*, which is a different requirement from *indexable* — it means correct OG tags, not crawl optimisation.
+**There is no sitemap and no `robots.txt` beyond `Disallow: /app/`.** The channel is a group chat, not Google. SEO is explicitly out of scope ([mvp-definition.md](mvp-definition.md) §3). Public pages are *shareable*, which is a different requirement from *indexable* - it means correct OG tags, not crawl optimisation.
 
 **Not built:** `/autor/*`, `/genero/*`, `/pais/*`, `/ano/*`, `/busca`, `/feed`, `/estatisticas`, `/listas`. All deferred.
 
@@ -35,17 +35,17 @@ The single highest-leverage thing on the frontend. A bare URL in a group chat ge
 Every public route sets:
 
 ```html
-<meta property="og:title">        <!-- "O retorno do rei — ★★★★½ por @diogo" -->
-<meta property="og:description">  <!-- first ~160 chars of the review, plain text -->
-<meta property="og:image">        <!-- edition cover, absolute URL -->
+<meta property="og:title">
+<meta property="og:description">
+<meta property="og:image">
 <meta property="og:type" content="article">
 <meta property="og:locale" content="pt_BR">
-<meta property="og:url">          <!-- canonical, absolute -->
+<meta property="og:url">
 ```
 
 Two rules learned the hard way:
 
-1. **Never emit a cover URL carrying `?default=false` as `og:image`.** That parameter makes Open Library return `404` for unknown ISBNs, which is correct for an `<img onerror>` fallback but leaves WhatsApp with a broken preview — on exactly the books with no cover. Serve a **static fallback image** when there is no cover.
+1. **Never emit a cover URL carrying `?default=false` as `og:image`.** That parameter makes Open Library return `404` for unknown ISBNs, which is correct for an `<img onerror>` fallback but leaves WhatsApp with a broken preview - on exactly the books with no cover. Serve a **static fallback image** when there is no cover.
 2. **`og:image` must be absolute and publicly reachable with no cookies.** Test by pasting a real link into a real WhatsApp chat. Validators lie.
 
 **Verification is manual and required:** [tasks/014](tasks/014-entry-permalink-and-og.md) is not done until a link has been pasted into WhatsApp on Android and iOS and the preview observed.
@@ -85,7 +85,7 @@ app/
 
 ### Porting from `index.html`
 
-The existing file is **one 421-line `setup()` block with no component boundaries**. Decomposition is real work — roughly 2–3 days — not a copy-paste. Budget it honestly.
+The existing file is **one 421-line `setup()` block with no component boundaries**. Decomposition is real work - roughly 2–3 days - not a copy-paste. Budget it honestly.
 
 | Existing code | Port | Note |
 |---|---|---|
@@ -102,17 +102,17 @@ The existing file is **one 421-line `setup()` block with no component boundaries
 
 ## 4. Server/client boundary
 
-**Default: server.** Public pages fetch their data in the SSR pass via `useAsyncData` calling a service directly — no round trip through `/api`.
+**Default: server.** Public pages fetch their data in the SSR pass via `useAsyncData` calling a service directly - no round trip through `/api`.
 
 Client-side only where interaction demands it:
 
-- `SearchBox` — debounced 250 ms, calls `/api/search`
-- `ExternalLookup` — explicit button, never automatic
-- `ReadingMap` — `<ClientOnly>`
-- `FilterBar` / sorting — operates on already-loaded data, no refetch
-- `LogForm` — client validation mirroring the server's Zod schema
+- `SearchBox` - debounced 250 ms, calls `/api/search`
+- `ExternalLookup` - explicit button, never automatic
+- `ReadingMap` - `<ClientOnly>`
+- `FilterBar` / sorting - operates on already-loaded data, no refetch
+- `LogForm` - client validation mirroring the server's Zod schema
 
-**State management: none.** No Pinia in the MVP. Session comes from `useUserSession()`; page data from `useAsyncData`; form state is local `ref`s. Add Pinia when two distant components genuinely share mutable state — they do not yet.
+**State management: none.** No Pinia in the MVP. Session comes from `useUserSession()`; page data from `useAsyncData`; form state is local `ref`s. Add Pinia when two distant components genuinely share mutable state - they do not yet.
 
 ---
 
@@ -128,21 +128,21 @@ Client-side only where interaction demands it:
 - Edition picker: **collapsed by default** behind "li outra edição?". Most users never open it.
 - Submit disabled while in flight; the button shows a spinner; a failure keeps the typed text.
 
-**Losing a typed review is the worst failure this app can have.** `LogForm` drafts to `localStorage` on every change, restores on mount, and clears only after a confirmed save. Wrapped in try/catch — private-mode browsers throw.
+**Losing a typed review is the worst failure this app can have.** `LogForm` drafts to `localStorage` on every change, restores on mount, and clears only after a confirmed save. Wrapped in try/catch - private-mode browsers throw.
 
 ---
 
 ## 6. Loading, error and empty states
 
-Every list has all three. The current app has **none** — filtering to zero results renders a blank void with a footer reading "0 Páginas Lidas".
+Every list has all three. The current app has **none** - filtering to zero results renders a blank void with a footer reading "0 Páginas Lidas".
 
 | State | Treatment |
 |---|---|
 | Loading | Skeleton grid matching the real card dimensions. No spinners on full pages |
 | Error | `ErrorState` with a plain-Portuguese message and a retry button. Never a stack trace |
-| Empty — no results | Names the active filters and offers "limpar filtros" |
-| Empty — new profile | "Ainda não registrou nenhum livro" + a link to `/app/novo` |
-| Empty — search miss | The **manual-add path, prominently**, not a dead end. This is the 60% case |
+| Empty - no results | Names the active filters and offers "limpar filtros" |
+| Empty - new profile | "Ainda não registrou nenhum livro" + a link to `/app/novo` |
+| Empty - search miss | The **manual-add path, prominently**, not a dead end. This is the 60% case |
 | Open Library unavailable | "Não conseguimos buscar online agora" + manual add. Never an error page |
 
 The search-miss state carries unusual weight: Open Library will fail to find the book roughly 60% of the time ([book-catalog.md](book-catalog.md)), so "não encontrei" is a **normal, expected outcome** and must look like a next step rather than a failure.
@@ -159,12 +159,12 @@ Mobile-first. The cohort reads links on phones, in WhatsApp's in-app browser.
 
 Accessibility fixes the current app needs (it is presently unusable with a screen reader):
 
-- Cards become `<a>` wrapping the cover, not `<div @click>` — this also makes them middle-clickable and shareable.
+- Cards become `<a>` wrapping the cover, not `<div @click>` - this also makes them middle-clickable and shareable.
 - Every cover `<img>` gets `alt="Capa de {title}, de {author}"`.
 - Modals: focus trap, Escape closes, focus restored, close control is a `<button aria-label="Fechar">`.
 - Star ratings expose `role="img"` with a text label; the input version is a real radio group.
 - Visible focus rings. Do not remove outlines.
-- Colour contrast: the existing `--text-color: #9ab` on `--bg-color: #14181c` is approximately 6.6:1 — passes AA. Keep it when extending the palette.
+- Colour contrast: the existing `--text-color: #9ab` on `--bg-color: #14181c` is approximately 6.6:1 - passes AA. Keep it when extending the palette.
 
 ---
 

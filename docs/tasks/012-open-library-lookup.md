@@ -1,4 +1,4 @@
-# TASK-012 — Open Library optional lookup
+# TASK-012 - Open Library optional lookup
 
 ## Goal
 
@@ -13,7 +13,7 @@ Open Library is **enrichment, never dependency**. Measured: 40% coverage of Braz
 ### Included
 
 - `GET /api/search/externo`
-- `ExternalLookup.vue` — an explicit button
+- `ExternalLookup.vue` - an explicit button
 - 2-second hard timeout
 - Mapping OL results into form fields
 
@@ -21,7 +21,7 @@ Open Library is **enrichment, never dependency**. Measured: 40% coverage of Braz
 
 - Automatic lookup on typing
 - Any background sync or catalog mirror
-- Caching — results are persisted on accept or discarded
+- Caching - results are persisted on accept or discarded
 - Overwriting existing local data
 
 ## Dependencies
@@ -38,16 +38,16 @@ app/components/search/ExternalLookup.vue
 
 ## Implementation requirements
 
-1. `GET /api/search/externo?q=` — **session required**, so anonymous traffic cannot use us as a proxy to a free public API.
+1. `GET /api/search/externo?q=` - **session required**, so anonymous traffic cannot use us as a proxy to a free public API.
 2. Call `https://openlibrary.org/search.json?q=&limit=5&fields=key,title,author_name,cover_i,first_publish_year,language`.
 3. **Hard 2-second `AbortController` timeout.** On timeout, non-200, or malformed JSON: return `{ results: [], indisponivel: true }` with status **200**. A slow upstream must never become our error page.
 4. Descriptive `User-Agent` identifying the project and a contact address, per Open Library's guidance.
-5. Parse responses with Zod — third-party data is untrusted input.
+5. Parse responses with Zod - third-party data is untrusted input.
 6. Map: `key` → `ol_work_key`, `title`, `author_name[]`, `first_publish_year`, `cover_i` → `ol_cover_id`, `language[0]` → ISO 639-1.
 7. **Store `ol_cover_id`, and prefer `https://covers.openlibrary.org/b/id/{id}-M.jpg` over ISBN-keyed cover URLs.** Cover lookups by identifiers other than CoverID/OLID are rate-limited; by CoverID they are not.
-8. Selecting a result **pre-fills the form for review**. Nothing is saved directly, and nothing already typed is silently overwritten — show what will change.
+8. Selecting a result **pre-fills the form for review**. Nothing is saved directly, and nothing already typed is silently overwritten - show what will change.
 9. Rate limit 20/user/hour, protecting Open Library rather than us.
-10. Genres are **never** imported — OL `subjects` are free-text English noise.
+10. Genres are **never** imported - OL `subjects` are free-text English noise.
 
 ## Data/API changes
 
@@ -57,7 +57,7 @@ app/components/search/ExternalLookup.vue
 
 - A button labelled *"Buscar dados online"*, never automatic.
 - Loading state names the wait: *"Consultando o Open Library…"*.
-- On unavailable/empty: *"Não conseguimos buscar online agora. Você pode preencher à mão."* — never an error page.
+- On unavailable/empty: *"Não conseguimos buscar online agora. Você pode preencher à mão."* - never an error page.
 - Results show cover, title, author, year so the user can pick correctly.
 - Picking one fills the form and leaves the user in control of every field.
 
@@ -102,6 +102,6 @@ app/components/search/ExternalLookup.vue
 
 ## Notes / implementation guidance
 
-Test with a real query for `Histórias da meia-noite Machado de Assis` — measured as returning **zero results**. That is a normal outcome, and the UI must handle it gracefully rather than treating it as an anomaly.
+Test with a real query for `Histórias da meia-noite Machado de Assis` - measured as returning **zero results**. That is a normal outcome, and the UI must handle it gracefully rather than treating it as an anomaly.
 
 Do not be tempted to raise the timeout because "sometimes it takes 8 seconds". The whole point is that the user is never made to wait on a service that fails 60% of the time anyway.

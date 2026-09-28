@@ -1,8 +1,8 @@
-# TASK-014 — Entry permalink and Open Graph
+# TASK-014 - Entry permalink and Open Graph
 
 ## Goal
 
-`/entrada/{id}` — a server-rendered page for one reading log, with Open Graph tags that preview correctly in WhatsApp.
+`/entrada/{id}` - a server-rendered page for one reading log, with Open Graph tags that preview correctly in WhatsApp.
 
 ## Context
 
@@ -20,7 +20,7 @@
 ### Explicitly excluded
 
 - Likes, comments
-- Sitemaps and SEO — the channel is a group chat, not Google
+- Sitemaps and SEO - the channel is a group chat, not Google
 
 ## Dependencies
 
@@ -36,13 +36,13 @@ public/og-fallback.png
 
 ## Implementation requirements
 
-1. Server-rendered on every request. No client-side fetch for the primary content — WhatsApp's crawler does not execute JavaScript.
+1. Server-rendered on every request. No client-side fetch for the primary content - WhatsApp's crawler does not execute JavaScript.
 2. Fetch through `visibleLogs(viewer)`. A `privado` entry belonging to someone else returns **404**.
-3. Page shows: cover, title, author(s), year, the reader's handle and display name, the rating, the full review, the reading date (formatted by `finished_precision` — `'ano'` renders "2016", not "1 de janeiro de 2016"), and the format.
+3. Page shows: cover, title, author(s), year, the reader's handle and display name, the rating, the full review, the reading date (formatted by `finished_precision` - `'ano'` renders "2016", not "1 de janeiro de 2016"), and the format.
 4. OG tags:
-   - `og:title` — `"{title} — ★★★★½ por @{handle}"`
-   - `og:description` — the first ~160 chars of the review, plain text, HTML-attribute-escaped. Falls back to `"{display_name} leu {title}"` when there is no review.
-   - `og:image` — absolute cover URL
+   - `og:title` - `"{title} - ★★★★½ por @{handle}"`
+   - `og:description` - the first ~160 chars of the review, plain text, HTML-attribute-escaped. Falls back to `"{display_name} leu {title}"` when there is no review.
+   - `og:image` - absolute cover URL
    - `og:type=article`, `og:locale=pt_BR`, `og:url` canonical absolute
 5. **`og:image` must never carry `?default=false`.** That parameter makes Open Library return 404 for unknown ISBNs, which is correct for an `<img onerror>` fallback but leaves WhatsApp with a broken preview on exactly the books that have no cover. Serve `/og-fallback.png` instead.
 6. `Cache-Control: private, no-store` when rendered with a session; public entries rendered anonymously may be cached briefly.
@@ -51,7 +51,7 @@ public/og-fallback.png
 
 ## Data/API changes
 
-None — reuses the log service.
+None - reuses the log service.
 
 ## UX requirements
 
@@ -64,7 +64,7 @@ None — reuses the log service.
 
 - `visibleLogs(viewer)` is the only access path.
 - `privado` returns 404, never 403.
-- `og:description` built from plain text and attribute-escaped — no injection via a review into a meta tag.
+- `og:description` built from plain text and attribute-escaped - no injection via a review into a meta tag.
 - Never render a `privado` entry into a cacheable response.
 
 ## Testing requirements
@@ -102,6 +102,6 @@ None — reuses the log service.
 
 ## Notes / implementation guidance
 
-**The WhatsApp acceptance criteria are blocking and cannot be verified with a validator.** OG validators lie — they follow redirects differently, ignore caching, and do not reproduce WhatsApp's crawler. Paste a real link into a real chat.
+**The WhatsApp acceptance criteria are blocking and cannot be verified with a validator.** OG validators lie - they follow redirects differently, ignore caching, and do not reproduce WhatsApp's crawler. Paste a real link into a real chat.
 
 WhatsApp caches previews aggressively. Use a fresh entry id for each test rather than wondering why a fix did not take.

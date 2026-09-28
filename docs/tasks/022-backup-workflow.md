@@ -1,4 +1,4 @@
-# TASK-022 — Backup workflow and tested restore
+# TASK-022 - Backup workflow and tested restore
 
 ## Goal
 
@@ -20,7 +20,7 @@ The free tier has **no automated backups**, and the database will hold 13 years 
 ### Explicitly excluded
 
 - Point-in-time recovery (a paid feature)
-- Off-platform automated storage — the monthly copy is manual and deliberate
+- Off-platform automated storage - the monthly copy is manual and deliberate
 
 ## Dependencies
 
@@ -37,9 +37,9 @@ docs/runbook-restore.md
 
 1. Workflow on `schedule: '0 6 */3 * *'` **and** `workflow_dispatch` so it can be run by hand.
 2. `pg_dump --format=plain "$DATABASE_URL_DIRECT" | gzip > dump-$(date +%F).sql.gz`.
-3. **Use the direct endpoint, not the pooled one** — `pg_dump` needs session state the transaction pooler does not preserve.
+3. **Use the direct endpoint, not the pooled one** - `pg_dump` needs session state the transaction pooler does not preserve.
 4. `DATABASE_URL_DIRECT` lives in GitHub Actions secrets.
-5. Upload as a workflow artifact with `retention-days: 90`. **Do not commit dumps to git** — a gzipped dump does not delta-compress, so committing one every three days accumulates dozens of full copies permanently and bloats the repository forever.
+5. Upload as a workflow artifact with `retention-days: 90`. **Do not commit dumps to git** - a gzipped dump does not delta-compress, so committing one every three days accumulates dozens of full copies permanently and bloats the repository forever.
 6. Fail loudly: a non-zero `pg_dump` exit must fail the workflow, not upload an empty file. Assert the dump is larger than 10 KB before uploading.
 7. `docs/runbook-restore.md`: step-by-step restore into a fresh Neon branch, written so it can be followed under stress.
 8. **Perform a real restore before marking this done.** Download an artifact, create a scratch branch, restore, and verify the row counts match.
@@ -58,7 +58,7 @@ None.
 ## Security requirements
 
 - `DATABASE_URL_DIRECT` is a GitHub secret, never printed, never echoed.
-- The dump contains all user data including email addresses. Artifacts inherit repository visibility — **if this repository is public, artifacts are downloadable by anyone with access to the Actions tab.** Verify repository visibility before the first run; if public, move the workflow to a private repository.
+- The dump contains all user data including email addresses. Artifacts inherit repository visibility - **if this repository is public, artifacts are downloadable by anyone with access to the Actions tab.** Verify repository visibility before the first run; if public, move the workflow to a private repository.
 - The restore runbook must warn against restoring into production by accident.
 
 ## Testing requirements
@@ -92,4 +92,4 @@ None.
 
 Do the restore. It is tempting to mark this done once the workflow is green, but a dump that has never been restored has never been shown to contain anything useful.
 
-If the repository is public, the artifact exposure question is not theoretical — the dump contains every user's email address.
+If the repository is public, the artifact exposure question is not theoretical - the dump contains every user's email address.

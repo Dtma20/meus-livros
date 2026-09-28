@@ -1,4 +1,4 @@
-# TASK-002 — Neon + Drizzle connection
+# TASK-002 - Neon + Drizzle connection
 
 ## Goal
 
@@ -49,7 +49,7 @@ drizzle.config.ts
    CREATE EXTENSION IF NOT EXISTS unaccent;
    ```
 7. Add `db:generate`, `db:migrate`, `db:studio` scripts.
-8. Document in `.env.example` **why** there are two URLs — the next person will otherwise use the wrong one.
+8. Document in `.env.example` **why** there are two URLs - the next person will otherwise use the wrong one.
 
 ## Data/API changes
 
@@ -62,7 +62,7 @@ None.
 ## Security requirements
 
 - Both URLs contain credentials. `.env` only; never committed, never logged.
-- `server/db/index.ts` must never be importable from `app/` — the TASK-001 lint rule covers this; confirm it fires.
+- `server/db/index.ts` must never be importable from `app/` - the TASK-001 lint rule covers this; confirm it fires.
 - `DATABASE_URL_DIRECT` is never set in the Vercel environment.
 
 ## Testing requirements

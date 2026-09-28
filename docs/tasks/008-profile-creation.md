@@ -1,4 +1,4 @@
-# TASK-008 — Profile creation and handle selection
+# TASK-008 - Profile creation and handle selection
 
 ## Goal
 
@@ -45,9 +45,9 @@ shared/schemas/user.ts
 3. Handle rules: `^[a-z0-9_]{3,20}$`. Reserved: `livro`, `entrada`, `app`, `api`, `entrar`, `admin`, `sobre`, `me`, `sair`, `perfil`, `novo`.
 4. **Transliteration is client-side and visible.** `João` becomes `joao` in the input as the user types, so they see and can edit it. Never transliterate silently server-side.
 5. On collision return `409` with up to three suggestions (`joao2`, `joao_silva`, `joaos`).
-6. Verify allowlist membership again here — this is the second of the two checks.
+6. Verify allowlist membership again here - this is the second of the two checks.
 7. Default `profile_visibility` to `'publico'`. With only two levels, `privado` is an escape hatch; a private default would leave the social product with nothing to show.
-8. `PATCH /api/users/me` updates `display_name`, `bio` (≤ 500 chars), `profile_visibility`. **The handle is immutable in the MVP** — changing it breaks every shared link.
+8. `PATCH /api/users/me` updates `display_name`, `bio` (≤ 500 chars), `profile_visibility`. **The handle is immutable in the MVP** - changing it breaks every shared link.
 9. `/app/perfil` shows the visibility toggle with plain-Portuguese copy explaining what each setting means.
 
 ## Data/API changes
@@ -61,7 +61,7 @@ shared/schemas/user.ts
 - Live preview: `meulivros.app/@joao`.
 - Handle availability is checked as the user types, debounced.
 - Collision suggestions are clickable.
-- The visibility toggle says what it does: *"Público — qualquer pessoa com o link pode ver"* / *"Privado — só você"*.
+- The visibility toggle says what it does: *"Público - qualquer pessoa com o link pode ver"* / *"Privado - só você"*.
 
 ## Security requirements
 

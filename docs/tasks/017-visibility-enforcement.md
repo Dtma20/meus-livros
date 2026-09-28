@@ -1,4 +1,4 @@
-# TASK-017 — Visibility enforcement and tests
+# TASK-017 - Visibility enforcement and tests
 
 ## Goal
 
@@ -19,7 +19,7 @@ The one security property this product genuinely must get right. Everything else
 
 ### Explicitly excluded
 
-- RLS — see [architecture.md](../architecture.md) §3.6
+- RLS - see [architecture.md](../architecture.md) §3.6
 - Blocking/muting
 - Any third visibility level
 
@@ -39,7 +39,7 @@ eslint.config.mjs   (extended)
 
 1. **The rule, and it is the only one:**
    > A reading log is visible to a viewer if `log.user_id = viewer.id`, **or** (`log.visibility = 'publico'` **and** `author.profile_visibility = 'publico'`).
-2. `visibleLogs(viewer: Viewer)` returns a Drizzle condition. **`Viewer` is a required, non-optional parameter** — `visibleLogs()` with no argument must be a compile error, so "I forgot the viewer" cannot ship.
+2. `visibleLogs(viewer: Viewer)` returns a Drizzle condition. **`Viewer` is a required, non-optional parameter** - `visibleLogs()` with no argument must be a compile error, so "I forgot the viewer" cannot ship.
 3. Refactor every existing query that reads `reading_logs` to use it: profile, work page, entry permalink, home strip.
 4. ESLint `no-restricted-imports` forbids the raw `db` handle outside `server/services/**`.
 5. A privado resource returns **404**, never 403, everywhere.
@@ -47,7 +47,7 @@ eslint.config.mjs   (extended)
 
 ## Data/API changes
 
-None — a refactor.
+None - a refactor.
 
 ## UX requirements
 
@@ -93,4 +93,4 @@ Plus: a test that a query written without the helper fails lint, and a test that
 
 Write the four tests **first**, watch them fail, then refactor until they pass. This is the one place in the project where test-first is clearly worth it.
 
-Test 4 is the one people forget. A público entry on a privado profile must be invisible — otherwise switching your profile to private does not actually hide anything, which is the opposite of what the setting promises.
+Test 4 is the one people forget. A público entry on a privado profile must be invisible - otherwise switching your profile to private does not actually hide anything, which is the opposite of what the setting promises.

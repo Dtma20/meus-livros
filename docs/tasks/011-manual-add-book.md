@@ -1,4 +1,4 @@
-# TASK-011 — Manual add-book flow
+# TASK-011 - Manual add-book flow
 
 ## Goal
 
@@ -21,7 +21,7 @@ A form that lets any member add a book the catalog does not have.
 
 - Open Library prefill (TASK-012)
 - Editing an existing work
-- Cover upload — a URL only
+- Cover upload - a URL only
 
 ## Dependencies
 
@@ -38,11 +38,11 @@ app/pages/app/livro/novo.vue
 ## Implementation requirements
 
 1. Reachable from the search zero-state **and** as a standalone page.
-2. Required: `title`, at least one author. Everything else optional — a required field here is a reason to abandon.
-3. Optional: `first_published_year` (signed, −3000..2100), `original_language` (a pt-BR select mapping to ISO 639-1), genres (0–4 from the 26), `series_name`, `series_number` (**free text** — `'1-2'` and `'0.1'` are real values).
+2. Required: `title`, at least one author. Everything else optional - a required field here is a reason to abandon.
+3. Optional: `first_published_year` (signed, −3000..2100), `original_language` (a pt-BR select mapping to ISO 639-1), genres (0–4 from the 26), `series_name`, `series_number` (**free text** - `'1-2'` and `'0.1'` are real values).
 4. Optional edition block, collapsed: ISBN, publisher, page count, published year, cover URL.
 5. Authors as a tag input; existing authors autocomplete from `/api/search`, new names are created.
-6. On 409 duplicate, show the existing work with its cover and ask *"é este?"* — accepting links to it, rejecting resubmits with `?forcar=1`.
+6. On 409 duplicate, show the existing work with its cover and ask *"é este?"* - accepting links to it, rejecting resubmits with `?forcar=1`.
 7. Pre-fill `title` from the search query that produced the zero result.
 8. On success, return the user to wherever they came from, carrying the new `work_id` so they can proceed straight to logging.
 
@@ -54,10 +54,10 @@ Consumes `POST /api/works`. No new endpoints.
 
 - Under a minute to complete for a motivated user. **Time it.**
 - Two visible required fields; the rest progressively disclosed.
-- Clear copy: *"Não encontrou? Adicione o livro — leva menos de um minuto."*
+- Clear copy: *"Não encontrou? Adicione o livro - leva menos de um minuto."*
 - Client validation mirrors the server's Zod schema, importing the same schema.
 - Inline errors, in pt-BR, next to the field.
-- Draft persisted to `localStorage` on change, restored on mount, cleared on success. Wrapped in try/catch — private-mode browsers throw.
+- Draft persisted to `localStorage` on change, restored on mount, cleared on success. Wrapped in try/catch - private-mode browsers throw.
 - Mobile-first: the form is usable one-handed on a phone.
 
 ## Security requirements

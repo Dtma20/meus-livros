@@ -1,4 +1,4 @@
-# TASK-013 — Log a book: create, edit, delete
+# TASK-013 - Log a book: create, edit, delete
 
 ## Goal
 
@@ -6,7 +6,7 @@ The core creative act: record a finished book with a date, a half-star rating an
 
 ## Context
 
-**The single most important task in the project.** Everything else is a view over the output of this form. It is the only content-generating feature in the MVP, and the activation metric — friends who log three books in the first month — measures exactly this.
+**The single most important task in the project.** Everything else is a view over the output of this form. It is the only content-generating feature in the MVP, and the activation metric - friends who log three books in the first month - measures exactly this.
 
 ## Scope
 
@@ -21,7 +21,7 @@ The core creative act: record a finished book with a date, a half-star rating an
 
 - The permalink page (TASK-014)
 - Likes, comments, want-to-read
-- Re-read UI — the schema supports re-reads; no dedicated interface
+- Re-read UI - the schema supports re-reads; no dedicated interface
 
 ## Dependencies
 
@@ -46,7 +46,7 @@ shared/schemas/log.ts
 2. `POST /api/logs` accepts `{ work_id, edition_id?, rating?, review?, started_on?, finished_on?, finished_precision?, format?, visibility? }`.
 3. **Rating validated server-side**: `min(0.5).max(5).refine(r => r*2 === Math.trunc(r*2))`. A client posting `3.7` gets 400. The database CHECK is the second line of defence.
 4. **Review is plain text.** No sanitiser, no HTML parsing. `<` and `>` are stored literally and rendered escaped. Max 10,000 chars.
-5. **Timezone.** `finished_on` defaults to the **browser's** local date, not the server's. The server runs UTC; the cohort is UTC−3, so a server-side default records tomorrow for anything logged after 21:00 local — which is exactly when people log books. The server validates against `America/Sao_Paulo` and rejects future dates.
+5. **Timezone.** `finished_on` defaults to the **browser's** local date, not the server's. The server runs UTC; the cohort is UTC−3, so a server-side default records tomorrow for anything logged after 21:00 local - which is exactly when people log books. The server validates against `America/Sao_Paulo` and rejects future dates.
 6. `edition_id`, if given, must belong to `work_id`.
 7. **No uniqueness check.** Logging the same work twice is a re-read and must succeed.
 8. `PATCH`/`DELETE` compare `user_id` to the session **in the query**, not after fetching. A non-owner gets 404, never 403.
@@ -66,7 +66,7 @@ shared/schemas/log.ts
 - Review: a plain `<textarea>`. No toolbar, no markdown preview, no rich text.
 - Date defaults to today (browser local), easily changed.
 - Format: three buttons (Físico / Ebook / Áudio), optional.
-- Visibility toggle with explicit copy: *"Público — qualquer pessoa com o link pode ver"* / *"Privado — só você"*.
+- Visibility toggle with explicit copy: *"Público - qualquer pessoa com o link pode ver"* / *"Privado - só você"*.
 - Submit disabled while in flight, spinner shown.
 - **A failed save must never lose typed text.** This is the worst failure the app can have.
 - After saving, go straight to the entry permalink with a share affordance.
@@ -75,7 +75,7 @@ shared/schemas/log.ts
 
 - Session required for every mutation.
 - Ownership enforced in the query, not after fetch.
-- A `privado` entry returns **404** to a second user, never 403 — a 403 confirms the entry exists.
+- A `privado` entry returns **404** to a second user, never 403 - a 403 confirms the entry exists.
 - Rating and date validated server-side regardless of the client.
 - Review stored as text; **`v-html` appears nowhere**.
 - Rate limit 60 logs/user/hour.
@@ -118,6 +118,6 @@ shared/schemas/log.ts
 
 ## Notes / implementation guidance
 
-Time yourself completing the whole flow from "I finished a book" to "it is logged". If it exceeds a minute for a book already in the catalog, simplify — this is the action the entire product depends on.
+Time yourself completing the whole flow from "I finished a book" to "it is logged". If it exceeds a minute for a book already in the catalog, simplify - this is the action the entire product depends on.
 
 Draft persistence is not a nice-to-have. Losing a 900-character review to a network blip is the kind of failure that makes someone stop using a product permanently.

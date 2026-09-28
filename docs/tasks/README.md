@@ -2,7 +2,7 @@
 
 27 tasks. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
 
-**Read [../README.md](../README.md) first.** The two blocking questions in [../open-questions.md](../open-questions.md) were settled on 2026-09-19 — Q2 resolved, Q1's risk accepted with a mitigation due before [023](023-deploy-to-vercel.md). 001 is complete.
+**Read [../README.md](../README.md) first.** The two blocking questions in [../open-questions.md](../open-questions.md) were settled on 2026-09-19 - Q2 resolved, Q1's risk accepted with a mitigation due before [023](023-deploy-to-vercel.md). 001 is complete.
 
 ---
 
@@ -10,7 +10,7 @@
 
 | # | Task | Phase | Est. | Depends on |
 |---|---|---|---|---|
-| [001](001-scaffold-nuxt-project.md) | Scaffold the Nuxt 4 project | 0 Foundation | 2h | — |
+| [001](001-scaffold-nuxt-project.md) | Scaffold the Nuxt 4 project | 0 Foundation | 2h | - |
 | [002](002-database-connection.md) | Neon + Drizzle connection | 1 Data | 1h | 001 |
 | [003](003-define-schema.md) | Define the Drizzle schema | 1 Data | 3h | 002 |
 | [004](004-initial-migration-and-genre-seed.md) | Initial migration + genre seed | 1 Data | 2h | 003 |
@@ -38,7 +38,7 @@
 | [026](026-search-misses-instrumentation.md) | `search_misses` instrumentation | 8 Optional | 1h | 010 |
 | [027](027-password-sign-in.md) | Password sign-in; OTP narrowed to activation and reset | 2 Identity | 5h | 007, 008 |
 
-Roughly 79 hours of focused work — about four weeks part-time.
+Roughly 79 hours of focused work - about four weeks part-time.
 
 ---
 
@@ -101,14 +101,14 @@ Plus **019** (migration), which gates 023 because the first visitor must not lan
 
 Eleven tasks, roughly 30 hours. Everything else parallelises around it.
 
-**004 is the real bottleneck.** Auth, catalog, migration and backups all unblock from it. Get the schema right and reviewed before building on it — it is the one thing here that is genuinely expensive to change later.
+**004 is the real bottleneck.** Auth, catalog, migration and backups all unblock from it. Get the schema right and reviewed before building on it - it is the one thing here that is genuinely expensive to change later.
 
 ## Parallelisable work
 
 | After | You can run in parallel |
 |---|---|
 | 001 | **005 → 006** (frontend) alongside **002 → 003 → 004** (data). No shared files |
-| 004 | **007** (auth), **009** (catalog), **022** (backups) — three independent tracks |
+| 004 | **007** (auth), **009** (catalog), **022** (backups) - three independent tracks |
 | 009 | **019** (migration) runs alongside the whole auth track |
 | 013 | **014, 015, 016, 017** are four independent pages/concerns |
 | 016 | **020, 021, 025** |
@@ -136,12 +136,12 @@ With two people: one takes 002→004→007→008, the other 005→006→009→01
 ## Conventions every task assumes
 
 - TypeScript `strict: true`. `npm run typecheck` passes before every commit.
-- `npm run lint` passes — including the `v-html` ban and the `no-restricted-imports` rule keeping `db` out of `app/`.
+- `npm run lint` passes - including the `v-html` ban and the `no-restricted-imports` rule keeping `db` out of `app/`.
 - **Reviews are plain text.** `v-html` appears nowhere, ever.
 - Every read of `reading_logs` goes through `visibleLogs(viewer)`. `Viewer` is a required parameter.
 - Zod validates every request body, server-side, regardless of client validation.
 - UI strings are pt-BR. Error codes are snake_case Portuguese.
-- Migrations are generated, committed, and applied manually from a laptop — never from CI.
+- Migrations are generated, committed, and applied manually from a laptop - never from CI.
 - One task, one commit (or one PR). If a task needs a second commit, it was too big.
 
 Full conventions in [../../CLAUDE.md](../../CLAUDE.md).
@@ -152,4 +152,4 @@ Full conventions in [../../CLAUDE.md](../../CLAUDE.md).
 
 Every task file ends with objective acceptance criteria. "Search works well" is not a criterion; "given the query `dostoievski`, the response contains the work whose author slug is `fiodor-dostoievski`, in under 150 ms" is.
 
-If you cannot tell from a task file how another engineer would verify it, the task file is wrong — fix it before implementing.
+If you cannot tell from a task file how another engineer would verify it, the task file is wrong - fix it before implementing.

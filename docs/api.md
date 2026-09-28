@@ -2,7 +2,7 @@
 
 Nuxt server routes under `server/api/**`. No separate service, no versioning prefix, no GraphQL. Routes are thin: validate → authorize → call a service in `server/services/` → shape the response.
 
-Public pages fetch nothing from these endpoints — they are server-rendered directly from services. The endpoints exist for the authenticated app and for progressive interactions (search-as-you-type).
+Public pages fetch nothing from these endpoints - they are server-rendered directly from services. The endpoints exist for the authenticated app and for progressive interactions (search-as-you-type).
 
 ---
 
@@ -44,38 +44,38 @@ ALL  /api/auth/**          → better-auth handler (password + email OTP)
 
 The daily credential is a **password**; the six-digit email code is kept for first-access activation and for password reset only. Reasoning in [architecture.md](architecture.md) §3.5.
 
-**`/api/auth/**` denies by default.** better-auth's plugins register more routes than this product uses, several of which send email with no rate limit and no allowlist check. An explicit path allowlist answers `404` to everything not in the table below. Adding one exception per plugin route is the wrong shape — the next upgrade reopens the hole.
+**`/api/auth/**` denies by default.** better-auth's plugins register more routes than this product uses, several of which send email with no rate limit and no allowlist check. An explicit path allowlist answers `404` to everything not in the table below. Adding one exception per plugin route is the wrong shape - the next upgrade reopens the hole.
 
 ### 2.1 The flows
 
 | Flow | Route | Behaviour |
 |---|---|---|
-| **Activation — request code** | `POST /api/auth/email-otp/send-verification-otp` `{ email }` | Rate limit, then **check `allowed_emails`**. Not allowlisted, unknown, *or already activated* → `200` with a generic body and nothing sent |
-| **Activation — complete** | `POST /api/auth/sign-in/email-otp` `{ email, otp }`, then `POST /api/auth/set-password` `{ newPassword }` | The code issues the session; the session sets the first password. Two better-auth routes behind one screen |
+| **Activation - request code** | `POST /api/auth/email-otp/send-verification-otp` `{ email }` | Rate limit, then **check `allowed_emails`**. Not allowlisted, unknown, *or already activated* → `200` with a generic body and nothing sent |
+| **Activation - complete** | `POST /api/auth/sign-in/email-otp` `{ email, otp }`, then `POST /api/auth/set-password` `{ newPassword }` | The code issues the session; the session sets the first password. Two better-auth routes behind one screen |
 | **Sign-in (the daily path)** | `POST /api/auth/entrar` `{ identificador, senha }` | `identificador` is a handle or an email. A resolver turns a handle into its email, then delegates to better-auth's `sign-in/email` internally. That route is **not** exposed: its name promises an email and this field does not carry one |
-| **Reset — request code** | `POST /api/auth/forget-password/email-otp` `{ email }` | Previously 404'd by the deny list; now opened, behind the same rate limit and the same generic response |
-| **Reset — complete** | `POST /api/auth/email-otp/reset-password` `{ email, otp, password }` | Sets the new password and revokes the user's other sessions |
+| **Reset - request code** | `POST /api/auth/forget-password/email-otp` `{ email }` | Previously 404'd by the deny list; now opened, behind the same rate limit and the same generic response |
+| **Reset - complete** | `POST /api/auth/email-otp/reset-password` `{ email, otp, password }` | Sets the new password and revokes the user's other sessions |
 | **Change password** | `POST /api/auth/change-password` `{ currentPassword, newPassword, revokeOtherSessions: true }` | Session required. The current password is mandatory |
 | **Session / sign out** | `GET /api/auth/get-session`, `POST /api/auth/sign-out` | Unchanged |
 
 `request-email-change` stays denied. Nothing in the MVP changes an email address.
 
-**First sign-in.** A verified identity with no `users` row is redirected to `/app/bem-vindo` to choose a handle and display name — unchanged.
+**First sign-in.** A verified identity with no `users` row is redirected to `/app/bem-vindo` to choose a handle and display name - unchanged.
 
 ### 2.2 Failure shapes
 
 | Case | Status | Body |
 |---|---|---|
-| Unknown identifier **or** wrong password | `400` | `{ error: 'validacao', message: 'E-mail, usuário ou senha incorretos.' }` — **one message for both cases** |
+| Unknown identifier **or** wrong password | `400` | `{ error: 'validacao', message: 'E-mail, usuário ou senha incorretos.' }` - **one message for both cases** |
 | Invalid or expired code | `400` | `{ error: 'validacao', message: 'Código inválido ou expirado.' }` |
 | The new password fails the rules | `400` | `{ error: 'validacao' }` naming the rule, in pt-BR. This one *is* safe to be specific about: it describes the submitted input, not the account |
 | Any rate limit | `429` | `{ error: 'muitas_tentativas' }` |
 
-**Account enumeration.** Requesting a code for an address that is not on the allowlist must return the same status, body and approximate timing as one that is. Whether an address is invited — and whether it has already activated — is not public information. The same rule binds sign-in: the not-found branch verifies against a dummy hash instead of returning early, so a nonexistent handle is not measurably faster than a wrong password.
+**Account enumeration.** Requesting a code for an address that is not on the allowlist must return the same status, body and approximate timing as one that is. Whether an address is invited - and whether it has already activated - is not public information. The same rule binds sign-in: the not-found branch verifies against a dummy hash instead of returning early, so a nonexistent handle is not measurably faster than a wrong password.
 
 **Rate limiting.** A Postgres table, no Redis. 10 sign-in attempts per identifier per hour and 30 per IP per hour; 5 code requests per email per hour and 20 per IP per hour. Exceeding any of them returns `429`. Full table in [security.md](security.md) §8.
 
-**Sessions.** better-auth database sessions, httpOnly + Secure + SameSite=Lax cookie, 30-day expiry with rolling refresh. Database-backed rather than a sealed stateless cookie specifically so a session can be revoked server-side — which is also what makes "sign out everywhere else" implementable on a password change.
+**Sessions.** better-auth database sessions, httpOnly + Secure + SameSite=Lax cookie, 30-day expiry with rolling refresh. Database-backed rather than a sealed stateless cookie specifically so a session can be revoked server-side - which is also what makes "sign out everywhere else" implementable on a password change.
 
 ---
 
@@ -85,7 +85,7 @@ The single most important piece of server code. Every read of `reading_logs` goe
 
 ```ts
 // server/utils/visibility.ts
-export type Viewer = { id: string } | null   // never optional — callers must pass null explicitly
+export type Viewer = { id: string } | null   // never optional - callers must pass null explicitly
 
 export function visibleLogs(viewer: Viewer) {
   return viewer
@@ -134,7 +134,7 @@ Rules that make it hold:
 - Accented input is transliterated client-side and shown to the user before submit (`João` → `joao`), never silently.
 - Idempotent: a second call by a user who already has a profile returns `409`.
 
-**Security:** this endpoint is the real registration gate. A better-auth identity exists the moment the activation code verifies, *before* any profile is created — so the gate is that **no `users` row means every service query returns nothing**. Verify allowlist membership here as well as at code-request time.
+**Security:** this endpoint is the real registration gate. A better-auth identity exists the moment the activation code verifies, *before* any profile is created - so the gate is that **no `users` row means every service query returns nothing**. Verify allowlist membership here as well as at code-request time.
 
 ### Search
 
@@ -151,7 +151,7 @@ Rules that make it hold:
 - Each result carries `{ id, slug, title, authors[], first_published_year, cover_url, log_count }`.
 - **Zero results inserts one `search_misses` row**, fire-and-forget, never blocking the response.
 
-**`GET /api/search/externo?q=` — deliberately separate, and session-gated.**
+**`GET /api/search/externo?q=` - deliberately separate, and session-gated.**
 
 Open Library averages **8.4 s** and times out outright (measured, [book-catalog.md](book-catalog.md)). It must never sit in the local search path.
 
@@ -167,7 +167,7 @@ Open Library averages **8.4 s** and times out outright (measured, [book-catalog.
 | `POST` | `/api/works` | session | Create a work manually (the primary add path) |
 | `POST` | `/api/works/:id/editions` | session | Attach an edition |
 
-**`POST /api/works`** — the manual-add path, used roughly 60% of the time.
+**`POST /api/works`** - the manual-add path, used roughly 60% of the time.
 
 ```ts
 {
@@ -184,11 +184,11 @@ Open Library averages **8.4 s** and times out outright (measured, [book-catalog.
 ```
 
 - Slug generated from title + first author, deduplicated with a numeric suffix.
-- Before inserting, look for a probable duplicate: same `f_unaccent(lower(title))` **and** an overlapping author. If found, return `409` with the existing work so the UI can offer "é este?" — **but always allow forcing creation** with `?forcar=1`. A false duplicate block is worse than a duplicate row, because it dead-ends the activation path.
+- Before inserting, look for a probable duplicate: same `f_unaccent(lower(title))` **and** an overlapping author. If found, return `409` with the existing work so the UI can offer "é este?" - **but always allow forcing creation** with `?forcar=1`. A false duplicate block is worse than a duplicate row, because it dead-ends the activation path.
 - ISBN normalised to ISBN-13 before the uniqueness check (22 of 86 corpus ISBNs are ISBN-10).
 - Catalog rows are shared and carry no visibility. Anyone may create; nobody may delete.
 
-### Reading logs — the core
+### Reading logs - the core
 
 | Method | Route | Auth | Purpose |
 |---|---|---|---|
@@ -204,7 +204,7 @@ Open Library averages **8.4 s** and times out outright (measured, [book-catalog.
 {
   work_id: string,
   edition_id?: string,
-  rating?: number,          // 0.5..5.0, step 0.5 — validated server-side, not only in the UI
+  rating?: number,          // 0.5..5.0, step 0.5 - validated server-side, not only in the UI
   review?: string,          // 0..10000 chars, PLAIN TEXT
   started_on?: string,      // YYYY-MM-DD
   finished_on?: string,
@@ -217,14 +217,14 @@ Open Library averages **8.4 s** and times out outright (measured, [book-catalog.
 Validation that must live on the server, not just the form:
 
 - `rating`: `z.number().min(0.5).max(5).refine(r => r * 2 === Math.trunc(r * 2))`. A client posting `3.7` gets `400`.
-- `review`: **plain text.** Any `<` or `>` is stored literally and rendered escaped. No sanitiser, no allowlist, no HTML parsing — see [security.md](security.md) §2.
+- `review`: **plain text.** Any `<` or `>` is stored literally and rendered escaped. No sanitiser, no allowlist, no HTML parsing - see [security.md](security.md) §2.
 - `finished_on` must not be in the future (`America/Sao_Paulo`).
 - `edition_id`, if present, must belong to `work_id`.
 - No uniqueness check against existing logs. Re-reads are the point.
 
-**Timezone.** The server runs in UTC; the cohort is UTC−3. A default `finished_on` computed from the server's "today" records tomorrow's date for anything logged after 21:00 local — which is exactly when people log books. **The date default is computed client-side from the browser's local date**, and the server validates against `America/Sao_Paulo`.
+**Timezone.** The server runs in UTC; the cohort is UTC−3. A default `finished_on` computed from the server's "today" records tomorrow's date for anything logged after 21:00 local - which is exactly when people log books. **The date default is computed client-side from the browser's local date**, and the server validates against `America/Sao_Paulo`.
 
-**`GET /api/logs/:id`** returns `404` for a `privado` entry belonging to someone else — never 403.
+**`GET /api/logs/:id`** returns `404` for a `privado` entry belonging to someone else - never 403.
 
 ### Home
 
@@ -240,7 +240,7 @@ Validation that must live on the server, not just the form:
 
 No endpoints for follows, likes, lists, want-to-read, notifications, comments, statistics, import, export, or author/genre/country browse. Each is a deferred product feature ([mvp-definition.md](mvp-definition.md) §3), and building the API before the feature is the definition of speculative work.
 
-No `/api/v1` prefix — there are no external consumers to version against. No OpenAPI spec — the consumer is the same repository, typed by the same TypeScript.
+No `/api/v1` prefix - there are no external consumers to version against. No OpenAPI spec - the consumer is the same repository, typed by the same TypeScript.
 
 ---
 

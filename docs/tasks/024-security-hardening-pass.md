@@ -1,4 +1,4 @@
-# TASK-024 — Security hardening pass
+# TASK-024 - Security hardening pass
 
 ## Goal
 
@@ -21,7 +21,7 @@ The final gate before inviting anyone. Individually these items are small; colle
 ### Explicitly excluded
 
 - A penetration test
-- Moderation tooling — invite-only, deferred (see [mvp-definition.md](../mvp-definition.md) §4)
+- Moderation tooling - invite-only, deferred (see [mvp-definition.md](../mvp-definition.md) §4)
 - Two-factor auth
 
 ## Dependencies
@@ -38,9 +38,9 @@ server/utils/rate-limit.ts   (applied)
 
 ## Implementation requirements
 
-1. **CSP** per [security.md](../security.md) §2, set as a response header. `img-src` allows `'self'`, `https://covers.openlibrary.org` and `data:` — deliberately narrow.
+1. **CSP** per [security.md](../security.md) §2, set as a response header. `img-src` allows `'self'`, `https://covers.openlibrary.org` and `data:` - deliberately narrow.
 2. Additional headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`.
-3. **Origin check** on every mutating request — compare `Origin` against the expected host. Cheap insurance if a cookie setting is ever loosened.
+3. **Origin check** on every mutating request - compare `Origin` against the expected host. Cheap insurance if a cookie setting is ever loosened.
 4. Apply every rate limit from [security.md](../security.md) §8 and verify each fires.
 5. **Secret audit**: build, then grep `.vercel/output/static` for each secret's value. Any hit is a blocking failure.
 6. **Error audit**: force a 500, a Postgres unique violation, and a Zod failure. Confirm responses carry the documented shapes and no internals. Confirm unique violations map to 409, not 500.
@@ -56,7 +56,7 @@ None.
 
 ## UX requirements
 
-None — behaviour must not change for legitimate use. Verify that rate limits do not fire during ordinary usage, especially as-you-type search.
+None - behaviour must not change for legitimate use. Verify that rate limits do not fire during ordinary usage, especially as-you-type search.
 
 ## Security requirements
 
@@ -85,7 +85,7 @@ Plus: each rate limit verified by exceeding it and observing 429.
 
 - [ ] Every item in [security.md](../security.md) §13 is checked with recorded evidence
 - [ ] Every rate limit in §8 fires when exceeded and returns 429
-- [ ] Normal usage — including as-you-type search — never triggers a rate limit
+- [ ] Normal usage - including as-you-type search - never triggers a rate limit
 - [ ] The secret grep over the client bundle finds nothing
 - [ ] A duplicate ISBN returns 409, not 500
 - [ ] A cross-origin POST with credentials is rejected
@@ -104,6 +104,6 @@ Plus: each rate limit verified by exceeding it and observing 429.
 
 ## Notes / implementation guidance
 
-Record evidence rather than ticking boxes — a command and its output per item. The value of this task is the evidence, not the checklist.
+Record evidence rather than ticking boxes - a command and its output per item. The value of this task is the evidence, not the checklist.
 
 If anything here fails, fix it before inviting anyone. There is no acceptable version of "we will tighten that after launch" for a visibility leak.

@@ -1,4 +1,4 @@
-# TASK-005 — Port design tokens and base components
+# TASK-005 - Port design tokens and base components
 
 > **Q5 settled (2026-09-19): dark only.** Port one set of tokens. No theme switch, no light-mode variables.
 
@@ -23,7 +23,7 @@ This is **real work, not a copy-paste**. The existing file is one 421-line `setu
 - Pages (TASK-006)
 - `FilterBar` (TASK-016)
 - `ReadingMap` (TASK-025)
-- Data fetching of any kind — these components take props
+- Data fetching of any kind - these components take props
 
 ## Dependencies
 
@@ -42,13 +42,13 @@ app/components/ui/EmptyState.vue
 
 1. Port the seven `:root` tokens unchanged (`--bg-color: #14181c` etc.). Add a spacing scale, a type scale, radii and `--danger`.
 2. `StarRating.vue`: display mode from `legacy/index.html:385` (`★` repeated, `½` for halves). Props `{ rating: number | null }`. Renders nothing when null. Exposes `role="img"` with an `aria-label` like `"4,5 de 5 estrelas"` (pt-BR decimal comma).
-3. `BookCover.vue`: fallback chain per [book-catalog.md](../book-catalog.md) §5 — `cover_url` → `ol_cover_id` → ISBN **with `?default=false`** → inline SVG initials. Requires an `alt` prop; no default.
+3. `BookCover.vue`: fallback chain per [book-catalog.md](../book-catalog.md) §5 - `cover_url` → `ol_cover_id` → ISBN **with `?default=false`** → inline SVG initials. Requires an `alt` prop; no default.
    - The `?default=false` is load-bearing: without it Open Library returns HTTP 200 with a 43-byte blank GIF and `onerror` never fires.
-   - The placeholder is a locally generated inline SVG data URI, **not `ui-avatars.com`** — no third-party dependency.
+   - The placeholder is a locally generated inline SVG data URI, **not `ui-avatars.com`** - no third-party dependency.
 4. `BookCard.vue`: renders as an `<a>`, not `<div @click>`. Keyboard-reachable and middle-clickable.
 5. `ReviewText.vue`: renders plain text via `{{ }}` with `white-space: pre-wrap`. **Must not contain `v-html`.**
 6. `BookGrid.vue`: 2 columns under 600px, 4 under 900px, 6 above. 16px gutters, no horizontal scroll at 320px.
-7. All components are presentational — props in, events out, no fetching, no store.
+7. All components are presentational - props in, events out, no fetching, no store.
 
 ## Data/API changes
 
@@ -58,13 +58,13 @@ None.
 
 - Dark theme only.
 - Visible focus rings on every interactive element. Do not remove outlines.
-- Text contrast at least AA (the existing `#9ab` on `#14181c` is ~6.6:1 — keep it).
+- Text contrast at least AA (the existing `#9ab` on `#14181c` is ~6.6:1 - keep it).
 - Covers use `loading="lazy"`.
 
 ## Security requirements
 
 - `ReviewText` must never use `v-html`; the lint rule enforces it.
-- `BookCover` must reject a `src` whose scheme is not `https:` or `data:` and fall back to the placeholder — a `javascript:` URL in `cover_url` must not reach `<img src>`.
+- `BookCover` must reject a `src` whose scheme is not `https:` or `data:` and fall back to the placeholder - a `javascript:` URL in `cover_url` must not reach `<img src>`.
 
 ## Testing requirements
 

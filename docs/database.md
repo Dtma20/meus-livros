@@ -8,7 +8,7 @@ Postgres 17 on Neon. Drizzle ORM. Ten application tables plus better-auth's own.
 
 ## 1. Work vs Edition vs Reading Log
 
-The decision this schema exists to get right. Ask these in order — **first YES wins, then stop**:
+The decision this schema exists to get right. Ask these in order - **first YES wins, then stop**:
 
 1. **Would two people who read different *translations* still agree on this value?** → **Work**
 2. Otherwise: **Would this change if I bought a different *printing*, and my opinion stayed identical?** → **Edition**
@@ -22,7 +22,7 @@ The decision this schema exists to get right. Ask these in order — **first YES
 | `author` | Work (via `work_authors` → `authors`) | Invariant under translation |
 | `country` | **Author** | It describes the writer, not the book. Verified: no author in the corpus has more than one country |
 | `original_language` | Work | Definitionally a property of the original |
-| `year` | Work (`first_published_year`) | First publication of the work. **Signed integer** — the corpus contains `-500` |
+| `year` | Work (`first_published_year`) | First publication of the work. **Signed integer** - the corpus contains `-500` |
 | `publisher` | Edition | The whole point of the distinction |
 | `pages` | Edition | Varies by printing |
 | `isbn` | Edition | Identifies a printing, never a work |
@@ -30,9 +30,9 @@ The decision this schema exists to get right. Ask these in order — **first YES
 | `series_name`, `series_number` | Work | Position in a sequence survives translation |
 | `genre` | Work (via `work_genres`) | A translation does not change a book's genre |
 | `read_in` | **Reading Log** (`finished_on` + `finished_precision`) | A reading event |
-| `rate` | **Reading Log** | Two readers of one copy disagree — that is the whole product |
+| `rate` | **Reading Log** | Two readers of one copy disagree - that is the whole product |
 | `review` | **Reading Log** | Same |
-| `source` (Físico/Ebook) | **Reading Log** (`format`) | *How I consumed it*, not what the publisher made. Keeping it here avoids forking the catalog into near-duplicate physical/ebook rows — the exact pattern that makes Open Library's edition data painful |
+| `source` (Físico/Ebook) | **Reading Log** (`format`) | *How I consumed it*, not what the publisher made. Keeping it here avoids forking the catalog into near-duplicate physical/ebook rows - the exact pattern that makes Open Library's edition data painful |
 
 ### The two rules that follow
 
@@ -181,11 +181,11 @@ CREATE TABLE allowed_emails (
 );
 ```
 
-`handle` is restricted to `[a-z0-9_]` — no accents. Brazilian names are transliterated at sign-up (`joão` → `joao`). Reserved handles (`livro`, `entrada`, `app`, `api`, `entrar`, `admin`, `sobre`) are rejected in application code, not by constraint.
+`handle` is restricted to `[a-z0-9_]` - no accents. Brazilian names are transliterated at sign-up (`joão` → `joao`). Reserved handles (`livro`, `entrada`, `app`, `api`, `entrar`, `admin`, `sobre`) are rejected in application code, not by constraint.
 
 better-auth creates and owns its own `session`, `account` and `verification` tables. Do not hand-write them; let its CLI generate them into the same migration journal.
 
-### Catalog — shared, never user-owned, never private
+### Catalog - shared, never user-owned, never private
 
 ```sql
 CREATE TABLE authors (
@@ -241,7 +241,7 @@ CREATE INDEX editions_work_idx ON editions (work_id);
 
 `series_number` being `text` is not a stylistic choice. The real corpus contains `'1-2'` (a Pollyanna omnibus) and `'0.1'` (an Asimov prequel). A `numeric` column fails the migration.
 
-`publisher` is free text, not a `publishers` table — 46 distinct values over 86 books and no publisher page anywhere in the roadmap. Cost: `Cia. das Letras` and `Companhia das Letras` will coexist. Accepted.
+`publisher` is free text, not a `publishers` table - 46 distinct values over 86 books and no publisher page anywhere in the roadmap. Cost: `Cia. das Letras` and `Companhia das Letras` will coexist. Accepted.
 
 ### Genres
 
@@ -260,7 +260,7 @@ CREATE TABLE work_genres (
 );
 ```
 
-A lookup table, not a Postgres enum and not `text[]`. An enum needs `ALTER TYPE` — a schema migration and a deploy — for what is editorial data, and cannot carry a slug and a display label. `text[]` cannot be referentially constrained, which is exactly how the current data drifted to 26 labels against a 15-entry taxonomy.
+A lookup table, not a Postgres enum and not `text[]`. An enum needs `ALTER TYPE` - a schema migration and a deploy - for what is editorial data, and cannot carry a slug and a display label. `text[]` cannot be referentially constrained, which is exactly how the current data drifted to 26 labels against a 15-entry taxonomy.
 
 Seeded from `generos.txt`, reconciled with the 26 labels actually present. `kind` captures the two-level structure the data already has implicitly: `Ficção` (73 books) and `Não-Ficção` (12) are used as top-level classifiers alongside sub-genres. Full mapping in [migration.md](migration.md).
 
@@ -315,7 +315,7 @@ The only signal not derivable from the tables above. It tests the biggest produc
 
 ## 4. Visibility
 
-Two tables carry `visibility`; the catalog carries none — a book is not a secret, only the fact that *you* read it is.
+Two tables carry `visibility`; the catalog carries none - a book is not a secret, only the fact that *you* read it is.
 
 | Table | Column | Default |
 |---|---|---|
@@ -328,7 +328,7 @@ Two tables carry `visibility`; the catalog carries none — a book is not a secr
 
 A private profile hides every entry regardless of the entry's own setting. There is no state where a público entry on a privado profile leaks.
 
-The default is `publico` and that matters more than the feature. With only two levels, `privado` must be an escape hatch for one embarrassing book — if new accounts defaulted to private, the social product would have nothing to show and the loop would never start.
+The default is `publico` and that matters more than the feature. With only two levels, `privado` must be an escape hatch for one embarrassing book - if new accounts defaulted to private, the social product would have nothing to show and the loop would never start.
 
 Enforcement is a single server-side helper (see [api.md](api.md) §3), not RLS. Reasoning in [architecture.md](architecture.md) §3.6.
 
@@ -360,7 +360,7 @@ No soft deletes. No `deleted_at`. A 30-person trusted cohort with `pg_dump` back
 | No merge tooling for duplicate works | Duplicates from manual adds are fixed with hand-written SQL. Becomes real work at ~50 duplicates |
 | No review edit history | An edit overwrites. No audit trail |
 | `started_on` NULL for all 86 imported rows | Reading-duration statistics start empty and only fill from natively-logged books |
-| No `follows`, `lists`, `likes`, `shelf_items` tables | Deferred product features. **All four are purely additive** — they change no existing table, which is why deferring them is safe |
+| No `follows`, `lists`, `likes`, `shelf_items` tables | Deferred product features. **All four are purely additive** - they change no existing table, which is why deferring them is safe |
 | ISO codes in the DB, pt-BR labels in a frontend map | A second UI language would need the maps duplicated. The product is explicitly pt-BR-only |
 
 ---
@@ -368,7 +368,7 @@ No soft deletes. No `deleted_at`. A 30-person trusted cohort with `pg_dump` back
 ## 7. Migration conventions
 
 - Generated with `drizzle-kit generate`, **committed to git**, applied with `drizzle-kit migrate`.
-- Applied from the maintainer's machine against the **direct** (non-pooled) Neon endpoint. Not from CI — a solo maintainer with one environment does not need a schema deployment pipeline.
+- Applied from the maintainer's machine against the **direct** (non-pooled) Neon endpoint. Not from CI - a solo maintainer with one environment does not need a schema deployment pipeline.
 - Never edit an applied migration. Add a new one.
 - Every migration must be reviewed for whether it locks a table. At this size nothing will, but the habit is free.
 - `schema.ts` is the source of truth. Hand-written SQL migrations are for things Drizzle cannot express: the `f_unaccent` function, the generated column, and the partial unique index.

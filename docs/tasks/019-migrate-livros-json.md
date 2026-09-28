@@ -1,4 +1,4 @@
-# TASK-019 — Migrate the 86 books
+# TASK-019 - Migrate the 86 books
 
 ## Goal
 
@@ -6,7 +6,7 @@ Import 86 books, 85 ratings and 56 reviews from `legacy/livros.json` into Postgr
 
 ## Context
 
-**This is not a routine import.** It is the only content that exists at launch — the first friend who signs up must land on a site with 86 books and 56 reviews, not an empty room. It is also the best available test of the schema: if the 86 rows do not round-trip cleanly, the schema is wrong.
+**This is not a routine import.** It is the only content that exists at launch - the first friend who signs up must land on a site with 86 books and 56 reviews, not an empty room. It is also the best available test of the schema: if the 86 rows do not round-trip cleanly, the schema is wrong.
 
 Read [migration.md](../migration.md) in full first. This task implements it and adds nothing.
 
@@ -24,7 +24,7 @@ Read [migration.md](../migration.md) in full first. This task implements it and 
 
 - Any Open Library enrichment during import
 - Migrating any other user
-- Deleting `legacy/livros.json` — it stays as the source of record
+- Deleting `legacy/livros.json` - it stays as the source of record
 
 ## Dependencies
 
@@ -39,15 +39,15 @@ tests/integration/migration.test.ts
 
 ## Implementation requirements
 
-1. **One transaction.** Any failure rolls back completely — there is no partial-import state to reason about.
+1. **One transaction.** Any failure rolls back completely - there is no partial-import state to reason about.
 2. Insert order per [migration.md](../migration.md) §3: users → genres (already seeded) → authors → works → work_authors → editions → work_genres → reading_logs.
-3. Reuse the TASK-009 catalog services rather than writing parallel insert logic — the migration should exercise the real code path.
+3. Reuse the TASK-009 catalog services rather than writing parallel insert logic - the migration should exercise the real code path.
 4. **Every mapping table comes from [migration.md](../migration.md) §4 and §5.** Do not invent mappings.
 5. **An unmapped genre, country or language must stop the migration**, not be silently dropped. Silent dropping is exactly how the current 26-vs-15 genre drift happened.
 6. Review conversion: `<br><br>` → `\n\n`, `<br>` → `\n`, then **assert no `<` remains in any review**. That assertion is what makes the "reviews are plain text" security property true rather than assumed.
-7. `finished_on = make_date(read_in, 1, 1)`, `finished_precision = 'ano'`. `started_on` stays NULL — it was never recorded and must not be invented.
+7. `finished_on = make_date(read_in, 1, 1)`, `finished_precision = 'ano'`. `started_on` stays NULL - it was never recorded and must not be invented.
 8. `editions.published_year` stays **NULL**. `book.year` is the *work's* first publication, not this printing's; copying it would assert that a modern Companhia das Letras printing of an 1899 novel was published in 1899.
-9. `editions.language = 'pt'` — all 46 publishers in the corpus are Brazilian imprints.
+9. `editions.language = 'pt'` - all 46 publishers in the corpus are Brazilian imprints.
 10. **Preserve reading order**: `created_at = make_date(read_in,1,1) + (array_index * interval '1 minute')`. Array order encodes reading sequence within a year, and TASK-016's sorting depends on it.
 11. Idempotent guard: refuse to run if `reading_logs` is non-empty, unless `--force` is passed.
 12. Regenerate `legacy/generos.txt` from the seeded genres and delete `legacy/livros_lidos_atualizado.csv` (3 records stale) in the same commit.
@@ -58,7 +58,7 @@ Populates every catalog table plus one user and 86 logs.
 
 ## UX requirements
 
-None — a script. It should print a clear summary and stop loudly on any validation failure.
+None - a script. It should print a clear summary and stop loudly on any validation failure.
 
 ## Security requirements
 
@@ -82,7 +82,7 @@ Run against the real 86 rows, not fixtures. Assert:
 - the 83 non-null `isbn13` values are distinct and valid; the 3 ASINs store as NULL
 - `work_genres` count equals the sum of genre-array lengths
 
-Plus spot checks: *O retorno do rei* (series `O Senhor dos Anéis` #3, read 2026 — its review carries no `<br>`, so check paragraph breaks on *A sociedade do anel* instead); the Pollyanna omnibus keeps `series_number = '1-2'`; the Robots prequel keeps `'0.1'`; the unrated book has `rating IS NULL`, not 0.
+Plus spot checks: *O retorno do rei* (series `O Senhor dos Anéis` #3, read 2026 - its review carries no `<br>`, so check paragraph breaks on *A sociedade do anel* instead); the Pollyanna omnibus keeps `series_number = '1-2'`; the Robots prequel keeps `'0.1'`; the unrated book has `rating IS NULL`, not 0.
 
 ## Acceptance criteria
 
@@ -113,6 +113,6 @@ Plus spot checks: *O retorno do rei* (series `O Senhor dos Anéis` #3, read 2026
 
 ## Notes / implementation guidance
 
-Run this against a throwaway Neon branch first. Branches are free and created in seconds — there is no reason to test a destructive import against the real database.
+Run this against a throwaway Neon branch first. Branches are free and created in seconds - there is no reason to test a destructive import against the real database.
 
 Verify the migration before inviting anyone. Rollback is only clean while no other user has logged anything, because `ON DELETE RESTRICT` will correctly block deleting works that other people's entries reference. That ordering *is* the rollback plan.

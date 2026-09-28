@@ -1,4 +1,4 @@
-# TASK-026 — `search_misses` instrumentation
+# TASK-026 - `search_misses` instrumentation
 
 ## Goal
 
@@ -6,7 +6,7 @@ Record searches that returned nothing.
 
 ## Context
 
-The only instrumentation in the MVP. Everything else worth knowing is already a column: `signed_up` is `users.created_at`, `book_logged` is `reading_logs.created_at`, and the metric that decides the project — friends who logged three books in the first month — is a `GROUP BY`.
+The only instrumentation in the MVP. Everything else worth knowing is already a column: `signed_up` is `users.created_at`, `book_logged` is `reading_logs.created_at`, and the metric that decides the project - friends who logged three books in the first month - is a `GROUP BY`.
 
 What is **not** derivable is what people looked for and did not find, and that single signal tests the biggest assumption in the architecture: that a community-built catalog plus manual entry is good enough.
 
@@ -21,7 +21,7 @@ What is **not** derivable is what people looked for and did not find, and that s
 
 - Any third-party analytics
 - Event tracking beyond this one table
-- A dashboard — `psql` is the interface
+- A dashboard - `psql` is the interface
 
 ## Dependencies
 
@@ -37,8 +37,8 @@ docs/runbook-metrics.md
 ## Implementation requirements
 
 1. On a zero-result `/api/search`, insert `{ query, user_id, created_at }` into `search_misses`.
-2. **Fire and forget.** The insert must never block or fail the response — wrap it, catch and log any error, and return the search result regardless.
-3. Store the query as typed, trimmed. Do not normalise — the raw text is the signal, including typos.
+2. **Fire and forget.** The insert must never block or fail the response - wrap it, catch and log any error, and return the search result regardless.
+3. Store the query as typed, trimmed. Do not normalise - the raw text is the signal, including typos.
 4. `user_id` is null for anonymous searches.
 5. Do not record queries shorter than 2 characters (those return empty by design, not by absence).
 6. `docs/runbook-metrics.md` documents the queries that matter:
@@ -71,7 +71,7 @@ None. Must be completely invisible, and must never slow a search down.
 
 ## Security requirements
 
-- Queries may contain personal text. `user_id` links a person to what they searched for — treat the table as user data: include it in backups, delete it on account deletion (the FK is `ON DELETE SET NULL`, which is sufficient).
+- Queries may contain personal text. `user_id` links a person to what they searched for - treat the table as user data: include it in backups, delete it on account deletion (the FK is `ON DELETE SET NULL`, which is sufficient).
 - The write must never block the response, and a failure must never surface to the user.
 - Not exposed through any API.
 

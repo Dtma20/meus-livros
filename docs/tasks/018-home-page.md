@@ -1,12 +1,12 @@
-# TASK-018 — Home page
+# TASK-018 - Home page
 
 ## Goal
 
-`/` — a landing page for strangers and a ten-entry recent strip for members.
+`/` - a landing page for strangers and a ten-entry recent strip for members.
 
 ## Context
 
-Deliberately minimal. WhatsApp is already the feed — a real-time activity stream with push notifications and 100% cohort adoption. This strip exists so the signed-in home is not empty, not to compete with the group chat.
+Deliberately minimal. WhatsApp is already the feed - a real-time activity stream with push notifications and 100% cohort adoption. This strip exists so the signed-in home is not empty, not to compete with the group chat.
 
 ## Scope
 
@@ -38,9 +38,9 @@ server/services/feed.ts
 ## Implementation requirements
 
 1. Server-rendered.
-2. Anonymous: a short pt-BR explanation of what this is, and a sign-in link. No book data — this is an invite-only site and a stranger has no reason to browse.
+2. Anonymous: a short pt-BR explanation of what this is, and a sign-in link. No book data - this is an invite-only site and a stranger has no reason to browse.
 3. Authenticated: the 10 most recent visible entries, `ORDER BY created_at DESC LIMIT 10`. **No pagination, no cursor, no tab, no infinite scroll.**
-4. Each row: cover, title, reader handle, rating, review excerpt, relative date — linking to the permalink.
+4. Each row: cover, title, reader handle, rating, review excerpt, relative date - linking to the permalink.
 5. Filter through `visibleLogs(viewer)`.
 6. A "Registrar livro" button, prominent, linking to `/app/novo`.
 7. Empty state when nobody has logged anything visible: *"Ninguém registrou nada ainda. Seja o primeiro."*
@@ -60,7 +60,7 @@ server/services/feed.ts
 ## Security requirements
 
 - Visible entries only, via the helper.
-- The anonymous view exposes no book or user data — it is an invite-only product.
+- The anonymous view exposes no book or user data - it is an invite-only product.
 - `limit` capped at 10 server-side regardless of the query string.
 
 ## Testing requirements
@@ -93,4 +93,4 @@ server/services/feed.ts
 
 ## Notes / implementation guidance
 
-Resist making this a feed. No pagination, no filters, no tabs. If the ten-row strip turns out to be insufficient, that is a signal worth acting on later — but building for it now is speculative, and the group chat already does this job better.
+Resist making this a feed. No pagination, no filters, no tabs. If the ten-row strip turns out to be insufficient, that is a signal worth acting on later - but building for it now is speculative, and the group chat already does this job better.

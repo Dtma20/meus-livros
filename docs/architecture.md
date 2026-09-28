@@ -12,7 +12,7 @@ flowchart TB
     B --> V
 
     subgraph V["Vercel Hobby · region gru1 (São Paulo)"]
-      P["Nuxt 4 — pages<br/>SSR, Vue 3, TypeScript"]
+      P["Nuxt 4 - pages<br/>SSR, Vue 3, TypeScript"]
       A["Nuxt server routes<br/>server/api/**"]
       P <--> A
     end
@@ -36,10 +36,10 @@ Everything solid is on the critical path. Everything dashed can fail without the
 
 1. **TypeScript-first.** One language across pages, server routes and scripts. `strict: true`.
 2. **PostgreSQL is the source of truth.** Everything the product depends on lives in Neon. Nothing is derived from a third party at read time.
-3. **External catalog is enrichment, never dependency.** Open Library improves a record when it answers. The product works identically when it does not. This is a measurement-driven rule, not a preference — see §6.
+3. **External catalog is enrichment, never dependency.** Open Library improves a record when it answers. The product works identically when it does not. This is a measurement-driven rule, not a preference - see §6.
 4. **One project, one deploy.** Pages and API in the same Nuxt app. No separate backend, no separate repo, no BFF.
 5. **Authorization lives in server code, in one place.** Every read of a user-owned table goes through a single visibility helper. No RLS, no policies, no second mental model.
-6. **Secure by default.** Reviews are plain text — there is no HTML to sanitise. Private means private at the query level, not hidden in the UI.
+6. **Secure by default.** Reviews are plain text - there is no HTML to sanitise. Private means private at the query level, not hidden in the UI.
 7. **Incremental migration.** The existing static site keeps working, in `legacy/`, until the new app reaches parity. No big-bang rewrite.
 8. **No premature scaling.** Designed for ~30–300 users and ~10k reading logs. Ceilings are documented in [architecture-review.md](architecture-review.md), not engineered around.
 9. **Measure before optimising.** Every performance decision in this document traces to a number that was actually observed.
@@ -48,24 +48,24 @@ Everything solid is on the critical path. Everything dashed can fail without the
 
 ## 3. Stack decisions and trade-offs
 
-### 3.1 Framework — Nuxt 4
+### 3.1 Framework - Nuxt 4
 
 **Recommendation: Nuxt 4** (Vue 3, TypeScript, file-based routing, Nitro server).
 
 | Alternative | Why not |
 |---|---|
-| Keep Vue 3 via CDN | Cannot server-render. WhatsApp's crawler does not execute JavaScript, so no link preview — which kills the only distribution channel |
+| Keep Vue 3 via CDN | Cannot server-render. WhatsApp's crawler does not execute JavaScript, so no link preview - which kills the only distribution channel |
 | Vite + Vue SPA + small server | Same SSR problem, solved worse: you end up hand-rolling what Nitro gives free, in two deploy units |
 | SvelteKit / Next.js | Discards the existing Vue code and the owner's familiarity for no product gain |
 | Astro | Excellent for the public pages, awkward for the authenticated app. Two paradigms in one MVP |
 
-**Main downside:** the existing `index.html` does **not** port over verbatim. It is one 421-line `setup()` block with no component boundaries; decomposing it into `BookCard`, `StarRating`, `FilterBar`, `BookModal` and `ReadingMap` is real work — budget it honestly in [tasks/005](tasks/005-port-design-tokens-and-components.md) rather than pretending the framework migration is free.
+**Main downside:** the existing `index.html` does **not** port over verbatim. It is one 421-line `setup()` block with no component boundaries; decomposing it into `BookCard`, `StarRating`, `FilterBar`, `BookModal` and `ReadingMap` is real work - budget it honestly in [tasks/005](tasks/005-port-design-tokens-and-components.md) rather than pretending the framework migration is free.
 
-**Why acceptable:** SSR is not optional. The one hard requirement of this product — a link that previews in a group chat — cannot be met by a client-rendered app at any price.
+**Why acceptable:** SSR is not optional. The one hard requirement of this product - a link that previews in a group chat - cannot be met by a client-rendered app at any price.
 
 **Also decided:** the GeoChart reading map (`index.html:12,170,336`) is a third-party CDN script driven by direct DOM manipulation. It is not SSR-safe. It gets wrapped in `<ClientOnly>` with a lazy loader, or replaced by a static SVG map. This is named work, not an afterthought.
 
-### 3.2 Rendering — plain SSR everywhere
+### 3.2 Rendering - plain SSR everywhere
 
 **Recommendation: SSR on every route. No ISR, no static prerendering, no SPA-shell split.**
 
@@ -75,7 +75,7 @@ One rendering mode. `Cache-Control: private, no-store` on anything rendered with
 
 **Revisit when:** monthly invocations exceed ~200,000, or p95 TTFB on `/livro/{slug}` exceeds 800ms.
 
-### 3.3 Database — Neon, not Supabase
+### 3.3 Database - Neon, not Supabase
 
 **Recommendation: Neon free tier**, Postgres 17, region closest to São Paulo.
 
@@ -88,20 +88,20 @@ This overturns the discovery documents, which specified Supabase. The reason is 
 | Storage | 500 MB | 0.5 GB per project |
 | Compute | always-on small instance | 100 CU-hours/project/month ≈ 400 h at 0.25 CU |
 
-A friend group's usage is *intermittent by nature* — that is the definition of the workload. A database that goes down after a quiet week and stays down until someone opens a dashboard is the wrong shape for it, and the discovery doc's proposed mitigation (a GitHub Actions keep-alive cron) is itself fragile: GitHub disables scheduled workflows after 60 days without commits on public repositories.
+A friend group's usage is *intermittent by nature* - that is the definition of the workload. A database that goes down after a quiet week and stays down until someone opens a dashboard is the wrong shape for it, and the discovery doc's proposed mitigation (a GitHub Actions keep-alive cron) is itself fragile: GitHub disables scheduled workflows after 60 days without commits on public repositories.
 
-Choosing Neon deletes the pause, the keep-alive cron, the monitoring of that cron, and the 60-day workflow problem — four moving parts removed by one choice.
+Choosing Neon deletes the pause, the keep-alive cron, the monitoring of that cron, and the 60-day workflow problem - four moving parts removed by one choice.
 
 **Main downside:** no bundled auth, storage or PostgREST. We need none of them (see §3.5). **Also:** Neon's free compute is metered in CU-hours; a runaway query loop could exhaust 100 CU-hours. At this scale it will not, and the dashboard shows usage.
 
-### 3.4 Query layer — Drizzle + postgres.js
+### 3.4 Query layer - Drizzle + postgres.js
 
 **Recommendation: Drizzle ORM with the `postgres.js` driver.**
 
 | Alternative | Why not |
 |---|---|
 | Prisma | A generated engine binary and a separate schema language. Heavier than a 10-table MVP needs |
-| Kysely | Excellent query builder, but no migration story — we would bolt one on |
+| Kysely | Excellent query builder, but no migration story - we would bolt one on |
 | Raw `postgres.js` | Viable and tempting. Loses compile-time column typing across ~10 tables and hand-rolls migration ordering |
 | `supabase-js` / PostgREST | Moot once Supabase is out. It also constrains the Portuguese-collation `ILIKE` search to what PostgREST exposes |
 
@@ -111,13 +111,13 @@ Drizzle wins on three concrete things this project needs: TypeScript types deriv
 
 **Connection note:** serverless functions must not hold a pool. Configure `postgres(url, { max: 1 })` and let Neon's pooled connection string do the pooling. Use the **pooled** endpoint for the app and the **direct** endpoint for migrations and `pg_dump`.
 
-### 3.5 Authentication — better-auth, password sign-in behind an OTP gate
+### 3.5 Authentication - better-auth, password sign-in behind an OTP gate
 
-**Recommendation: better-auth. Daily sign-in is `handle` or email + password. Email one-time codes stay, narrowed to two moments — first-access activation and password reset. No OAuth in the MVP.**
+**Recommendation: better-auth. Daily sign-in is `handle` or email + password. Email one-time codes stay, narrowed to two moments - first-access activation and password reset. No OAuth in the MVP.**
 
 This decision has been reversed twice, for two unrelated reasons. Keep them apart.
 
-**Why not OAuth — unchanged, and still decisive:**
+**Why not OAuth - unchanged, and still decisive:**
 
 > **Google returns `403: disallowed_useragent` for OAuth initiated inside an embedded WebView**, a policy in force since 2017 and fully enforced since 2021. WhatsApp's Android in-app browser is such a WebView. Brazil is overwhelmingly Android.
 
@@ -129,13 +129,13 @@ The distribution channel is WhatsApp. Sign-in that fails inside WhatsApp fails a
 |---|---|---|
 | Tap a `/entrada/{id}` link in WhatsApp | WebView opens | WebView opens |
 | Enter identifier | email, typed | handle or email, autofilled |
-| **Leave the app** | switch to the mail client, wait for delivery, copy six digits, switch back — and the WebView may have reloaded the page meanwhile | — |
+| **Leave the app** | switch to the mail client, wait for delivery, copy six digits, switch back - and the WebView may have reloaded the page meanwhile | - |
 | Enter secret | six digits, typed | filled by the OS password manager behind fingerprint or Face ID |
 | Failure modes on the critical path | Gmail delivery, spam/promotions classification, SMTP latency, WebView reload on app switch | none; the secret never leaves the device |
 
-The app switch is the most fragile step in the activation funnel, and with a 30-day session it recurs on every expiry — not only at registration. A password moves it off the critical path: after the first sign-in, Google Password Manager, iCloud Keychain and Samsung Pass all offer the credential back behind biometrics.
+The app switch is the most fragile step in the activation funnel, and with a 30-day session it recurs on every expiry - not only at registration. A password moves it off the critical path: after the first sign-in, Google Password Manager, iCloud Keychain and Samsung Pass all offer the credential back behind biometrics.
 
-The second gain is architectural. Under OTP, **Gmail SMTP sits on the critical path of every sign-in** — a free-tier dependency, with no custom domain, whose deliverability rides on Gmail's reputation (see the sending-provider note below, which is why that is not fixable cheaply). Under a password it becomes a rare path: once at activation, and occasionally at reset.
+The second gain is architectural. Under OTP, **Gmail SMTP sits on the critical path of every sign-in** - a free-tier dependency, with no custom domain, whose deliverability rides on Gmail's reputation (see the sending-provider note below, which is why that is not fixable cheaply). Under a password it becomes a rare path: once at activation, and occasionally at reset.
 
 **Why this is a small change and not a new subsystem.** better-auth's own migration (`0002_better_auth.sql`) already creates `account.password`; better-auth hashes with scrypt by default, so no hashing code is written here. `users.handle` already exists, unique, with its `^[a-z0-9_]{3,20}$` constraint. The credential itself needs no schema migration.
 
@@ -143,7 +143,7 @@ The second gain is architectural. Under OTP, **Gmail SMTP sits on the critical p
 
 | Flow | Identifier | Secret | `allowed_emails` checked? |
 |---|---|---|---|
-| Activation (first access) | email | 6-digit OTP, then the user sets a password | **Yes — this is the gate** |
+| Activation (first access) | email | 6-digit OTP, then the user sets a password | **Yes - this is the gate** |
 | Sign-in (the daily path) | `handle` **or** email | password | No; an account exists only because activation passed |
 | Password reset | email | 6-digit OTP, then a new password | Yes, the same check as activation |
 
@@ -151,7 +151,7 @@ The allowlist keeps exactly the role it had. What widens is the *daily* identifi
 
 **What this costs, stated plainly:**
 
-1. **Account recovery becomes a feature we own.** OTP had none to build — the mailbox *was* the credential. A password needs a reset path. It is the same OTP machinery aimed at a different moment, so the cost is a flow, not a mechanism.
+1. **Account recovery becomes a feature we own.** OTP had none to build - the mailbox *was* the credential. A password needs a reset path. It is the same OTP machinery aimed at a different moment, so the cost is a flow, not a mechanism.
 2. **Brute force becomes a real threat.** The only guessable secret used to be a six-digit code that died after five attempts and ten minutes. A password is long-lived. This is why the sign-in rate limit in [security.md](security.md) §8 is mandatory rather than an optimisation, and why a failed sign-in must not distinguish "no such account" from "wrong password".
 3. **A third account state appears.** An allowlisted address can now be *invited but not yet activated*. OTP had only invited / not invited. Every place that reasoned over two states has to handle three.
 
@@ -168,26 +168,26 @@ The allowlist keeps exactly the role it had. What widens is the *daily* identifi
 
 The original specification named Resend. It was reversed after real sends failed with two HTTP 403s:
 
-1. `The gmail.com domain is not verified` — Resend requires a DNS-verified sending domain (SPF/DKIM). The maintainer owns no domain for this project and sends from an `@gmail.com` address, whose DNS belongs to Google.
-2. `You can only send testing emails to your own email address` — without a verified domain, Resend blocks every recipient except the account holder.
+1. `The gmail.com domain is not verified` - Resend requires a DNS-verified sending domain (SPF/DKIM). The maintainer owns no domain for this project and sends from an `@gmail.com` address, whose DNS belongs to Google.
+2. `You can only send testing emails to your own email address` - without a verified domain, Resend blocks every recipient except the account holder.
 
-The product authenticates directly against **Gmail SMTP via `nodemailer`**, using a Google app password (`GMAIL_APP_PASSWORD`). Because Google's own infrastructure does the sending, SPF and DKIM pass naturally. A personal Gmail account allows 500 messages/day — ample for a cohort of ~30, and far more so now that email is off the daily path.
+The product authenticates directly against **Gmail SMTP via `nodemailer`**, using a Google app password (`GMAIL_APP_PASSWORD`). Because Google's own infrastructure does the sending, SPF and DKIM pass naturally. A personal Gmail account allows 500 messages/day - ample for a cohort of ~30, and far more so now that email is off the daily path.
 
-**The cost of this choice, stated plainly:** with no dedicated domain, deliverability rides on Gmail's reputation and a code can land in the recipient's promotions tab or spam folder. Moving sign-in to a password does not fix that — it demotes it, from a per-sign-in risk to a per-activation and per-reset one. If the project ever acquires a domain, moving to a dedicated transactional provider is worth revisiting.
+**The cost of this choice, stated plainly:** with no dedicated domain, deliverability rides on Gmail's reputation and a code can land in the recipient's promotions tab or spam folder. Moving sign-in to a password does not fix that - it demotes it, from a per-sign-in risk to a per-activation and per-reset one. If the project ever acquires a domain, moving to a dedicated transactional provider is worth revisiting.
 
-### 3.6 Authorization — server code, not RLS
+### 3.6 Authorization - server code, not RLS
 
 **Recommendation: no row-level security. One visibility helper in server code.**
 
-This overturns [product-discovery.md](product-discovery.md) §13.1 and `feature-backlog.md` PRIV-1, both of which mandate RLS. Those were written assuming a Supabase architecture where a browser-side client talks to PostgREST directly — in that world RLS is the only boundary and is mandatory.
+This overturns [product-discovery.md](product-discovery.md) §13.1 and `feature-backlog.md` PRIV-1, both of which mandate RLS. Those were written assuming a Supabase architecture where a browser-side client talks to PostgREST directly - in that world RLS is the only boundary and is mandatory.
 
-That is not this architecture. Every database access originates in a trusted Nuxt server route holding a verified session. The app connects as a single role. RLS in that setup is enforced against code that already knows who the viewer is — it adds a second place where authorization lives, in a second language, with policies that are harder to test than a TypeScript function.
+That is not this architecture. Every database access originates in a trusted Nuxt server route holding a verified session. The app connects as a single role. RLS in that setup is enforced against code that already knows who the viewer is - it adds a second place where authorization lives, in a second language, with policies that are harder to test than a TypeScript function.
 
 **The rule, and it is the only one:** every query that reads a user-owned table goes through `visibleTo(viewer)`. An ESLint `no-restricted-imports` rule keeps the raw `db` handle out of `app/` and out of route files.
 
 **Main downside:** a direct `psql` session bypasses all of it. **Why acceptable:** the only people with the connection string are the owner and CI.
 
-### 3.7 Search — local Postgres `ILIKE`
+### 3.7 Search - local Postgres `ILIKE`
 
 **Recommendation: `ILIKE` over a generated, unaccented, lowercased column. No `tsvector`, no `pg_trgm`, no Elasticsearch.**
 
@@ -203,7 +203,7 @@ CREATE FUNCTION f_unaccent(text) RETURNS text
 
 **Revisit when:** the works table passes ~50,000 rows, or search latency exceeds 100ms.
 
-### 3.8 Book catalog — the community, with Open Library as enrichment
+### 3.8 Book catalog - the community, with Open Library as enrichment
 
 **Recommendation: the `works`/`editions` tables are the catalog. Manual entry is a primary path. Open Library is an optional, non-blocking enrichment.**
 
@@ -222,7 +222,7 @@ An 8.4-second average makes Open Library unusable in a search box, and 40% cover
 
 **The network effect that makes this work:** a book added by hand by one friend is immediately available to the other 29. At 30 readers × ~50 books, the local catalog becomes genuinely useful within weeks.
 
-### 3.9 Hosting — Vercel Hobby
+### 3.9 Hosting - Vercel Hobby
 
 **Recommendation: Vercel Hobby, Nitro `vercel` preset, `regions: ["gru1"]`.**
 
@@ -232,17 +232,17 @@ An 8.4-second average makes Open Library unusable in a search box, and 40% cover
 | Netlify free | Perfectly viable second choice. Vercel's Nitro preset is zero-config |
 | A VPS | Something to operate, patch and monitor. Explicitly against principle 8 |
 
-Vercel Hobby is **licensed for non-commercial use only**. This project is a free, ad-free reading diary for 30 friends — squarely within that. **If the product is ever monetised, this decision must be revisited**; it is recorded in [open-questions.md](open-questions.md).
+Vercel Hobby is **licensed for non-commercial use only**. This project is a free, ad-free reading diary for 30 friends - squarely within that. **If the product is ever monetised, this decision must be revisited**; it is recorded in [open-questions.md](open-questions.md).
 
-### 3.10 Analytics — one table
+### 3.10 Analytics - one table
 
 **Recommendation: a `search_misses` table. Nothing else.**
 
-The discovery doc proposed a 15-event taxonomy. Most of those events are already columns: `signed_up` is `users.created_at`; `book_logged` is `reading_logs.created_at`. The metric that decides this project — *how many friends logged three books in the first month* — is a `GROUP BY` over `reading_logs`.
+The discovery doc proposed a 15-event taxonomy. Most of those events are already columns: `signed_up` is `users.created_at`; `book_logged` is `reading_logs.created_at`. The metric that decides this project - *how many friends logged three books in the first month* - is a `GROUP BY` over `reading_logs`.
 
 What is **not** derivable from existing tables is the searches that returned nothing, and that single signal directly tests the biggest product assumption (that the local-catalog-plus-manual-add model is good enough). So that is the one thing instrumented.
 
-### 3.11 Testing — Vitest, narrow
+### 3.11 Testing - Vitest, narrow
 
 **Recommendation: Vitest. Unit tests for pure logic, integration tests for exactly four things.**
 

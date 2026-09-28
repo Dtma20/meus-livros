@@ -6,13 +6,13 @@ What ships in v1, what does not, and how we know it is done.
 
 ## 1. The core loop
 
-> A friend taps a link in the WhatsApp group, lands on a server-rendered review that previews properly, signs in with a code sent to their email, finds the book they just finished — or adds it by hand in under a minute — logs it with a half-star rating and a paragraph in Portuguese, and pastes their own profile back into the chat, where someone else reads it and logs their own.
+> A friend taps a link in the WhatsApp group, lands on a server-rendered review that previews properly, signs in with a code sent to their email, finds the book they just finished - or adds it by hand in under a minute - logs it with a half-star rating and a paragraph in Portuguese, and pastes their own profile back into the chat, where someone else reads it and logs their own.
 
 Everything in the MVP serves one step of that sentence. Anything that does not, is not in the MVP.
 
 **Primary user:** the owner's ~30-person university friend group. Brazilian, Portuguese-speaking, reached through a WhatsApp group.
 
-**Job to be done:** *keep a record of my reading that I'm proud enough to show people.* Not *manage a to-read pile* — that is Goodreads' job-to-be-done and it is a worse one, because a pile is private and a record is social.
+**Job to be done:** *keep a record of my reading that I'm proud enough to show people.* Not *manage a to-read pile* - that is Goodreads' job-to-be-done and it is a worse one, because a pile is private and a record is social.
 
 **Activation moment:** the third logged entry with at least one written review. That is when a profile becomes worth pasting into the chat.
 
@@ -26,13 +26,13 @@ Each item below breaks the loop if absent.
 
 | # | Feature | Why the loop breaks without it |
 |---|---|---|
-| 1 | **Password sign-in (`handle` or email), activation gated by an allowlist and a one-time email code** | No identity, no author, no profile, nothing attributable. Google OAuth cannot be used: it returns `403 disallowed_useragent` inside WhatsApp's Android WebView — it fails in the exact channel. A one-time code per sign-in also failed there, more quietly: it forces an app switch out of the WebView every time a session expires |
+| 1 | **Password sign-in (`handle` or email), activation gated by an allowlist and a one-time email code** | No identity, no author, no profile, nothing attributable. Google OAuth cannot be used: it returns `403 disallowed_useragent` inside WhatsApp's Android WebView - it fails in the exact channel. A one-time code per sign-in also failed there, more quietly: it forces an app switch out of the WebView every time a session expires |
 | 2 | **Schema: `users`, `works`, `editions`, `authors`, `genres`, `reading_logs`** | The only thing genuinely expensive to change later. `reading_logs` as the atomic unit gives dated entries and re-reads for free |
 | 3 | **Local catalog search + prominent manual add** | The first action of every new user is "log the book I just finished". Open Library holds only 40% of Brazilian editions and averages 8.4 s, so it cannot serve this. Manual add is a primary path |
 | 4 | **Log a book: date, half-star rating, optional plain-text review; editable, deletable** | The core creative act, and the only content-generating feature. Everything else is a view over its output |
 | 5 | **Reviews are plain text** | `v-html` on user content is stored XSS the moment a second person can write. Plain text removes the vulnerability class instead of mitigating it |
 | 6 | **SSR + Open Graph on `/`, `/@handle`, `/livro/{slug}`, `/entrada/{id}`** | WhatsApp is the entire distribution channel. A bare URL is scrolled past; a cover with a rating and a line of prose is tapped |
-| 7 | **Profile at `/@handle`** — poster grid, filters, stat counters | For a diary product the profile *is* the product, and it is the specific object pasted into the chat |
+| 7 | **Profile at `/@handle`** - poster grid, filters, stat counters | For a diary product the profile *is* the product, and it is the specific object pasted into the chat |
 | 8 | **Público / privado on profiles and entries, defaulting to público** | Owner requirement. The default matters more than the feature |
 | 9 | **Migrate the 86 books and 56 reviews** | At launch this is the only content that exists. The first friend must not land in an empty room |
 | 10 | **Zero-cost infrastructure that stays up** | A hard constraint. Neon over Supabase specifically because a database that pauses after a quiet week is the wrong shape for a friend group |
@@ -46,7 +46,7 @@ Ships if the must-haves land early. Nothing here blocks launch.
 
 | Feature | Why it is not a must |
 |---|---|
-| Ten most recent público entries on the signed-in home | One query, no pagination. The 10× simpler replacement for a feed — but WhatsApp is already the feed |
+| Ten most recent público entries on the signed-in home | One query, no pagination. The 10× simpler replacement for a feed - but WhatsApp is already the feed |
 | The country map on the profile | The most distinctive screen and mostly already written, but it is decoration on the loop, not part of it |
 | `search_misses` instrumentation | Tests the biggest product assumption. Cheap, and worth having from day one |
 | Accessibility pass | The grid is currently unusable with a screen reader. Correctness, not a feature |
@@ -61,14 +61,14 @@ Cut deliberately. Each would be defensible at a different scale; none is defensi
 
 | Feature | Why deferred |
 |---|---|
-| **Statistics / year-in-review** | The discovery doc makes this P0 on the claim that "meu ano em livros" is the growth loop. At launch only the *owner* can generate that artifact — everyone else has 0–3 books. It becomes powerful in December, with a year of data. Building it in September serves one user |
+| **Statistics / year-in-review** | The discovery doc makes this P0 on the claim that "meu ano em livros" is the growth loop. At launch only the *owner* can generate that artifact - everyone else has 0–3 books. It becomes powerful in December, with a year of data. Building it in September serves one user |
 | **Activity feed (paginated)** | The WhatsApp group *is* a real-time activity stream with push notifications and 100% cohort adoption. A ten-row strip captures what remains |
-| **Want-to-read** | The most aggressive cut; the discovery doc calls it "essential". It is content-consuming, produces nothing others can read, and its value is proportional to catalog size — which starts near zero |
+| **Want-to-read** | The most aggressive cut; the discovery doc calls it "essential". It is content-consuming, produces nothing others can read, and its value is proportional to catalog size - which starts near zero |
 | **Follows and a filtered feed** | At 30 users a follow graph filters a feed that does not need filtering. Pure friction. Revisit past ~200 users |
-| **Likes** | One table, one button — genuinely cheap. But a visible count of "0" beside a 940-character review is actively discouraging at this size, and a reply in the group chat is a warmer version of the same signal |
+| **Likes** | One table, one button - genuinely cheap. But a visible count of "0" beside a 940-character review is actively discouraging at this size, and a reply in the group chat is a warmer version of the same signal |
 | **Lists** | High leverage at Letterboxd scale. Here they compete with reviews for the same scarce typing effort, and the review is the atomic unit |
 | **Author / genre / country / year browse pages** | Justified by SEO and "more like this". SEO is explicitly not the channel, and an author page showing one book is worse than no author page |
-| **Goodreads / Skoob import** | A week of work (CSV parsing, fuzzy matching, async processing, an unmatched-row UI) built on an unverified assumption. **Ask the group first** — if several already use Skoob, this jumps in priority |
+| **Goodreads / Skoob import** | A week of work (CSV parsing, fuzzy matching, async processing, an unmatched-row UI) built on an unverified assumption. **Ask the group first** - if several already use Skoob, this jumps in priority |
 | **Notifications** | With likes, comments and follows cut, there is nothing to notify anyone about |
 | **Comments, report, block, admin UI** | These exist to handle strangers. Registration is invite-only and everyone knows each other offline. **Hard gate: if public registration ever opens, moderation ships first** |
 | **Postgres FTS, `pg_trgm`** | At ~1,500 rows `ILIKE` is a sub-millisecond scan. Dictionary config and GIN indexes are engineering for a corpus 30× larger |
@@ -80,7 +80,7 @@ Cut deliberately. Each would be defensible at a different scale; none is defensi
 
 ## 5. Non-functional requirements
 
-### Security — all blocking
+### Security - all blocking
 
 - No `v-html` anywhere; ESLint enforces it
 - The four visibility integration tests pass
@@ -92,11 +92,11 @@ Cut deliberately. Each would be defensible at a different scale; none is defensi
 - No secret in the client bundle (verified by grepping the build output)
 - CSP present; session cookie httpOnly + Secure + SameSite=Lax
 
-### Performance — p95 from São Paulo
+### Performance - p95 from São Paulo
 
 | | Target |
 |---|---|
-| `/entrada/{id}` TTFB | < 800 ms — the WhatsApp path, the one that matters |
+| `/entrada/{id}` TTFB | < 800 ms - the WhatsApp path, the one that matters |
 | `/@handle` TTFB | < 1,000 ms |
 | `/api/search` | < 150 ms |
 | `/api/search/externo` | < 2,000 ms (hard timeout, degrades to empty) |
@@ -152,7 +152,7 @@ Cut deliberately. Each would be defensible at a different scale; none is defensi
 - [ ] Migration run and all §7 validations in [migration.md](migration.md) passed
 - [ ] `pg_dump` restored once into a scratch branch, successfully
 - [ ] Sign-in completed end-to-end **on a real Android phone, from inside WhatsApp's in-app browser**
-- [ ] A real link pasted into a real WhatsApp chat previews with cover, title and review snippet — on Android *and* iOS
+- [ ] A real link pasted into a real WhatsApp chat previews with cover, title and review snippet - on Android *and* iOS
 - [ ] Logging a book completed end-to-end by someone who is not the owner
 - [ ] Manual add completed for a book Open Library does not have
 - [ ] Preview deployments confirmed to point at a Neon branch, not production

@@ -1,4 +1,4 @@
-# TASK-004 — Initial migration and genre seed
+# TASK-004 - Initial migration and genre seed
 
 ## Goal
 
@@ -6,7 +6,7 @@ Apply the schema to Neon and seed the 26 genres.
 
 ## Context
 
-Unblocks auth, catalog and migration simultaneously — the widest bottleneck in the graph. Also adds the three SQL objects Drizzle cannot express.
+Unblocks auth, catalog and migration simultaneously - the widest bottleneck in the graph. Also adds the three SQL objects Drizzle cannot express.
 
 ## Scope
 

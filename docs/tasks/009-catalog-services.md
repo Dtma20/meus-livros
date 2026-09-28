@@ -1,4 +1,4 @@
-# TASK-009 — Catalog services and ISBN normalisation
+# TASK-009 - Catalog services and ISBN normalisation
 
 ## Goal
 
@@ -45,17 +45,17 @@ shared/schemas/work.ts
 1. `normalizeIsbn(raw)`:
    - Strip hyphens and whitespace; strip a trailing `.0` (the CSV export wrote ISBNs as floats).
    - Length 10 → drop the check digit, prefix `978`, recompute the EAN-13 check digit.
-   - Validate the ISBN-13 checksum. Return `null` on failure — never store a malformed ISBN.
+   - Validate the ISBN-13 checksum. Return `null` on failure - never store a malformed ISBN.
    - 22 of the 86 corpus ISBNs are ISBN-10, so this path is well exercised.
 2. `slugify(text)`: unaccent, lowercase, non-alphanumerics to `-`, collapse repeats, trim. Collisions get `-2`, `-3`.
 3. `findOrCreateAuthor(name, country?)`: match by slug, create if absent.
 4. `createWork(input, userId)`:
-   - Validate with Zod. `first_published_year` range `-3000..2100` — **signed**, the corpus contains `-500`.
+   - Validate with Zod. `first_published_year` range `-3000..2100` - **signed**, the corpus contains `-500`.
    - `series_number` is a string, max 20 chars.
    - Create/link authors with ascending `position`.
    - Link genres by id; reject ids not in `genres`.
    - Optionally create one edition.
-5. Duplicate detection: same `f_unaccent(lower(title))` **and** ≥1 shared author slug → return `409` with the existing work. **`?forcar=1` bypasses it** — a false duplicate block dead-ends the activation path, which is worse than a duplicate row.
+5. Duplicate detection: same `f_unaccent(lower(title))` **and** ≥1 shared author slug → return `409` with the existing work. **`?forcar=1` bypasses it** - a false duplicate block dead-ends the activation path, which is worse than a duplicate row.
 6. `createEdition`: normalise the ISBN first, then insert. A unique violation maps to `409`, never a 500.
 7. Catalog rows carry no visibility. Anyone may create; **there is no delete endpoint**.
 8. `cover_url` must parse as a URL with an `https:` scheme.
@@ -67,13 +67,13 @@ shared/schemas/work.ts
 
 ## UX requirements
 
-None directly — TASK-011 builds the UI.
+None directly - TASK-011 builds the UI.
 
 ## Security requirements
 
 - Session required for both endpoints.
 - Rate limit: 30 works/user/hour.
-- `cover_url` scheme validated — blocks `javascript:` and `data:` reaching `<img src>`.
+- `cover_url` scheme validated - blocks `javascript:` and `data:` reaching `<img src>`.
 - `created_by` recorded on every catalog row for later repair.
 - All input is Zod-validated; title ≤ 300, authors ≤ 5.
 
@@ -111,6 +111,6 @@ None directly — TASK-011 builds the UI.
 
 ## Notes / implementation guidance
 
-Write `normalizeIsbn` first and test it against all 86 real ISBNs from `legacy/livros.json` before anything else — TASK-019 depends on all 86 normalising cleanly and staying distinct.
+Write `normalizeIsbn` first and test it against all 86 real ISBNs from `legacy/livros.json` before anything else - TASK-019 depends on all 86 normalising cleanly and staying distinct.
 
 The `?forcar=1` escape hatch matters more than it looks. Blocking a legitimate book because a fuzzy match misfired means the user cannot log what they just read, which is the one thing the product exists to do.

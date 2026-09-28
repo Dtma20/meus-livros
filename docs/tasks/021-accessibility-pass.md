@@ -1,6 +1,6 @@
-# TASK-021 — Accessibility pass
+# TASK-021 - Accessibility pass
 
-> Carried over from TASK-001 review: the document has no `lang`. Set `app.head.htmlAttrs.lang` to `pt-BR` in `nuxt.config.ts` — the whole UI is Portuguese and screen readers currently guess.
+> Carried over from TASK-001 review: the document has no `lang`. Set `app.head.htmlAttrs.lang` to `pt-BR` in `nuxt.config.ts` - the whole UI is Portuguese and screen readers currently guess.
 
 ## Goal
 
@@ -8,7 +8,7 @@ Make the app usable by keyboard and screen reader.
 
 ## Context
 
-The legacy grid is **unusable** with a screen reader: cards are `<div @click>` with no role, and cover images have no `alt` attribute at all. Fixing this is correctness, not a feature — and the same fixes make cards middle-clickable and shareable, which matters for a product built around sharing links.
+The legacy grid is **unusable** with a screen reader: cards are `<div @click>` with no role, and cover images have no `alt` attribute at all. Fixing this is correctness, not a feature - and the same fixes make cards middle-clickable and shareable, which matters for a product built around sharing links.
 
 ## Scope
 
@@ -42,7 +42,7 @@ Touches most components. No new files.
 5. `RatingInput`: a real radio group, arrow-key operable, with a visible focus ring.
 6. Every form input has an associated `<label>`. Errors use `aria-describedby` and `aria-invalid`.
 7. Visible focus rings everywhere. **Do not remove outlines** without replacing them.
-8. Headings form a sensible order — one `h1` per page, no skipped levels.
+8. Headings form a sensible order - one `h1` per page, no skipped levels.
 9. `lang="pt-BR"` on `<html>`.
 10. Verify contrast: the existing `--text-color: #9ab` on `--bg-color: #14181c` is ~6.6:1 and passes AA. Any new colour must be checked.
 11. A "pular para o conteúdo" skip link.
@@ -65,7 +65,7 @@ None specific. Note that `alt` text contains user-supplied titles and must be es
 
 - Manual: complete sign-in → search → log a book using only the keyboard.
 - Manual: navigate a profile with a screen reader (NVDA or VoiceOver) and confirm cards announce title and author.
-- Automated: `axe-core` against `/`, `/@handle`, `/livro/{slug}`, `/entrada/{id}` — zero critical violations.
+- Automated: `axe-core` against `/`, `/@handle`, `/livro/{slug}`, `/entrada/{id}` - zero critical violations.
 - Automated: every `<img>` in rendered output has an `alt` attribute.
 
 ## Acceptance criteria
@@ -93,4 +93,4 @@ None specific. Note that `alt` text contains user-supplied titles and must be es
 
 ## Notes / implementation guidance
 
-Changing cards from `<div @click>` to `<a href>` is the single highest-value fix here and it also improves the product for sighted mouse users — middle-click to open in a new tab is exactly what people do when browsing a friend's shelf.
+Changing cards from `<div @click>` to `<a href>` is the single highest-value fix here and it also improves the product for sighted mouse users - middle-click to open in a new tab is exactly what people do when browsing a friend's shelf.

@@ -1,4 +1,4 @@
-# TASK-020 — Empty, error and loading states
+# TASK-020 - Empty, error and loading states
 
 ## Goal
 
@@ -6,7 +6,7 @@ Give every list and page a deliberate empty, error and loading state.
 
 ## Context
 
-The legacy app has **none**: filtering to zero results renders a blank void with a footer reading "0 Páginas Lidas". At launch most states are empty — a new friend's profile has zero books and most searches return nothing — so these are not edge cases. They are the normal first experience.
+The legacy app has **none**: filtering to zero results renders a blank void with a footer reading "0 Páginas Lidas". At launch most states are empty - a new friend's profile has zero books and most searches return nothing - so these are not edge cases. They are the normal first experience.
 
 ## Scope
 
@@ -42,7 +42,7 @@ app/components/ui/{EmptyState,ErrorState,LoadingSkeleton}.vue
 | Where | Copy | Action |
 |---|---|---|
 | Profile, no entries (owner) | "Você ainda não registrou nenhum livro." | Registrar livro |
-| Profile, no entries (visitor) | "Ainda não registrou nenhum livro." | — |
+| Profile, no entries (visitor) | "Ainda não registrou nenhum livro." | - |
 | Profile, filters match nothing | "Nenhum livro com esses filtros." + names the active filters | Limpar filtros |
 | Search, no local results | "Não encontramos esse livro." | **Adicionar à mão** (primary) + Buscar online |
 | Open Library unavailable | "Não conseguimos buscar online agora." | Adicionar à mão |
@@ -51,7 +51,7 @@ app/components/ui/{EmptyState,ErrorState,LoadingSkeleton}.vue
 | 404 | "Não encontramos essa página." | Ir para o início |
 | 500 | "Algo deu errado. Tente de novo." | Tentar de novo |
 
-5. The search-miss state carries unusual weight — it is the ~60% case for Brazilian editions. **"Adicionar à mão" must be the primary action**, not a secondary link.
+5. The search-miss state carries unusual weight - it is the ~60% case for Brazilian editions. **"Adicionar à mão" must be the primary action**, not a secondary link.
 6. Fix the legacy footer bug: the page-count footer must not render "0 Páginas Lidas" beside an empty state.
 
 ## Data/API changes
@@ -61,7 +61,7 @@ None.
 ## UX requirements
 
 - Every message is in pt-BR and says what to do next.
-- No state is a dead end — each offers at least one action.
+- No state is a dead end - each offers at least one action.
 - Skeletons match real dimensions so the layout does not jump.
 
 ## Security requirements
@@ -85,7 +85,7 @@ None.
 - [ ] A new user's own profile invites them to register a book
 - [ ] A 404 renders pt-BR copy with a link home
 - [ ] A forced 500 shows a retry button and no stack trace in the response body
-- [ ] Loading skeletons match card dimensions — no layout shift on load
+- [ ] Loading skeletons match card dimensions - no layout shift on load
 
 ## Definition of done
 
