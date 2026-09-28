@@ -10,7 +10,7 @@
       </p>
 
       <div class="notice-box">
-        <strong>Importante:</strong> O nome de usuário será seu endereço público permanente (ex: <code>meulivros.app/@usuario</code>) e <strong>não poderá ser alterado depois</strong>.
+        <strong>Importante:</strong> O nome de usuário será seu endereço público permanente (ex: <code>{{ host }}/@usuario</code>) e <strong>não poderá ser alterado depois</strong>.
       </div>
 
       <form class="welcome-form" @submit.prevent="handleSubmit">
@@ -55,7 +55,7 @@
 
         <div class="preview-box">
           <span class="preview-label">Seu endereço público:</span>
-          <span class="preview-url">meulivros.app/@{{ previewHandle }}</span>
+          <span class="preview-url">{{ host }}/@{{ previewHandle }}</span>
         </div>
 
         <p v-if="errorMessage" id="bem-vindo-error" class="error-message" role="alert">
@@ -103,6 +103,8 @@ definePageMeta({
 useSeoMeta({
   title: 'Criar perfil',
 })
+
+const host = useRequestURL().host
 
 const displayName = ref('')
 const handle = ref('')
