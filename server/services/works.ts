@@ -78,6 +78,7 @@ async function assembleWorkDetails(
         rating: reading_logs.rating,
         review: reading_logs.review,
         finished_on: reading_logs.finished_on,
+        finished_precision: reading_logs.finished_precision,
         created_at: reading_logs.created_at,
         user: {
           id: users.id,
@@ -128,6 +129,7 @@ async function assembleWorkDetails(
     rating: l.rating !== null ? Number(l.rating) : null,
     review: l.review,
     finished_on: l.finished_on,
+    finished_precision: l.finished_precision,
     created_at: l.created_at,
     user: l.user,
   }))

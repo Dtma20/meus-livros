@@ -146,6 +146,7 @@ describe('BookPage component (app/pages/livro/[slug].vue)', () => {
           rating: 4.5,
           review: 'Excelente clássico de estratégia.',
           finished_on: '2024-01-15',
+          finished_precision: 'dia',
           created_at: new Date('2024-01-15T12:00:00Z'),
           user: {
             id: '55555555-5555-5555-5555-555555555555',
