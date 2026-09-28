@@ -10,7 +10,7 @@
         heading-tag="h1"
         title="Entrada não encontrada"
         message="Esta entrada não existe, foi removida ou é privada."
-        action-label="Voltar para o início"
+        action-label="Ir para o início"
         action-href="/"
       />
       <ErrorState
