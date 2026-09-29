@@ -289,27 +289,12 @@ function clearSelection() {
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
-.map-container {
-  width: 100%;
-  overflow-x: auto;
-  border-radius: var(--radius-md, 8px);
-  background-color: var(--card-bg, #232a31);
-  padding: var(--space-3, 12px);
-  box-sizing: border-box;
-}
-
 .world-map-svg {
   width: 100%;
   height: auto;
   max-height: 280px;
   display: block;
   margin: 0 auto;
-}
-
-.country-path {
-  stroke: var(--card-bg, #232a31);
-  stroke-width: 0.5px;
-  transition: fill 0.2s, stroke 0.2s;
 }
 
 .tier-0 path {
@@ -356,6 +341,12 @@ function clearSelection() {
   font-size: var(--font-size-xs, 0.75rem);
   color: var(--text-color, #9ab);
   line-height: var(--line-height-normal, 1.5);
+}
+
+@media (pointer: coarse) {
+  .clear-filter-btn {
+    min-height: var(--target-min-size, 44px);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

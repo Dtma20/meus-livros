@@ -24,8 +24,6 @@ const formattedValue = computed(() => {
 <style scoped>
 .stat-box {
   text-align: center;
-  cursor: default;
-  transition: transform 0.2s;
 }
 
 .stat-value {
@@ -38,9 +36,7 @@ const formattedValue = computed(() => {
 
 .stat-label {
   color: var(--text-color, #9ab);
-  text-transform: uppercase;
-  font-size: var(--font-size-xs, 0.75rem);
-  letter-spacing: 0.5px;
+  font-size: var(--font-size-sm, 0.875rem);
   display: block;
   margin-top: var(--space-1, 4px);
 }

@@ -236,7 +236,6 @@
               <span class="page-stat-label">
                 Páginas Lidas
                 <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
-                <small v-else class="filter-indicator">(total)</small>
               </span>
             </div>
             <div class="page-stat">
@@ -244,7 +243,6 @@
               <span class="page-stat-label">
                 Média p/ Livro
                 <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
-                <small v-else class="filter-indicator">(total)</small>
               </span>
             </div>
           </footer>
@@ -900,6 +898,14 @@ onBeforeUnmount(() => {
 .error-state {
   padding: var(--space-12, 48px) var(--space-4, 16px);
   text-align: center;
+}
+
+@media (pointer: coarse) {
+  .btn-edit-profile,
+  .visibility-tab,
+  .view-tab {
+    min-height: var(--target-min-size, 44px);
+  }
 }
 
 @media (max-width: 600px) {

@@ -111,8 +111,12 @@
                     <StarRating :rating="log.rating" />
                   </div>
                 </div>
-                <NuxtLink :to="`/entrada/${log.id}`" class="user-log-link">
-                  Ver leitura →
+                <NuxtLink
+                  :to="`/entrada/${log.id}`"
+                  class="user-log-link"
+                  :aria-label="log.finished_on ? `Ver leitura de ${formatReadingDate(log.finished_on, log.finished_precision)}` : 'Ver leitura em andamento'"
+                >
+                  Ver leitura
                 </NuxtLink>
               </li>
             </ul>
@@ -153,8 +157,12 @@
                 </div>
 
                 <div class="log-footer">
-                  <NuxtLink :to="'/entrada/' + log.id" class="entry-link">
-                    Ver registro completo →
+                  <NuxtLink
+                    :to="'/entrada/' + log.id"
+                    class="entry-link"
+                    :aria-label="`Ver leitura de @${log.user.handle}`"
+                  >
+                    Ver leitura
                   </NuxtLink>
                 </div>
               </li>
@@ -170,10 +178,7 @@
                 class="edition-item"
               >
                 <span v-if="edition.publisher" class="edition-publisher">{{ edition.publisher }}</span>
-                <span v-if="edition.published_year" class="edition-year">({{ edition.published_year }})</span>
-                <span v-if="edition.page_count" class="edition-pages">· {{ edition.page_count }} págs.</span>
-                <span v-if="edition.isbn13" class="edition-isbn">· ISBN {{ edition.isbn13 }}</span>
-                <span v-if="edition.language" class="edition-lang">· {{ edition.language.toUpperCase() }}</span>
+                <span v-if="editionDetails(edition)" class="edition-details">{{ edition.publisher ? ', ' : '' }}{{ editionDetails(edition) }}</span>
               </li>
             </ul>
           </section>
@@ -185,22 +190,7 @@
               :disabled="isDeletingWork"
               @click="handleDeleteWork"
             >
-              <svg
-                class="btn-icon"
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                stroke="currentColor"
-                stroke-width="2"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              <span>{{ isDeletingWork ? 'Excluindo livro...' : 'Excluir livro do catálogo' }}</span>
+              {{ isDeletingWork ? 'Excluindo livro...' : 'Excluir livro do catálogo' }}
             </button>
             <p v-if="deleteWorkError" class="delete-error-msg" role="alert">
               {{ deleteWorkError }}
@@ -223,7 +213,7 @@ import EmptyState from '~/components/ui/EmptyState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { formatReadingDate } from '~/utils/entry'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
-import type { WorkAuthorView, WorkWithDetails } from '~~/shared/schemas/work'
+import type { WorkAuthorView, WorkEditionView, WorkWithDetails } from '~~/shared/schemas/work'
 import { formatCountry, formatLanguage, formatPublicationYear } from '~~/shared/schemas/work'
 
 definePageMeta({
@@ -261,6 +251,15 @@ function formatAuthorCountry(author: WorkAuthorView): string | null {
 
 function formatRating(rating: number): string {
   return rating.toFixed(1).replace('.', ',')
+}
+
+function editionDetails(edition: WorkEditionView): string {
+  const parts: string[] = []
+  if (edition.published_year) parts.push(String(edition.published_year))
+  if (edition.page_count) parts.push(`${edition.page_count} págs.`)
+  if (edition.isbn13) parts.push(`ISBN ${edition.isbn13}`)
+  if (edition.language) parts.push(edition.language.toUpperCase())
+  return parts.join(', ')
 }
 
 function getExcerpt(text?: string | null): string {
@@ -431,27 +430,9 @@ async function handleDeleteWork(): Promise<void> {
   color: var(--text-color);
 }
 
-.error-text {
-  color: var(--danger);
-  font-size: var(--font-size-lg);
-  margin-bottom: var(--space-4);
-}
-
-.back-link {
-  color: var(--highlight);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.back-link:hover {
-  text-decoration: underline;
-}
-
+/* The page is the surface: no wrapper card. Sections are split by rules. */
 .work-card {
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-6);
-  border: 1px solid var(--input-bg);
+  padding: 0;
 }
 
 .work-header {
@@ -478,8 +459,9 @@ async function handleDeleteWork(): Promise<void> {
   min-width: 160px;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm);
+  border: 1px solid var(--input-bg);
+  box-sizing: border-box;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .work-details {
@@ -547,7 +529,7 @@ async function handleDeleteWork(): Promise<void> {
   align-items: center;
   justify-content: center;
   background-color: var(--highlight);
-  color: #000;
+  color: var(--bg-color);
   font-weight: 700;
   font-size: var(--font-size-sm);
   padding: 0 var(--space-4);
@@ -555,11 +537,15 @@ async function handleDeleteWork(): Promise<void> {
   border-radius: var(--radius-sm);
   text-decoration: none;
   box-sizing: border-box;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.1s;
 }
 
 .work-primary-action:hover {
   opacity: 0.9;
+}
+
+.work-primary-action:active {
+  transform: translateY(1px);
 }
 
 .work-primary-action:focus-visible {
@@ -655,7 +641,6 @@ async function handleDeleteWork(): Promise<void> {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
 }
 
 .user-log-item {
@@ -664,10 +649,11 @@ async function handleDeleteWork(): Promise<void> {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
-  background-color: var(--bg-color);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-1) 0;
+}
+
+.user-log-item + .user-log-item {
+  border-top: 1px solid var(--input-bg);
 }
 
 .user-log-meta {
@@ -686,7 +672,7 @@ async function handleDeleteWork(): Promise<void> {
 .user-log-link {
   color: var(--highlight);
   text-decoration: none;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: 500;
   min-height: var(--target-min-size, 44px);
   display: inline-flex;
@@ -719,9 +705,7 @@ async function handleDeleteWork(): Promise<void> {
 .edition-item {
   color: var(--text-color);
   font-size: var(--font-size-sm);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+  line-height: var(--line-height-normal);
 }
 
 .edition-publisher {
@@ -739,14 +723,22 @@ async function handleDeleteWork(): Promise<void> {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
 }
 
 .log-item {
-  background-color: var(--bg-color);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-sm);
-  padding: var(--space-4);
+  padding: var(--space-4) 0;
+}
+
+.log-item:first-child {
+  padding-top: 0;
+}
+
+.log-item:last-child {
+  padding-bottom: 0;
+}
+
+.log-item + .log-item {
+  border-top: 1px solid var(--input-bg);
 }
 
 .log-header {
@@ -757,7 +749,7 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 .user-link {
-  color: var(--highlight);
+  color: #fff;
   text-decoration: none;
   font-weight: 600;
   font-size: var(--font-size-sm);
@@ -777,14 +769,10 @@ async function handleDeleteWork(): Promise<void> {
   margin: var(--space-2) 0 var(--space-3) 0;
 }
 
-.log-footer {
-  text-align: right;
-}
-
 .entry-link {
   color: var(--highlight);
   text-decoration: none;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: 500;
 }
 
@@ -809,7 +797,6 @@ async function handleDeleteWork(): Promise<void> {
 .delete-work-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
   background: transparent;
   color: var(--text-color);
   border: 1px solid rgba(239, 68, 68, 0.3);
@@ -824,7 +811,7 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 .delete-work-btn:hover:not(:disabled) {
-  color: var(--danger);
+  color: var(--danger-text);
   border-color: var(--danger);
   background-color: rgba(239, 68, 68, 0.08);
 }
@@ -839,15 +826,19 @@ async function handleDeleteWork(): Promise<void> {
   cursor: not-allowed;
 }
 
-.btn-icon {
-  flex-shrink: 0;
-  vertical-align: middle;
-}
-
 .delete-error-msg {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-sm);
   margin: 0;
+}
+
+@media (pointer: coarse) {
+  .user-link,
+  .entry-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--target-min-size, 44px);
+  }
 }
 
 @media (min-width: 1024px) {
