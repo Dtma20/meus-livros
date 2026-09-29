@@ -14,7 +14,6 @@
 .form-hint {
   font-size: var(--font-size-xs);
   color: var(--text-color);
-  opacity: 0.75;
 }
 
 .form-input,
@@ -43,7 +42,7 @@
 .form-select:focus,
 .form-textarea:focus {
   border-color: var(--highlight);
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 0 2px var(--highlight-glow);
 }
 
 .form-input[aria-invalid='true'],
@@ -53,7 +52,7 @@
 
 .error-message {
   font-size: var(--font-size-sm);
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .form-row {
@@ -96,7 +95,7 @@
 
 .btn-primary {
   background-color: var(--highlight);
-  color: #14181c;
+  color: var(--on-highlight);
 }
 
 .btn-secondary {
@@ -106,12 +105,13 @@
 
 .btn-danger {
   background-color: transparent;
-  color: var(--danger);
+  color: var(--danger-text);
   border: 1px solid var(--danger);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background-color: var(--danger);
+  background-color: var(--danger-solid);
+  border-color: var(--danger-solid);
   color: #fff;
   opacity: 1;
 }
@@ -179,8 +179,14 @@
 
 .tab-btn.active {
   background-color: var(--highlight);
-  color: #14181c;
+  color: var(--on-highlight);
   font-weight: 700;
+}
+
+@media (pointer: coarse) {
+  .tab-btn {
+    min-height: var(--target-min-size);
+  }
 }
 
 .tab-btn:focus-visible {

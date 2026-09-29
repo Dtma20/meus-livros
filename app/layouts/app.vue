@@ -110,7 +110,7 @@ async function handleSignOut() {
   display: inline-flex;
   align-items: center;
   background-color: transparent;
-  transition: background-color 0.25s ease 0.05s, color 0.25s ease 0.05s;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .nav-link:hover {
@@ -128,6 +128,13 @@ async function handleSignOut() {
   color: var(--highlight);
 }
 
+.nav-link:not(.nav-link-primary)[aria-current="page"],
+.nav-link:not(.nav-link-primary).router-link-exact-active {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+
 .nav-link-primary {
   background-color: var(--highlight);
   color: var(--bg-color);
@@ -137,6 +144,10 @@ async function handleSignOut() {
 .nav-link-primary:hover {
   background-color: var(--highlight-hover);
   color: var(--bg-color);
+}
+
+.nav-link-primary:active {
+  transform: translateY(1px);
 }
 
 .nav-link-primary[aria-current="page"],
@@ -195,6 +206,7 @@ async function handleSignOut() {
 .bottom-nav-link:not(.bottom-nav-register)[aria-current="page"],
 .bottom-nav-link:not(.bottom-nav-register).router-link-exact-active {
   color: var(--highlight);
+  box-shadow: inset 0 2px 0 var(--highlight);
 }
 
 .bottom-nav-label {

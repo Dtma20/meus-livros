@@ -214,7 +214,7 @@ const members = computed(() => data.value?.members ?? [])
 
 .member-reads-count {
   font-size: var(--font-size-xs);
-  color: var(--highlight);
+  color: var(--text-color);
   font-weight: 500;
 }
 

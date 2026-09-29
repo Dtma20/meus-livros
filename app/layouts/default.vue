@@ -43,6 +43,7 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
 <style scoped>
 .site-layout {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   background-color: var(--bg-color);
@@ -102,7 +103,7 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-md);
   background-color: transparent;
-  transition: background-color 0.25s ease 0.05s, color 0.25s ease 0.05s;
+  transition: background-color 0.15s ease, color 0.15s ease;
   flex-shrink: 0;
 }
 
@@ -134,7 +135,7 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   display: inline-flex;
   align-items: center;
   background-color: transparent;
-  transition: background-color 0.25s ease 0.05s, color 0.25s ease 0.05s;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .nav-link:hover {
@@ -217,7 +218,7 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   }
 
   .site-title {
-    padding: 4px 6px;
+    padding: var(--space-1) var(--space-2);
   }
 }
 </style>

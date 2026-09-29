@@ -5,8 +5,8 @@
     <div v-else class="dashboard-container">
       <header class="dashboard-header">
         <div class="dashboard-header-text">
-          <h1 class="dashboard-title">Minha Leitura</h1>
-          <p class="dashboard-subtitle">Acompanhe seu progresso e as atividades do grupo</p>
+          <h1 class="dashboard-title">Minha leitura</h1>
+          <p class="dashboard-subtitle">O que você está lendo e o que o grupo registrou.</p>
         </div>
         <div class="dashboard-header-actions">
           <NuxtLink to="/app/novo" class="btn-primary btn-register">
@@ -73,7 +73,7 @@
                 </div>
 
                 <div class="in-progress-stats">
-                  <div class="progress-bar-wrap" role="progressbar" :aria-valuenow="book.percentage ?? (book.total_pages ? Math.min(100, Math.round((book.pages_read / book.total_pages) * 100)) : 0)" aria-valuemin="0" aria-valuemax="100">
+                  <div class="progress-bar-wrap" role="progressbar" :aria-label="`Progresso de leitura de ${book.work.title}`" :aria-valuenow="book.percentage ?? (book.total_pages ? Math.min(100, Math.round((book.pages_read / book.total_pages) * 100)) : 0)" aria-valuemin="0" aria-valuemax="100">
                     <div
                       class="progress-bar-fill"
                       :style="{ width: `${book.percentage ?? (book.total_pages ? Math.min(100, Math.round((book.pages_read / book.total_pages) * 100)) : 0)}%` }"
@@ -98,8 +98,12 @@
                 </div>
 
                 <div class="in-progress-actions">
-                  <NuxtLink :to="`/entrada/${book.id}`" class="btn-continue-reading">
-                    Continuar lendo →
+                  <NuxtLink
+                    :to="`/entrada/${book.id}`"
+                    class="btn-continue-reading"
+                    :aria-label="`Continuar lendo ${book.work.title}`"
+                  >
+                    Continuar lendo
                   </NuxtLink>
                 </div>
               </div>
@@ -121,7 +125,7 @@
               <p class="section-subtitle">Últimas leituras registradas pelos membros</p>
             </div>
             <NuxtLink to="/atividade" class="btn-secondary-link">
-              Ver toda a atividade →
+              Ver toda a atividade <span aria-hidden="true">→</span>
             </NuxtLink>
           </div>
 
@@ -149,7 +153,7 @@
         >
           <p class="dashboard-empty-row-text">Nada em leitura agora</p>
           <NuxtLink to="/app/novo" class="dashboard-empty-row-link">
-            Começar a ler →
+            Começar a ler <span aria-hidden="true">→</span>
           </NuxtLink>
         </section>
 
@@ -340,38 +344,10 @@ useHead({
   font-size: var(--font-size-sm);
 }
 
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  color: var(--text-color);
-  font-weight: 600;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
-  white-space: nowrap;
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.btn-secondary:hover {
-  color: #fff;
-  border-color: var(--highlight);
-  background-color: var(--input-bg);
-}
-
-.btn-secondary:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
 .dashboard-container {
   width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
 }
 
 .dashboard-header {
@@ -454,11 +430,6 @@ useHead({
   border: 1px solid var(--input-bg);
   border-radius: var(--radius-md);
   padding: var(--space-4);
-  transition: border-color 0.2s;
-}
-
-.in-progress-card:hover {
-  border-color: var(--highlight);
 }
 
 .in-progress-cover-col {
@@ -492,7 +463,7 @@ useHead({
 
 .in-progress-title {
   font-family: var(--font-serif);
-  font-size: 1.05rem;
+  font-size: var(--font-size-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: #fff;
@@ -561,16 +532,34 @@ useHead({
 }
 
 .btn-continue-reading {
-  font-size: var(--font-size-xs);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--space-8);
+  padding: 0 var(--space-3);
+  box-sizing: border-box;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--highlight);
   text-decoration: none;
-  transition: opacity 0.15s;
+  border-radius: var(--radius-sm);
+  background-color: var(--highlight-soft);
+  border: 1px solid var(--highlight-glow);
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
 .btn-continue-reading:hover {
-  text-decoration: underline;
-  opacity: 0.9;
+  background-color: var(--highlight-glow);
+  border-color: var(--highlight);
+}
+
+.btn-continue-reading:active {
+  transform: translateY(1px);
+}
+
+@media (pointer: coarse) {
+  .btn-continue-reading {
+    min-height: var(--target-min-size);
+  }
 }
 
 .dashboard-empty-row {
@@ -619,7 +608,9 @@ useHead({
 }
 
 .btn-secondary-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min-size);
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--highlight);
@@ -634,158 +625,19 @@ useHead({
   margin-top: var(--space-2);
 }
 
-.feed-error-state {
-  text-align: center;
-  padding: var(--space-8) var(--space-4);
-  background-color: var(--card-bg);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-6);
-}
-
-.feed-error-title {
-  font-size: var(--font-size-base);
-  font-weight: 700;
-  color: var(--danger);
-  margin: 0 0 var(--space-2) 0;
-}
-
-.feed-error-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  margin: 0;
-}
-
 .feed-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
 
-.feed-row {
-  display: flex;
-  gap: var(--space-4);
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
-  transition: border-color 0.2s;
-}
-
-.feed-row:hover {
-  border-color: var(--highlight);
-}
-
-.feed-cover-col {
-  width: 70px;
-  min-width: 70px;
-  aspect-ratio: 2 / 3;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  border: 1px solid var(--input-bg);
-  background-color: #1e2328;
-  flex-shrink: 0;
-}
-
-.feed-cover-link {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-
-.feed-body-col {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-
-.feed-row-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1);
-}
-
-.feed-work-title {
-  font-family: var(--font-serif);
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: #fff;
-  text-decoration: none;
-  line-height: var(--line-height-tight);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.feed-work-title:hover {
-  color: var(--highlight);
-}
-
-.feed-relative-date {
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.feed-meta {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-bottom: var(--space-2);
-}
-
-.feed-reader {
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-}
-
-.feed-user-link {
-  color: var(--highlight);
-  text-decoration: none;
-  font-weight: 600;
-}
-
-.feed-work-title:focus-visible,
-.feed-user-link:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
-}
-
-.feed-user-link:hover {
-  text-decoration: underline;
-}
-
-.feed-review-excerpt {
-  font-size: var(--font-size-sm);
-  color: var(--text-bright);
-  line-height: var(--line-height-relaxed);
-  margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
 @media (max-width: 600px) {
-  .landing-card {
-    padding: var(--space-6) var(--space-4);
-  }
-
-  .dashboard-header,
-  .feed-header {
+  .dashboard-header {
     margin-bottom: var(--space-4);
     padding-bottom: var(--space-3);
   }
 
-  .dashboard-title,
-  .feed-title {
+  .dashboard-title {
     font-size: var(--font-size-xl);
   }
 
@@ -802,21 +654,16 @@ useHead({
     width: 60px;
     min-width: 60px;
   }
+}
 
-  .feed-row {
-    padding: var(--space-3);
-    gap: var(--space-3);
-  }
-
-  .feed-cover-col {
-    width: 60px;
-    min-width: 60px;
+@media (max-width: 767.98px) {
+  .dashboard-header-actions {
+    display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn-primary,
-  .feed-row {
+  .btn-primary {
     transition: none;
   }
 }

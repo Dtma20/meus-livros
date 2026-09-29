@@ -80,14 +80,9 @@ const cardAriaLabel = computed(() => {
   text-decoration: none;
   color: inherit;
   cursor: pointer;
-  transition: transform 0.2s;
   outline-offset: 4px;
   width: 100%;
   height: 100%;
-}
-
-.card:hover {
-  transform: translateY(-5px);
 }
 
 .card:focus-visible {
@@ -110,7 +105,11 @@ const cardAriaLabel = computed(() => {
   overflow: hidden;
   position: relative;
   box-sizing: border-box;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, transform 0.1s;
+}
+
+.card:active .poster {
+  transform: scale(0.98);
 }
 
 .card:hover .poster,
@@ -196,13 +195,12 @@ const cardAriaLabel = computed(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card,
   .poster,
   .caption {
     transition: none;
   }
 
-  .card:hover,
+  .card:active .poster,
   .caption,
   .card:hover .caption,
   .card:focus-visible .caption {

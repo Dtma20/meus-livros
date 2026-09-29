@@ -140,7 +140,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 .diary-month-title {
   font-size: var(--font-size-lg, 1.125rem);
   font-weight: 600;
-  color: var(--highlight, #f59e0b);
+  color: var(--text-color, #9ab);
   margin: var(--space-4, 16px) 0 var(--space-2, 8px) 0;
   line-height: var(--line-height-tight, 1.2);
 }
@@ -162,9 +162,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
   padding: var(--space-2, 8px) var(--space-3, 12px);
   color: var(--text-color, #9ab);
   font-weight: 600;
-  font-size: var(--font-size-xs, 0.75rem);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-size: var(--font-size-sm, 0.875rem);
   border-bottom: 1px solid var(--input-bg, #2c3440);
 }
 

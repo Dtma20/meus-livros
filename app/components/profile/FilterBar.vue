@@ -136,7 +136,6 @@ defineEmits<{
 }
 
 .filter-select:focus {
-  outline: none;
   border-color: var(--highlight, #f59e0b);
 }
 

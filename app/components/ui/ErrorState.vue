@@ -85,6 +85,7 @@ defineEmits<{
   font-size: var(--font-size-xl, 1.25rem);
   font-weight: 600;
   margin: 0 0 var(--space-2, 8px) 0;
+  text-wrap: balance;
 }
 
 .error-message {
@@ -93,6 +94,7 @@ defineEmits<{
   max-width: 480px;
   line-height: var(--line-height-normal, 1.5);
   margin: 0 0 var(--space-4, 16px) 0;
+  text-wrap: pretty;
 }
 
 .error-action {
@@ -107,19 +109,23 @@ defineEmits<{
   color: #fff;
   font-weight: 600;
   font-size: var(--font-size-sm, 0.875rem);
-  padding: 8px 16px;
-  min-height: 44px;
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  min-height: var(--target-min-size, 44px);
   box-sizing: border-box;
   border-radius: var(--radius-sm, 4px);
   border: 1px solid var(--text-color, #9ab);
   cursor: pointer;
   text-decoration: none;
-  transition: border-color 0.2s, background-color 0.2s;
+  transition: border-color 0.15s, background-color 0.15s;
 }
 
 .error-btn:hover {
   border-color: #fff;
   background-color: var(--card-bg, #232a31);
+}
+
+.error-btn:active {
+  transform: translateY(1px);
 }
 
 .error-btn:focus-visible {

@@ -10,7 +10,7 @@
       </p>
 
       <div class="notice-box">
-        <strong>Importante:</strong> O nome de usuário será seu endereço público permanente (ex: <code>{{ host }}/@usuario</code>) e <strong>não poderá ser alterado depois</strong>.
+        <strong>Importante:</strong> o nome de usuário faz parte do seu endereço público e <strong>não poderá ser alterado depois</strong>.
       </div>
 
       <form class="welcome-form" @submit.prevent="handleSubmit">
@@ -32,7 +32,7 @@
         </div>
 
         <div class="form-group">
-          <label for="handle" class="form-label">Nome de usuário (handle)</label>
+          <label for="handle" class="form-label">Nome de usuário</label>
           <div class="handle-input-wrapper">
             <span class="handle-prefix">@</span>
             <input
@@ -82,7 +82,7 @@
           class="submit-btn"
           :disabled="loading || !handle || handle.length < 3 || !displayName"
         >
-          {{ loading ? 'Salvando...' : 'Criar meu perfil' }}
+          {{ loading ? 'Salvando…' : 'Criar meu perfil' }}
         </button>
       </form>
     </div>
@@ -240,6 +240,7 @@ async function handleSubmit() {
   justify-content: center;
   align-items: center;
   min-height: calc(80vh - 120px);
+  min-height: calc(80dvh - 120px);
   padding: var(--space-4);
 }
 
@@ -249,7 +250,6 @@ async function handleSubmit() {
   padding: var(--space-8);
   width: 100%;
   max-width: 480px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .welcome-title {
@@ -268,18 +268,14 @@ async function handleSubmit() {
 }
 
 .notice-box {
-  background-color: var(--input-bg);
-  border-left: 3px solid var(--highlight);
+  background-color: var(--highlight-soft);
+  border: 1px solid var(--highlight-glow);
   padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
+  font-size: var(--font-size-sm);
+  color: var(--text-bright);
   line-height: var(--line-height-normal);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  border-radius: var(--radius-sm);
   margin-bottom: var(--space-6);
-}
-
-.notice-box code {
-  color: var(--highlight);
 }
 
 .notice-box strong {
@@ -331,7 +327,8 @@ async function handleSubmit() {
 
 .form-input:focus-visible {
   border-color: var(--highlight);
-  box-shadow: none;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .form-input:disabled {
@@ -380,7 +377,7 @@ async function handleSubmit() {
 }
 
 .error-message {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-sm);
   margin: 0;
 }
@@ -411,15 +408,15 @@ async function handleSubmit() {
   font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
-  min-height: 36px;
+  min-height: var(--target-min-size);
   display: inline-flex;
   align-items: center;
-  transition: background-color 0.2s, color 0.2s;
+  transition: background-color 0.15s, color 0.15s;
 }
 
 .suggestion-chip:hover {
   background-color: var(--highlight);
-  color: #14181c;
+  color: var(--bg-color);
 }
 
 .suggestion-chip:focus-visible {
@@ -429,21 +426,25 @@ async function handleSubmit() {
 
 .submit-btn {
   background-color: var(--highlight);
-  color: #14181c;
+  color: var(--bg-color);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-3);
   font-size: var(--font-size-base);
-  font-weight: bold;
+  font-weight: 600;
   cursor: pointer;
   min-height: 44px;
   box-sizing: border-box;
-  transition: opacity 0.2s, background-color 0.2s;
+  transition: background-color 0.15s;
   margin-top: var(--space-2);
 }
 
 .submit-btn:hover:not(:disabled) {
-  opacity: 0.9;
+  background-color: var(--highlight-hover);
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .submit-btn:focus-visible {

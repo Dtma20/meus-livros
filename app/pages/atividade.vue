@@ -5,14 +5,26 @@
       <p class="page-subtitle">Todas as leituras registradas pelos membros</p>
     </header>
 
-    <div v-if="pending" class="activity-loading">
-      <LoadingSkeleton :count="4" />
+    <div
+      v-if="pending"
+      class="activity-loading"
+      role="status"
+      aria-label="Carregando a atividade…"
+    >
+      <div v-for="n in 4" :key="n" class="skeleton-row" aria-hidden="true">
+        <div class="skeleton-cover" />
+        <div class="skeleton-lines">
+          <span class="skeleton-line skeleton-line-title" />
+          <span class="skeleton-line skeleton-line-meta" />
+          <span class="skeleton-line" />
+        </div>
+      </div>
     </div>
 
     <ErrorState
       v-else-if="error"
-      title="Algo deu errado. Tente de novo."
-      message="Não foi possível carregar a atividade do grupo."
+      title="Não foi possível carregar a atividade do grupo."
+      message="Tente de novo em instantes."
       action-label="Tentar de novo"
       @retry="refresh"
     />
@@ -56,7 +68,6 @@ import { ref, watch } from 'vue'
 import FeedItem from '~/components/feed/FeedItem.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
-import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import type { FeedEntry, FeedPageResponse } from '~~/shared/schemas/feed'
 
 definePageMeta({
@@ -113,6 +124,8 @@ async function loadMore() {
 <style scoped>
 .activity-page {
   width: 100%;
+  max-width: 48rem;
+  margin: 0 auto;
 }
 
 .page-header {
@@ -138,7 +151,52 @@ async function loadMore() {
 }
 
 .activity-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
   margin-top: var(--space-4);
+}
+
+.skeleton-row {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+}
+
+.skeleton-cover {
+  width: 70px;
+  min-width: 70px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  background-color: var(--input-bg);
+}
+
+.skeleton-lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+  padding-top: var(--space-1);
+}
+
+.skeleton-line {
+  display: block;
+  height: var(--space-3);
+  width: 100%;
+  border-radius: var(--radius-sm);
+  background-color: var(--input-bg);
+}
+
+.skeleton-line-title {
+  width: 60%;
+  height: var(--space-4);
+}
+
+.skeleton-line-meta {
+  width: 35%;
 }
 
 .activity-content {
@@ -187,6 +245,10 @@ async function loadMore() {
   background-color: var(--input-bg);
 }
 
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
 .btn-secondary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -203,7 +265,7 @@ async function loadMore() {
 
 .load-more-error {
   font-size: var(--font-size-sm);
-  color: var(--danger, #ff6b6b);
+  color: var(--danger-text);
   margin: 0;
   text-align: center;
 }
@@ -220,6 +282,16 @@ async function loadMore() {
 
   .btn-load-more {
     width: 100%;
+  }
+
+  .skeleton-row {
+    padding: var(--space-3);
+    gap: var(--space-3);
+  }
+
+  .skeleton-cover {
+    width: 60px;
+    min-width: 60px;
   }
 }
 </style>

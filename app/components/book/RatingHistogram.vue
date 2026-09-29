@@ -135,15 +135,18 @@ const accessibleSummary = computed(() => {
   height: 100%;
   display: flex;
   align-items: flex-end;
-  background-color: var(--input-bg);
-  border-radius: 1px;
 }
 
 .histogram-bar {
   width: 100%;
+  min-height: 2px;
   background-color: var(--star-color);
   border-radius: 1px;
   transition: height 0.2s ease;
+}
+
+.histogram-bar[data-count="0"] {
+  background-color: var(--input-bg);
 }
 
 .histogram-labels {

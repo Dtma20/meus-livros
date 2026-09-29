@@ -4,7 +4,7 @@
       <div>
         <h2 class="carousel-title">Livros já lidos</h2>
         <p class="carousel-subtitle">
-          Histórico ordenado do mais recente para o mais antigo ({{ books.length }} {{ books.length === 1 ? 'leitura concluída' : 'leituras concluídas' }})
+          {{ books.length }} {{ books.length === 1 ? 'leitura concluída' : 'leituras concluídas, da mais recente para a mais antiga' }}
         </p>
       </div>
 
@@ -13,19 +13,23 @@
           type="button"
           class="carousel-nav-btn"
           aria-label="Rolar para a esquerda"
-          :disabled="isAtStart"
+          :aria-disabled="isAtStart"
           @click="scrollLeft"
         >
-          ←
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
         </button>
         <button
           type="button"
           class="carousel-nav-btn"
           aria-label="Rolar para a direita"
-          :disabled="isAtEnd"
+          :aria-disabled="isAtEnd"
           @click="scrollRight"
         >
-          →
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
         </button>
       </div>
     </div>
@@ -62,8 +66,8 @@
             {{ formatAuthors(book.work.authors) }}
           </p>
 
-          <div v-if="book.rating" class="card-rating">
-            <StarRating :rating="book.rating" />
+          <div class="card-rating">
+            <StarRating v-if="book.rating" :rating="book.rating" />
           </div>
 
           <time class="card-date" :datetime="book.finished_on">
@@ -71,7 +75,7 @@
           </time>
 
           <p v-if="book.review_excerpt" class="card-review-excerpt">
-            "{{ book.review_excerpt }}"
+            “{{ book.review_excerpt }}”
           </p>
         </div>
       </article>
@@ -101,16 +105,20 @@ function onScroll(): void {
   isAtEnd.value = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5
 }
 
+function scrollBehavior(): ScrollBehavior {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
+}
+
 function scrollLeft(): void {
   const el = trackRef.value
   if (!el) return
-  el.scrollBy({ left: -320, behavior: 'smooth' })
+  el.scrollBy({ left: -320, behavior: scrollBehavior() })
 }
 
 function scrollRight(): void {
   const el = trackRef.value
   if (!el) return
-  el.scrollBy({ left: 320, behavior: 'smooth' })
+  el.scrollBy({ left: 320, behavior: scrollBehavior() })
 }
 
 function formatAuthors(authors?: DashboardAuthorView[]): string {
@@ -136,12 +144,15 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: var(--space-4);
   margin-bottom: var(--space-4);
 }
 
 .carousel-title {
+  font-family: var(--font-serif);
   font-size: var(--font-size-xl);
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: #fff;
   margin: 0;
 }
@@ -154,6 +165,7 @@ onMounted(() => {
 
 .carousel-controls {
   display: flex;
+  flex-shrink: 0;
   gap: var(--space-2);
 }
 
@@ -161,24 +173,27 @@ onMounted(() => {
   background-color: var(--card-bg);
   border: 1px solid var(--input-bg);
   color: #fff;
-  width: 36px;
-  height: 36px;
+  width: var(--target-min-size);
+  height: var(--target-min-size);
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: var(--font-size-base);
-  transition: all 0.15s;
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
-.carousel-nav-btn:hover:not(:disabled) {
+.carousel-nav-btn:hover:not([aria-disabled="true"]) {
   background-color: var(--input-bg);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--text-color);
 }
 
-.carousel-nav-btn:disabled {
-  opacity: 0.3;
+.carousel-nav-btn:active:not([aria-disabled="true"]) {
+  transform: translateY(1px);
+}
+
+.carousel-nav-btn[aria-disabled="true"] {
+  opacity: 0.4;
   cursor: default;
 }
 
@@ -207,17 +222,10 @@ onMounted(() => {
   max-width: 220px;
   scroll-snap-align: start;
   background-color: var(--card-bg);
-  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-md);
   padding: var(--space-3);
   display: flex;
   flex-direction: column;
-  transition: transform 0.15s, border-color 0.15s;
-}
-
-.carousel-card:hover {
-  border-color: rgba(255, 255, 255, 0.15);
-  transform: translateY(-2px);
 }
 
 .card-cover-wrap {
@@ -251,6 +259,7 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: calc(var(--line-height-tight) * 2em);
   margin-bottom: var(--space-1);
 }
 
@@ -268,14 +277,13 @@ onMounted(() => {
 }
 
 .card-rating {
+  min-height: var(--space-5);
   margin-bottom: var(--space-2);
 }
 
 .card-date {
   font-size: var(--font-size-xs);
   color: var(--text-color);
-  opacity: 0.7;
-  margin-top: auto;
 }
 
 .card-review-excerpt {

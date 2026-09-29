@@ -6,7 +6,7 @@
   >
     <p class="shelf-empty-row-text">Nenhum livro esperando na estante</p>
     <NuxtLink to="/app/novo?tab=novo" class="shelf-empty-row-link">
-      Adicionar livro →
+      Adicionar livro <span aria-hidden="true">→</span>
     </NuxtLink>
   </section>
 
@@ -61,9 +61,9 @@
             <NuxtLink
               :to="`/app/novo?work_id=${item.id}`"
               class="btn-start-reading"
-              title="Registrar leitura deste livro"
+              :aria-label="`Começar a ler ${item.work.title}`"
             >
-              Começar a ler →
+              Começar a ler
             </NuxtLink>
           </div>
         </div>
@@ -170,14 +170,8 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   display: flex;
   gap: var(--space-4);
   background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
   border-radius: var(--radius-md);
   padding: var(--space-4);
-  transition: border-color 0.2s;
-}
-
-.shelf-card:hover {
-  border-color: var(--highlight);
 }
 
 .shelf-cover-col {
@@ -187,7 +181,7 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--input-bg);
-  background-color: #1e2328;
+  background-color: var(--input-bg);
   flex-shrink: 0;
 }
 
@@ -240,8 +234,7 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   display: inline-block;
   font-size: var(--font-size-xs);
   color: var(--text-color);
-  opacity: 0.7;
-  margin-top: 2px;
+  margin-top: var(--space-1);
 }
 
 .shelf-actions {
@@ -254,25 +247,37 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 .btn-start-reading {
   display: inline-flex;
   align-items: center;
-  font-size: var(--font-size-xs);
+  min-height: var(--space-8);
+  padding: 0 var(--space-3);
+  box-sizing: border-box;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--highlight);
   text-decoration: none;
-  padding: 4px 8px;
   border-radius: var(--radius-sm);
-  background-color: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  transition: background-color 0.2s, border-color 0.2s;
+  background-color: var(--highlight-soft);
+  border: 1px solid var(--highlight-glow);
+  transition: background-color 0.15s, border-color 0.15s;
 }
 
 .btn-start-reading:hover {
-  background-color: rgba(245, 158, 11, 0.2);
+  background-color: var(--highlight-glow);
   border-color: var(--highlight);
 }
 
+.btn-start-reading:active {
+  transform: translateY(1px);
+}
+
 .btn-start-reading:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (pointer: coarse) {
+  .btn-start-reading {
+    min-height: var(--target-min-size);
+  }
 }
 
 @media (max-width: 480px) {
