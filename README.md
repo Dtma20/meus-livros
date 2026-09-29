@@ -2,6 +2,8 @@
 
 ## Resenhas gravadas no JSON
 
+O botão **Adicionar livro** no cabeçalho abre o cadastro. No modal de um livro, **Editar livro** altera seus dados e **Remover livro** pede confirmação antes de excluir. Essas ações gravam em `public/livros.json` e atualizam a biblioteca e seus indicadores. Autores podem ser informados um por linha e gêneros separados por vírgulas. A edição dos dados preserva a resenha existente.
+
 Execute `npm run dev` e use o botão **Salvar resenha** no modal. O servidor grava o campo `review` em `public/livros.json` (ou `public/quadrinhos.json` para quadrinhos). Novas resenhas usam `review_format: "text"` para preservar texto e quebras de linha sem interpretar HTML. As resenhas antigas em HTML continuam compatíveis.
 
 `npm run build` seguido de `npm run preview` também oferece a gravação e lê as coleções atualizadas de `public/`. O servidor precisa de permissão para escrever nessa pasta. Esta API é destinada ao uso local; não a exponha publicamente sem autenticação.

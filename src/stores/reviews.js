@@ -30,6 +30,7 @@ export function useReviews() {
     }
     book.review = data.review
     book.review_format = 'text'
+    if (book._snapshot) book._snapshot = JSON.stringify({ ...JSON.parse(book._snapshot), review: data.review, review_format: 'text' })
     savedReviews[key] = data.review
     try { localStorage.removeItem(key) } catch { /* A gravação no arquivo já foi concluída. */ }
     return data.review

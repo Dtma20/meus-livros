@@ -1,6 +1,9 @@
 <template>
   <header>
-    <h1>Minha Biblioteca</h1>
+    <div class="header-heading">
+      <h1>Minha Biblioteca</h1>
+      <button type="button" class="add-book" @click="$emit('add-book')">+ Adicionar livro</button>
+    </div>
     <div class="stats">
       <div class="stat-box">
         <span>{{ totalBooks }}</span>
@@ -39,10 +42,13 @@ const booksReadThisYear = computed(() =>
   books.value.filter(book => Number(book.read_in) === currentYear).length
 )
 
-defineEmits(['open-map'])
+defineEmits(['open-map', 'add-book'])
 </script>
 
 <style scoped>
+.header-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.add-book { padding: 10px 16px; background: var(--input-bg); color: #fff; border: 1px solid var(--highlight); border-radius: 6px; font: inherit; cursor: pointer; }
+.add-book:focus-visible { outline: 2px solid var(--highlight); outline-offset: 3px; }
 .nav-links { flex-wrap: wrap; }
 @media (max-width: 400px) {
   .stats { gap: 16px; }

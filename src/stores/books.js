@@ -34,19 +34,36 @@ async function loadBooks() {
     }
 
     const data = await response.json()
+    setBooks(data)
+    isLoaded.value = true
+  } catch (error) {
+    console.error('Não foi possível carregar os livros:', error)
+    loadError.value = 'Não foi possível carregar os livros. Atualize a página ou tente novamente mais tarde.'
+  }
+}
+
+function setBooks(data) {
     books.value = data.map((book, index) => ({
       ...book,
+      _snapshot: JSON.stringify(book),
       original_index: index,
       pages: book.pages || 0,
       year: book.year || 0,
       country: mapCountryName(book.country),
       decade: book.year ? Math.floor(book.year / 10) * 10 : null,
     }))
-    isLoaded.value = true
-  } catch (error) {
-    console.error('Não foi possível carregar os livros:', error)
-    loadError.value = 'Não foi possível carregar os livros. Atualize a página ou tente novamente mais tarde.'
-  }
+}
+
+async function manageBook(method, book, original = null) {
+  const response = await fetch(`${import.meta.env.BASE_URL}api/books`, {
+    method, headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ book, index: original?.original_index, snapshot: original?._snapshot }),
+  })
+  const data = await response.json().catch(() => null)
+  if (!response.ok || !Array.isArray(data?.books)) throw new Error(data?.error || 'Não foi possível salvar. Execute o servidor do projeto e tente novamente.')
+  setBooks(data.books)
+  isLoaded.value = true
+  loadError.value = ''
 }
 
 // --- Computed: listas de filtros disponíveis ---
@@ -219,6 +236,7 @@ export function useBooks() {
     isLoaded,
     loadError,
     loadBooks,
+    manageBook,
 
     // Filtros
     filterGenre,
