@@ -1,135 +1,114 @@
 <template>
   <section class="landing-closing" aria-labelledby="closing-heading">
-    <div class="closing-card-box">
-      <div class="closing-logo-wrap">
-        <AppLogo :size="48" />
-      </div>
-      <div class="closing-eyebrow">CÍRCULO UNIVERSITÁRIO</div>
-      <h2 id="closing-heading" class="closing-title-serif">
-        Pronto para cultivar seu diário de leitura?
-      </h2>
-      <div class="closing-button-group">
-        <NuxtLink to="/entrar" class="btn-primary btn-lg btn-closing-action">
-          <span>Entrar na sua conta</span>
-          <svg class="btn-arrow-icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 8h10M9 4l4 4-4 4" />
-          </svg>
-        </NuxtLink>
-      </div>
+    <h2 id="closing-heading" class="closing-heading">
+      Qual foi o último livro que você terminou?
+    </h2>
+    <p class="closing-text">
+      Entre, procure o título e registre. Se ele não estiver no catálogo, dá para adicionar à mão.
+    </p>
+
+    <div class="closing-actions">
+      <NuxtLink to="/entrar" class="closing-cta">
+        Entrar
+      </NuxtLink>
+      <NuxtLink to="/entrar/ativar" class="closing-link">
+        Primeiro acesso
+      </NuxtLink>
     </div>
   </section>
 </template>
 
-<script setup lang="ts">
-import AppLogo from '~/components/ui/AppLogo.vue'
-</script>
-
 <style scoped>
 .landing-closing {
   width: 100%;
-  margin-bottom: var(--space-4);
+  max-width: 40rem;
+  padding-bottom: var(--space-4);
 }
 
-.closing-card-box {
-  background: linear-gradient(180deg, var(--card-bg) 0%, rgba(35, 42, 49, 0.7) 100%);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: var(--radius-lg);
-  padding: var(--space-10) var(--space-6);
-  text-align: center;
-  max-width: 95vw;
-  margin: 0 auto;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-}
-
-.closing-logo-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-4);
-}
-
-.closing-eyebrow {
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.1em;
-  color: var(--highlight);
-  font-weight: 700;
-  margin-bottom: var(--space-3);
-}
-
-.closing-title-serif {
+.closing-heading {
+  margin: 0 0 var(--space-3);
   font-family: var(--font-serif);
-  font-size: clamp(1.75rem, 3vw, 2.3rem);
+  font-size: var(--font-size-2xl);
   font-weight: 700;
-  color: #fff;
-  line-height: 1.2;
-  margin: 0 0 var(--space-8) 0;
+  font-style: normal;
+  line-height: var(--line-height-tight);
   letter-spacing: -0.015em;
+  color: var(--poster-border);
+  text-wrap: balance;
 }
 
-.closing-body-text {
-  font-size: 0.98rem;
-  color: var(--text-color);
+.closing-text {
+  max-width: 34rem;
+  margin: 0 0 var(--space-6);
+  font-size: var(--font-size-base);
   line-height: var(--line-height-relaxed);
-  max-width: 580px;
-  margin: 0 auto var(--space-6) auto;
+  color: var(--text-color);
 }
 
-.closing-button-group {
+.closing-actions {
   display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-4);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-6);
 }
 
-.btn-closing-action {
+.closing-cta {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-8);
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: var(--space-12);
+  padding: 0 var(--space-10);
+  border-radius: var(--radius-sm);
+  background-color: var(--highlight);
+  color: var(--bg-color);
   font-size: var(--font-size-base);
   font-weight: 700;
-  background-color: var(--highlight);
-  color: #000;
   text-decoration: none;
-  border-radius: var(--radius-sm);
-  border: none;
-  cursor: pointer;
-  min-height: 44px;
-  box-sizing: border-box;
-  transition: opacity 0.2s, background-color 0.2s, transform 0.2s;
+  white-space: nowrap;
+  transition: background-color 0.15s ease-out;
 }
 
-.btn-closing-action:hover {
-  opacity: 0.95;
+.closing-cta:hover {
   background-color: var(--highlight-hover);
-  transform: translateY(-2px);
 }
 
-.btn-closing-action:focus-visible {
+.closing-cta:active {
+  background-color: var(--highlight-hover);
+  transform: translateY(1px);
+}
+
+.closing-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min-size);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.closing-link:hover {
+  color: var(--highlight);
+}
+
+.closing-cta:focus-visible,
+.closing-link:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }
 
-.btn-arrow-icon {
-  transition: transform 0.2s;
-}
-
-.btn-closing-action:hover .btn-arrow-icon {
-  transform: translateX(3px);
-}
-
-@media (max-width: 640px) {
-  .closing-card-box {
-    padding: var(--space-6) var(--space-4);
+@media (min-width: 900px) {
+  .closing-heading {
+    font-size: var(--font-size-3xl);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn-closing-action {
-    transition: none;
-    transform: none !important;
-  }
-
-  .btn-closing-action:hover .btn-arrow-icon {
-    transform: none !important;
+  .closing-cta:active {
+    transform: none;
   }
 }
 </style>

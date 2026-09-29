@@ -361,7 +361,7 @@ describe('Page stubs and route parameters', () => {
 
     const wIndex = mount(IndexPage)
     await flushAsync()
-    expect(wIndex.text()).toContain('Início')
+    expect(wIndex.text()).toContain('Terminou o livro? Conte pro grupo.')
     wIndex.unmount()
 
     const wLogin = mount(LoginPage)
