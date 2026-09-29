@@ -63,7 +63,7 @@ describe('FilterBar.vue', () => {
     expect(countrySelect?.value).toBe('')
 
     const selectedOption = countrySelect?.options[countrySelect.selectedIndex]
-    expect(selectedOption?.textContent?.trim()).toBe('Todos os Países')
+    expect(selectedOption?.textContent?.trim()).toBe('Todos os países')
 
     const resetBtn = wrapper.find('button.reset-btn')
     expect(resetBtn).toBeNull()

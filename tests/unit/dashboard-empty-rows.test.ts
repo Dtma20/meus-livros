@@ -126,7 +126,7 @@ describe('ShelfSection.vue', () => {
     const links = wrapper.findAll<HTMLAnchorElement>('a')
     expect(links).toHaveLength(1)
     expect(links[0]?.getAttribute('href')).toBe('/app/novo?tab=novo')
-    expect(links[0]?.textContent?.trim()).toBe('Adicionar livro →')
+    expect(links[0]?.textContent?.trim()).toBe('Adicionar livro')
     wrapper.unmount()
   })
 
@@ -134,8 +134,8 @@ describe('ShelfSection.vue', () => {
     const wrapper = mount(ShelfSection, { books: [shelfBook] })
 
     expect(wrapper.find('.shelf-empty-row')).toBeNull()
-    expect(wrapper.find('h2')?.textContent).toBe('Minha estante')
-    expect(wrapper.text()).toContain('1 livro cadastrado aguardando leitura')
+    expect(wrapper.find('h2')?.textContent).toContain('Na estante')
+    expect(wrapper.find('.section-count')?.textContent?.trim()).toBe('1')
     const plus = wrapper.findAll('a').filter((a) => a.textContent?.trim() === '+')
     expect(plus).toHaveLength(0)
     wrapper.unmount()
@@ -160,7 +160,7 @@ describe('dashboard order', () => {
     expect(wrapper.find('.in-progress-section')).toBeNull()
     expect(inProgressRow?.textContent).toContain('Nada em leitura agora')
     expect(inProgressRow?.querySelector('a')?.getAttribute('href')).toBe('/app/novo')
-    expect(inProgressRow?.querySelector('a')?.textContent?.trim()).toBe('Começar a ler →')
+    expect(inProgressRow?.querySelector('a')?.textContent?.trim()).toBe('Começar a ler')
     expect(isBefore(feed, inProgressRow)).toBe(true)
     expect(isBefore(inProgressRow, shelfRow)).toBe(true)
     wrapper.unmount()

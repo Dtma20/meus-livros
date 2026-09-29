@@ -9,7 +9,7 @@
             class="filter-select"
             @change="$emit('update:genre', ($event.target as HTMLSelectElement).value)"
           >
-            <option value="">Todos os Gêneros</option>
+            <option value="">Todos os gêneros</option>
             <option v-for="g in availableGenres" :key="g" :value="g">
               {{ g }}
             </option>
@@ -21,7 +21,7 @@
             class="filter-select"
             @change="$emit('update:country', ($event.target as HTMLSelectElement).value)"
           >
-            <option value="">Todos os Países</option>
+            <option value="">Todos os países</option>
             <option v-for="c in availableCountries" :key="c" :value="c">
               {{ c }}
             </option>
@@ -33,7 +33,7 @@
             class="filter-select"
             @change="$emit('update:decade', ($event.target as HTMLSelectElement).value)"
           >
-            <option value="">Todas as Décadas</option>
+            <option value="">Todas as décadas</option>
             <option v-for="d in availableDecades" :key="d" :value="d">
               Anos {{ d }}
             </option>
@@ -48,11 +48,11 @@
             class="filter-select sort-select"
             @change="$emit('update:sortBy', ($event.target as HTMLSelectElement).value)"
           >
-            <option value="read_desc">Lidos Recentemente</option>
-            <option value="read_asc">Lidos Antigamente</option>
-            <option value="rating">Melhores Notas</option>
-            <option value="year_desc">Publicação (Novo)</option>
-            <option value="year_asc">Publicação (Velho)</option>
+            <option value="read_desc">Lidos por último</option>
+            <option value="read_asc">Lidos primeiro</option>
+            <option value="rating">Melhores notas</option>
+            <option value="year_desc">Mais novos</option>
+            <option value="year_asc">Mais antigos</option>
             <option value="alpha">A-Z</option>
           </select>
 
@@ -92,31 +92,20 @@ defineEmits<{
 
 <style scoped>
 .filter-bar {
-  margin-bottom: var(--space-6, 24px);
+  margin-bottom: var(--space-4, 16px);
   width: 100%;
 }
 
-.filter-container {
-  background-color: #1e2328;
-  padding: var(--space-3, 12px) var(--space-4, 16px);
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid var(--input-bg, #2c3440);
-  box-sizing: border-box;
+.filter-row,
+.filter-group {
+  display: flex;
+  gap: var(--space-2, 8px) var(--space-3, 12px);
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 .filter-row {
-  display: flex;
-  gap: var(--space-3, 12px);
-  flex-wrap: wrap;
   justify-content: space-between;
-  align-items: center;
-}
-
-.filter-group {
-  display: flex;
-  gap: var(--space-2, 8px);
-  align-items: center;
-  flex-wrap: wrap;
 }
 
 .sort-label {
@@ -126,8 +115,8 @@ defineEmits<{
 
 .filter-select {
   background-color: var(--input-bg, #2c3440);
-  color: #fff;
-  border: 1px solid #456;
+  color: var(--text-bright);
+  border: 1px solid transparent;
   padding: 8px 12px;
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
@@ -135,34 +124,45 @@ defineEmits<{
   font-family: inherit;
 }
 
-.filter-select:focus {
-  border-color: var(--highlight, #f59e0b);
+.filter-select:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline-offset: var(--focus-ring-offset, 2px);
 }
 
 .reset-btn {
   background: none;
-  border: 1px solid var(--text-color, #9ab);
-  color: var(--text-color, #9ab);
-  padding: 8px 12px;
-  border-radius: var(--radius-sm, 4px);
+  border: none;
+  color: var(--text-bright);
+  padding: 8px 0;
   cursor: pointer;
-  font-size: var(--font-size-xs, 0.75rem);
+  font-size: var(--font-size-sm, 0.875rem);
   font-family: inherit;
-  transition: border-color 0.2s, color 0.2s;
+  text-decoration: underline;
+  text-decoration-color: var(--highlight, #f59e0b);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+  transition: color 0.2s;
 }
 
 .reset-btn:hover {
-  border-color: #fff;
-  color: #fff;
+  color: var(--highlight, #f59e0b);
 }
 
 .reset-btn:focus-visible {
-  outline: 2px solid var(--highlight, #f59e0b);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline-offset: var(--focus-ring-offset, 2px);
+}
+
+@media (pointer: coarse) {
+  .filter-select,
+  .reset-btn {
+    min-height: var(--target-min-size, 44px);
+  }
 }
 
 @media (max-width: 640px) {
-  .filter-row {
+  .filter-row,
+  .filter-group {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
@@ -178,15 +178,24 @@ defineEmits<{
     min-width: 0;
     min-height: var(--target-min-size);
     box-sizing: border-box;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   .reset-btn {
     grid-column: 1 / -1;
-    width: 100%;
+    justify-self: start;
     min-height: var(--target-min-size);
-    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 420px) {
+  .filter-select {
     font-size: var(--font-size-sm);
+    padding-left: var(--space-2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reset-btn {
+    transition: none;
   }
 }
 </style>

@@ -77,6 +77,8 @@ export async function getFeedPage(
       id: reading_logs.id,
       rating: reading_logs.rating,
       review: reading_logs.review,
+      started_on: reading_logs.started_on,
+      finished_on: reading_logs.finished_on,
       created_at: reading_logs.created_at,
       cursor_created_at: sql<string>`to_char(reading_logs.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
       user: {
@@ -90,6 +92,9 @@ export async function getFeedPage(
         first_published_year: works.first_published_year,
         cover_url: sql<string | null>`(
           SELECT e.cover_url FROM editions e WHERE e.work_id = works.id AND e.cover_url IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
+        )`,
+        isbn13: sql<string | null>`(
+          SELECT e.isbn13 FROM editions e WHERE e.work_id = works.id AND e.isbn13 IS NOT NULL ORDER BY e.created_at, e.id LIMIT 1
         )`,
       },
       edition: {
@@ -143,6 +148,8 @@ export async function getFeedPage(
     id: row.id,
     rating: row.rating !== null ? Number(row.rating) : null,
     review_excerpt: buildReviewExcerpt(row.review),
+    started_on: row.started_on,
+    finished_on: row.finished_on,
     created_at: row.created_at,
     user: row.user,
     work: {

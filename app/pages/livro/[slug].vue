@@ -96,7 +96,10 @@
 
         <div class="work-main">
           <section v-if="userLogs.length > 0" class="user-logs-section">
-            <h2 class="section-title">Suas leituras ({{ userLogs.length }})</h2>
+            <h2 class="section-title">
+              Suas leituras
+              <span class="logs-count">{{ userLogs.length }}</span>
+            </h2>
             <ul class="user-logs-list">
               <li
                 v-for="log in userLogs"
@@ -124,8 +127,8 @@
 
           <section class="logs-section">
             <h2 class="section-title">
-              Registros de leitura
-              <span v-if="work.log_count > 0" class="logs-count">({{ work.log_count }})</span>
+              {{ userLogs.length > 0 ? 'Outros leitores' : 'Quem leu' }}
+              <span v-if="groupLogs.length > 0" class="logs-count">{{ groupLogs.length }}</span>
             </h2>
 
             <div v-if="work.logs.length === 0" class="empty-logs">
@@ -136,16 +139,25 @@
               />
             </div>
 
+            <p v-else-if="groupLogs.length === 0" class="logs-none">
+              Só você registrou este livro até agora.
+            </p>
+
             <ul v-else class="logs-list">
               <li
-                v-for="log in work.logs"
+                v-for="log in groupLogs"
                 :key="log.id"
                 class="log-item"
               >
                 <div class="log-header">
-                  <NuxtLink :to="'/@' + log.user.handle" class="user-link">
-                    @{{ log.user.handle }}
-                  </NuxtLink>
+                  <span class="log-who">
+                    <NuxtLink :to="'/@' + log.user.handle" class="user-link">
+                      @{{ log.user.handle }}
+                    </NuxtLink>
+                    <span class="log-when">
+                      {{ log.finished_on ? `terminou em ${formatReadingDate(log.finished_on, log.finished_precision)}` : 'lendo agora' }}
+                    </span>
+                  </span>
 
                   <div v-if="log.rating !== null && log.rating > 0" class="log-rating">
                     <StarRating :rating="log.rating" />
@@ -170,7 +182,7 @@
           </section>
 
           <section v-if="hasEditionsToShow" class="editions-section">
-            <h2 class="section-title">Edições cadastradas</h2>
+            <h2 class="section-title">Edições</h2>
             <ul class="editions-list">
               <li
                 v-for="edition in work.editions"
@@ -350,8 +362,17 @@ const userLogs = computed(() => {
     })
 })
 
+const openUserLog = computed(() => userLogs.value.find((l) => !l.finished_on) ?? null)
+
+const groupLogs = computed(() => {
+  if (!work.value) return []
+  const userId = session.value?.user?.id
+  return userId ? work.value.logs.filter((l) => l.user.id !== userId) : work.value.logs
+})
+
 const primaryActionHref = computed(() => {
   if (!work.value) return '#'
+  if (openUserLog.value) return `/entrada/${openUserLog.value.id}`
   if (isMember.value) {
     return `/app/novo?work_id=${work.value.id}`
   }
@@ -362,6 +383,7 @@ const primaryActionLabel = computed(() => {
   if (!isMember.value) {
     return 'Entrar para registrar'
   }
+  if (openUserLog.value) return 'Continuar lendo'
   return userLogs.value.length > 0 ? 'Registrar releitura' : 'Registrar leitura'
 })
 
@@ -417,9 +439,9 @@ async function handleDeleteWork(): Promise<void> {
 <style scoped>
 .page-container {
   width: 100%;
-  max-width: 900px;
+  max-width: 72rem;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-6) 0;
   box-sizing: border-box;
 }
 
@@ -597,8 +619,9 @@ async function handleDeleteWork(): Promise<void> {
 .work-genres {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
   margin-top: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
 }
 
 @media (max-width: 640px) {
@@ -607,14 +630,10 @@ async function handleDeleteWork(): Promise<void> {
   }
 }
 
-.genre-chip {
-  display: inline-block;
-  background-color: var(--input-bg);
-  color: #fff;
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  padding: var(--space-1) var(--space-3);
-  line-height: 1;
+.genre-chip:not(:last-child)::after {
+  content: "·";
+  padding: 0 var(--space-2);
+  color: var(--text-color);
 }
 
 .section-title {
@@ -626,9 +645,12 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 .logs-count {
+  font-family: var(--font-sans);
   color: var(--text-color);
-  font-size: var(--font-size-base);
-  font-weight: normal;
+  font-size: var(--font-size-sm);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--space-1);
 }
 
 .user-logs-section {
@@ -670,8 +692,10 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 .user-log-link {
-  color: var(--highlight);
-  text-decoration: none;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-underline-offset: 0.3em;
   font-size: var(--font-size-sm);
   font-weight: 500;
   min-height: var(--target-min-size, 44px);
@@ -686,7 +710,7 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 .user-log-link:hover {
-  text-decoration: underline;
+  color: var(--highlight);
 }
 
 .editions-section {
@@ -765,13 +789,33 @@ async function handleDeleteWork(): Promise<void> {
   text-decoration: underline;
 }
 
+.log-who {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+}
+
+.log-when {
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+}
+
+.logs-none {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+}
+
 .log-review {
   margin: var(--space-2) 0 var(--space-3) 0;
 }
 
 .entry-link {
-  color: var(--highlight);
-  text-decoration: none;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-underline-offset: 0.3em;
   font-size: var(--font-size-sm);
   font-weight: 500;
 }
@@ -783,7 +827,7 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 .entry-link:hover {
-  text-decoration: underline;
+  color: var(--highlight);
 }
 
 .work-creator-actions {
@@ -842,10 +886,6 @@ async function handleDeleteWork(): Promise<void> {
 }
 
 @media (min-width: 1024px) {
-  .page-container {
-    max-width: 1100px;
-  }
-
   .work-card {
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);

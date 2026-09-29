@@ -401,10 +401,10 @@ async function mountProfilePage() {
   }
 }
 
-function headerStat(container: HTMLElement, label: string): string {
-  const boxes = Array.from(container.querySelectorAll('.profile-header .stat-box'))
-  const box = boxes.find((b) => b.querySelector('.stat-label')?.textContent?.trim() === label)
-  return box?.querySelector('.stat-value')?.textContent?.trim() ?? ''
+function headerStat(container: HTMLElement, label: 'Livros' | 'Autores' | 'Países'): string {
+  const order = { Livros: 0, Autores: 1, Países: 2 }
+  const stats = Array.from(container.querySelectorAll('.profile-header .stats .stat'))
+  return stats[order[label]]?.querySelector('.stat-num')?.textContent?.trim() ?? ''
 }
 
 async function chooseOption(container: HTMLElement, value: string) {

@@ -55,12 +55,12 @@
         </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
 
-        <div class="stats" aria-label="Estatísticas dos livros exibidos">
-          <StatBox :value="filteredStats.totalBooks" label="Livros" />
-          <StatBox :value="filteredStats.uniqueAuthors" label="Autores" />
-          <StatBox :value="filteredStats.uniqueCountries" label="Países" />
-        </div>
-        <small v-if="hasActiveFilters" class="filter-indicator stats-filter-indicator">(filtros ativos)</small>
+        <p class="stats" aria-label="Estatísticas dos livros exibidos">
+          <span class="stat"><span class="stat-num">{{ filteredStats.totalBooks.toLocaleString('pt-BR') }}</span> {{ filteredStats.totalBooks === 1 ? 'livro' : 'livros' }}</span>
+          <span class="stat"><span class="stat-num">{{ filteredStats.uniqueAuthors.toLocaleString('pt-BR') }}</span> {{ filteredStats.uniqueAuthors === 1 ? 'autor' : 'autores' }}</span>
+          <span class="stat"><span class="stat-num">{{ filteredStats.uniqueCountries.toLocaleString('pt-BR') }}</span> {{ filteredStats.uniqueCountries === 1 ? 'país' : 'países' }}</span>
+          <small v-if="hasActiveFilters" class="filter-indicator stats-filter-indicator">(filtros ativos)</small>
+        </p>
         <div class="stats-action">
           <NuxtLink :to="`/@${profile.user.handle}/estatisticas`" class="stats-link">
             Ver estatísticas
@@ -260,7 +260,6 @@ import BookCard from '~/components/book/BookCard.vue'
 import BookGrid from '~/components/book/BookGrid.vue'
 import DiaryList from '~/components/profile/DiaryList.vue'
 import FilterBar from '~/components/profile/FilterBar.vue'
-import StatBox from '~/components/profile/StatBox.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
@@ -536,32 +535,34 @@ onBeforeUnmount(() => {
 <style scoped>
 .profile-page {
   width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
 }
 
 .profile-header {
-  text-align: center;
+  text-align: left;
   margin-bottom: var(--space-8, 32px);
 }
 
 .identity {
-  width: fit-content;
   max-width: 100%;
-  margin: 0 auto;
 }
 
 .name-row {
   display: flex;
   align-items: baseline;
-  justify-content: center;
+  justify-content: flex-start;
   gap: var(--space-3, 12px);
   flex-wrap: wrap;
 }
 
 .display-name {
+  font-family: var(--font-serif);
   font-size: var(--font-size-3xl, 2rem);
-  font-weight: 700;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   margin: 0;
-  color: #fff;
+  color: var(--text-bright);
   line-height: var(--line-height-tight, 1.2);
 }
 
@@ -591,7 +592,7 @@ onBeforeUnmount(() => {
 }
 
 .copy-feedback {
-  margin: var(--space-1, 4px) 0 0 0;
+  margin: 0;
   min-height: 1.25em;
   font-size: var(--font-size-xs, 0.75rem);
   color: var(--text-color, #9ab);
@@ -600,37 +601,33 @@ onBeforeUnmount(() => {
 .profile-actions {
   display: flex;
   align-items: stretch;
-  gap: var(--space-3, 12px);
-  justify-content: center;
-  margin-top: var(--space-5, 20px);
+  gap: var(--space-5, 20px);
+  justify-content: flex-start;
+  margin-top: var(--space-3, 12px);
   margin-bottom: var(--space-6, 24px);
 }
 
 .profile-actions > * {
-  flex: 1 1 0;
-  justify-content: center;
-  text-align: center;
   white-space: nowrap;
 }
 
 .btn-edit-profile {
   display: inline-flex;
   align-items: center;
-  padding: var(--space-2, 8px) var(--space-4, 16px);
+  padding: var(--space-1, 4px) 0;
   font-size: var(--font-size-sm, 0.875rem);
   color: var(--text-color, #9ab);
-  background-color: var(--card-bg, #232a31);
-  border: 1px solid var(--input-bg, #2c3440);
-  border-radius: var(--radius-sm, 4px);
-  text-decoration: none;
+  text-decoration: underline;
+  text-decoration-color: var(--input-bg, #2c3440);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
   line-height: var(--line-height-normal, 1.5);
-  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+  transition: color 0.2s;
   min-height: 36px;
 }
 
 .btn-edit-profile:hover {
-  color: #fff;
-  border-color: var(--highlight, #f59e0b);
+  color: var(--text-bright);
 }
 
 .btn-edit-profile:focus-visible {
@@ -639,47 +636,39 @@ onBeforeUnmount(() => {
 }
 
 .visibility-bar {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-6, 24px);
+  margin-bottom: var(--space-5, 20px);
 }
 
 .visibility-nav {
-  display: inline-flex;
-  background-color: var(--card-bg, #232a31);
-  padding: var(--space-1, 4px);
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid var(--input-bg, #2c3440);
-  gap: var(--space-1, 4px);
+  display: flex;
+  gap: var(--space-5, 20px);
   flex-wrap: wrap;
-  justify-content: center;
 }
 
 .visibility-tab {
   background: none;
   border: none;
+  border-bottom: 2px solid transparent;
   color: var(--text-color, #9ab);
   font-size: var(--font-size-sm, 0.875rem);
   font-family: inherit;
   font-weight: 500;
-  padding: var(--space-2, 8px) var(--space-3, 12px);
-  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-2, 8px) 0;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2, 8px);
   min-height: 36px;
-  transition: color 0.2s, background-color 0.2s;
+  transition: color 0.2s;
 }
 
 .visibility-tab:hover:not(.active) {
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .visibility-tab.active {
-  background-color: var(--highlight, #f59e0b);
-  color: #14181c;
-  font-weight: 700;
+  color: var(--text-bright);
+  border-bottom-color: var(--highlight, #f59e0b);
 }
 
 .visibility-tab:focus-visible {
@@ -689,16 +678,8 @@ onBeforeUnmount(() => {
 
 .tab-count {
   font-size: var(--font-size-xs, 0.75rem);
-  padding: 1px 6px;
-  border-radius: var(--radius-full, 9999px);
-  background-color: rgba(0, 0, 0, 0.25);
-  color: inherit;
-}
-
-.visibility-tab.active .tab-count {
-  background-color: rgba(20, 24, 28, 0.2);
-  color: #14181c;
-  font-weight: 700;
+  color: var(--text-color, #9ab);
+  font-variant-numeric: tabular-nums;
 }
 
 .empty-visibility-results {
@@ -709,47 +690,55 @@ onBeforeUnmount(() => {
   color: var(--text-color, #9ab);
   font-size: var(--font-size-base, 1rem);
   max-width: 600px;
-  margin: 0 auto var(--space-6, 24px) auto;
+  margin: var(--space-3, 12px) 0 var(--space-4, 16px);
   line-height: var(--line-height-relaxed, 1.6);
   white-space: pre-wrap;
 }
 
 .stats {
   display: flex;
-  justify-content: center;
-  gap: var(--space-8, 32px);
-  margin-top: var(--space-5, 20px);
-  margin-bottom: var(--space-6, 24px);
+  flex-wrap: wrap;
+  align-items: baseline;
+  margin: var(--space-3, 12px) 0 0;
+  color: var(--text-color, #9ab);
+  font-size: var(--font-size-base, 1rem);
 }
 
-.identity:has(.profile-actions) + .stats,
-.identity:has(.profile-actions) + .bio + .stats {
-  margin-top: 0;
+.stat + .stat::before {
+  content: '\00b7';
+  margin: 0 var(--space-2, 8px);
 }
 
-.stats:has(+ .stats-filter-indicator) {
-  margin-bottom: var(--space-2, 8px);
+.stat-num {
+  color: var(--text-bright);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats .stats-filter-indicator {
+  margin: 0 0 0 var(--space-3, 12px);
 }
 
 .stats-action {
-  margin-top: var(--space-2, 8px);
+  margin-top: var(--space-1, 4px);
 }
 
 .stats-link {
   display: inline-flex;
   align-items: center;
   font-size: var(--font-size-sm, 0.875rem);
-  color: var(--highlight, #f59e0b);
-  text-decoration: none;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight, #f59e0b);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
   min-height: var(--target-min-size, 44px);
-  padding: var(--space-1, 4px) var(--space-3, 12px);
   border-radius: var(--radius-sm, 4px);
   transition: color 0.2s;
 }
 
 .stats-link:hover {
-  text-decoration: underline;
-  color: var(--highlight-hover, #d97706);
+  color: var(--highlight, #f59e0b);
 }
 
 .stats-link:focus-visible {
@@ -775,9 +764,8 @@ onBeforeUnmount(() => {
 
 .view-toggle-bar {
   display: flex;
-  justify-content: center;
-  margin-top: var(--space-2);
-  margin-bottom: var(--space-6, 24px);
+  justify-content: flex-start;
+  margin-bottom: var(--space-4, 16px);
 }
 
 @media (max-width: 640px) {
@@ -788,43 +776,38 @@ onBeforeUnmount(() => {
   }
 
   .view-toggle-bar {
-    margin-top: 0;
+    order: -1;
   }
 }
 
 .view-nav {
   display: inline-flex;
-  background-color: var(--card-bg, #232a31);
-  padding: var(--space-1, 4px);
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid var(--input-bg, #2c3440);
-  gap: var(--space-1, 4px);
+  gap: var(--space-5, 20px);
 }
 
 .view-tab {
   background: none;
   border: none;
+  border-bottom: 2px solid transparent;
   color: var(--text-color, #9ab);
   font-size: var(--font-size-sm, 0.875rem);
   font-family: inherit;
   font-weight: 500;
-  padding: var(--space-2, 8px) var(--space-4, 16px);
-  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-2, 8px) 0;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  transition: color 0.2s, background-color 0.2s;
+  transition: color 0.2s;
 }
 
 .view-tab:hover:not(.active) {
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .view-tab.active {
-  background-color: var(--highlight, #f59e0b);
-  color: #14181c;
-  font-weight: 700;
+  color: var(--text-bright);
+  border-bottom-color: var(--highlight, #f59e0b);
 }
 
 .view-tab:focus-visible {
@@ -866,20 +849,17 @@ onBeforeUnmount(() => {
   padding-top: var(--space-5, 20px);
   border-top: 1px solid var(--input-bg, #2c3440);
   display: flex;
-  justify-content: center;
-  gap: var(--space-10, 40px);
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px) var(--space-8, 32px);
   color: var(--text-color, #9ab);
 }
 
-.page-stat {
-  text-align: center;
-}
-
 .page-stat strong {
-  display: block;
-  font-size: var(--font-size-xl, 1.25rem);
-  color: #fff;
-  line-height: var(--line-height-tight, 1.2);
+  font-size: var(--font-size-base, 1rem);
+  font-weight: 600;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+  margin-right: var(--space-1, 4px);
 }
 
 .page-stat-label {
@@ -888,10 +868,9 @@ onBeforeUnmount(() => {
 }
 
 .filter-indicator {
-  display: block;
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--highlight, #f59e0b);
-  margin-top: 2px;
+  color: var(--text-color, #9ab);
+  font-weight: 400;
 }
 
 .loading-state,
@@ -909,17 +888,8 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 600px) {
-  .identity {
-    width: 100%;
-  }
   .profile-actions {
     flex-wrap: wrap;
-  }
-  .stats {
-    gap: var(--space-5, 20px);
-  }
-  .paginometer {
-    gap: var(--space-5, 20px);
   }
 }
 
