@@ -75,14 +75,8 @@ const authorsText = computed(() => {
   display: flex;
   gap: var(--space-4);
   background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
   border-radius: var(--radius-md);
   padding: var(--space-4);
-  transition: border-color 0.2s;
-}
-
-.feed-row:hover {
-  border-color: var(--highlight);
 }
 
 .feed-cover-col {
@@ -92,7 +86,7 @@ const authorsText = computed(() => {
   border-radius: var(--radius-sm);
   overflow: hidden;
   border: 1px solid var(--input-bg);
-  background-color: #1e2328;
+  background-color: var(--input-bg);
   flex-shrink: 0;
 }
 
@@ -125,9 +119,11 @@ const authorsText = computed(() => {
   color: #fff;
   text-decoration: none;
   line-height: var(--line-height-tight);
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .feed-work-title:hover {
@@ -191,12 +187,6 @@ const authorsText = computed(() => {
   .feed-cover-col {
     width: 60px;
     min-width: 60px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .feed-row {
-    transition: none;
   }
 }
 </style>

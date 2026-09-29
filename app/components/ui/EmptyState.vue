@@ -1,6 +1,6 @@
 <template>
   <div class="empty-state" role="status">
-    <div v-if="icon" class="empty-icon">
+    <div v-if="icon" class="empty-icon" aria-hidden="true">
       {{ icon }}
     </div>
     <slot name="icon" />
@@ -80,7 +80,6 @@ defineEmits<{
   border-radius: var(--radius-md, 8px);
   background-color: var(--card-bg, #232a31);
   color: var(--text-color, #9ab);
-  border: 1px solid var(--input-bg, #2c3440);
   width: 100%;
   box-sizing: border-box;
 }
@@ -96,6 +95,7 @@ defineEmits<{
   font-size: var(--font-size-xl, 1.25rem);
   font-weight: 600;
   margin: 0 0 var(--space-2, 8px) 0;
+  text-wrap: balance;
 }
 
 .empty-message {
@@ -104,6 +104,7 @@ defineEmits<{
   max-width: 480px;
   line-height: var(--line-height-normal, 1.5);
   margin: 0 0 var(--space-4, 16px) 0;
+  text-wrap: pretty;
 }
 
 .empty-action {
@@ -115,21 +116,25 @@ defineEmits<{
   align-items: center;
   justify-content: center;
   background-color: var(--highlight, #f59e0b);
-  color: #000;
-  font-weight: bold;
+  color: var(--bg-color, #14181c);
+  font-weight: 600;
   font-size: var(--font-size-sm, 0.875rem);
-  padding: 8px 16px;
-  min-height: 44px;
+  padding: var(--space-2, 8px) var(--space-4, 16px);
+  min-height: var(--target-min-size, 44px);
   box-sizing: border-box;
   border-radius: var(--radius-sm, 4px);
   border: none;
   cursor: pointer;
   text-decoration: none;
-  transition: opacity 0.2s;
+  transition: background-color 0.15s;
 }
 
 .empty-btn:hover {
-  opacity: 0.9;
+  background-color: var(--highlight-hover, #d97706);
+}
+
+.empty-btn:active {
+  transform: translateY(1px);
 }
 
 .empty-btn:focus-visible {
