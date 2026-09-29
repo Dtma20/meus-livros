@@ -142,7 +142,6 @@ const accessibleSummary = computed(() => {
   min-height: 2px;
   background-color: var(--star-color);
   border-radius: 1px;
-  transition: height 0.2s ease;
 }
 
 .histogram-bar[data-count="0"] {

@@ -6,19 +6,15 @@
   >
     <p class="shelf-empty-row-text">Nenhum livro esperando na estante</p>
     <NuxtLink to="/app/novo?tab=novo" class="shelf-empty-row-link">
-      Adicionar livro <span aria-hidden="true">→</span>
+      Adicionar livro
     </NuxtLink>
   </section>
 
   <section v-else class="dashboard-section shelf-section">
-    <div class="section-header">
-      <div>
-        <h2 class="section-title">Minha estante</h2>
-        <p class="section-subtitle">
-          {{ books.length }} {{ books.length === 1 ? 'livro cadastrado aguardando leitura' : 'livros cadastrados aguardando leitura' }}
-        </p>
-      </div>
-    </div>
+    <h2 class="section-title">
+      Na estante
+      <span class="section-count">{{ books.length }}</span>
+    </h2>
 
     <div class="shelf-grid">
       <article
@@ -87,74 +83,66 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 </script>
 
 <style scoped>
-.shelf-section {
-  margin-top: var(--space-2);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: var(--space-4);
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
 .section-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
   font-family: var(--font-serif);
   font-size: var(--font-size-xl);
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #fff;
-  margin: 0;
+  line-height: var(--line-height-tight);
+  color: var(--text-bright);
+  margin: 0 0 var(--space-4);
 }
 
-.section-subtitle {
+.section-count {
+  font-family: var(--font-sans);
   font-size: var(--font-size-sm);
+  font-weight: 400;
   color: var(--text-color);
-  margin: var(--space-1) 0 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .shelf-empty-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-md);
-  box-sizing: border-box;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
 }
 
 .shelf-empty-row-text {
-  flex: 1;
-  min-width: 0;
   margin: 0;
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-tight);
+  font-size: var(--font-size-sm);
   color: var(--text-color);
 }
 
-.shelf-empty-row-link {
+.shelf-empty-row-link,
+.btn-start-reading {
   display: inline-flex;
   align-items: center;
-  flex-shrink: 0;
-  min-height: var(--target-min-size);
-  padding: 0 var(--space-1);
+  min-height: var(--space-8);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--highlight);
-  text-decoration: none;
-  white-space: nowrap;
-  box-sizing: border-box;
-}
-
-.shelf-empty-row-link:hover {
+  color: var(--text-bright);
   text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
 }
 
-.shelf-empty-row-link:focus-visible {
+.shelf-empty-row-link {
+  min-height: var(--target-min-size);
+}
+
+.shelf-empty-row-link:hover,
+.btn-start-reading:hover {
+  color: var(--highlight);
+}
+
+.shelf-empty-row-link:focus-visible,
+.btn-start-reading:focus-visible,
+.shelf-title:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--radius-sm);
@@ -163,25 +151,24 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 .shelf-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--space-4);
+  column-gap: var(--space-8);
+  border-top: 1px solid var(--input-bg);
 }
 
 .shelf-card {
   display: flex;
   gap: var(--space-4);
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--input-bg);
 }
 
 .shelf-cover-col {
-  width: 70px;
-  min-width: 70px;
+  width: 48px;
+  min-width: 48px;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1px solid var(--input-bg);
-  background-color: var(--input-bg);
+  background-color: var(--card-bg);
   flex-shrink: 0;
 }
 
@@ -194,21 +181,17 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 .shelf-info-col {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-1);
   flex: 1;
   min-width: 0;
 }
 
-.shelf-meta {
-  margin-bottom: var(--space-2);
-}
-
 .shelf-title {
   font-family: var(--font-serif);
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-base);
   font-weight: 600;
-  letter-spacing: -0.01em;
-  color: #fff;
+  color: var(--text-bright);
   text-decoration: none;
   line-height: var(--line-height-tight);
   display: -webkit-box;
@@ -218,60 +201,27 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 }
 
 .shelf-title:hover {
-  color: var(--highlight);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.shelf-author,
+.shelf-year {
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+  margin: 0;
 }
 
 .shelf-author {
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-  margin: var(--space-1) 0 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.shelf-year {
-  display: inline-block;
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-  margin-top: var(--space-1);
-}
-
-.shelf-actions {
+.shelf-meta {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-top: var(--space-2);
-}
-
-.btn-start-reading {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--space-8);
-  padding: 0 var(--space-3);
-  box-sizing: border-box;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--highlight);
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-  background-color: var(--highlight-soft);
-  border: 1px solid var(--highlight-glow);
-  transition: background-color 0.15s, border-color 0.15s;
-}
-
-.btn-start-reading:hover {
-  background-color: var(--highlight-glow);
-  border-color: var(--highlight);
-}
-
-.btn-start-reading:active {
-  transform: translateY(1px);
-}
-
-.btn-start-reading:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 @media (pointer: coarse) {

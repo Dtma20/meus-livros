@@ -3,17 +3,7 @@
     <LandingView v-if="!isAuthenticated" />
 
     <div v-else class="dashboard-container">
-      <header class="dashboard-header">
-        <div class="dashboard-header-text">
-          <h1 class="dashboard-title">Minha leitura</h1>
-          <p class="dashboard-subtitle">O que você está lendo e o que o grupo registrou.</p>
-        </div>
-        <div class="dashboard-header-actions">
-          <NuxtLink to="/app/novo" class="btn-primary btn-register">
-            + Registrar leitura
-          </NuxtLink>
-        </div>
-      </header>
+      <h1 class="sr-only">Início</h1>
 
       <div v-if="pending" class="dashboard-loading">
         <LoadingSkeleton :count="4" />
@@ -29,14 +19,7 @@
 
       <div v-else class="dashboard-content">
         <section v-if="inProgressBooks.length > 0" class="dashboard-section in-progress-section">
-          <div class="section-header">
-            <div>
-              <h2 class="section-title">Lendo atualmente</h2>
-              <p class="section-subtitle">
-                {{ inProgressBooks.length }} {{ inProgressBooks.length === 1 ? 'leitura em andamento' : 'leituras em andamento' }}
-              </p>
-            </div>
-          </div>
+          <h2 class="section-title">Lendo agora</h2>
 
           <div class="in-progress-grid">
             <article
@@ -72,40 +55,38 @@
                   </p>
                 </div>
 
-                <div class="in-progress-stats">
-                  <div class="progress-bar-wrap" role="progressbar" :aria-label="`Progresso de leitura de ${book.work.title}`" :aria-valuenow="book.percentage ?? (book.total_pages ? Math.min(100, Math.round((book.pages_read / book.total_pages) * 100)) : 0)" aria-valuemin="0" aria-valuemax="100">
-                    <div
-                      class="progress-bar-fill"
-                      :style="{ width: `${book.percentage ?? (book.total_pages ? Math.min(100, Math.round((book.pages_read / book.total_pages) * 100)) : 0)}%` }"
-                    />
-                  </div>
-                  <div class="progress-details">
-                    <span v-if="book.percentage !== null" class="progress-percent">
-                      {{ book.percentage }}% concluído
-                    </span>
-                    <span class="progress-pages">
-                      <template v-if="book.total_pages">
-                        {{ book.pages_read }} de {{ book.total_pages }} páginas lidas
-                      </template>
-                      <template v-else-if="book.pages_read > 0">
-                        {{ book.pages_read }} páginas lidas
-                      </template>
-                      <template v-else>
-                        Nenhum bloco registrado ainda
-                      </template>
-                    </span>
-                  </div>
-                </div>
-
-                <div class="in-progress-actions">
-                  <NuxtLink
-                    :to="`/entrada/${book.id}`"
-                    class="btn-continue-reading"
-                    :aria-label="`Continuar lendo ${book.work.title}`"
+                <div v-if="book.pages_read > 0" class="in-progress-stats">
+                  <div
+                    v-if="book.total_pages"
+                    class="progress-bar-wrap"
+                    role="progressbar"
+                    :aria-label="`Progresso de leitura de ${book.work.title}`"
+                    :aria-valuenow="progressOf(book)"
+                    aria-valuemin="0"
+                    aria-valuemax="100"
                   >
-                    Continuar lendo
-                  </NuxtLink>
+                    <div class="progress-bar-fill" :style="{ width: `${progressOf(book)}%` }" />
+                  </div>
+                  <p class="progress-pages">
+                    <template v-if="book.total_pages">
+                      Página {{ book.pages_read }} de {{ book.total_pages }}
+                    </template>
+                    <template v-else>
+                      {{ book.pages_read }} páginas lidas
+                    </template>
+                  </p>
                 </div>
+                <p v-else-if="book.started_on" class="progress-pages">
+                  Começou em {{ formatReadingDate(book.started_on) }}
+                </p>
+
+                <NuxtLink
+                  :to="`/entrada/${book.id}`"
+                  class="continue-link"
+                  :aria-label="`Continuar lendo ${book.work.title}`"
+                >
+                  Continuar lendo
+                </NuxtLink>
               </div>
             </article>
           </div>
@@ -120,12 +101,9 @@
 
         <section class="dashboard-section feed-section">
           <div class="section-header">
-            <div>
-              <h2 class="section-title">Atividade recente do grupo</h2>
-              <p class="section-subtitle">Últimas leituras registradas pelos membros</p>
-            </div>
-            <NuxtLink to="/atividade" class="btn-secondary-link">
-              Ver toda a atividade <span aria-hidden="true">→</span>
+            <h2 class="section-title">O que o grupo anda lendo</h2>
+            <NuxtLink to="/atividade" class="section-link">
+              Ver tudo
             </NuxtLink>
           </div>
 
@@ -146,18 +124,23 @@
           </div>
         </section>
 
-        <section
-          v-if="inProgressBooks.length === 0"
-          class="dashboard-empty-row in-progress-empty-row"
-          aria-label="Lendo atualmente"
+        <div
+          v-if="inProgressBooks.length === 0 || shelfBooks.length === 0"
+          class="dashboard-empty-rows"
         >
-          <p class="dashboard-empty-row-text">Nada em leitura agora</p>
-          <NuxtLink to="/app/novo" class="dashboard-empty-row-link">
-            Começar a ler <span aria-hidden="true">→</span>
-          </NuxtLink>
-        </section>
+          <section
+            v-if="inProgressBooks.length === 0"
+            class="dashboard-empty-row in-progress-empty-row"
+            aria-label="Lendo agora"
+          >
+            <p class="dashboard-empty-row-text">Nada em leitura agora</p>
+            <NuxtLink to="/app/novo" class="dashboard-empty-row-link">
+              Começar a ler
+            </NuxtLink>
+          </section>
 
-        <ShelfSection v-if="shelfBooks.length === 0" :books="shelfBooks" />
+          <ShelfSection v-if="shelfBooks.length === 0" :books="shelfBooks" />
+        </div>
       </div>
     </div>
   </div>
@@ -173,6 +156,7 @@ import FeedItem from '~/components/feed/FeedItem.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
+import { formatReadingDate } from '~/utils/entry'
 import type { AuthSessionState } from '~/middleware/auth'
 import type { FeedEntry, FeedResponse } from '~~/shared/schemas/feed'
 import type {
@@ -236,8 +220,8 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
 
   try {
     const [dashboard, feed] = await Promise.all([
-      requestFetch<DashboardResponse>('/api/dashboard').catch(() => ({ inProgress: [], completed: [], shelf: [] })),
-      requestFetch<FeedResponse>('/api/feed/recentes').catch(() => ({ entries: [] })),
+      requestFetch<DashboardResponse>('/api/dashboard'),
+      requestFetch<FeedResponse>('/api/feed/recentes'),
     ])
 
     return {
@@ -276,6 +260,12 @@ const shelfBooks = computed(() => pageData.value?.shelf ?? [])
 const entries = computed(() => pageData.value?.entries ?? [])
 const hasFeedError = computed(() => Boolean(pageData.value?.hasFeedError))
 
+function progressOf(book: DashboardInProgressBook): number {
+  if (book.percentage !== null) return book.percentage
+  if (!book.total_pages) return 0
+  return Math.min(100, Math.round((book.pages_read / book.total_pages) * 100))
+}
+
 function formatAuthors(authors?: { name: string }[]): string {
   if (!authors || authors.length === 0) return ''
   return authors.map((a) => a.name).join(', ')
@@ -311,37 +301,16 @@ useHead({
   width: 100%;
 }
 
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--highlight);
-  color: #000;
-  font-weight: 700;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  border: none;
-  cursor: pointer;
-  transition: opacity 0.2s;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.btn-primary:hover {
-  opacity: 0.9;
-}
-
-.btn-primary:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.btn-register {
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-sm);
+  border: 0;
 }
 
 .dashboard-container {
@@ -350,44 +319,10 @@ useHead({
   margin: 0 auto;
 }
 
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--input-bg);
-  flex-wrap: wrap;
-}
-
-.dashboard-header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.dashboard-title {
-  font-family: var(--font-serif);
-  font-size: var(--font-size-2xl);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  color: #fff;
-  margin: 0 0 var(--space-1) 0;
-  line-height: var(--line-height-tight);
-}
-
-.dashboard-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  margin: 0;
-}
-
 .dashboard-content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
+  gap: var(--space-12);
 }
 
 .dashboard-section {
@@ -398,7 +333,8 @@ useHead({
 .section-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: baseline;
+  gap: var(--space-4);
   margin-bottom: var(--space-4);
 }
 
@@ -407,39 +343,61 @@ useHead({
   font-size: var(--font-size-xl);
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #fff;
+  line-height: var(--line-height-tight);
+  color: var(--text-bright);
+  margin: 0 0 var(--space-4);
+}
+
+.section-header .section-title {
   margin: 0;
 }
 
-.section-subtitle {
+.section-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min-size);
   font-size: var(--font-size-sm);
   color: var(--text-color);
-  margin: var(--space-1) 0 0;
+  text-decoration: underline;
+  text-decoration-color: var(--input-bg);
+  text-underline-offset: 0.25em;
+  white-space: nowrap;
+}
+
+.section-link:hover {
+  color: var(--text-bright);
+  text-decoration-color: currentColor;
+}
+
+.section-link:focus-visible,
+.continue-link:focus-visible,
+.dashboard-empty-row-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .in-progress-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  column-gap: var(--space-8);
+  border-top: 1px solid var(--input-bg);
 }
 
 .in-progress-card {
   display: flex;
   gap: var(--space-4);
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--input-bg);
 }
 
 .in-progress-cover-col {
-  width: 75px;
-  min-width: 75px;
+  width: 64px;
+  min-width: 64px;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1px solid var(--input-bg);
-  background-color: #1e2328;
+  background-color: var(--card-bg);
   flex-shrink: 0;
 }
 
@@ -452,13 +410,10 @@ useHead({
 .in-progress-info-col {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
   flex: 1;
   min-width: 0;
-}
-
-.in-progress-meta {
-  margin-bottom: var(--space-2);
 }
 
 .in-progress-title {
@@ -466,7 +421,7 @@ useHead({
   font-size: var(--font-size-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #fff;
+  color: var(--text-bright);
   text-decoration: none;
   line-height: var(--line-height-tight);
   display: -webkit-box;
@@ -476,11 +431,12 @@ useHead({
 }
 
 .in-progress-title:hover {
-  color: var(--highlight);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 .in-progress-author {
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   color: var(--text-color);
   margin: var(--space-1) 0 0;
   white-space: nowrap;
@@ -489,182 +445,104 @@ useHead({
 }
 
 .in-progress-stats {
-  margin: var(--space-2) 0;
+  width: 100%;
+  max-width: 16rem;
 }
 
 .progress-bar-wrap {
   width: 100%;
-  height: 6px;
+  height: 3px;
   background-color: var(--input-bg);
-  border-radius: var(--radius-full);
   overflow: hidden;
+  margin-bottom: var(--space-1);
 }
 
 .progress-bar-fill {
   height: 100%;
-  background-color: var(--highlight);
-  border-radius: var(--radius-full);
-  transition: width 0.3s ease;
-}
-
-.progress-details {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: var(--space-1);
-  font-size: var(--font-size-xs);
-}
-
-.progress-percent {
-  font-weight: 700;
-  color: var(--highlight);
+  background-color: var(--text-bright);
 }
 
 .progress-pages {
+  margin: 0;
+  font-size: var(--font-size-xs);
   color: var(--text-color);
-  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
 }
 
-.in-progress-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
-.btn-continue-reading {
+.continue-link {
   display: inline-flex;
   align-items: center;
   min-height: var(--space-8);
-  padding: 0 var(--space-3);
-  box-sizing: border-box;
+  margin-top: auto;
   font-size: var(--font-size-sm);
   font-weight: 600;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
+}
+
+.continue-link:hover {
   color: var(--highlight);
-  text-decoration: none;
-  border-radius: var(--radius-sm);
-  background-color: var(--highlight-soft);
-  border: 1px solid var(--highlight-glow);
-  transition: background-color 0.15s, border-color 0.15s;
-}
-
-.btn-continue-reading:hover {
-  background-color: var(--highlight-glow);
-  border-color: var(--highlight);
-}
-
-.btn-continue-reading:active {
-  transform: translateY(1px);
 }
 
 @media (pointer: coarse) {
-  .btn-continue-reading {
+  .continue-link {
     min-height: var(--target-min-size);
   }
 }
 
+.dashboard-empty-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: calc(-1 * var(--space-8));
+}
+
 .dashboard-empty-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-md);
-  box-sizing: border-box;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
 }
 
 .dashboard-empty-row-text {
-  flex: 1;
-  min-width: 0;
   margin: 0;
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-tight);
+  font-size: var(--font-size-sm);
   color: var(--text-color);
 }
 
 .dashboard-empty-row-link {
   display: inline-flex;
   align-items: center;
-  flex-shrink: 0;
   min-height: var(--target-min-size);
-  padding: 0 var(--space-1);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: var(--highlight);
-  text-decoration: none;
-  white-space: nowrap;
-  box-sizing: border-box;
-}
-
-.dashboard-empty-row-link:hover {
+  color: var(--text-bright);
   text-decoration: underline;
-}
-
-.dashboard-empty-row-link:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
-}
-
-.btn-secondary-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--target-min-size);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  color: var(--highlight);
-  text-decoration: none;
-}
-
-.btn-secondary-link:hover {
-  text-decoration: underline;
-}
-
-.feed-section {
-  margin-top: var(--space-2);
+  text-decoration-color: var(--highlight);
+  text-underline-offset: 0.3em;
 }
 
 .feed-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  border-top: 1px solid var(--input-bg);
 }
 
 @media (max-width: 600px) {
-  .dashboard-header {
-    margin-bottom: var(--space-4);
-    padding-bottom: var(--space-3);
-  }
-
-  .dashboard-title {
-    font-size: var(--font-size-xl);
+  .dashboard-content {
+    gap: var(--space-10);
   }
 
   .in-progress-grid {
     grid-template-columns: 1fr;
   }
 
-  .in-progress-card {
-    padding: var(--space-3);
-    gap: var(--space-3);
-  }
-
   .in-progress-cover-col {
-    width: 60px;
-    min-width: 60px;
-  }
-}
-
-@media (max-width: 767.98px) {
-  .dashboard-header-actions {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .btn-primary {
-    transition: none;
+    width: 56px;
+    min-width: 56px;
   }
 }
 </style>

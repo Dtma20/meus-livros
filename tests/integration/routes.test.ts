@@ -86,7 +86,7 @@ describe('Route integration HTTP tests', () => {
     const res = await fetch(`${baseUrl}/`, { redirect: 'manual' })
     expect(res.status).toBe(200)
     const html = await res.text()
-    expect(html).toContain('Início')
+    expect(html).toContain('Terminou o livro? Conte pro grupo.')
     expect(html).toContain('Capas de livros via Open Library')
     expect(html).toContain('Meus Livros')
   })

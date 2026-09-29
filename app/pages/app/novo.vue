@@ -70,6 +70,7 @@
 
       <div v-if="activeTab === 'buscar'" ref="searchContainerRef" class="search-tab-content">
         <SearchBox
+          landmark-label="Buscar livro para registrar"
           :navigate-on-select="false"
           @select="onWorkSelect"
         />
@@ -270,7 +271,6 @@ useSeoMeta({
   width: 100%;
   max-width: 580px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  transition: max-width 0.2s ease;
 }
 
 .log-page-card.wide-card {

@@ -207,10 +207,10 @@
 
       <footer class="entry-footer">
         <NuxtLink :to="`/@${logData.user.handle}`" class="footer-link">
-          {{ isOwner ? '← Voltar para a sua biblioteca' : `← Outras leituras de ${logData.user.display_name}` }}
+          {{ isOwner ? 'Voltar para a sua biblioteca' : `Outras leituras de ${logData.user.display_name}` }}
         </NuxtLink>
         <NuxtLink :to="`/livro/${logData.work.slug}`" class="footer-link">
-          Ver todas as edições de {{ logData.work.title }} →
+          Ver todas as edições de {{ logData.work.title }}
         </NuxtLink>
       </footer>
     </article>
@@ -450,10 +450,11 @@ async function handleDeleteEntry(): Promise<void> {
 <style scoped>
 .entry-page {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: flex-start;
-  padding: var(--space-6) var(--space-4);
   width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
   box-sizing: border-box;
 }
 
@@ -472,18 +473,7 @@ async function handleDeleteEntry(): Promise<void> {
 .entry-article {
   width: 100%;
   max-width: 680px;
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--input-bg);
-  padding: var(--space-8);
   box-sizing: border-box;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-}
-
-@media (max-width: 540px) {
-  .entry-article {
-    padding: var(--space-4);
-  }
 }
 
 .entry-header {
@@ -530,7 +520,7 @@ async function handleDeleteEntry(): Promise<void> {
 }
 
 .reader-handle {
-  color: var(--highlight);
+  color: var(--text-bright);
   font-size: var(--font-size-sm);
 }
 
@@ -620,8 +610,9 @@ async function handleDeleteEntry(): Promise<void> {
 .metadata-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
   margin-bottom: var(--space-6);
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
 }
 
 @media (max-width: 540px) {
@@ -630,14 +621,9 @@ async function handleDeleteEntry(): Promise<void> {
   }
 }
 
-.meta-pill {
-  display: inline-flex;
-  align-items: center;
-  background-color: var(--input-bg);
-  color: var(--text-color);
-  font-size: var(--font-size-xs);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
+.meta-pill:not(:last-child)::after {
+  content: "·";
+  padding: 0 var(--space-2);
 }
 
 .publisher-pill {
@@ -800,10 +786,14 @@ async function handleDeleteEntry(): Promise<void> {
 }
 
 .footer-link {
-  color: var(--highlight);
-  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min-size);
+  color: var(--text-color);
+  text-decoration: underline;
+  text-decoration-color: var(--input-bg);
+  text-underline-offset: 0.25em;
   font-size: var(--font-size-sm);
-  transition: opacity 0.2s;
 }
 
 .footer-link:focus-visible {
@@ -813,7 +803,8 @@ async function handleDeleteEntry(): Promise<void> {
 }
 
 .footer-link:hover {
-  text-decoration: underline;
+  color: var(--text-bright);
+  text-decoration-color: currentColor;
 }
 
 @media (prefers-reduced-motion: reduce) {

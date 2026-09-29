@@ -1,14 +1,12 @@
 <template>
   <div class="carousel-section">
     <div class="carousel-header">
-      <div>
-        <h2 class="carousel-title">Livros já lidos</h2>
-        <p class="carousel-subtitle">
-          {{ books.length }} {{ books.length === 1 ? 'leitura concluída' : 'leituras concluídas, da mais recente para a mais antiga' }}
-        </p>
-      </div>
+      <h2 class="carousel-title">
+        Lidos
+        <span class="carousel-count">{{ books.length }}</span>
+      </h2>
 
-      <div v-if="books.length > 2" class="carousel-controls">
+      <div v-if="books.length > 2 && hasOverflow" class="carousel-controls">
         <button
           type="button"
           class="carousel-nav-btn"
@@ -97,12 +95,14 @@ defineProps<{
 const trackRef = ref<HTMLElement | null>(null)
 const isAtStart = ref(true)
 const isAtEnd = ref(false)
+const hasOverflow = ref(true)
 
 function onScroll(): void {
   const el = trackRef.value
   if (!el) return
   isAtStart.value = el.scrollLeft <= 5
   isAtEnd.value = el.scrollLeft + el.clientWidth >= el.scrollWidth - 5
+  hasOverflow.value = el.scrollWidth > el.clientWidth + 5
 }
 
 function scrollBehavior(): ScrollBehavior {
@@ -136,43 +136,45 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.carousel-section {
-  margin-top: var(--space-8);
-}
-
 .carousel-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--space-4);
   margin-bottom: var(--space-4);
 }
 
 .carousel-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
   font-family: var(--font-serif);
   font-size: var(--font-size-xl);
   font-weight: 600;
   letter-spacing: -0.01em;
-  color: #fff;
+  line-height: var(--line-height-tight);
+  color: var(--text-bright);
   margin: 0;
 }
 
-.carousel-subtitle {
+.carousel-count {
+  font-family: var(--font-sans);
   font-size: var(--font-size-sm);
+  font-weight: 400;
   color: var(--text-color);
-  margin: var(--space-1) 0 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .carousel-controls {
   display: flex;
   flex-shrink: 0;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 .carousel-nav-btn {
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  color: #fff;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-bright);
   width: var(--target-min-size);
   height: var(--target-min-size);
   border-radius: var(--radius-full);
@@ -180,28 +182,27 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background-color 0.15s, border-color 0.15s;
+  transition: border-color 0.15s;
 }
 
 .carousel-nav-btn:hover:not([aria-disabled="true"]) {
-  background-color: var(--input-bg);
-  border-color: var(--text-color);
+  border-color: var(--input-bg);
 }
 
-.carousel-nav-btn:active:not([aria-disabled="true"]) {
-  transform: translateY(1px);
+.carousel-nav-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .carousel-nav-btn[aria-disabled="true"] {
-  opacity: 0.4;
+  color: var(--input-bg);
   cursor: default;
 }
 
 .carousel-track {
   display: flex;
-  gap: var(--space-4);
+  gap: var(--space-5);
   overflow-x: auto;
-  scroll-behavior: smooth;
   scroll-snap-type: x mandatory;
   padding-bottom: var(--space-3);
   scrollbar-width: thin;
@@ -209,7 +210,7 @@ onMounted(() => {
 }
 
 .carousel-track::-webkit-scrollbar {
-  height: 6px;
+  height: 4px;
 }
 
 .carousel-track::-webkit-scrollbar-thumb {
@@ -218,12 +219,8 @@ onMounted(() => {
 }
 
 .carousel-card {
-  flex: 0 0 200px;
-  max-width: 220px;
+  flex: 0 0 148px;
   scroll-snap-align: start;
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-3);
   display: flex;
   flex-direction: column;
 }
@@ -233,7 +230,8 @@ onMounted(() => {
   aspect-ratio: 2 / 3;
   overflow: hidden;
   border-radius: var(--radius-sm);
-  background-color: var(--input-bg);
+  background-color: var(--card-bg);
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.6);
   margin-bottom: var(--space-3);
 }
 
@@ -246,39 +244,44 @@ onMounted(() => {
 .card-info {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  gap: var(--space-1);
 }
 
 .card-title {
+  font-family: var(--font-serif);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #fff;
+  color: var(--text-bright);
   text-decoration: none;
   line-height: var(--line-height-tight);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: calc(var(--line-height-tight) * 2em);
-  margin-bottom: var(--space-1);
 }
 
 .card-title:hover {
-  color: var(--highlight);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.card-title:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .card-author {
   font-size: var(--font-size-xs);
   color: var(--text-color);
-  margin: 0 0 var(--space-2);
+  margin: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.card-rating {
-  min-height: var(--space-5);
-  margin-bottom: var(--space-2);
+.card-rating:empty {
+  display: none;
 }
 
 .card-date {
@@ -287,13 +290,21 @@ onMounted(() => {
 }
 
 .card-review-excerpt {
+  font-family: var(--font-serif);
   font-size: var(--font-size-xs);
   font-style: italic;
-  color: var(--text-color);
-  margin: var(--space-2) 0 0;
+  line-height: var(--line-height-normal);
+  color: var(--text-bright);
+  margin: var(--space-1) 0 0;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+@media (max-width: 600px) {
+  .carousel-card {
+    flex-basis: 120px;
+  }
 }
 </style>

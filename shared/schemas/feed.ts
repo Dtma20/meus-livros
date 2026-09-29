@@ -25,6 +25,7 @@ export const feedWorkSchema = z.object({
   slug: z.string(),
   first_published_year: z.number().int().nullable(),
   cover_url: z.string().nullable(),
+  isbn13: z.string().nullable().optional(),
   authors: z.array(feedAuthorSchema),
 })
 
@@ -45,6 +46,8 @@ export const feedEntrySchema = z.object({
   id: z.string().uuid(),
   rating: z.number().nullable(),
   review_excerpt: z.string().nullable(),
+  started_on: z.string().nullable().optional(),
+  finished_on: z.string().nullable().optional(),
   created_at: z.union([z.date(), z.string()]),
   user: feedUserSchema,
   work: feedWorkSchema,

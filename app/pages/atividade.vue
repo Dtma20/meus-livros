@@ -1,8 +1,7 @@
 <template>
   <div class="activity-page">
     <header class="page-header">
-      <h1 class="page-title">Atividade do grupo</h1>
-      <p class="page-subtitle">Todas as leituras registradas pelos membros</p>
+      <h1 class="page-title">O que o grupo anda lendo</h1>
     </header>
 
     <div
@@ -124,14 +123,16 @@ async function loadMore() {
 <style scoped>
 .activity-page {
   width: 100%;
-  max-width: 48rem;
+  max-width: 72rem;
   margin: 0 auto;
+}
+
+.activity-page > * {
+  max-width: 48rem;
 }
 
 .page-header {
   margin-bottom: var(--space-6);
-  padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--input-bg);
 }
 
 .page-title {
@@ -139,15 +140,9 @@ async function loadMore() {
   font-size: var(--font-size-2xl);
   font-weight: 600;
   letter-spacing: -0.015em;
-  color: #fff;
-  margin: 0 0 var(--space-1) 0;
-  line-height: var(--line-height-tight);
-}
-
-.page-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
+  color: var(--text-bright);
   margin: 0;
+  line-height: var(--line-height-tight);
 }
 
 .activity-loading {
@@ -208,7 +203,7 @@ async function loadMore() {
 .feed-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  border-top: 1px solid var(--input-bg);
 }
 
 .load-more-section {

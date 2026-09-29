@@ -29,7 +29,7 @@
       </button>
     </div>
 
-    <div class="progress-bar-wrap" role="progressbar" :aria-valuenow="progress.percentage ?? 0" aria-valuemin="0" aria-valuemax="100">
+    <div class="progress-bar-wrap" role="progressbar" aria-label="Progresso da leitura" :aria-valuenow="progress.percentage ?? 0" aria-valuemin="0" aria-valuemax="100">
       <div class="progress-bar-track">
         <div
           class="progress-bar-fill"
@@ -465,7 +465,6 @@ function formatBlockDate(dateStr: string): string {
   height: 100%;
   background-color: var(--highlight);
   border-radius: var(--radius-full);
-  transition: width 0.4s ease;
 }
 
 .block-form-card {

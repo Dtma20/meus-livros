@@ -1,5 +1,5 @@
 <template>
-  <div class="search-box" role="search">
+  <div class="search-box" role="search" :aria-label="landmarkLabel">
     <div class="search-input-wrap">
       <label :for="inputId" class="sr-only">Buscar livros</label>
       <input
@@ -94,10 +94,12 @@ const props = withDefaults(
   defineProps<{
     initialQuery?: string
     navigateOnSelect?: boolean
+    landmarkLabel?: string
   }>(),
   {
     initialQuery: '',
     navigateOnSelect: true,
+    landmarkLabel: 'Buscar livros',
   },
 )
 

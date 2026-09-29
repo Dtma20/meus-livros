@@ -2,7 +2,6 @@
   <div class="members-page">
     <header class="members-header">
       <h1 class="page-title">Membros</h1>
-      <p class="page-subtitle">Pessoas que fazem parte do clube</p>
     </header>
 
     <div v-if="pending" class="members-loading">
@@ -31,16 +30,15 @@
         <div class="member-info">
           <div class="member-header">
             <span class="member-name">{{ member.display_name }}</span>
-            <span class="member-handle">@{{ member.handle }}</span>
+            <span class="member-handle">
+              @{{ member.handle }} &middot;
+              {{ member.visible_log_count === 1 ? '1 leitura' : `${member.visible_log_count} leituras` }}
+            </span>
           </div>
 
           <p v-if="member.bio" class="member-bio">
             {{ member.bio }}
           </p>
-
-          <span class="member-reads-count">
-            {{ member.visible_log_count === 1 ? '1 leitura' : `${member.visible_log_count} leituras` }}
-          </span>
         </div>
 
         <div v-if="member.recent_covers.length > 0" class="member-covers">
@@ -98,9 +96,9 @@ const members = computed(() => data.value?.members ?? [])
 <style scoped>
 .members-page {
   width: 100%;
-  max-width: 1080px;
+  max-width: 72rem;
   margin: 0 auto;
-  padding: var(--space-4) var(--space-4) var(--space-12);
+  padding: 0 0 var(--space-12);
   box-sizing: border-box;
 }
 
@@ -111,14 +109,9 @@ const members = computed(() => data.value?.members ?? [])
 .page-title {
   font-family: var(--font-serif);
   font-size: var(--font-size-3xl);
-  font-weight: 700;
-  color: #fff;
-  margin: 0 0 var(--space-1);
-}
-
-.page-subtitle {
-  color: var(--text-color);
-  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-bright);
   margin: 0;
 }
 
@@ -127,41 +120,28 @@ const members = computed(() => data.value?.members ?? [])
 }
 
 .members-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-4);
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  box-sizing: border-box;
-}
-
-@media (min-width: 600px) {
-  .members-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 900px) {
-  .members-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 .member-card {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) 0;
+  border-bottom: 1px solid var(--input-bg);
   text-decoration: none;
   color: inherit;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
 }
 
-.member-card:hover {
-  border-color: var(--highlight);
+.member-card:first-child {
+  border-top: 1px solid var(--input-bg);
+}
+
+.member-card:hover .member-name {
+  color: var(--highlight);
 }
 
 .member-card:focus-visible {
@@ -184,20 +164,18 @@ const members = computed(() => data.value?.members ?? [])
 }
 
 .member-name {
-  color: #fff;
+  font-family: var(--font-serif);
+  color: var(--text-bright);
   font-weight: 600;
-  font-size: var(--font-size-base);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: var(--font-size-xl);
+  transition: color 0.2s;
+  overflow-wrap: anywhere;
 }
 
 .member-handle {
   color: var(--text-color);
-  font-size: var(--font-size-xs);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .member-bio {
@@ -212,19 +190,10 @@ const members = computed(() => data.value?.members ?? [])
   line-clamp: 2;
 }
 
-.member-reads-count {
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-  font-weight: 500;
-}
-
 .member-covers {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, 56px);
   gap: var(--space-2);
-  margin-top: var(--space-4);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--input-bg);
 }
 
 .member-cover-item {
@@ -232,5 +201,21 @@ const members = computed(() => data.value?.members ?? [])
   border-radius: var(--radius-sm);
   overflow: hidden;
   background-color: var(--input-bg);
+}
+
+@media (max-width: 599px) {
+  .member-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+  .member-covers {
+    grid-template-columns: repeat(4, minmax(0, 56px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-name {
+    transition: none;
+  }
 }
 </style>
