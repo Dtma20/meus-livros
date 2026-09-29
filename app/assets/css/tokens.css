@@ -11,8 +11,11 @@
   --highlight-hover: #d97706;
   --input-bg: #2c3440;
 
+  --on-highlight: #14181c;
+
   --danger: #ef4444;
   --danger-text: #f87171;
+  --danger-solid: #dc2626;
   --success: #34d399;
   --highlight-soft: rgba(245, 158, 11, 0.12);
   --highlight-glow: rgba(245, 158, 11, 0.25);
