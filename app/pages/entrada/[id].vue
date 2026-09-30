@@ -92,7 +92,7 @@
             <NuxtLink
               v-if="isOwner && !logData.finished_on"
               :to="`/app/entrada/${logData.id}/editar?terminar=1`"
-              class="btn btn-secondary btn-sm finish-btn"
+              class="btn btn-secondary finish-btn"
               :aria-label="`Terminei ${logData.work.title}`"
             >
               <svg
@@ -114,7 +114,7 @@
 
             <button
               type="button"
-              class="btn btn-secondary btn-sm share-btn"
+              class="btn btn-secondary share-btn"
               :class="{ 'is-copied': copied }"
               :aria-label="copied ? 'Link copiado para a área de transferência' : 'Compartilhar esta entrada'"
               @click="handleShare"
@@ -156,7 +156,7 @@
             <NuxtLink
               v-if="isOwner"
               :to="`/app/entrada/${logData.id}/editar`"
-              class="btn btn-secondary btn-sm edit-btn"
+              class="btn btn-secondary edit-btn"
             >
               <svg
                 class="btn-icon"
@@ -179,7 +179,7 @@
               v-if="isOwner && pendingSeconds === 0 && !isDeleting && !deleteError"
               ref="removeBtnRef"
               type="button"
-              class="btn btn-danger btn-sm delete-btn"
+              class="btn btn-danger delete-btn"
               @click="startDelete"
             >
               <svg
@@ -830,11 +830,20 @@ async function performDelete(): Promise<void> {
 
 .actions-row {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--space-2);
+  width: 100%;
+  max-width: 260px;
   margin-top: auto;
+}
+
+.actions-row .btn {
+  width: 100%;
+  font-size: var(--font-size-sm);
+  min-height: 38px;
+  padding: var(--space-2) var(--space-3);
+  box-sizing: border-box;
 }
 
 .share-btn.is-copied {
@@ -854,18 +863,21 @@ async function performDelete(): Promise<void> {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
+  width: 100%;
+  max-width: 260px;
   margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
   background-color: rgba(220, 38, 38, 0.08);
   border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
+  box-sizing: border-box;
 }
 
-@media (min-width: 541px) {
+@media (max-width: 540px) {
   .actions-row,
   .remove-zone {
-    justify-content: flex-start;
+    margin-inline: auto;
   }
 }
 
@@ -968,7 +980,6 @@ async function performDelete(): Promise<void> {
   }
 
   .actions-row {
-    justify-content: flex-start;
     margin-top: 0;
   }
 
