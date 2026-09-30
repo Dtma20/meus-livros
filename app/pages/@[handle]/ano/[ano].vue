@@ -51,7 +51,7 @@
 
       <div v-else class="stats-body">
         <section class="stat-tiles" aria-label="Totais de leitura do ano">
-          <StatBox :value="formattedBooks" label="Livros" />
+          <StatBox :value="formattedBooks" label="Livros lidos" />
           <StatBox :value="formattedPages" label="Páginas" />
           <StatBox :value="formattedAuthors" label="Autores" />
           <StatBox :value="formattedCountries" label="Países" />
@@ -268,8 +268,11 @@ useSeoMeta({
 }
 
 .back-link {
-  color: var(--highlight);
-  text-decoration: none;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.3em;
   font-size: var(--font-size-sm);
   font-weight: 500;
   display: inline-flex;
@@ -279,8 +282,11 @@ useSeoMeta({
   transition: color 0.2s;
 }
 
+.back-link:visited {
+  color: var(--text-bright);
+}
+
 .back-link:hover {
-  text-decoration: underline;
   color: var(--highlight-hover);
 }
 
@@ -347,14 +353,25 @@ useSeoMeta({
 }
 
 .stat-tiles {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: var(--space-6);
   padding: var(--space-4) 0;
   margin-bottom: var(--space-8);
   border-top: 1px solid var(--input-bg);
   border-bottom: 1px solid var(--input-bg);
+}
+
+/* Two columns on phones; an odd last tile spans both so no row holds one tile at half width. */
+@media (max-width: 600px) {
+  .stat-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+
+  .stat-tiles > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
 }
 
 .stats-body {

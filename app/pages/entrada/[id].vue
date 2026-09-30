@@ -45,6 +45,7 @@
         </span>
       </header>
 
+      <div class="entry-layout">
       <div class="book-card-section">
         <div class="cover-container">
           <BookCover
@@ -88,6 +89,29 @@
           </div>
 
           <div class="actions-row">
+            <NuxtLink
+              v-if="isOwner && !logData.finished_on"
+              :to="`/app/entrada/${logData.id}/editar?terminar=1`"
+              class="finish-btn"
+              :aria-label="`Terminei ${logData.work.title}`"
+            >
+              <svg
+                class="btn-icon"
+                viewBox="0 0 24 24"
+                width="15"
+                height="15"
+                stroke="currentColor"
+                stroke-width="2.5"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>Terminei</span>
+            </NuxtLink>
+
             <button
               type="button"
               class="share-btn"
@@ -150,60 +174,35 @@
               </svg>
               <span>Editar</span>
             </NuxtLink>
-
-            <button
-              v-if="isOwner"
-              type="button"
-              class="delete-btn"
-              :disabled="isDeleting"
-              aria-label="Remover este livro da sua biblioteca"
-              @click="handleDeleteEntry"
-            >
-              <svg
-                class="btn-icon"
-                viewBox="0 0 24 24"
-                width="14"
-                height="14"
-                stroke="currentColor"
-                stroke-width="2"
-                fill="none"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              </svg>
-              <span>{{ isDeleting ? 'Removendo...' : 'Remover' }}</span>
-            </button>
           </div>
 
-          <p v-if="deleteError" class="delete-error-msg" role="alert">
-            {{ deleteError }}
-          </p>
         </div>
       </div>
 
-      <section class="review-section">
-        <h2 class="review-heading">Resenha</h2>
-        <div v-if="logData.review" class="review-body">
-          <ReviewText :text="logData.review" />
-        </div>
-        <div v-else class="review-empty">
-          <p class="review-empty-text">
-            {{ isOwner ? 'Você não escreveu uma resenha para este livro.' : `${logData.user.display_name} não escreveu uma resenha para este livro.` }}
-          </p>
-        </div>
-      </section>
+      <div class="entry-main">
+      <template v-for="part in sectionOrder" :key="part">
+        <section v-if="part === 'review'" class="review-section">
+          <h2 class="review-heading">Resenha</h2>
+          <div v-if="logData.review" class="review-body">
+            <ReviewText :text="logData.review" />
+          </div>
+          <div v-else class="review-empty">
+            <p class="review-empty-text">
+              {{ isOwner ? 'Você não escreveu uma resenha para este livro.' : `${logData.user.display_name} não escreveu uma resenha para este livro.` }}
+            </p>
+          </div>
+        </section>
 
-      <ReadingBlocksSection
-        :log-id="logData.id"
-        :initial-blocks="logData.blocks || []"
-        :initial-progress="logData.progress"
-        :is-owner="isOwner"
-        :edition-page-count="logData.edition?.page_count"
-        :is-finished="Boolean(logData.finished_on)"
-      />
+        <ReadingBlocksSection
+          v-else
+          :log-id="logData.id"
+          :initial-blocks="logData.blocks || []"
+          :initial-progress="logData.progress"
+          :is-owner="isOwner"
+          :edition-page-count="logData.edition?.page_count"
+          :is-finished="Boolean(logData.finished_on)"
+        />
+      </template>
 
       <footer class="entry-footer">
         <NuxtLink :to="`/@${logData.user.handle}`" class="footer-link">
@@ -213,12 +212,38 @@
           Ver todas as edições de {{ logData.work.title }}
         </NuxtLink>
       </footer>
+
+      <div v-if="isOwner" class="remove-zone">
+        <p class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
+        <template v-if="pendingSeconds > 0">
+          <span class="remove-msg" aria-hidden="true">Esta leitura será removida em {{ pendingSeconds }} s.</span>
+          <button ref="undoBtnRef" type="button" class="undo-btn" @click="undoDelete">Desfazer</button>
+        </template>
+        <template v-else-if="isDeleting">
+          <span class="remove-msg" aria-hidden="true">Removendo...</span>
+        </template>
+        <template v-else-if="deleteError">
+          <span class="remove-msg remove-error" aria-hidden="true">{{ deleteError }}</span>
+          <button type="button" class="undo-btn" @click="startDelete">Tentar de novo</button>
+        </template>
+        <button
+          v-else
+          ref="removeBtnRef"
+          type="button"
+          class="delete-btn"
+          @click="startDelete"
+        >
+          Remover esta leitura
+        </button>
+      </div>
+      </div>
+      </div>
     </article>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { getCookie, setResponseHeader } from 'h3'
 import BookCover from '~/components/book/BookCover.vue'
@@ -237,6 +262,7 @@ import {
 } from '~/utils/entry'
 import type { LogWithDetails } from '~~/shared/schemas/log'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
+import { useFlash } from '~/composables/useFlash'
 
 definePageMeta({
   middleware: 'home-layout',
@@ -259,6 +285,7 @@ const session = typeof useState === 'function'
   : ref({ user: null })
 
 const nuxtApp = typeof useNuxtApp === 'function' ? useNuxtApp() : null
+const flash = useFlash()
 
 const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
   `entry-${id.value}`,
@@ -292,6 +319,10 @@ const is404 = computed(() => {
   return status === 404 || (!logData.value && !isPending.value)
 })
 
+const sectionOrder = computed<Array<'review' | 'blocks'>>(() =>
+  logData.value?.finished_on ? ['review', 'blocks'] : ['blocks', 'review'],
+)
+
 const isOwner = computed(() => {
   if (!logData.value || !session.value?.user) return false
   if (session.value.user.id && logData.value.user_id) {
@@ -316,7 +347,8 @@ const authorsText = computed(() => {
 const readingDateText = computed(() => {
   if (!logData.value) return ''
   if (!logData.value.finished_on) {
-    return 'Lendo atualmente'
+    const since = formatReadingDate(logData.value.started_on)
+    return since ? `Lendo desde ${since}` : 'Lendo atualmente'
   }
   return formatReadingDate(logData.value.finished_on, logData.value.finished_precision)
 })
@@ -414,12 +446,138 @@ async function handleShare() {
 const isDeleting = ref(false)
 const deleteError = ref('')
 
-async function handleDeleteEntry(): Promise<void> {
-  if (!logData.value) return
-  if (!confirm('Tem certeza que deseja remover este livro da sua biblioteca? Esta ação não pode ser desfeita.')) {
-    return
-  }
+const UNDO_SECONDS = 6
+const pendingSeconds = ref(0)
+const removeAnnouncement = ref('')
+const undoBtnRef = ref<HTMLButtonElement | null>(null)
+const removeBtnRef = ref<HTMLButtonElement | null>(null)
+let undoTimer: ReturnType<typeof setInterval> | null = null
 
+function clearUndoTimer(): void {
+  if (undoTimer) {
+    clearInterval(undoTimer)
+    undoTimer = null
+  }
+}
+
+function startDelete(): void {
+  if (!logData.value || pendingSeconds.value > 0 || isDeleting.value) return
+  deleteError.value = ''
+  pendingSeconds.value = UNDO_SECONDS
+  removeAnnouncement.value = `Esta leitura será removida em ${UNDO_SECONDS} segundos. Desfazer.`
+  void nextTick(() => undoBtnRef.value?.focus())
+  clearUndoTimer()
+  undoTimer = setInterval(() => {
+    pendingSeconds.value -= 1
+    if (pendingSeconds.value <= 0) {
+      clearUndoTimer()
+      pendingSeconds.value = 0
+      removeAnnouncement.value = 'Removendo a leitura...'
+      void performDelete()
+    }
+  }, 1000)
+}
+
+function undoDelete(): void {
+  clearUndoTimer()
+  pendingSeconds.value = 0
+  removeAnnouncement.value = 'Remoção cancelada.'
+  void nextTick(() => removeBtnRef.value?.focus())
+}
+
+const DELETED_FLASH = 'Leitura removida.'
+const LEAVE_FAILED_FLASH = 'Não foi possível remover a leitura. Tente de novo na página dela.'
+
+// Na saída, `route.params.id` já é o da rota de destino (ou nenhum): o id
+// vem do registro carregado, que não muda com a navegação.
+function loadedLogId(): string {
+  return logData.value?.id ?? id.value
+}
+
+function afterDeleteDestination(): string {
+  return logData.value?.user?.handle ? `/@${logData.value.user.handle}` : '/'
+}
+
+function goTo(dest: string): Promise<unknown> {
+  const run = () => navigateTo(dest)
+  return Promise.resolve(nuxtApp ? nuxtApp.runWithContext(run) : run())
+}
+
+// Sair da página durante a contagem não cancela: o usuário pediu a remoção
+// e, fora da página, já não tem como desfazer. A requisição sai na hora e o
+// resultado aparece como aviso no layout, na página seguinte.
+function deleteOnLeave(): void {
+  if (pendingSeconds.value <= 0) return
+  clearUndoTimer()
+  pendingSeconds.value = 0
+  const logId = loadedLogId()
+  $fetch(`/api/logs/${logId}`, { method: 'DELETE', timeout: 15_000 })
+    .then(() => flash.set(DELETED_FLASH))
+    .catch(() => flash.set(LEAVE_FAILED_FLASH, 'error'))
+}
+
+// Fechar a aba ou sair do site: `$fetch` não sobrevive ao descarregamento,
+// `keepalive` sim. A rota de DELETE não lê corpo.
+let deletedOnPagehide = false
+
+function onPageHide(): void {
+  if (pendingSeconds.value <= 0) return
+  clearUndoTimer()
+  pendingSeconds.value = 0
+  deletedOnPagehide = true
+  void fetch(`/api/logs/${loadedLogId()}`, {
+    method: 'DELETE',
+    keepalive: true,
+    credentials: 'same-origin',
+  }).catch(() => {})
+}
+
+// Voltar pelo histórico restaura a página do bfcache com a entrada já
+// removida; manda para a biblioteca em vez de mostrar dados apagados.
+function onPageShow(e: PageTransitionEvent): void {
+  if (!e.persisted || !deletedOnPagehide) return
+  deletedOnPagehide = false
+  void goTo(afterDeleteDestination()).then(() => flash.set(DELETED_FLASH))
+}
+
+onMounted(() => {
+  window.addEventListener('pagehide', onPageHide)
+  window.addEventListener('pageshow', onPageShow)
+  startRequestedDelete()
+})
+
+// O "Remover esta leitura" do formulário de edição deixa o id desta leitura em
+// `entry:remove-request` (estado de memória, nunca a URL) e navega para cá: a
+// remoção começa com a mesma contagem e o mesmo "Desfazer". O pedido é
+// consumido na leitura, então recarregar a página não o repete.
+const removeRequest = useState<string | null>('entry:remove-request', () => null)
+
+function startRequestedDelete(): void {
+  const requestedId = removeRequest.value
+  removeRequest.value = null
+  if (!requestedId || requestedId !== id.value) return
+  if (handleRemoveRequest()) return
+  const stop = watch([logData, isPending, isOwner], () => {
+    if (handleRemoveRequest()) stop()
+  })
+}
+
+function handleRemoveRequest(): boolean {
+  if (isPending.value) return false
+  if (logData.value && isOwner.value) startDelete()
+  return true
+}
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('pagehide', onPageHide)
+    window.removeEventListener('pageshow', onPageShow)
+  }
+  deleteOnLeave()
+  clearUndoTimer()
+})
+
+async function performDelete(): Promise<void> {
   isDeleting.value = true
   deleteError.value = ''
 
@@ -428,19 +586,17 @@ async function handleDeleteEntry(): Promise<void> {
       method: 'DELETE',
       timeout: 15_000,
     })
-    const dest = logData.value?.user?.handle ? `/@${logData.value.user.handle}` : '/'
-    if (nuxtApp) {
-      void nuxtApp.runWithContext(() => navigateTo(dest))
-    } else {
-      void navigateTo(dest)
-    }
+    await goTo(afterDeleteDestination())
+    flash.set(DELETED_FLASH)
   } catch (err: unknown) {
     if (isTimeoutOrAbort(err)) {
       deleteError.value = TIMEOUT_MESSAGE
+      removeAnnouncement.value = TIMEOUT_MESSAGE
       return
     }
     const fetchErr = err as { data?: { message?: string } }
     deleteError.value = fetchErr.data?.message ?? 'Não foi possível remover o livro da biblioteca.'
+    removeAnnouncement.value = deleteError.value
   } finally {
     isDeleting.value = false
   }
@@ -476,6 +632,22 @@ async function handleDeleteEntry(): Promise<void> {
   box-sizing: border-box;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.entry-main {
+  min-width: 0;
+}
+
 .entry-header {
   display: flex;
   justify-content: space-between;
@@ -492,9 +664,20 @@ async function handleDeleteEntry(): Promise<void> {
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1) var(--space-2);
+  /* Alvo de toque maior que a linha de texto: o padding cresce a área e a
+     margem negativa devolve o espaço, então o cabeçalho não muda de altura. */
+  padding-block: 4px;
+  margin-block: -4px;
   text-decoration: none;
   color: inherit;
   transition: opacity 0.2s;
+}
+
+@media (pointer: coarse) {
+  .reader-link {
+    padding-block: 14px;
+    margin-block: -14px;
+  }
 }
 
 .reader-link:focus-visible {
@@ -678,6 +861,31 @@ async function handleDeleteEntry(): Promise<void> {
   color: var(--success);
 }
 
+.finish-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background-color: var(--highlight);
+  color: var(--on-highlight);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+  min-height: 44px;
+  box-sizing: border-box;
+  transition: opacity 0.2s;
+}
+
+.finish-btn:hover {
+  opacity: 0.9;
+}
+
+.finish-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .btn-icon {
   flex-shrink: 0;
   vertical-align: middle;
@@ -687,18 +895,16 @@ async function handleDeleteEntry(): Promise<void> {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  color: var(--text-color);
-  text-decoration: none;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
   font-size: var(--font-size-sm);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   min-height: 44px;
   box-sizing: border-box;
-  transition: color 0.2s;
-}
-
-.edit-btn:hover {
-  color: #fff;
 }
 
 .edit-btn:focus-visible {
@@ -706,44 +912,57 @@ async function handleDeleteEntry(): Promise<void> {
   outline-offset: var(--focus-ring-offset);
 }
 
-.delete-btn {
-  display: inline-flex;
+.remove-zone {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1);
-  background: transparent;
-  color: var(--text-color);
-  border: 1px solid transparent;
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
   min-height: 44px;
-  box-sizing: border-box;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
-}
-
-.delete-btn:hover:not(:disabled) {
-  color: var(--danger-text);
-  border-color: rgba(239, 68, 68, 0.3);
-  background-color: rgba(239, 68, 68, 0.08);
-}
-
-.delete-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--danger);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.delete-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.delete-error-msg {
-  color: var(--danger-text);
+  margin-top: var(--space-6);
   font-size: var(--font-size-sm);
-  margin-top: var(--space-2);
-  margin-bottom: 0;
+}
+
+.remove-msg {
+  color: var(--text-bright);
+}
+
+.remove-error {
+  color: var(--danger-text);
+}
+
+.delete-btn,
+.undo-btn {
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) 0;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.delete-btn {
+  color: var(--danger-text);
+}
+
+.delete-btn:hover {
+  text-decoration: underline;
+}
+
+.undo-btn {
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+.delete-btn:focus-visible,
+.undo-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .review-section {
@@ -807,9 +1026,60 @@ async function handleDeleteEntry(): Promise<void> {
   text-decoration-color: currentColor;
 }
 
+/* Fica depois das regras base de propósito: com a mesma especificidade,
+   a ordem decide, e antes daqui `.book-card-section { flex-direction: row }`
+   vencia e espremia título e metadados em 144px ao lado da capa. */
+@media (min-width: 1024px) {
+  .entry-article {
+    max-width: none;
+  }
+
+  .entry-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 65ch);
+    column-gap: var(--space-10, 3rem);
+    align-items: start;
+  }
+
+  .book-card-section {
+    position: sticky;
+    top: var(--space-6);
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4);
+    margin-bottom: 0;
+  }
+
+  .cover-container {
+    width: 200px;
+    min-width: 200px;
+  }
+
+  .actions-row {
+    justify-content: flex-start;
+    margin-top: 0;
+  }
+
+  .metadata-pills {
+    margin-bottom: var(--space-4);
+  }
+
+  /* A coluna da direita começa rente ao topo, qualquer que seja a primeira
+     seção (resenha, progresso da leitura ou o resumo de páginas). */
+  .entry-main > :first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .remove-zone {
+    justify-content: flex-start;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .share-btn,
-  .edit-btn,
+  .finish-btn,
   .reader-link,
   .title-link,
   .footer-link {

@@ -4,7 +4,7 @@
       Qual foi o último livro que você terminou?
     </h2>
     <p class="closing-text">
-      Entre, procure o título e registre. Se ele não estiver no catálogo, dá para adicionar à mão.
+      Entre, procure o título e registre. Se ele não estiver no catálogo, adicione como livro novo.
     </p>
 
     <div class="closing-actions">

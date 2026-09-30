@@ -7,6 +7,7 @@ vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
   globalScope.useId = () => 'test-log-form-id'
   globalScope.navigateTo = () => {}
+  globalScope.useState = (_key: string, init?: () => unknown) => ({ value: init ? init() : null })
 })
 
 const DRAFT_KEY = 'meus-livros:log-draft'
@@ -251,5 +252,65 @@ describe('LogForm - finished date hint', () => {
     expect(form.host.querySelector('#log-finished-hint')).toBeNull()
     expect(input.hasAttribute('aria-describedby')).toBe(false)
     form.unmount()
+  })
+})
+
+describe('LogForm - edit mode leave guard', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    globalScope.$fetch = vi.fn(async () => ({ id: 'log-1' }))
+  })
+
+  afterEach(() => {
+    localStorage.clear()
+    document.body.innerHTML = ''
+  })
+
+  function fireBeforeUnload(): Event {
+    const event = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(event)
+    return event
+  }
+
+  it('labels the format button "E-book"', async () => {
+    const form = await mountForm({ mode: 'edit', initialLog: editLog('2024-01-01'), initialWork: null })
+    const labels = Array.from(form.host.querySelectorAll('.format-btn')).map((b) => b.textContent?.trim())
+    expect(labels).toContain('E-book')
+    expect(labels).not.toContain('Ebook')
+    form.unmount()
+  })
+
+  it('does not warn on tab close while nothing changed', async () => {
+    const form = await mountForm({ mode: 'edit', initialLog: editLog('2024-01-01'), initialWork: null })
+    expect(fireBeforeUnload().defaultPrevented).toBe(false)
+    form.unmount()
+  })
+
+  it('warns on tab close after the review changes', async () => {
+    const form = await mountForm({ mode: 'edit', initialLog: editLog('2024-01-01'), initialWork: null })
+    await typeReview(form, 'Mudei de ideia.')
+    expect(fireBeforeUnload().defaultPrevented).toBe(true)
+    form.unmount()
+  })
+
+  it('stops warning after a successful save', async () => {
+    const form = await mountForm({ mode: 'edit', initialLog: editLog('2024-01-01'), initialWork: null })
+    await typeReview(form, 'Mudei de ideia.')
+    form.host.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await nextTick()
+    await nextTick()
+    await nextTick()
+    expect(fireBeforeUnload().defaultPrevented).toBe(false)
+    form.unmount()
+  })
+
+  it('offers a Cancelar link back to the entry in edit mode only', async () => {
+    const edit = await mountForm({ mode: 'edit', initialLog: editLog('2024-01-01'), initialWork: null })
+    expect(edit.text()).toContain('Cancelar')
+    edit.unmount()
+    const create = await mountForm()
+    expect(create.host.querySelector('.cancel-link')).toBeNull()
+    create.unmount()
   })
 })

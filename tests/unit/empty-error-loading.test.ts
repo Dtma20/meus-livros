@@ -157,7 +157,7 @@ describe('LoadingSkeleton.vue', () => {
 })
 
 describe('SearchBox.vue - Empty state on search miss', () => {
-  it('renders "Não encontramos esse livro." with "Adicionar à mão" as action', async () => {
+  it('renders "Não encontramos esse livro." with "Adicionar livro novo" as action', async () => {
 
     const originalFetch = global.fetch
     global.fetch = vi.fn().mockResolvedValue({
@@ -181,7 +181,7 @@ describe('SearchBox.vue - Empty state on search miss', () => {
 
     const primaryBtn = wrapper.find('[data-testid="search-add-manual"]')
     expect(primaryBtn).not.toBeNull()
-    expect(primaryBtn?.textContent?.trim()).toBe('Adicionar à mão')
+    expect(primaryBtn?.textContent?.trim()).toBe('Adicionar livro novo')
     expect(primaryBtn?.classList.contains('empty-btn-primary')).toBe(true)
 
     wrapper.unmount()
@@ -235,7 +235,7 @@ describe('JsonImportSection.vue - Format Guide', () => {
   it('renders JSON format description, sample code, and field documentation', () => {
     const wrapper = mount(JsonImportSection)
 
-    expect(wrapper.text()).toContain('Estrutura esperada do arquivo JSON')
+    expect(wrapper.text()).toContain('Ver formato do arquivo')
     expect(wrapper.text()).toContain('title')
     expect(wrapper.text()).toContain('author')
     expect(wrapper.text()).toContain('Obrigatório')

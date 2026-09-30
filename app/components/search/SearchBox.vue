@@ -9,7 +9,8 @@
         type="search"
         role="combobox"
         class="search-input"
-        placeholder="Buscar livros…"
+        :placeholder="placeholder"
+        :aria-keyshortcuts="keyShortcut || undefined"
         autocomplete="off"
         autocorrect="off"
         autocapitalize="off"
@@ -24,6 +25,8 @@
       >
       <span v-if="loading" class="search-spinner" aria-hidden="true" />
     </div>
+
+    <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ announcement }}</div>
 
     <ul
       v-if="isOpen"
@@ -63,6 +66,18 @@
             </span>
           </div>
         </li>
+        <li
+          :id="itemId(results.length)"
+          class="search-result search-add-option"
+          :class="{ 'is-active': activeIndex === results.length }"
+          role="option"
+          :aria-selected="activeIndex === results.length"
+          data-testid="search-add-option"
+          @mousedown.prevent="goToAdd()"
+          @mouseover="activeIndex = results.length"
+        >
+          <span class="add-option-hint">Não é nenhum destes?</span>{{ ' ' }}<span class="add-option-action">Adicionar livro novo</span>
+        </li>
       </template>
 
       <li
@@ -77,7 +92,7 @@
             data-testid="search-add-manual"
             @click="goToAdd()"
           >
-            Adicionar à mão
+            Adicionar livro novo
           </button>
         </div>
       </li>
@@ -95,11 +110,15 @@ const props = withDefaults(
     initialQuery?: string
     navigateOnSelect?: boolean
     landmarkLabel?: string
+    placeholder?: string
+    keyShortcut?: string
   }>(),
   {
     initialQuery: '',
     navigateOnSelect: true,
     landmarkLabel: 'Buscar livros',
+    placeholder: 'Buscar livros…',
+    keyShortcut: '',
   },
 )
 
@@ -137,6 +156,16 @@ const resultsLabel = computed(() =>
     : 'Nenhum resultado',
 )
 
+const announcement = ref('')
+let announceTimer: ReturnType<typeof setTimeout> | null = null
+
+function announce(text: string): void {
+  if (announceTimer) clearTimeout(announceTimer)
+  announceTimer = setTimeout(() => {
+    announcement.value = text
+  }, 250)
+}
+
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 let abortController: AbortController | null = null
 
@@ -164,6 +193,12 @@ async function fetchResults(term: string): Promise<void> {
     results.value = data.works
     lastQuery.value = term
     searched.value = true
+    const n = data.works.length
+    announce(
+      n === 0
+        ? `Nenhum livro encontrado para “${term}”. Você pode adicionar como livro novo.`
+        : `${n} ${n === 1 ? 'resultado' : 'resultados'}, ou adicione um livro novo`,
+    )
     activeIndex.value = -1
   } catch (err) {
     if ((err as { name?: string }).name === 'AbortError') return
@@ -182,6 +217,8 @@ watch(query, (val) => {
 
   if (debounceTimer) clearTimeout(debounceTimer)
   if (trimmed.length < 2) {
+    if (announceTimer) clearTimeout(announceTimer)
+    announcement.value = ''
     abortController?.abort()
     results.value = []
     loading.value = false
@@ -194,13 +231,15 @@ watch(query, (val) => {
 
 onBeforeUnmount(() => {
   if (debounceTimer) clearTimeout(debounceTimer)
+  if (announceTimer) clearTimeout(announceTimer)
   abortController?.abort()
 })
 
 function onKeydown(e: KeyboardEvent): void {
   if (!isOpen.value) return
 
-  const total = results.value.length
+  // Com resultados, a última opção é "Adicionar livro novo" (índice results.length).
+  const total = results.value.length > 0 ? results.value.length + 1 : 0
 
   if (e.key === 'ArrowDown') {
     e.preventDefault()
@@ -214,6 +253,8 @@ function onKeydown(e: KeyboardEvent): void {
     e.preventDefault()
     if (activeIndex.value >= 0 && results.value[activeIndex.value]) {
       selectWork(results.value[activeIndex.value]!)
+    } else if (activeIndex.value === results.value.length && results.value.length > 0) {
+      goToAdd()
     } else if (results.value.length === 0 && searched.value) {
       goToAdd()
     }
@@ -252,6 +293,24 @@ function selectWork(work: SearchResult): void {
     void navigateTo(`/livro/${work.slug}`)
   }
 }
+
+/** Volta ao estado inicial: sem texto, sem resultados, lista fechada. */
+function reset(): void {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  if (announceTimer) clearTimeout(announceTimer)
+  abortController?.abort()
+  query.value = ''
+  results.value = []
+  searched.value = false
+  loading.value = false
+  lastQuery.value = ''
+  announcement.value = ''
+  activeIndex.value = -1
+  // Se o campo segue focado, continua valendo: digitar de novo abre a lista.
+  focused.value = typeof document !== 'undefined' && document.activeElement === inputRef.value
+}
+
+defineExpose({ reset })
 
 function goToAdd(): void {
   const q = query.value.trim()
@@ -422,6 +481,23 @@ function goToAdd(): void {
   color: var(--text-color);
   font-size: var(--font-size-xs);
   opacity: 0.7;
+}
+
+.search-add-option {
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  border-top: 1px solid var(--input-bg);
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
+}
+
+.add-option-hint {
+  color: var(--text-color);
+}
+
+.add-option-action {
+  color: var(--highlight);
+  font-weight: 600;
 }
 
 .search-empty {

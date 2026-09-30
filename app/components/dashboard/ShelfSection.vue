@@ -141,8 +141,7 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 }
 
 .shelf-empty-row-link:focus-visible,
-.btn-start-reading:focus-visible,
-.shelf-title:focus-visible {
+.btn-start-reading:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--radius-sm);
@@ -156,6 +155,7 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 }
 
 .shelf-card {
+  position: relative;
   display: flex;
   gap: var(--space-4);
   padding: var(--space-4) 0;
@@ -188,6 +188,7 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 }
 
 .shelf-title {
+  min-height: 24px;
   font-family: var(--font-serif);
   font-size: var(--font-size-base);
   font-weight: 600;
@@ -200,9 +201,31 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   overflow: hidden;
 }
 
-.shelf-title:hover {
+/* The title link stretches over the row; "Começar a ler" sits above it and stays its own target. */
+.shelf-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.shelf-card:hover .shelf-title {
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+.shelf-title:focus-visible {
+  outline: none;
+}
+
+.shelf-title:focus-visible::after {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+.btn-start-reading {
+  position: relative;
+  z-index: 1;
 }
 
 .shelf-author,

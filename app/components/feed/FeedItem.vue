@@ -76,6 +76,7 @@ const authorsText = computed(() => {
 
 <style scoped>
 .feed-row {
+  position: relative;
   display: flex;
   gap: var(--space-4);
   padding: var(--space-5) 0;
@@ -141,6 +142,7 @@ const authorsText = computed(() => {
 }
 
 .feed-work-title {
+  min-height: 24px;
   font-family: var(--font-serif);
   font-size: var(--font-size-lg);
   font-weight: 600;
@@ -188,6 +190,25 @@ const authorsText = computed(() => {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.feed-work-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.feed-user-link {
+  position: relative;
+  z-index: 1;
+}
+
+@media (pointer: coarse) {
+  .feed-user-link {
+    min-height: 44px;
+    min-width: 44px;
+    margin-block: -10px;
+  }
 }
 
 @media (max-width: 600px) {

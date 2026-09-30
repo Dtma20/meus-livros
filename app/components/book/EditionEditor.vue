@@ -23,8 +23,8 @@
           inputmode="numeric"
         >
         <p class="form-hint">
-          Qualquer grafia serve. O que não for um ISBN válido é gravado como “sem ISBN”, que é um
-          estado legítimo e repetível.
+          Qualquer grafia serve. Se não for um ISBN válido, a edição fica sem ISBN. Tudo bem:
+          várias edições podem ficar sem.
         </p>
       </div>
 

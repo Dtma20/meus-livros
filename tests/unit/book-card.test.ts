@@ -154,19 +154,6 @@ describe('BookCard.vue row alignment styles', () => {
     return source.slice(open, source.indexOf('}', open) + 1)
   }
 
-  function hoverBlock(): string {
-    const start = source.indexOf('@media (hover: hover) and (pointer: fine)')
-    expect(start).toBeGreaterThan(-1)
-    const open = source.indexOf('{', start)
-    let depth = 0
-    for (let i = open; i < source.length; i++) {
-      if (source[i] === '{') depth++
-      if (source[i] === '}') depth--
-      if (depth === 0) return source.slice(open, i + 1)
-    }
-    return ''
-  }
-
   it('fills the grid cell as a column flex so the stars can sink to the bottom', () => {
     const card = ruleBody('.card')
     expect(card).toMatch(/display:\s*flex/)
@@ -181,7 +168,9 @@ describe('BookCard.vue row alignment styles', () => {
     )
   })
 
-  it('leaves the desktop overlay without the reserved height', () => {
-    expect(hoverBlock()).toMatch(/\.caption\s*\{[^}]*min-height:\s*0/)
+  it('keeps title and author visible on every device, with no hover-only overlay', () => {
+    expect(source).not.toContain('@media (hover: hover) and (pointer: fine)')
+    expect(ruleBody('.caption')).not.toMatch(/opacity:\s*0/)
+    expect(ruleBody('.caption')).not.toMatch(/position:\s*absolute/)
   })
 })

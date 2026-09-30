@@ -219,6 +219,7 @@ onMounted(() => {
 }
 
 .carousel-card {
+  position: relative;
   flex: 0 0 148px;
   scroll-snap-align: start;
   display: flex;
@@ -248,6 +249,7 @@ onMounted(() => {
 }
 
 .card-title {
+  min-height: 24px;
   font-family: var(--font-serif);
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -260,15 +262,26 @@ onMounted(() => {
   overflow: hidden;
 }
 
-.card-title:hover {
+/* The title link stretches over the whole card, so the tap target is the card, not one line of text. */
+.card-title::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sm);
+}
+
+.carousel-card:hover .card-title {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
 
 .card-title:focus-visible {
+  outline: none;
+}
+
+.card-title:focus-visible::after {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
 }
 
 .card-author {

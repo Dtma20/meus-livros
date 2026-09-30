@@ -7,7 +7,8 @@
         </NuxtLink>
       </div>
 
-      <h1 class="page-title">Registrar leitura</h1>
+      <h1 ref="shelfHeadingRef" class="page-title" tabindex="-1">Registrar leitura</h1>
+      <p class="visually-hidden" role="status" aria-live="polite">{{ selectionAnnouncement }}</p>
       <p class="page-desc">
         Acompanhe seu progresso ou registre a conclusão da leitura deste livro.
       </p>
@@ -37,37 +38,50 @@
 
       <div class="tabs-nav tabs-nav--full" role="tablist" aria-label="Opções para adicionar livro">
         <button
+          id="log-tab-buscar"
           type="button"
           role="tab"
           class="tab-btn"
           :class="{ active: activeTab === 'buscar' }"
           :aria-selected="activeTab === 'buscar'"
+          aria-controls="log-tab-panel"
+          :tabindex="activeTab === 'buscar' ? 0 : -1"
           @click="selectTab('buscar')"
+          @keydown="onTabKeydown($event)"
         >
-          Buscar no catálogo
+          <span class="tab-label-long">Buscar no catálogo</span><span class="tab-label-short">Catálogo</span>
         </button>
         <button
+          id="log-tab-novo"
           type="button"
           role="tab"
           class="tab-btn"
           :class="{ active: activeTab === 'novo' }"
           :aria-selected="activeTab === 'novo'"
+          aria-controls="log-tab-panel"
+          :tabindex="activeTab === 'novo' ? 0 : -1"
           @click="selectTab('novo')"
+          @keydown="onTabKeydown($event)"
         >
-          Adicionar livro novo
+          <span class="tab-label-long">Adicionar livro novo</span><span class="tab-label-short">Livro novo</span>
         </button>
         <button
+          id="log-tab-json"
           type="button"
           role="tab"
           class="tab-btn"
           :class="{ active: activeTab === 'json' }"
           :aria-selected="activeTab === 'json'"
+          aria-controls="log-tab-panel"
+          :tabindex="activeTab === 'json' ? 0 : -1"
           @click="selectTab('json')"
+          @keydown="onTabKeydown($event)"
         >
-          Importar JSON
+          <span class="tab-label-long">Importar de arquivo</span><span class="tab-label-short">De arquivo</span>
         </button>
       </div>
 
+      <div id="log-tab-panel" role="tabpanel" :aria-labelledby="`log-tab-${activeTab}`">
       <div v-if="activeTab === 'buscar'" ref="searchContainerRef" class="search-tab-content">
         <SearchBox
           landmark-label="Buscar livro para registrar"
@@ -81,6 +95,7 @@
         return-to="/app/novo"
       />
       <JsonImportSection v-else />
+      </div>
     </div>
   </div>
 </template>
@@ -146,6 +161,23 @@ if (route) {
   )
 }
 
+const TAB_ORDER: readonly TabKey[] = ['buscar', 'novo', 'json']
+
+function onTabKeydown(event: KeyboardEvent): void {
+  const index = TAB_ORDER.indexOf(activeTab.value)
+  let next = index
+  if (event.key === 'ArrowRight') next = (index + 1) % TAB_ORDER.length
+  else if (event.key === 'ArrowLeft') next = (index - 1 + TAB_ORDER.length) % TAB_ORDER.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = TAB_ORDER.length - 1
+  else return
+  event.preventDefault()
+  const tab = TAB_ORDER[next]
+  if (!tab) return
+  selectTab(tab)
+  nextTick(() => document.getElementById(`log-tab-${tab}`)?.focus())
+}
+
 function selectTab(tab: TabKey) {
   activeTab.value = tab
   if (tab === 'buscar') {
@@ -162,6 +194,7 @@ function selectTab(tab: TabKey) {
 }
 
 onMounted(() => {
+  isMounted = true
   if (!isLoggingFromShelf.value && activeTab.value === 'buscar') {
     focusSearchInput()
   }
@@ -178,6 +211,24 @@ const initialWork = ref<SearchResult | null>(null)
 const loadingWork = ref(false)
 const workError = ref(false)
 
+// Escolher um livro troca a tela inteira; sem isto o foco caía no <body>.
+// Leva o foco ao título do formulário e anuncia o livro escolhido.
+const shelfHeadingRef = ref<HTMLElement | null>(null)
+const selectionAnnouncement = ref('')
+let focusAfterLoad = false
+// Só depois de montar: numa carga direta com ?work_id o foco fica onde o navegador o pôs.
+let isMounted = false
+
+function focusShelfHeading(): void {
+  focusAfterLoad = false
+  void nextTick(() => {
+    shelfHeadingRef.value?.focus()
+    selectionAnnouncement.value = initialWork.value
+      ? `Livro escolhido: ${initialWork.value.title}.`
+      : 'Não foi possível carregar os detalhes deste livro.'
+  })
+}
+
 function onWorkSelect(work: SearchResult): void {
   if (!work?.id) return
   if (router?.push) {
@@ -192,6 +243,10 @@ function onWorkSelect(work: SearchResult): void {
 watch(
   workId,
   async (id) => {
+    if (id && isMounted) {
+      focusAfterLoad = true
+      selectionAnnouncement.value = ''
+    }
     if (!id) {
       initialWork.value = null
       loadingWork.value = false
@@ -225,6 +280,9 @@ watch(
       initialWork.value = null
     } finally {
       loadingWork.value = false
+      if (focusAfterLoad && workId.value === id) {
+        focusShelfHeading()
+      }
     }
   },
   { immediate: true },
@@ -233,7 +291,7 @@ watch(
 const pageTitle = computed(() => {
   if (isLoggingFromShelf.value) return 'Registrar leitura'
   if (activeTab.value === 'novo') return 'Adicionar livro novo'
-  if (activeTab.value === 'json') return 'Importar biblioteca via JSON'
+  if (activeTab.value === 'json') return 'Importar livros de um arquivo'
   return 'Registrar leitura'
 })
 
@@ -245,7 +303,7 @@ const pageDesc = computed(() => {
     return 'Adicione um novo livro à sua estante para começar a ler ou guardar no catálogo.'
   }
   if (activeTab.value === 'json') {
-    return 'Envie um arquivo JSON para importar vários livros e leituras de uma só vez.'
+    return 'Traga vários livros e leituras de uma vez, a partir de um arquivo exportado (.json).'
   }
   return 'Procure o livro no catálogo do grupo. Se ninguém cadastrou ainda, adicione-o.'
 })
@@ -257,24 +315,15 @@ useSeoMeta({
 
 <style scoped>
 .log-page-container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-4) 0;
   width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-2) 0;
 }
 
 .log-page-card {
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-8);
   width: 100%;
-  max-width: 580px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-}
-
-.log-page-card.wide-card {
-  max-width: 640px;
+  max-width: 40rem;
 }
 
 .shelf-back-nav {
@@ -296,10 +345,35 @@ useSeoMeta({
 }
 
 .page-title {
+  font-family: var(--font-serif);
   font-size: var(--font-size-2xl);
+  font-weight: 600;
+  letter-spacing: -0.015em;
   margin-top: 0;
   margin-bottom: var(--space-2);
-  color: #fff;
+  color: var(--text-bright);
+}
+
+.page-title:focus {
+  outline: none;
+}
+
+.page-title:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .page-desc {
@@ -311,6 +385,10 @@ useSeoMeta({
 
 .search-tab-content {
   width: 100%;
+}
+
+.search-tab-content :deep(.search-box) {
+  max-width: none;
 }
 
 .loading-state,
@@ -325,11 +403,18 @@ useSeoMeta({
   margin-top: var(--space-3);
 }
 
-@media (max-width: 640px) {
-  .log-page-card {
-    padding: var(--space-4);
-    border-radius: 0;
-    box-shadow: none;
+
+.tab-label-short {
+  display: none;
+}
+
+@media (max-width: 480px) {
+  .tab-label-long {
+    display: none;
+  }
+
+  .tab-label-short {
+    display: inline;
   }
 }
 </style>

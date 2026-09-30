@@ -133,11 +133,11 @@ const cardAriaLabel = computed(() => {
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: var(--font-size-xs);
   line-height: var(--line-height-tight);
-  font-weight: 500;
-  color: var(--poster-border);
+  font-weight: 600;
+  color: var(--text-bright);
 }
 
 .caption-author {
@@ -153,41 +153,6 @@ const cardAriaLabel = computed(() => {
   margin-top: var(--space-1);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .media {
-    overflow: hidden;
-    border-radius: var(--radius-sm, 4px);
-  }
-
-  .caption {
-    position: absolute;
-    bottom: var(--poster-border-width);
-    left: var(--poster-border-width);
-    right: var(--poster-border-width);
-    width: auto;
-    min-height: 0;
-    margin-top: 0;
-    padding: var(--space-4) var(--space-2) var(--space-2);
-    background: linear-gradient(to bottom, transparent, var(--bg-color));
-    border-radius: 0 0 calc(var(--radius-sm, 4px) - var(--poster-border-width)) calc(var(--radius-sm, 4px) - var(--poster-border-width));
-    justify-content: flex-end;
-    pointer-events: none;
-    opacity: 0;
-    transform: translateY(var(--space-1));
-    transition: opacity 0.2s ease, transform 0.2s ease;
-  }
-
-  .card:hover .caption,
-  .card:focus-visible .caption {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
-  .caption-title {
-    font-weight: 600;
-  }
-}
-
 .info {
   margin-top: auto;
   padding-top: var(--space-2);
@@ -195,15 +160,11 @@ const cardAriaLabel = computed(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .poster,
-  .caption {
+  .poster {
     transition: none;
   }
 
-  .card:active .poster,
-  .caption,
-  .card:hover .caption,
-  .card:focus-visible .caption {
+  .card:active .poster {
     transform: none;
   }
 }
