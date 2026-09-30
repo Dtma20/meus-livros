@@ -8,7 +8,7 @@
         Membros
       </NuxtLink>
       <NuxtLink to="/app/novo" class="nav-link nav-link-desktop" aria-keyshortcuts="n">
-        + Registrar leitura
+        Registrar leitura
       </NuxtLink>
       <NuxtLink :to="profileLink" class="nav-link nav-link-desktop">
         Perfil

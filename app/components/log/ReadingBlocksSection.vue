@@ -164,18 +164,33 @@
       </p>
 
       <div v-if="blocks.length === 0 && !showAddForm && !pendingRemoval" class="empty-blocks-note">
-        <p>{{ progress.pages_read === 0 ? 'Nenhuma página registrada ainda.' : 'Nenhum trecho com anotação registrado.' }}</p>
-        <p v-if="isOwner" class="empty-blocks-help">
-          Registre até onde leu e, se quiser, uma nota sobre o trecho.
+        <p class="empty-blocks-help">
+          <span>{{ progress.pages_read === 0 ? 'Nenhuma página registrada ainda.' : 'Nenhum trecho com anotação registrado.' }}</span>
+          <span v-if="isOwner" class="empty-blocks-help-sub"> Registre até onde leu e, se quiser, uma nota sobre o trecho.</span>
         </p>
         <button
           v-if="isOwner"
           ref="emptyAddBtnRef"
           type="button"
-          class="btn btn-secondary empty-blocks-action"
+          class="empty-blocks-action"
           @click="openAddForm('empty')"
         >
-          Registrar trecho lido
+          <svg
+            class="btn-icon"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            stroke="currentColor"
+            stroke-width="2"
+            fill="none"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span>Registrar trecho lido</span>
         </button>
       </div>
 
@@ -901,22 +916,79 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .empty-blocks-note {
-  padding: var(--space-2) 0 var(--space-4);
-  color: var(--text-color);
-  font-size: var(--font-size-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-8) var(--space-4);
+  margin: var(--space-4) 0;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  background-color: rgba(255, 255, 255, 0.015);
+  gap: var(--space-3);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-.empty-blocks-note p {
-  margin: 0;
+.empty-blocks-note:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(255, 255, 255, 0.025);
 }
 
 .empty-blocks-note .empty-blocks-help {
-  margin-top: var(--space-1);
+  margin: 0;
   color: var(--text-color);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+  max-width: 65ch;
+}
+
+.empty-blocks-help-sub {
+  color: var(--text-muted, var(--text-color));
 }
 
 .empty-blocks-action {
-  margin-top: var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: var(--space-2) var(--space-4);
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.empty-blocks-action:hover {
+  background-color: var(--card-bg);
+  color: var(--highlight);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.empty-blocks-action:active {
+  transform: translateY(0);
+}
+
+.empty-blocks-action:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .empty-blocks-note {
+    padding: var(--space-6) var(--space-3);
+  }
 }
 
 .block-card {

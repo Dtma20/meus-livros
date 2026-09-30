@@ -92,7 +92,7 @@
             <NuxtLink
               v-if="isOwner && !logData.finished_on"
               :to="`/app/entrada/${logData.id}/editar?terminar=1`"
-              class="btn btn-secondary finish-btn"
+              class="btn btn-secondary btn-sm finish-btn"
               :aria-label="`Terminei ${logData.work.title}`"
             >
               <svg
@@ -114,7 +114,7 @@
 
             <button
               type="button"
-              class="btn btn-secondary share-btn"
+              class="btn btn-secondary btn-sm share-btn"
               :class="{ 'is-copied': copied }"
               :aria-label="copied ? 'Link copiado para a área de transferência' : 'Compartilhar esta entrada'"
               @click="handleShare"
@@ -156,7 +156,7 @@
             <NuxtLink
               v-if="isOwner"
               :to="`/app/entrada/${logData.id}/editar`"
-              class="btn btn-secondary edit-btn"
+              class="btn btn-secondary btn-sm edit-btn"
             >
               <svg
                 class="btn-icon"
@@ -174,23 +174,9 @@
               </svg>
               <span>Editar</span>
             </NuxtLink>
-          </div>
 
-          <div v-if="isOwner" class="remove-zone">
-            <p class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
-            <template v-if="pendingSeconds > 0">
-              <span class="remove-msg" aria-hidden="true">Esta leitura será removida em {{ pendingSeconds }} s.</span>
-              <button ref="undoBtnRef" type="button" class="btn btn-ghost btn-sm undo-btn" @click="undoDelete">Desfazer</button>
-            </template>
-            <template v-else-if="isDeleting">
-              <span class="remove-msg" aria-hidden="true">Removendo...</span>
-            </template>
-            <template v-else-if="deleteError">
-              <span class="remove-msg remove-error" aria-hidden="true">{{ deleteError }}</span>
-              <button type="button" class="btn btn-ghost btn-sm undo-btn" @click="startDelete">Tentar de novo</button>
-            </template>
             <button
-              v-else
+              v-if="isOwner && pendingSeconds === 0 && !isDeleting && !deleteError"
               ref="removeBtnRef"
               type="button"
               class="btn btn-danger btn-sm delete-btn"
@@ -211,8 +197,23 @@
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
               </svg>
-              <span>Remover esta leitura</span>
+              <span>Remover</span>
             </button>
+          </div>
+
+          <div v-if="isOwner && (pendingSeconds > 0 || isDeleting || deleteError)" class="remove-zone">
+            <p class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
+            <template v-if="pendingSeconds > 0">
+              <span class="remove-msg" aria-hidden="true">Esta leitura será removida em {{ pendingSeconds }} s.</span>
+              <button ref="undoBtnRef" type="button" class="btn btn-ghost btn-sm undo-btn" @click="undoDelete">Desfazer</button>
+            </template>
+            <template v-else-if="isDeleting">
+              <span class="remove-msg" aria-hidden="true">Removendo...</span>
+            </template>
+            <template v-else-if="deleteError">
+              <span class="remove-msg remove-error" aria-hidden="true">{{ deleteError }}</span>
+              <button type="button" class="btn btn-ghost btn-sm undo-btn" @click="startDelete">Tentar de novo</button>
+            </template>
           </div>
         </div>
       </div>
@@ -832,7 +833,7 @@ async function performDelete(): Promise<void> {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   margin-top: auto;
 }
 
@@ -852,11 +853,13 @@ async function performDelete(): Promise<void> {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-3);
-  padding-top: var(--space-2);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  font-size: var(--font-size-sm);
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
 }
 
 @media (min-width: 541px) {

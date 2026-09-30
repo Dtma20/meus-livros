@@ -155,7 +155,7 @@ describe('Layout: app.vue', () => {
     expect(linkData).toEqual([
       { href: '/atividade', text: 'Atividade' },
       { href: '/membros', text: 'Membros' },
-      { href: '/app/novo', text: '+ Registrar leitura' },
+      { href: '/app/novo', text: 'Registrar leitura' },
       { href: '/app/perfil', text: 'Perfil' }
     ])
 
@@ -206,7 +206,7 @@ describe('Layout: app.vue', () => {
       expect(linkData).toEqual([
         { href: '/atividade', text: 'Atividade' },
         { href: '/membros', text: 'Membros' },
-        { href: '/app/novo', text: '+ Registrar leitura' },
+        { href: '/app/novo', text: 'Registrar leitura' },
         { href: '/@diogo', text: 'Perfil' }
       ])
 
