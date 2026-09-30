@@ -2,7 +2,7 @@
 
 ## Context
 
-Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
+Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
 
 In one grid row at 375, cards measure 328px and 314px because one title takes two lines and the other one, so the stars sit at different heights. A cover that fails renders the SVG built at `BookCover.vue:86`: flat `#2c3440` with two grey initials, which reads as a broken image next to real covers. A broken cover's `alt` would render in UA link blue because nothing sets `color` on the image.
 

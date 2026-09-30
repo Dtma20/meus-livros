@@ -2,7 +2,7 @@
 
 ## Context
 
-Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
+Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
 
 At 375 the member's first screen is "Lendo atualmente" with a dashed empty box and "Minha estante" with a lone 24px "+" button and another dashed box; the finished-books carousel and group activity start below y=812 (`app/pages/index.vue:31,117,119,124`). `ShelfSection.vue` uses `1.05rem` (`:225`) and `11px` (`:252`), off the type scale.
 

@@ -6,7 +6,7 @@ On a phone, the four things a member does are one thumb away: Início, Atividade
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), wave 2.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), wave 2.
 
 The cohort uses the site from WhatsApp's in-app browser on Android. Header links today are small (`docs/frontend-audit.md`: 19 px tall).
 

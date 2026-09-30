@@ -6,7 +6,7 @@
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), block A.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), block A.
 
 Today the core loop only works for books you added yourself:
 

@@ -2,7 +2,7 @@
 
 ## Context
 
-Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
+Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
 
 The audit measured Arial and the UA default `13.3333px` on buttons across seven routes (`<button>` does not inherit font), a blue tap flash (`-webkit-tap-highlight-color: rgba(51,181,229,.4)`) on every card, the UA `::selection`, no `theme-color`, and placeholders in the UA `#757575` (2.73:1 on `--input-bg`).
 

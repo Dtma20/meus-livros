@@ -60,7 +60,7 @@
 | [048](048-nav-touch-targets.md) | Header links big enough to tap | 10 Frontend polish | 1h | - |
 | [049](049-platform-reset.md) | Global element reset and platform finish | 11 Visual audit | 1-2h | - |
 | [050](050-retire-blue-and-greens.md) | Retire the old blue and the ad-hoc greens | 11 Visual audit | 1-2h | - |
-| 051 | OG fallback in the current brand (done by the reviewer in `74a1402`; no task file, spec in [../visual-audit-2026-09-28.md](../visual-audit-2026-09-28.md)) | 11 Visual audit | 1-2h | - |
+| 051 | OG fallback in the current brand (done by the reviewer in `74a1402`; no task file, spec in [../visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md)) | 11 Visual audit | 1-2h | - |
 | [052](052-profile-above-the-fold.md) | Profile: books above the fold, quieter handle | 11 Visual audit | 1-2h | - |
 | [053](053-permalink-review-first.md) | Permalink: the review comes first | 11 Visual audit | 1-2h | - |
 | [054](054-dashboard-content-first.md) | Dashboard: content before empty states | 11 Visual audit | 1-2h | - |

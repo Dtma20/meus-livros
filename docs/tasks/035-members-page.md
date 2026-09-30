@@ -6,7 +6,7 @@ A member can see who else is in the group and open their profiles.
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), block B.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), block B.
 
 Today nobody can discover anyone: there is no user list and no user search, and a profile is reachable only through a pasted link or a feed row. With ~30 members, a plain list replaces follows, search and suggestions at once.
 

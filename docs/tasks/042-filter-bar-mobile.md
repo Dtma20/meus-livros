@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 Below 640px `app/components/profile/FilterBar.vue` puts genre, country, decade, sort and "Limpar" in one `nowrap` / `min-width: max-content` strip: 791px inside 341px, so a phone sees one and a half controls and the reset button is the last thing off-screen (`docs/frontend-audit.md`, P1).
 

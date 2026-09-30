@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 A lazy cover shows an empty `--card-bg` rectangle until it arrives; at 1440px the first paint of a profile showed 9 of 12 cards blank (`docs/frontend-audit.md`, P2). `app/components/book/BookCover.vue` is a bare `<img>` with an `@error` fallback chain (https `cover_url` → `olCoverId` → `isbn13` → SVG placeholder).
 

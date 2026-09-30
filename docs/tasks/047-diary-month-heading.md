@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 All 86 migrated readings have year precision, so in `app/components/profile/DiaryList.vue` every year renders a "2026" heading followed by a "Sem mês" heading followed by the table: one useless heading per year.
 

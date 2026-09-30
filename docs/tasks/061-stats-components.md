@@ -2,7 +2,7 @@
 
 ## Context
 
-Statistics round of 2026-09-28 (`STAT-1`). Agent prompt: [PROMPT-estatisticas.md](../PROMPT-estatisticas.md). Runs in parallel with TASK-060; TASK-062 places these components on the pages.
+Statistics round of 2026-09-28 (`STAT-1`). Agent prompt: [PROMPT-estatisticas.md](../agent-prompts/PROMPT-estatisticas.md). Runs in parallel with TASK-060; TASK-062 places these components on the pages.
 
 Owner decision: charts are hand-made CSS/SVG, **no chart library**. They must render identically in SSR and on the client and stay light inside WhatsApp's WebView. The rating histogram already exists - `app/components/book/RatingHistogram.vue` (prop `ratings: number[]`) - and is reused as is, not rewritten.
 

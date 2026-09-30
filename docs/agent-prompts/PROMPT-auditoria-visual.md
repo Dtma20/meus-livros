@@ -1,7 +1,7 @@
 # PROMPT - Auditoria visual aprofundada do frontend
 
 > Uso: cole este bloco como prompt de um agente com navegador (Claude com o Browser pane, ou equivalente). É uma auditoria **somente leitura**: o agente observa, mede e relata. Não edita código, não commita.
-> Escrito em 2026-09-28. A auditoria anterior ([frontend-audit.md](frontend-audit.md), 2026-09-20) foi sobre layout quebrado e funcionamento. Esta é sobre **qualidade visual**: se as telas são agradáveis, coerentes e com acabamento.
+> Escrito em 2026-09-28. A auditoria anterior ([frontend-audit.md](../frontend-audit.md), 2026-09-20) foi sobre layout quebrado e funcionamento. Esta é sobre **qualidade visual**: se as telas são agradáveis, coerentes e com acabamento.
 
 ---
 
@@ -14,7 +14,7 @@ Sua tarefa: responder, com evidência, à pergunta **"as telas estão realmente 
 1. `CLAUDE.md` (seções Frontend, Security, "Things that will look like bugs but are deliberate").
 2. `docs/frontend.md` - a especificação. Note §7 (breakpoints, contraste) e §8 (tokens).
 3. `docs/frontend-audit.md` - a auditoria de 2026-09-20. **Não repita os achados dela.** Para cada P0/P1 dela, diga só: corrigido, regrediu ou continua.
-4. `docs/ux-round-2026-09-27.md` e as tasks `docs/tasks/039-*.md` a `048-*.md` - a rodada de polimento mais recente. O que elas mudaram é o que você mais precisa olhar com olho crítico.
+4. `docs/reports/ux-round-2026-09-27.md` e as tasks `docs/tasks/039-*.md` a `048-*.md` - a rodada de polimento mais recente. O que elas mudaram é o que você mais precisa olhar com olho crítico.
 5. `app/assets/css/tokens.css` e `app/assets/css/forms.css` - o sistema visual declarado.
 6. `docs/architecture-review.md` - o que foi recusado de propósito.
 
@@ -156,7 +156,7 @@ Cada achado separa **objetivo** (medido, reproduzível) de **subjetivo** (julgam
 
 ## 7. Entrega
 
-Escreva `docs/visual-audit-2026-09-28.md` no mesmo formato e idioma (inglês) de `docs/frontend-audit.md`:
+Escreva `docs/reports/visual-audit-2026-09-28.md` no mesmo formato e idioma (inglês) de `docs/frontend-audit.md`:
 
 1. **Method** - larguras, rotas, estados, sessão usada ou não, o que ficou de fora e por quê.
 2. **Status of the 2026-09-20 findings** - uma linha por P0/P1: fixed / regressed / still open.

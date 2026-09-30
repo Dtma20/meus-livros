@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 `app/components/book/RatingInput.vue` splits each 28px star into two halves (`.star-half { width: 50% }`), so a half-star is **14px wide** - under WCAG 2.5.8's 24px floor, on the most-used input of the product. The component is `role="slider"` on purpose (TASK-021): keep it.
 

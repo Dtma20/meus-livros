@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 TASK-033 renders the title and author twice in `app/components/book/BookCard.vue`: an `.overlay` (desktop, on hover) and a `.caption` (touch, under the poster), each with its own copy of the clamp CSS. Two DOM copies of the same text, hidden by media query, is what `docs/PROMPT-frontend-melhorias.md` asked to unify.
 

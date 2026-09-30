@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 The same action has three labels: "Ir para o início" (`app/error.vue`, `livro/[slug].vue`, admin), "Voltar para o início" (`app/pages/entrada/[id].vue:13`, `app/pages/app/entrada/[id]/editar.vue:15`) and "Voltar ao início" (profile, handled by TASK-043). The audit also found two different visual styles for it.
 

@@ -6,7 +6,7 @@
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), block B.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), block B.
 
 `server/services/feed.ts` → `getRecentFeed(viewer, limit)` caps at 10 and `GET /api/feed/recentes` requires a session. The backlog item `SOC-7` asked for cursor pagination "from day one (cheap now, a rewrite later)" and for the feed to be **a tab, not the homepage**.
 

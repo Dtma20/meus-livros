@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 At 375px the anonymous home scrolls sideways: `document.scrollingElement.scrollWidth` is 411. Measured culprit: `.hero-visual-backdrop` in `app/components/landing/LandingHero.vue` (`width: 130%; left: -15%`, right edge at 410px).
 

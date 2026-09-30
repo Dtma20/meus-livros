@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 On `/@handle` the header shows `Livros / Autores / Países` for the whole library while the footer shows `Páginas Lidas / Média p/ Livro` for the filtered set, so a filtered screen can read "86 livros" and "0 páginas lidas" at once (`docs/frontend-audit.md`, P1). And `calculateStats` in `app/composables/useBookFilters.ts` adds `edition.page_count` for **every** log, including books still being read (`finished_on === null`), so "Páginas Lidas" counts pages nobody has read yet.
 

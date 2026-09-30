@@ -6,7 +6,7 @@ A book search is reachable from every page, for members and visitors, the way Le
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), block A.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), block A.
 
 The only search in the app lives inside `LogForm`, which no page shows. `GET /api/search` already accepts anonymous callers (`server/api/search/*.ts` resolves `viewer` as `null`). `SearchBox` with `navigateOnSelect` (default `true`) already navigates to `/livro/<slug>` on select.
 

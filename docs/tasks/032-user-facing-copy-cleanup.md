@@ -6,7 +6,7 @@ No screen mentions "MVP", and no screen shows a domain the app does not have.
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), block A.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), block A.
 
 - `app/pages/app/perfil.vue:28`: "O nome de usuário é definitivo e não pode ser alterado no MVP."
 - `app/pages/app/bem-vindo.vue:13` and `:58` spell the domain `meulivros.app`. There is no production domain yet, and the landing spells it `meuslivros.app`.

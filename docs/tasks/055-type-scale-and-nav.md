@@ -2,7 +2,7 @@
 
 ## Context
 
-Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
+Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
 
 Off-scale sizes in regular use: site title `1.35rem`/`1.15rem` (`app/layouts/default.vue:97,216` → 21.6/18.4px), stars `0.9rem` (`StarRating.vue:37` → 14.4px), card/feed titles `1.05rem` (`FeedItem.vue:122`), carousel `11px` (`ReadingCarousel.vue:275,282`). The dashboard shows 11 distinct sizes at 375. Off-scale spacing clusters in the nav: `padding: 4px 10px` on `.nav-link` and `.site-title`, `.bottom-nav-link padding 6px 2px, gap 3px`. "Sair" renders 16px while the other nav links render 14px.
 

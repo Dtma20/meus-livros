@@ -2,7 +2,7 @@
 
 ## Context
 
-Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
+Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
 
 `rgba(64,188,244,*)` - the blue `#40bcf4` from the original palette - survives as focus glows and selected-state fills while the UI is amber: `LogForm.vue:993,1059,1200`, `AddBookForm.vue:1016`, `bem-vindo.vue:329`, `perfil.vue:531,604`. Four greens mean "success": `#3fb950` (`JsonImportSection.vue:517,609`), `#34d399` (`convites.vue:404,502`, `perfil.vue:638`, `entrar/senha.vue:524`), `#10b981` (`LandingPillars.vue:317`), and `#00e054` as a dead fallback of `var(--highlight, #00e054)` (`JsonImportSection.vue:440-471`). `LogForm`'s "Remover da biblioteca" measures 3.86:1 (`--danger` on `--card-bg`). `docs/frontend.md` §8 still documents the blue palette.
 

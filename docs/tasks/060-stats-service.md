@@ -2,7 +2,7 @@
 
 ## Context
 
-Statistics round of 2026-09-28 (`STAT-1` in [feature-backlog.md](../feature-backlog.md)). The owner asked for it on 2026-09-28, overriding the deferral in [mvp-definition.md](../mvp-definition.md) §4. Agent prompt: [PROMPT-estatisticas.md](../PROMPT-estatisticas.md). Runs in parallel with TASK-061; TASK-062 consumes this endpoint.
+Statistics round of 2026-09-28 (`STAT-1` in [feature-backlog.md](../feature-backlog.md)). The owner asked for it on 2026-09-28, overriding the deferral in [mvp-definition.md](../mvp-definition.md) §4. Agent prompt: [PROMPT-estatisticas.md](../agent-prompts/PROMPT-estatisticas.md). Runs in parallel with TASK-061; TASK-062 consumes this endpoint.
 
 The profile payload (`server/services/profiles.ts`) cannot feed statistics: it stops at `.limit(100)` and carries no language. This task adds a dedicated aggregate endpoint.
 

@@ -143,7 +143,7 @@ taken before launching.
 failure is environmental: `routes.test.ts` expects the Neon display name `Diogo Amorim`,
 and locally the 86 books belong to `MeusLivros` ("suporte").
 
-**Every task from 001 to 062 is merged except 022, 023 and 024.** `npm run test` requires a
+**Every task from 001 to 068 is merged except 022, 023 and 024.** `npm run test` requires a
 current bundle and says so if it is missing - run `npm run build` first.
 
 What entered after `b06015d` (the 027 merge, 2026-09-21):
@@ -170,6 +170,10 @@ What entered after `b06015d` (the 027 merge, 2026-09-21):
 - **Reading statistics, 060-062** (planned in `9edd034`, 2026-09-28):
   `GET /api/users/:handle/stats`, the `BarList` and `YearColumns` components, and the
   pages `/@handle/estatisticas` and `/@handle/ano/<ano>`.
+- **Security round, 063-068**, from the pre-deploy review
+  ([reports/security-review-2026-09-28.md](reports/security-review-2026-09-28.md)). What that
+  round left open is in
+  [reports/security-review-2026-09-28-status.md](reports/security-review-2026-09-28-status.md).
 
 **012 was merged and later undone.** `09274c8` (2026-09-24) removed the Open Library
 lookup; books enter by manual entry only. Cover URLs built from `ol_cover_id` and

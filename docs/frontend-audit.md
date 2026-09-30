@@ -16,7 +16,7 @@ The five `/app/**` routes were audited in a second pass, with a session the owne
 
 The API is fine: `GET /api/logs/2233331b-…` returns 200 with the full record. Only the page fails.
 
-Cause, at [app/pages/entrada/[id].vue:162](app/pages/entrada/[id].vue#L162): `useRequestEvent()` and `useCookie()` are called **after `await requestFetch(...)`**, inside the `useAsyncData` handler. Nuxt composables require the synchronous setup context; after an await it is gone. The server logs `NUXT_E1001 - A composable that requires access to the Nuxt instance was called outside of a plugin, Nuxt hook, Nuxt middleware, or Vue setup function`, the handler's own `catch` re-throws, `error` becomes truthy, and the template falls to its not-found branch.
+Cause, at [app/pages/entrada/[id].vue:162](../app/pages/entrada/[id].vue#L162): `useRequestEvent()` and `useCookie()` are called **after `await requestFetch(...)`**, inside the `useAsyncData` handler. Nuxt composables require the synchronous setup context; after an await it is gone. The server logs `NUXT_E1001 - A composable that requires access to the Nuxt instance was called outside of a plugin, Nuxt hook, Nuxt middleware, or Vue setup function`, the handler's own `catch` re-throws, `error` becomes truthy, and the template falls to its not-found branch.
 
 Consequence beyond the blank page: the Open Graph card is generic.
 
@@ -52,7 +52,7 @@ Same shape on the work page: the reading-log row is 818px wide holding a handle 
 
 ### P1 - Three of five filter controls are off-screen on a phone
 
-At 375px, `.filter-container` has `scrollWidth 791` inside `clientWidth 341`. Below 640px [FilterBar.vue](app/components/profile/FilterBar.vue) sets `overflow-x: auto` with `flex-wrap: nowrap` and `min-width: max-content`, so genre, country, decade, sort and reset sit in one 791px strip. A phone shows the first one and part of the second; the only affordance for the rest is a thin scrollbar.
+At 375px, `.filter-container` has `scrollWidth 791` inside `clientWidth 341`. Below 640px [FilterBar.vue](../app/components/profile/FilterBar.vue) sets `overflow-x: auto` with `flex-wrap: nowrap` and `min-width: max-content`, so genre, country, decade, sort and reset sit in one 791px strip. A phone shows the first one and part of the second; the only affordance for the rest is a thin scrollbar.
 
 At 1440 all five fit comfortably in one row - genre, country and decade left, `Ordenar:` and a `Limpar ×` button right. So the control that clears the filters exists and is one click away **on a PC**, and is the last thing in the off-screen strip on a phone: the empty state's own "Limpar filtros" button is the only way a phone user reaches it.
 
@@ -92,7 +92,7 @@ Two pages, the same action, two designs and two wordings:
 | 404 | "Voltar ao início" | outlined, grey |
 | `/entrada/[id]` not-found | "Voltar para o início" | solid, `--highlight` blue |
 
-Four files declare their own `--highlight` button independently ([LogForm.vue](app/components/log/LogForm.vue), [entrar.vue](app/pages/entrar.vue), [bem-vindo.vue](app/pages/app/bem-vindo.vue), [perfil.vue](app/pages/app/perfil.vue)). `tokens.css` defines variables only - there is no `BaseButton`, `BaseInput` or `BaseField`, and `frontend.md` §3 never lists one. Each of the 17 merged tasks styled its own controls in isolation.
+Four files declare their own `--highlight` button independently ([LogForm.vue](../app/components/log/LogForm.vue), [entrar.vue](../app/pages/entrar.vue), [bem-vindo.vue](../app/pages/app/bem-vindo.vue), [perfil.vue](../app/pages/app/perfil.vue)). `tokens.css` defines variables only - there is no `BaseButton`, `BaseInput` or `BaseField`, and `frontend.md` §3 never lists one. Each of the 17 merged tasks styled its own controls in isolation.
 
 ### P2 - The grid is posters with no text, and no skeleton
 
@@ -126,7 +126,7 @@ It also carries no cover thumbnails. In a product whose every other surface is p
 
 ### Site-wide - the footer sentence is not grammatical Portuguese
 
-[app/layouts/default.vue:25](app/layouts/default.vue#L25):
+[app/layouts/default.vue:25](../app/layouts/default.vue#L25):
 
 > Dados bibliográficos parcialmente do Open Library
 

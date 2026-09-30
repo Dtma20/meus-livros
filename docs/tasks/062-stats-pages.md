@@ -2,7 +2,7 @@
 
 ## Context
 
-Statistics round of 2026-09-28 (`STAT-1`). Agent prompt: [PROMPT-estatisticas.md](../PROMPT-estatisticas.md). **Depends on TASK-060 (endpoint `GET /api/users/:handle/stats`, types in `shared/schemas/stats.ts`) and TASK-061 (`app/components/stats/BarList.vue`, `YearColumns.vue`), both merged.**
+Statistics round of 2026-09-28 (`STAT-1`). Agent prompt: [PROMPT-estatisticas.md](../agent-prompts/PROMPT-estatisticas.md). **Depends on TASK-060 (endpoint `GET /api/users/:handle/stats`, types in `shared/schemas/stats.ts`) and TASK-061 (`app/components/stats/BarList.vue`, `YearColumns.vue`), both merged.**
 
 Owner decisions: stats per member at `/@handle/estatisticas` (all years) and a shareable year-in-review at `/@handle/ano/<ano>`. Visitors see only what `visibleLogs` lets them see - the endpoint already enforces it.
 

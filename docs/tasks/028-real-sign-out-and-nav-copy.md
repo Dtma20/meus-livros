@@ -6,7 +6,7 @@
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), block A.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), block A.
 
 `app/layouts/app.vue:10` renders "Sair" as `<NuxtLink to="/entrar">`. Nothing in `app/**` calls better-auth's `sign-out`, so a member who taps "Sair" on a borrowed phone stays signed in. `/api/auth/sign-out` is already on the allowlist in `server/services/auth.ts`.
 

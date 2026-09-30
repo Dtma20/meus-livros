@@ -2,7 +2,7 @@
 
 ## Context
 
-Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
+Visual-audit round of 2026-09-28. Findings and measurements: [visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md). Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Tokens `--danger-text`, `--success`, `--highlight-soft`, `--highlight-glow` and `color-scheme: dark` are already in `tokens.css` (commit 2b4ec2f) - use them, do not edit `tokens.css`. Tasks 049-059 run in parallel; touch only the files listed below.
 
 For a visitor at 375×812, `/entrada/{id}` starts the review at y=962, below a 291px `ReadingBlocksSection` that says "224 de 224 páginas lidas (100%)" and "Nenhum trecho com anotação…". For the owner, `.actions-row` (`app/pages/entrada/[id].vue:640`, `flex-wrap: nowrap`) is 343px wide inside a 247px content box and escapes the card by 16px on each side. The card has `padding: 32px` at 375. The "Biblioteca de" label wraps to two lines beside the handle. `#3fb950` at `:682-683` and the owner's `delete-btn` in `--danger` (3.86:1 on the card) are off-token.
 

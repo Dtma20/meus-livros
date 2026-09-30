@@ -6,7 +6,7 @@ A poster in the grid says which book it is: an overlay on hover/focus on desktop
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), block B.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), block B.
 
 `app/components/book/BookCard.vue` renders cover + stars. `title` and `author` are already props (used only for `aria-label`). While covers load, or when a cover is missing, the grid is a wall of identical rectangles (`docs/frontend-audit.md`, P2).
 

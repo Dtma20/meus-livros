@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 `app/components/log/LogForm.vue:79` always prints "Preenchida com a data de hoje pelo seu navegador." under "Data de término". On the edit screen the field holds the stored date (e.g. 2024-01-01), so the form states something false about its own data (`docs/frontend-audit.md`, P2).
 

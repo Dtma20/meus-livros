@@ -1,6 +1,6 @@
 # Visual audit - 2026-09-28
 
-Follow-up to [frontend-audit.md](frontend-audit.md) (2026-09-20), which was about broken layout and function. This one asks whether the screens are **pleasant**: coherent, finished, and dominated by the right thing. Every number below was read from computed styles in a running browser, not from source. Read-only: no code changed, nothing committed, no form submitted.
+Follow-up to [frontend-audit.md](../frontend-audit.md) (2026-09-20), which was about broken layout and function. This one asks whether the screens are **pleasant**: coherent, finished, and dominated by the right thing. Every number below was read from computed styles in a running browser, not from source. Read-only: no code changed, nothing committed, no form submitted.
 
 ---
 

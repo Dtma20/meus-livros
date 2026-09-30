@@ -6,7 +6,7 @@ A profile can be read as a diary - readings grouped by year and month, newest fi
 
 ## Context
 
-UX round of 2026-09-27 ([ux-round-2026-09-27.md](../ux-round-2026-09-27.md)), block B.
+UX round of 2026-09-27 ([ux-round-2026-09-27.md](../reports/ux-round-2026-09-27.md)), block B.
 
 Letterboxd's Diary is the view that makes a profile feel like a history instead of a collection. `ProfileLogItem` (`shared/schemas/profile.ts`) already has `finished_on`, `finished_precision` (`dia` / `mes` / `ano`), `started_on`, `rating`, `format` and the work. **No server change.**
 

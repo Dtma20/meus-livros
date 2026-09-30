@@ -2,7 +2,7 @@
 
 ## Context
 
-Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
+Frontend round of 2026-09-27. Agent prompt: [PROMPT-frontend-melhorias.md](../agent-prompts/PROMPT-frontend-melhorias.md). Runs in parallel with the other tasks 039-048; touch only the files listed below.
 
 Header nav links measure 19px tall on a phone (`docs/frontend-audit.md`); `.nav-link` has `min-height: 28px`. The "Entrar" link (anonymous, `app/layouts/default.vue`) and "Sair" (member, `app/layouts/app.vue`) are the ones left in the header on a phone after TASK-037.
 
