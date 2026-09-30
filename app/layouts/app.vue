@@ -7,7 +7,7 @@
       <NuxtLink to="/membros" class="nav-link nav-link-desktop">
         Membros
       </NuxtLink>
-      <NuxtLink to="/app/novo" class="btn btn-secondary btn-sm nav-link-primary nav-link-desktop" aria-keyshortcuts="n">
+      <NuxtLink to="/app/novo" class="nav-link nav-link-desktop" aria-keyshortcuts="n">
         + Registrar leitura
       </NuxtLink>
       <NuxtLink :to="profileLink" class="nav-link nav-link-desktop">
@@ -186,6 +186,7 @@ async function handleSignOut() {
   border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
+  white-space: nowrap;
   background-color: transparent;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -203,17 +204,9 @@ async function handleSignOut() {
 .nav-link[aria-current="page"],
 .nav-link.router-link-exact-active {
   color: var(--highlight);
-}
-
-.nav-link:not(.nav-link-primary)[aria-current="page"],
-.nav-link:not(.nav-link-primary).router-link-exact-active {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 6px;
-}
-
-.nav-link-primary {
-  white-space: nowrap;
 }
 
 .nav-btn {

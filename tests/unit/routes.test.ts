@@ -195,42 +195,45 @@ describe('Layout: app.vue', () => {
       return { value: init ? init() : null }
     }
 
-    const wrapper = mount(AppLayout)
-    const navLinks = wrapper.findAll('nav.site-nav a')
-    const linkData = navLinks.map((a) => ({
-      href: a.getAttribute('href'),
-      text: a.textContent?.trim()
-    }))
+    try {
+      const wrapper = mount(AppLayout)
+      const navLinks = wrapper.findAll('nav.site-nav a')
+      const linkData = navLinks.map((a) => ({
+        href: a.getAttribute('href'),
+        text: a.textContent?.trim()
+      }))
 
-    expect(linkData).toEqual([
-      { href: '/atividade', text: 'Atividade' },
-      { href: '/membros', text: 'Membros' },
-      { href: '/app/novo', text: '+ Registrar leitura' },
-      { href: '/@diogo', text: 'Perfil' }
-    ])
+      expect(linkData).toEqual([
+        { href: '/atividade', text: 'Atividade' },
+        { href: '/membros', text: 'Membros' },
+        { href: '/app/novo', text: '+ Registrar leitura' },
+        { href: '/@diogo', text: 'Perfil' }
+      ])
 
-    const signOutBtn = wrapper.find('nav.site-nav button')
-    expect(signOutBtn).not.toBeNull()
-    expect(signOutBtn?.getAttribute('type')).toBe('button')
-    expect(signOutBtn?.textContent?.trim()).toBe('Sair')
-    expect(wrapper.find('nav.site-nav a[href="/entrar"]')).toBeNull()
+      const signOutBtn = wrapper.find('nav.site-nav button')
+      expect(signOutBtn).not.toBeNull()
+      expect(signOutBtn?.getAttribute('type')).toBe('button')
+      expect(signOutBtn?.textContent?.trim()).toBe('Sair')
+      expect(wrapper.find('nav.site-nav a[href="/entrar"]')).toBeNull()
 
-    const bottomLinks = wrapper.findAll('nav[aria-label="Navegação inferior"] a')
-    const bottomLinkData = bottomLinks.map((a) => ({
-      href: a.getAttribute('href'),
-      text: a.textContent?.trim()
-    }))
+      const bottomLinks = wrapper.findAll('nav[aria-label="Navegação inferior"] a')
+      const bottomLinkData = bottomLinks.map((a) => ({
+        href: a.getAttribute('href'),
+        text: a.textContent?.trim()
+      }))
 
-    expect(bottomLinkData).toEqual([
-      { href: '/', text: 'Início' },
-      { href: '/atividade', text: 'Atividade' },
-      { href: '/app/novo', text: 'Registrar' },
-      { href: '/membros', text: 'Membros' },
-      { href: '/@diogo', text: 'Perfil' }
-    ])
+      expect(bottomLinkData).toEqual([
+        { href: '/', text: 'Início' },
+        { href: '/atividade', text: 'Atividade' },
+        { href: '/app/novo', text: 'Registrar' },
+        { href: '/membros', text: 'Membros' },
+        { href: '/@diogo', text: 'Perfil' }
+      ])
 
-    wrapper.unmount()
-    globalScope.useState = prevUseState
+      wrapper.unmount()
+    } finally {
+      globalScope.useState = prevUseState
+    }
   })
 })
 
