@@ -1357,7 +1357,7 @@ function handleCancel(): void {
   gap: var(--space-2);
   background-color: var(--input-bg);
   border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   padding: 4px var(--space-3);
   color: #fff;
   font-size: var(--font-size-sm);
@@ -1536,59 +1536,6 @@ function handleCancel(): void {
   margin-top: var(--space-6);
   padding-top: var(--space-4);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  border-radius: var(--radius-sm);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0 var(--space-4);
-  min-height: 44px;
-  transition: all 0.15s ease-in-out;
-  touch-action: manipulation;
-  border: none;
-  box-sizing: border-box;
-}
-
-.btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.btn-primary {
-  background-color: var(--star-color);
-  color: #fff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-secondary {
-  background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--text-color);
-}
-
-.btn-secondary:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-}
-
-.btn-secondary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .btn-submit {

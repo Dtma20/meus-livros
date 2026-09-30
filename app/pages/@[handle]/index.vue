@@ -35,18 +35,19 @@
           >
             @{{ profile.user.handle }}
           </button>
-          <NuxtLink v-if="isOwner" to="/app/perfil" class="btn-edit-profile">
-            Editar perfil
-          </NuxtLink>
-          <a
-            v-if="isOwner"
-            href="/api/library/export"
-            download="meus-livros-export.json"
-            class="export-link"
-            title="Exportar biblioteca em JSON"
-          >
-            Exportar JSON
-          </a>
+          <div v-if="isOwner" class="profile-actions">
+            <NuxtLink to="/app/perfil" class="btn btn-secondary btn-edit-profile">
+              Editar perfil
+            </NuxtLink>
+            <a
+              href="/api/library/export"
+              download="meus-livros-export.json"
+              class="btn btn-ghost export-link"
+              title="Exportar biblioteca em JSON"
+            >
+              Exportar JSON
+            </a>
+          </div>
           <span class="copy-feedback" role="status" aria-live="polite">{{ copyFeedback }}</span>
         </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
@@ -636,23 +637,21 @@ onBeforeUnmount(() => {
 
 .name-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  gap: var(--space-3, 12px);
   flex-wrap: wrap;
 }
 
-.name-row > * {
-  margin-right: var(--space-3, 12px);
+.profile-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  flex-wrap: wrap;
 }
 
 .name-row > .copy-feedback {
   font-size: var(--font-size-xs, 0.75rem);
   color: var(--text-color, #9ab);
-}
-
-.export-row {
-  display: flex;
-  justify-content: flex-end;
-  margin: var(--space-2) 0 0;
 }
 
 .handle {
@@ -664,7 +663,7 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-base, 1rem);
   color: var(--text-color, #9ab);
   cursor: pointer;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
 }
 
 @media (pointer: coarse) {
@@ -681,38 +680,6 @@ onBeforeUnmount(() => {
 }
 
 .handle:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
-  outline-offset: var(--focus-ring-offset, 2px);
-}
-
-.btn-edit-profile,
-.export-link {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-1, 4px) 0;
-  font-size: var(--font-size-sm, 0.875rem);
-  color: var(--text-bright);
-  text-decoration: underline;
-  text-decoration-color: var(--highlight, #f59e0b);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.3em;
-  line-height: var(--line-height-normal, 1.5);
-  transition: color 0.2s;
-  min-height: 36px;
-}
-
-.btn-edit-profile:visited,
-.export-link:visited {
-  color: var(--text-bright);
-}
-
-.btn-edit-profile:hover,
-.export-link:hover {
-  color: var(--highlight, #f59e0b);
-}
-
-.btn-edit-profile:focus-visible,
-.export-link:focus-visible {
   outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
   outline-offset: var(--focus-ring-offset, 2px);
 }

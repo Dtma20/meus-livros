@@ -72,7 +72,7 @@ const ariaLabelText = computed(() => {
   gap: var(--space-2);
   min-height: 38px;
   padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   background-color: rgba(35, 42, 49, 0.88);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);

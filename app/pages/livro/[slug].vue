@@ -203,18 +203,18 @@
             <p class="visually-hidden" role="status" aria-live="polite">{{ deleteAnnouncement }}</p>
             <template v-if="pendingSeconds > 0">
               <span class="remove-msg" aria-hidden="true">Este livro será removido do catálogo em {{ pendingSeconds }} s.</span>
-              <button ref="undoBtnRef" type="button" class="undo-btn" @click="undoDeleteWork">Desfazer</button>
+              <button ref="undoBtnRef" type="button" class="btn btn-ghost btn-sm undo-btn" @click="undoDeleteWork">Desfazer</button>
             </template>
             <span v-else-if="isDeletingWork" class="remove-msg" aria-hidden="true">Removendo o livro...</span>
             <template v-else-if="deleteWorkError">
               <span class="delete-error-msg" aria-hidden="true">{{ deleteWorkError }}</span>
-              <button type="button" class="undo-btn" @click="startDeleteWork">Tentar de novo</button>
+              <button type="button" class="btn btn-ghost btn-sm undo-btn" @click="startDeleteWork">Tentar de novo</button>
             </template>
             <button
               v-else
               ref="deleteBtnRef"
               type="button"
-              class="delete-work-btn"
+              class="btn btn-danger btn-sm delete-work-btn"
               @click="startDeleteWork"
             >
               Excluir livro do catálogo
@@ -959,7 +959,9 @@ async function performDeleteWork(): Promise<void> {
 }
 
 .work-creator-actions {
-  margin-top: var(--space-6);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--input-bg);
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -982,59 +984,6 @@ async function performDeleteWork(): Promise<void> {
 
 .remove-msg {
   color: var(--text-bright);
-}
-
-.undo-btn {
-  background: transparent;
-  border: none;
-  font: inherit;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) 0;
-  min-height: 44px;
-  cursor: pointer;
-  color: var(--text-bright);
-  text-decoration: underline;
-  text-decoration-color: var(--highlight);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.25em;
-}
-
-.undo-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
-}
-
-.delete-work-btn {
-  display: inline-flex;
-  align-items: center;
-  background: transparent;
-  color: var(--text-color);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  font-family: inherit;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  min-height: 44px;
-  box-sizing: border-box;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
-}
-
-.delete-work-btn:hover:not(:disabled) {
-  color: var(--danger-text);
-  border-color: var(--danger);
-  background-color: rgba(239, 68, 68, 0.08);
-}
-
-.delete-work-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--danger);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.delete-work-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .delete-error-msg {

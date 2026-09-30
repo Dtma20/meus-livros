@@ -20,7 +20,7 @@
         v-if="isOwner && !showAddForm && blocks.length > 0"
         ref="headerAddBtnRef"
         type="button"
-        class="btn-add-block"
+        class="btn btn-ghost btn-sm btn-add-block"
         @click="openAddForm('header')"
       >
         + Registrar trecho lido
@@ -134,14 +134,14 @@
         <div class="form-btn-row">
           <button
             type="submit"
-            class="btn-save"
+            class="btn btn-primary btn-save"
             :disabled="saving"
           >
             {{ saving ? 'Salvando...' : 'Salvar trecho' }}
           </button>
           <button
             type="button"
-            class="btn-cancel"
+            class="btn btn-secondary btn-cancel"
             :disabled="saving"
             @click="onCancelClick"
           >
@@ -156,7 +156,7 @@
       <div v-if="pendingRemoval" class="undo-strip">
         <span class="undo-msg">Trecho removido.</span>
         <span class="undo-count" aria-hidden="true">{{ pendingSeconds }} s</span>
-        <button ref="undoBtnRef" type="button" class="undo-btn" @click="undoRemove">Desfazer</button>
+        <button ref="undoBtnRef" type="button" class="btn btn-ghost btn-sm undo-btn" @click="undoRemove">Desfazer</button>
       </div>
 
       <p v-if="deleteError" class="field-error-msg" role="alert">
@@ -172,7 +172,7 @@
           v-if="isOwner"
           ref="emptyAddBtnRef"
           type="button"
-          class="empty-blocks-action"
+          class="btn btn-secondary empty-blocks-action"
           @click="openAddForm('empty')"
         >
           Registrar trecho lido
@@ -722,9 +722,9 @@ function formatBlockDate(dateStr: string): string {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
-  padding: var(--space-1) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border: 1px dashed var(--input-bg);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   color: var(--text-bright);
 }
@@ -732,27 +732,6 @@ function formatBlockDate(dateStr: string): string {
 .undo-count {
   color: var(--text-color);
   font-variant-numeric: tabular-nums;
-}
-
-.undo-btn {
-  background: transparent;
-  border: none;
-  font: inherit;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) 0;
-  min-height: var(--target-min-size);
-  cursor: pointer;
-  color: var(--text-bright);
-  text-decoration: underline;
-  text-decoration-color: var(--highlight);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.25em;
-}
-
-.undo-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
 }
 
 .label-row {
@@ -820,16 +799,8 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .btn-add-block {
-  background-color: transparent;
   color: var(--highlight);
-  border: 1px solid var(--highlight);
-  border-radius: var(--radius-md);
-  padding: var(--space-1) var(--space-3);
-  min-height: var(--target-min-size);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.15s;
+  border-color: var(--highlight);
 }
 
 .btn-add-block:hover {
@@ -932,31 +903,6 @@ function formatBlockDate(dateStr: string): string {
   margin-top: var(--space-4);
 }
 
-.btn-save {
-  background-color: var(--highlight);
-  color: var(--on-highlight);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.btn-save:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.btn-cancel {
-  background: transparent;
-  color: var(--text-color);
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-}
-
 .blocks-list {
   display: flex;
   flex-direction: column;
@@ -979,29 +925,9 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .empty-blocks-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: var(--target-min-size);
-  padding: var(--space-2) var(--space-4);
   margin-top: var(--space-3);
-  background: transparent;
-  border: 1px solid var(--highlight);
-  border-radius: var(--radius-md);
+  border-color: var(--highlight);
   color: var(--highlight);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-}
-
-.empty-blocks-action:hover {
-  background-color: var(--highlight-soft);
-}
-
-.empty-blocks-action:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .block-card {
@@ -1070,10 +996,7 @@ function formatBlockDate(dateStr: string): string {
   background-color: var(--input-bg);
 }
 
-.btn-icon:focus-visible,
-.btn-save:focus-visible,
-.btn-cancel:focus-visible,
-.btn-add-block:focus-visible {
+.btn-icon:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }

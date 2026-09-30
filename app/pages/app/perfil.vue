@@ -113,7 +113,7 @@
 
         <button
           type="submit"
-          class="submit-btn"
+          class="btn btn-primary submit-btn"
           :disabled="loading || !displayName || bio.length > 500"
         >
           {{ loading ? 'Salvando...' : 'Salvar alterações' }}
@@ -202,7 +202,7 @@
 
         <button
           type="submit"
-          class="submit-btn"
+          class="btn btn-primary submit-btn"
           :disabled="loadingPassword || !currentPassword || !newPassword || !confirmPassword"
         >
           {{ loadingPassword ? 'Alterando...' : 'Alterar senha' }}
@@ -217,7 +217,7 @@
       <p class="profile-desc">
         Acesso restrito para administradores da plataforma.
       </p>
-      <NuxtLink to="/app/admin/convites" class="admin-link">
+      <NuxtLink to="/app/admin/convites" class="btn btn-secondary admin-link">
         Gerenciar convites
       </NuxtLink>
     </div>
@@ -647,32 +647,7 @@ async function handleChangePassword() {
 }
 
 .submit-btn {
-  background-color: var(--highlight);
-  color: #14181c;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  font-size: var(--font-size-base);
-  font-weight: bold;
-  cursor: pointer;
-  min-height: 44px;
-  box-sizing: border-box;
-  transition: opacity 0.2s;
   margin-top: var(--space-2);
-}
-
-.submit-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.submit-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .admin-card {
@@ -680,22 +655,7 @@ async function handleChangePassword() {
 }
 
 .admin-link {
-  display: inline-flex;
-  align-items: center;
-  color: var(--highlight);
-  font-weight: 500;
-  text-decoration: underline;
-  min-height: 44px;
-}
-
-.admin-link:hover {
-  opacity: 0.8;
-}
-
-.admin-link:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
+  align-self: flex-start;
 }
 
 @media (prefers-reduced-motion: reduce) {

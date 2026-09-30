@@ -79,7 +79,7 @@
 
           <button
             type="submit"
-            class="submit-btn"
+            class="btn btn-primary submit-btn"
             :disabled="submitting || !email.trim()"
           >
             {{ submitting ? 'Convidando...' : 'Convidar' }}
@@ -136,7 +136,7 @@
             <div v-if="item.email.toLowerCase() !== currentAdminEmail" class="invite-item-actions">
               <button
                 type="button"
-                class="remove-btn"
+                class="btn btn-danger btn-sm remove-btn"
                 :disabled="removingEmail === item.email"
                 @click="handleRemoveInvite(item)"
               >
@@ -535,37 +535,7 @@ async function handleRemoveInvite(invite: InviteView) {
   flex-shrink: 0;
 }
 
-.remove-btn {
-  background: transparent;
-  color: var(--danger);
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  cursor: pointer;
-  min-height: var(--target-min-size);
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.2s, color 0.2s;
-}
 
-.remove-btn:hover:not(:disabled) {
-  background-color: var(--danger);
-  color: #fff;
-}
-
-.remove-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--danger);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.remove-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 @media (prefers-reduced-motion: reduce) {
   .form-input,

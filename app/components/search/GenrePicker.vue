@@ -170,7 +170,7 @@ const groups = computed<GenreGroup[]>(() => [
   background-color: var(--input-bg);
   color: var(--text-color);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   padding: 6px var(--space-3);
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);

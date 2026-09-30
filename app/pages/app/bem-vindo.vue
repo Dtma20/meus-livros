@@ -79,7 +79,7 @@
 
         <button
           type="submit"
-          class="submit-btn"
+          class="btn btn-primary submit-btn"
           :disabled="loading || !handle || handle.length < 3 || !displayName"
         >
           {{ loading ? 'Salvando…' : 'Criar meu perfil' }}
@@ -403,7 +403,7 @@ async function handleSubmit() {
   background-color: var(--input-bg);
   border: 1px solid var(--highlight);
   color: var(--highlight);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-3);
   font-size: var(--font-size-xs);
   font-weight: 600;
@@ -425,36 +425,7 @@ async function handleSubmit() {
 }
 
 .submit-btn {
-  background-color: var(--highlight);
-  color: var(--bg-color);
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  cursor: pointer;
-  min-height: 44px;
-  box-sizing: border-box;
-  transition: background-color 0.15s;
   margin-top: var(--space-2);
-}
-
-.submit-btn:hover:not(:disabled) {
-  background-color: var(--highlight-hover);
-}
-
-.submit-btn:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.submit-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 @media (prefers-reduced-motion: reduce) {

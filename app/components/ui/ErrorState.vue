@@ -24,7 +24,7 @@
       <slot name="action">
         <button
           type="button"
-          class="error-btn"
+          class="btn btn-secondary error-btn"
           @click="$emit('retry')"
         >
           {{ actionLabel }}
@@ -98,44 +98,6 @@ defineEmits<{
 }
 
 .error-action {
-  margin-top: var(--space-2, 8px);
-}
-
-.error-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--input-bg, #2c3440);
-  color: #fff;
-  font-weight: 600;
-  font-size: var(--font-size-sm, 0.875rem);
-  padding: var(--space-2, 8px) var(--space-4, 16px);
-  min-height: var(--target-min-size, 44px);
-  box-sizing: border-box;
-  border-radius: var(--radius-sm, 4px);
-  border: 1px solid var(--text-color, #9ab);
-  cursor: pointer;
-  text-decoration: none;
-  transition: border-color 0.15s, background-color 0.15s;
-}
-
-.error-btn:hover {
-  border-color: #fff;
-  background-color: var(--card-bg, #232a31);
-}
-
-.error-btn:active {
-  transform: translateY(1px);
-}
-
-.error-btn:focus-visible {
-  outline: 2px solid var(--highlight, #f59e0b);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .error-btn {
-    transition: none;
-  }
+  margin-top: var(--space-4, 16px);
 }
 </style>

@@ -11,10 +11,10 @@
       </p>
 
       <div class="success-actions">
-        <NuxtLink to="/" class="btn-primary">
+        <NuxtLink to="/" class="btn btn-primary">
           Ir para a Minha Biblioteca
         </NuxtLink>
-        <button type="button" class="btn-secondary" @click="reset">
+        <button type="button" class="btn btn-secondary" @click="reset">
           Importar outro arquivo
         </button>
       </div>
@@ -44,7 +44,7 @@
           <p class="drop-instruction">
             Arraste seu arquivo <strong>.json</strong> aqui ou
           </p>
-          <button type="button" class="btn-select-file" @click="triggerFileInput">
+          <button type="button" class="btn btn-secondary btn-select-file" @click="triggerFileInput">
             Selecionar arquivo do computador
           </button>
         </div>
@@ -78,10 +78,10 @@
           {{ apiError }}
         </div>
 
-        <div class="import-submit-bar">
+        <div class="import-submit-bar actions-row">
           <button
-            type="button"
-            class="btn-primary btn-import"
+            type="submit"
+            class="btn btn-primary btn-import"
             :disabled="isSubmitting"
             @click="submitImport"
           >
@@ -90,7 +90,7 @@
           </button>
           <button
             type="button"
-            class="btn-cancel"
+            class="btn btn-secondary btn-cancel"
             :disabled="isSubmitting"
             @click="reset"
           >
@@ -121,7 +121,7 @@
               <span class="guide-box-title">Exemplo com dois livros (o segundo só com os campos obrigatórios):</span>
               <button
                 type="button"
-                class="btn-copy-template"
+                class="btn btn-ghost btn-sm btn-copy-template"
                 @click="copyTemplate"
               >
                 {{ copied ? '✓ Copiado!' : 'Copiar modelo' }}
@@ -461,14 +461,8 @@ function reset() {
 }
 
 .btn-select-file {
-  background-color: var(--card-bg, #1e242b);
-  border: 1px solid var(--highlight);
+  border-color: var(--highlight);
   color: var(--highlight);
-  padding: 8px 16px;
-  border-radius: var(--radius-sm, 4px);
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
 }
 
 .btn-select-file:hover {
@@ -576,25 +570,12 @@ function reset() {
 .import-submit-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 20px;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }
 
 .btn-import {
   flex: 1;
-}
-
-.btn-cancel {
-  background: transparent;
-  border: 1px solid var(--input-bg, #2c3440);
-  color: var(--text-color, #9ab);
-  padding: 8px 16px;
-  border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
-}
-
-.btn-cancel:hover {
-  color: #fff;
 }
 
 .success-card {
@@ -632,17 +613,7 @@ function reset() {
 .success-actions {
   display: flex;
   justify-content: center;
-  gap: 12px;
-}
-
-.btn-secondary {
-  background-color: var(--card-bg, #1e242b);
-  border: 1px solid var(--text-color, #9ab);
-  color: #fff;
-  padding: 8px 16px;
-  border-radius: var(--radius-sm, 4px);
-  cursor: pointer;
-  text-decoration: none;
+  gap: var(--space-3);
 }
 
 .json-format-guide {
@@ -742,18 +713,12 @@ details[open] .guide-chevron {
 }
 
 .btn-copy-template {
-  background: var(--card-bg, #232a31);
-  border: 1px solid var(--input-bg, #2c3440);
-  color: var(--highlight, #f59e0b);
-  padding: 3px 8px;
-  font-size: var(--font-size-xs, 0.75rem);
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+  color: var(--highlight);
+  border-color: var(--input-bg);
 }
 
 .btn-copy-template:hover {
-  background-color: var(--input-bg, #2c3440);
+  background-color: var(--input-bg);
 }
 
 .guide-code {

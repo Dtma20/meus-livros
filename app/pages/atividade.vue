@@ -56,7 +56,7 @@
         <div v-if="nextCursor" class="load-more-section">
           <button
             type="button"
-            class="btn-secondary btn-load-more"
+            class="btn btn-secondary btn-load-more"
             :disabled="loadingMore"
             @click="loadMore"
           >
@@ -371,45 +371,6 @@ function loadNewPosts() {
   gap: var(--space-3);
   margin-top: var(--space-4);
   padding-bottom: var(--space-8);
-}
-
-.btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
-  color: var(--text-color);
-  font-weight: 600;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  cursor: pointer;
-  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
-  white-space: nowrap;
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  color: #fff;
-  border-color: var(--highlight);
-  background-color: var(--input-bg);
-}
-
-.btn-secondary:active:not(:disabled) {
-  transform: translateY(1px);
-}
-
-.btn-secondary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-secondary:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .btn-load-more {

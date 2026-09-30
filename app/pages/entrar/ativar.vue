@@ -34,7 +34,7 @@
           {{ errorMessage }}
         </p>
 
-        <button type="submit" class="submit-btn" :disabled="loading || !email">
+        <button type="submit" class="btn btn-primary submit-btn" :disabled="loading || !email">
           {{ loading ? 'Enviando...' : 'Enviar código' }}
         </button>
 
@@ -52,7 +52,7 @@
 
         <div class="email-summary">
           <span class="email-badge">{{ email }}</span>
-          <button type="button" class="change-email-btn" :disabled="loading" @click="changeEmail">
+          <button type="button" class="btn btn-ghost btn-sm change-email-btn" :disabled="loading" @click="changeEmail">
             Alterar
           </button>
         </div>
@@ -129,7 +129,7 @@
 
         <button
           type="submit"
-          class="submit-btn"
+          class="btn btn-primary submit-btn"
           :disabled="loading || otp.length !== 6 || !newPassword || !confirmPassword"
         >
           {{ loading ? 'Ativando...' : 'Ativar conta' }}
@@ -138,7 +138,7 @@
         <div class="resend-container">
           <button
             type="button"
-            class="resend-btn"
+            class="btn btn-ghost btn-sm resend-btn"
             :disabled="resendCountdown > 0 || loading"
             @click="handleResendOtp"
           >
@@ -462,28 +462,6 @@ function changeEmail() {
   word-break: break-all;
 }
 
-.change-email-btn {
-  background: none;
-  border: none;
-  color: var(--highlight);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
-  padding: var(--space-1) var(--space-2);
-  text-decoration: underline;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.change-email-btn:hover:not(:disabled) {
-  opacity: 0.8;
-}
-
-.change-email-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
-}
 
 .error-message {
   color: var(--danger);
@@ -493,66 +471,13 @@ function changeEmail() {
 }
 
 .submit-btn {
-  background-color: var(--highlight);
-  color: #14181c;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
   margin-top: var(--space-2);
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.submit-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.submit-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .resend-container {
   display: flex;
   justify-content: center;
   margin-top: var(--space-2);
-}
-
-.resend-btn {
-  background: none;
-  border: none;
-  color: var(--text-color);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  padding: var(--space-1) var(--space-2);
-  transition: color 0.2s;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-}
-
-.resend-btn:hover:not(:disabled) {
-  color: #fff;
-}
-
-.resend-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
-}
-
-.resend-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 .links-container {

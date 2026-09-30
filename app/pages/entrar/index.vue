@@ -59,7 +59,7 @@
           {{ errorMessage }}
         </p>
 
-        <button type="submit" class="submit-btn" :disabled="loading">
+        <button type="submit" class="btn btn-primary submit-btn" :disabled="loading">
           {{ loading ? 'Entrando...' : 'Entrar' }}
         </button>
 
@@ -259,32 +259,7 @@ async function handleSignIn() {
 }
 
 .submit-btn {
-  background-color: var(--highlight);
-  color: #14181c;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-base);
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.2s;
   margin-top: var(--space-2);
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.submit-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.submit-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .links-container {

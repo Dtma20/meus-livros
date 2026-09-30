@@ -177,7 +177,7 @@ onMounted(() => {
   color: var(--text-bright);
   width: var(--target-min-size);
   height: var(--target-min-size);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;

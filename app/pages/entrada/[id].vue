@@ -92,7 +92,7 @@
             <NuxtLink
               v-if="isOwner && !logData.finished_on"
               :to="`/app/entrada/${logData.id}/editar?terminar=1`"
-              class="finish-btn"
+              class="btn btn-primary finish-btn"
               :aria-label="`Terminei ${logData.work.title}`"
             >
               <svg
@@ -114,7 +114,7 @@
 
             <button
               type="button"
-              class="share-btn"
+              class="btn btn-secondary share-btn"
               :class="{ 'is-copied': copied }"
               :aria-label="copied ? 'Link copiado para a área de transferência' : 'Compartilhar esta entrada'"
               @click="handleShare"
@@ -156,7 +156,7 @@
             <NuxtLink
               v-if="isOwner"
               :to="`/app/entrada/${logData.id}/editar`"
-              class="edit-btn"
+              class="btn btn-ghost edit-btn"
             >
               <svg
                 class="btn-icon"
@@ -217,20 +217,20 @@
         <p class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
         <template v-if="pendingSeconds > 0">
           <span class="remove-msg" aria-hidden="true">Esta leitura será removida em {{ pendingSeconds }} s.</span>
-          <button ref="undoBtnRef" type="button" class="undo-btn" @click="undoDelete">Desfazer</button>
+          <button ref="undoBtnRef" type="button" class="btn btn-ghost btn-sm undo-btn" @click="undoDelete">Desfazer</button>
         </template>
         <template v-else-if="isDeleting">
           <span class="remove-msg" aria-hidden="true">Removendo...</span>
         </template>
         <template v-else-if="deleteError">
           <span class="remove-msg remove-error" aria-hidden="true">{{ deleteError }}</span>
-          <button type="button" class="undo-btn" @click="startDelete">Tentar de novo</button>
+          <button type="button" class="btn btn-ghost btn-sm undo-btn" @click="startDelete">Tentar de novo</button>
         </template>
         <button
           v-else
           ref="removeBtnRef"
           type="button"
-          class="delete-btn"
+          class="btn btn-danger btn-sm delete-btn"
           @click="startDelete"
         >
           Remover esta leitura
@@ -828,88 +828,15 @@ async function performDelete(): Promise<void> {
   }
 }
 
-.share-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  background-color: var(--input-bg);
-  color: #fff;
-  border: 1px solid var(--text-color);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  cursor: pointer;
-  min-height: 44px;
-  box-sizing: border-box;
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
-}
-
-.share-btn:hover {
-  border-color: var(--highlight);
-  color: var(--highlight);
-}
-
-.share-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
 .share-btn.is-copied {
   background-color: color-mix(in srgb, var(--success) 12%, transparent);
   border-color: var(--success);
   color: var(--success);
 }
 
-.finish-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  background-color: var(--highlight);
-  color: var(--on-highlight);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-4);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-decoration: none;
-  min-height: 44px;
-  box-sizing: border-box;
-  transition: opacity 0.2s;
-}
-
-.finish-btn:hover {
-  opacity: 0.9;
-}
-
-.finish-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
 .btn-icon {
   flex-shrink: 0;
   vertical-align: middle;
-}
-
-.edit-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  color: var(--text-bright);
-  text-decoration: underline;
-  text-decoration-color: var(--highlight);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.25em;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.edit-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .remove-zone {
@@ -919,7 +846,9 @@ async function performDelete(): Promise<void> {
   justify-content: flex-end;
   gap: var(--space-2) var(--space-3);
   min-height: 44px;
-  margin-top: var(--space-6);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--input-bg);
   font-size: var(--font-size-sm);
 }
 
@@ -929,40 +858,6 @@ async function performDelete(): Promise<void> {
 
 .remove-error {
   color: var(--danger-text);
-}
-
-.delete-btn,
-.undo-btn {
-  background: transparent;
-  border: none;
-  font: inherit;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) 0;
-  min-height: 44px;
-  cursor: pointer;
-}
-
-.delete-btn {
-  color: var(--danger-text);
-}
-
-.delete-btn:hover {
-  text-decoration: underline;
-}
-
-.undo-btn {
-  color: var(--text-bright);
-  text-decoration: underline;
-  text-decoration-color: var(--highlight);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.25em;
-}
-
-.delete-btn:focus-visible,
-.undo-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
 }
 
 .review-section {

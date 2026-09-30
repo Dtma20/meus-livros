@@ -434,7 +434,7 @@
         <div class="form-actions">
           <button
             type="submit"
-            class="submit-btn"
+            class="btn btn-primary submit-btn"
             :disabled="submitting"
           >
             <span v-if="submitting" class="spinner" aria-hidden="true" />
@@ -444,7 +444,7 @@
           <NuxtLink
             v-if="mode === 'edit' && initialLog"
             :to="`/entrada/${initialLog.id}`"
-            class="cancel-link"
+            class="btn btn-secondary cancel-link"
           >
             Cancelar
           </NuxtLink>
@@ -453,7 +453,7 @@
         <div v-if="mode === 'edit'" class="remove-row">
           <button
             type="button"
-            class="delete-btn"
+            class="btn btn-danger delete-btn"
             :disabled="submitting"
             @click="handleDelete"
           >
@@ -477,12 +477,12 @@
         <button
           ref="stayBtnRef"
           type="button"
-          class="leave-stay-btn"
+          class="btn btn-primary leave-stay-btn"
           @click="stayOnPage"
         >
           Continuar editando
         </button>
-        <button type="button" class="leave-go-btn" @click="leaveWithoutSaving">
+        <button type="button" class="btn btn-danger leave-go-btn" @click="leaveWithoutSaving">
           Sair sem salvar
         </button>
       </div>
@@ -1658,61 +1658,11 @@ function handleDelete(): void {
   display: flex;
   gap: var(--space-3);
   align-items: center;
-  margin-top: var(--space-2);
+  margin-top: var(--space-4);
 }
 
 .submit-btn {
   flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  background-color: var(--highlight);
-  color: #14181c;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  font-size: var(--font-size-base);
-  font-weight: bold;
-  cursor: pointer;
-  min-height: 44px;
-  box-sizing: border-box;
-  transition: opacity 0.2s;
-}
-
-.submit-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.submit-btn:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
-}
-
-.cancel-link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--target-min-size);
-  padding: 0 var(--space-2);
-  color: var(--text-color);
-  font-size: var(--font-size-sm);
-  text-decoration: none;
-}
-
-.cancel-link:hover {
-  color: var(--text-bright);
-  text-decoration: underline;
-}
-
-.cancel-link:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
 }
 
 .leave-dialog {
@@ -1749,76 +1699,12 @@ function handleDelete(): void {
   gap: var(--space-3);
 }
 
-.leave-stay-btn,
-.leave-go-btn {
-  font: inherit;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  min-height: var(--target-min-size);
-  padding: var(--space-2) var(--space-4);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-}
-
-.leave-stay-btn {
-  background-color: var(--highlight);
-  color: var(--on-highlight);
-  border: none;
-}
-
-.leave-stay-btn:hover {
-  background-color: var(--highlight-hover);
-}
-
-.leave-go-btn {
-  background: transparent;
-  color: var(--danger-text);
-  border: 1px solid var(--input-bg);
-}
-
-.leave-go-btn:hover {
-  border-color: var(--danger);
-}
-
-.leave-stay-btn:focus-visible,
-.leave-go-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
 .remove-row {
   display: flex;
   justify-content: flex-start;
-  margin-top: var(--space-6);
-  padding-top: var(--space-4);
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
   border-top: 1px solid var(--input-bg);
-}
-
-.delete-btn {
-  background: transparent;
-  color: var(--danger-text);
-  border: none;
-  font: inherit;
-  font-size: var(--font-size-sm);
-  padding: var(--space-2) 0;
-  min-height: 44px;
-  box-sizing: border-box;
-  cursor: pointer;
-}
-
-.delete-btn:hover:not(:disabled) {
-  text-decoration: underline;
-}
-
-.delete-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.delete-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-  border-radius: var(--radius-sm);
 }
 
 .spinner {

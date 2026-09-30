@@ -24,7 +24,7 @@
       <p class="shortcuts-note">
         Pressione <kbd>?</kbd> a qualquer momento para ver esta lista de novo.
       </p>
-      <button type="button" class="shortcuts-close" @click="close">
+      <button type="button" class="btn btn-secondary shortcuts-close" @click="close">
         Fechar
       </button>
     </div>
@@ -141,23 +141,6 @@ kbd {
 }
 
 .shortcuts-close {
-  font: inherit;
-  font-size: var(--font-size-sm);
-  color: var(--text-color);
-  background: transparent;
-  border: 1px solid var(--input-bg);
-  border-radius: var(--radius-sm);
-  min-height: var(--target-min-size);
-  padding: var(--space-1) var(--space-4);
-  cursor: pointer;
-}
-
-.shortcuts-close:hover {
-  background-color: var(--card-bg);
-}
-
-.shortcuts-close:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
+  /* Inherits from .btn.btn-secondary */
 }
 </style>

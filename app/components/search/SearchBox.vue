@@ -88,7 +88,7 @@
         <div class="empty-actions">
           <button
             type="button"
-            class="empty-btn-primary"
+            class="btn btn-primary btn-sm empty-btn-primary"
             data-testid="search-add-manual"
             @click="goToAdd()"
           >
@@ -521,27 +521,7 @@ function goToAdd(): void {
 }
 
 .empty-btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--highlight);
-  color: #000;
-  font-weight: 700;
-  font-size: var(--font-size-xs);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  border: none;
-  cursor: pointer;
-  transition: opacity 0.2s;
-}
-
-.empty-btn-primary:hover {
-  opacity: 0.9;
-}
-
-.empty-btn-primary:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 1px;
+  /* Inherits from .btn.btn-primary.btn-sm */
 }
 
 @media (prefers-reduced-motion: reduce) {

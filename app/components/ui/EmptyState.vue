@@ -26,14 +26,14 @@
         <a
           v-if="actionHref"
           :href="actionHref"
-          class="empty-btn"
+          class="btn btn-primary empty-btn"
         >
           {{ actionLabel }}
         </a>
         <button
           v-else
           type="button"
-          class="empty-btn"
+          class="btn btn-primary empty-btn"
           @click="$emit('action')"
         >
           {{ actionLabel }}
@@ -108,43 +108,6 @@ defineEmits<{
 }
 
 .empty-action {
-  margin-top: var(--space-2, 8px);
-}
-
-.empty-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--highlight, #f59e0b);
-  color: var(--bg-color, #14181c);
-  font-weight: 600;
-  font-size: var(--font-size-sm, 0.875rem);
-  padding: var(--space-2, 8px) var(--space-4, 16px);
-  min-height: var(--target-min-size, 44px);
-  box-sizing: border-box;
-  border-radius: var(--radius-sm, 4px);
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background-color 0.15s;
-}
-
-.empty-btn:hover {
-  background-color: var(--highlight-hover, #d97706);
-}
-
-.empty-btn:active {
-  transform: translateY(1px);
-}
-
-.empty-btn:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .empty-btn {
-    transition: none;
-  }
+  margin-top: var(--space-4, 16px);
 }
 </style>

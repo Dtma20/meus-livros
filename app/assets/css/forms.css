@@ -78,60 +78,95 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  border: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  padding: var(--space-3) var(--space-4);
-  font-size: var(--font-size-base);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
   font-family: inherit;
   font-weight: 600;
+  line-height: var(--line-height-normal);
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
+  user-select: none;
   min-height: var(--target-min-size);
   box-sizing: border-box;
-  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s ease, background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
-.btn:disabled {
+.btn:disabled,
+.btn[aria-disabled="true"],
+.submit-btn:disabled,
+.empty-btn:disabled,
+.error-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
-.btn:hover:not(:disabled) {
+.btn:hover:not(:disabled):not([aria-disabled="true"]),
+.submit-btn:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
   opacity: 0.95;
 }
 
-.btn:active:not(:disabled) {
+.btn:active:not(:disabled):not([aria-disabled="true"]),
+.submit-btn:active:not(:disabled) {
   transform: translateY(0) scale(0.98);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transition-duration: 0.08s;
 }
 
-.btn-primary {
+/* Primary Variant */
+.btn-primary,
+.submit-btn,
+.empty-btn,
+.empty-btn-primary {
   background-color: var(--highlight);
+  border-color: var(--highlight);
   color: var(--on-highlight);
 }
 
-.btn-primary:hover:not(:disabled) {
+.btn-primary:hover:not(:disabled),
+.submit-btn:hover:not(:disabled),
+.empty-btn:hover:not(:disabled),
+.empty-btn-primary:hover:not(:disabled) {
+  background-color: var(--highlight-hover);
+  border-color: var(--highlight-hover);
   box-shadow: 0 4px 14px var(--highlight-glow);
 }
 
-.btn-secondary {
+/* Secondary Variant */
+.btn-secondary,
+.error-btn,
+.btn-edit-profile {
   background-color: var(--input-bg);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-bright);
+}
+
+.btn-secondary:hover:not(:disabled),
+.error-btn:hover:not(:disabled),
+.btn-edit-profile:hover:not(:disabled) {
+  background-color: #353f4d;
+  border-color: rgba(255, 255, 255, 0.3);
   color: #fff;
 }
 
-.btn-secondary:hover:not(:disabled) {
-  background-color: #353f4d;
-}
-
-.btn-danger {
+/* Danger Variant */
+.btn-danger,
+.remove-btn,
+.delete-work-btn {
   background-color: transparent;
   color: var(--danger-text);
   border: 1px solid var(--danger);
 }
 
-.btn-danger:hover:not(:disabled) {
+.btn-danger:hover:not(:disabled),
+.remove-btn:hover:not(:disabled),
+.delete-work-btn:hover:not(:disabled) {
   background-color: var(--danger-solid);
   border-color: var(--danger-solid);
   color: #fff;
@@ -139,7 +174,59 @@
   box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
 }
 
+/* Ghost / Outline Variant */
+.btn-ghost,
+.btn-outline,
+.export-link {
+  background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-color);
+}
+
+.btn-ghost:hover:not(:disabled),
+.btn-outline:hover:not(:disabled),
+.export-link:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: var(--text-color);
+  color: var(--text-bright);
+}
+
+/* Sizes & Modifiers */
+.btn-sm {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.btn-lg {
+  min-height: 48px;
+  padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-base);
+}
+
+.btn-full,
+.btn-block,
+.full-btn {
+  width: 100%;
+}
+
+/* Action Containers & Groups */
+.form-actions,
+.actions-row,
+.btn-row,
+.profile-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
 .btn:focus-visible,
+.submit-btn:focus-visible,
+.empty-btn:focus-visible,
+.error-btn:focus-visible,
+.btn-edit-profile:focus-visible,
+.export-link:focus-visible,
 .form-input:focus-visible,
 .form-select:focus-visible,
 .form-textarea:focus-visible {
@@ -216,6 +303,11 @@
 @media (prefers-reduced-motion: reduce) {
   .tab-btn,
   .btn,
+  .submit-btn,
+  .empty-btn,
+  .error-btn,
+  .btn-edit-profile,
+  .export-link,
   .form-input,
   .form-select,
   .form-textarea {
