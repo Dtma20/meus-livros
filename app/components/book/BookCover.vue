@@ -236,6 +236,20 @@ function onError() {
   animation: none;
 }
 
+.book-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.22) 0%,
+    rgba(0, 0, 0, 0.05) 3%,
+    rgba(255, 255, 255, 0.04) 5%,
+    transparent 10%
+  );
+}
+
 .book-cover-img {
   position: absolute;
   inset: 0;

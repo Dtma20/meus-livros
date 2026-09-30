@@ -72,6 +72,17 @@ const cardAriaLabel = computed(() => {
 </script>
 
 <style scoped>
+@keyframes bookCardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .card {
   --poster-border-width: 1px;
   display: flex;
@@ -83,7 +94,21 @@ const cardAriaLabel = computed(() => {
   outline-offset: 4px;
   width: 100%;
   height: 100%;
+  animation: bookCardEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+.card:nth-child(1) { animation-delay: 0.03s; }
+.card:nth-child(2) { animation-delay: 0.06s; }
+.card:nth-child(3) { animation-delay: 0.09s; }
+.card:nth-child(4) { animation-delay: 0.12s; }
+.card:nth-child(5) { animation-delay: 0.15s; }
+.card:nth-child(6) { animation-delay: 0.18s; }
+.card:nth-child(7) { animation-delay: 0.21s; }
+.card:nth-child(8) { animation-delay: 0.24s; }
+.card:nth-child(9) { animation-delay: 0.27s; }
+.card:nth-child(10) { animation-delay: 0.30s; }
+.card:nth-child(11) { animation-delay: 0.33s; }
+.card:nth-child(12) { animation-delay: 0.36s; }
 
 .card:focus-visible {
   outline: 2px solid var(--highlight, #f59e0b);
@@ -105,16 +130,20 @@ const cardAriaLabel = computed(() => {
   overflow: hidden;
   position: relative;
   box-sizing: border-box;
-  transition: border-color 0.2s, transform 0.1s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .card:active .poster {
-  transform: scale(0.98);
+  transform: scale(0.97) translateY(0);
+  transition-duration: 0.08s;
 }
 
 .card:hover .poster,
 .poster:hover {
-  border-color: var(--poster-border, #fff);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), 0 3px 8px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .caption {
@@ -160,10 +189,16 @@ const cardAriaLabel = computed(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .card {
+    animation: none;
+  }
+
   .poster {
     transition: none;
   }
 
+  .card:hover .poster,
+  .poster:hover,
   .card:active .poster {
     transform: none;
   }

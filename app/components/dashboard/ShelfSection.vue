@@ -157,9 +157,17 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 .shelf-card {
   position: relative;
   display: flex;
+  align-items: flex-start;
   gap: var(--space-4);
-  padding: var(--space-4) 0;
+  padding: var(--space-4) var(--space-2);
+  margin: 0 calc(-1 * var(--space-2));
   border-bottom: 1px solid var(--input-bg);
+  border-radius: var(--radius-md);
+  transition: background-color 0.2s ease;
+}
+
+.shelf-card:hover {
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 .shelf-cover-col {
@@ -170,6 +178,18 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   overflow: hidden;
   background-color: var(--card-bg);
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
+}
+
+.shelf-card:hover .shelf-cover-col {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+}
+
+.shelf-card:active .shelf-cover-col {
+  transform: scale(0.97) translateY(0);
 }
 
 .shelf-cover-link {
@@ -256,6 +276,18 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
 @media (max-width: 480px) {
   .shelf-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shelf-card,
+  .shelf-cover-col {
+    transition: none;
+  }
+
+  .shelf-card:hover .shelf-cover-col,
+  .shelf-card:active .shelf-cover-col {
+    transform: none;
   }
 }
 </style>

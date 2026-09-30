@@ -108,10 +108,31 @@ function formatCount(count: number): string {
   gap: var(--space-3);
 }
 
+@keyframes growBarRight {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes barItemFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .bar-list-item {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  animation: barItemFadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .bar-item-header {
@@ -136,6 +157,7 @@ function formatCount(count: number): string {
   min-height: var(--target-min-size);
   display: inline-flex;
   align-items: center;
+  transition: color 0.15s ease;
 }
 
 .bar-item-link:hover {
@@ -168,11 +190,37 @@ function formatCount(count: number): string {
   height: 100%;
   background-color: var(--highlight);
   border-radius: var(--radius-sm);
-
+  transform-origin: left;
+  animation: growBarRight 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.bar-list-item:nth-child(1) .bar-fill,
+.bar-list-item:nth-child(1) { animation-delay: 0.04s; }
+.bar-list-item:nth-child(2) .bar-fill,
+.bar-list-item:nth-child(2) { animation-delay: 0.08s; }
+.bar-list-item:nth-child(3) .bar-fill,
+.bar-list-item:nth-child(3) { animation-delay: 0.12s; }
+.bar-list-item:nth-child(4) .bar-fill,
+.bar-list-item:nth-child(4) { animation-delay: 0.16s; }
+.bar-list-item:nth-child(5) .bar-fill,
+.bar-list-item:nth-child(5) { animation-delay: 0.20s; }
+.bar-list-item:nth-child(6) .bar-fill,
+.bar-list-item:nth-child(6) { animation-delay: 0.24s; }
+.bar-list-item:nth-child(7) .bar-fill,
+.bar-list-item:nth-child(7) { animation-delay: 0.28s; }
+.bar-list-item:nth-child(8) .bar-fill,
+.bar-list-item:nth-child(8) { animation-delay: 0.32s; }
+.bar-list-item:nth-child(9) .bar-fill,
+.bar-list-item:nth-child(9) { animation-delay: 0.36s; }
+.bar-list-item:nth-child(10) .bar-fill,
+.bar-list-item:nth-child(10) { animation-delay: 0.40s; }
+.bar-list-item:nth-child(n+11) .bar-fill,
+.bar-list-item:nth-child(n+11) { animation-delay: 0.44s; }
+
 @media (prefers-reduced-motion: reduce) {
-  .bar-fill {
+  .bar-fill,
+  .bar-list-item {
+    animation: none;
     transition: none;
   }
 }

@@ -191,12 +191,61 @@ function formatAriaLabel(item: YearColumnItem): string {
   align-items: flex-end;
 }
 
+@keyframes growColumnUp {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes columnFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.year-columns-item {
+  animation: columnFadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
 .column-bar {
   width: 100%;
   background-color: var(--text-color);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  transition: background-color 0.2s ease;
+  transform-origin: bottom;
+  animation: growColumnUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
 }
+
+.year-columns-item:nth-child(1) .column-bar,
+.year-columns-item:nth-child(1) { animation-delay: 0.04s; }
+.year-columns-item:nth-child(2) .column-bar,
+.year-columns-item:nth-child(2) { animation-delay: 0.08s; }
+.year-columns-item:nth-child(3) .column-bar,
+.year-columns-item:nth-child(3) { animation-delay: 0.12s; }
+.year-columns-item:nth-child(4) .column-bar,
+.year-columns-item:nth-child(4) { animation-delay: 0.16s; }
+.year-columns-item:nth-child(5) .column-bar,
+.year-columns-item:nth-child(5) { animation-delay: 0.20s; }
+.year-columns-item:nth-child(6) .column-bar,
+.year-columns-item:nth-child(6) { animation-delay: 0.24s; }
+.year-columns-item:nth-child(7) .column-bar,
+.year-columns-item:nth-child(7) { animation-delay: 0.28s; }
+.year-columns-item:nth-child(8) .column-bar,
+.year-columns-item:nth-child(8) { animation-delay: 0.32s; }
+.year-columns-item:nth-child(9) .column-bar,
+.year-columns-item:nth-child(9) { animation-delay: 0.36s; }
+.year-columns-item:nth-child(10) .column-bar,
+.year-columns-item:nth-child(10) { animation-delay: 0.40s; }
+.year-columns-item:nth-child(n+11) .column-bar,
+.year-columns-item:nth-child(n+11) { animation-delay: 0.44s; }
 
 .year-column.is-highlight .column-bar {
   background-color: var(--highlight);
@@ -225,7 +274,9 @@ function formatAriaLabel(item: YearColumnItem): string {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .column-bar {
+  .column-bar,
+  .year-columns-item {
+    animation: none;
     transition: none;
   }
 }

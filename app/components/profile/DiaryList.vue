@@ -41,6 +41,7 @@
               <tr
                 v-for="log in monthBucket.logs"
                 :key="log.id"
+                v-reveal
                 class="diary-row"
               >
                 <td class="col-day">
@@ -98,6 +99,7 @@
 import { computed } from 'vue'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
+import { vReveal } from '~/composables/useScrollReveal'
 import type { ProfileLogItem } from '~~/shared/schemas/profile'
 import { getDiaryDay, groupDiary, type DiaryGroup, type DiaryMonthBucket } from '~/utils/diary'
 import { formatBookFormat } from '~/utils/entry'
@@ -168,8 +170,28 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 
 .diary-row {
   border-bottom: 1px solid var(--input-bg, #2c3440);
-  transition: background-color 0.15s ease;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.15s ease;
+  transition-delay: 0s;
+  will-change: opacity, transform;
 }
+
+.diary-row.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.diary-row.is-revealed:nth-child(1) { transition-delay: 0.02s; }
+.diary-row.is-revealed:nth-child(2) { transition-delay: 0.05s; }
+.diary-row.is-revealed:nth-child(3) { transition-delay: 0.08s; }
+.diary-row.is-revealed:nth-child(4) { transition-delay: 0.11s; }
+.diary-row.is-revealed:nth-child(5) { transition-delay: 0.14s; }
+.diary-row.is-revealed:nth-child(6) { transition-delay: 0.17s; }
+.diary-row.is-revealed:nth-child(7) { transition-delay: 0.20s; }
+.diary-row.is-revealed:nth-child(8) { transition-delay: 0.23s; }
 
 .diary-row:hover {
   background-color: rgba(255, 255, 255, 0.03);
@@ -206,7 +228,14 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
   border-radius: var(--radius-sm, 4px);
   overflow: hidden;
   background-color: var(--input-bg, #2c3440);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
+}
+
+.diary-row:hover .diary-cover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
 
 .diary-cover :deep(img),
@@ -285,6 +314,14 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
   .col-author,
   .col-format {
     display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diary-row {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }
 </style>

@@ -182,11 +182,17 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: border-color 0.15s;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
 }
 
 .carousel-nav-btn:hover:not([aria-disabled="true"]) {
   border-color: var(--input-bg);
+  background-color: rgba(255, 255, 255, 0.04);
+  transform: scale(1.05);
+}
+
+.carousel-nav-btn:active:not([aria-disabled="true"]) {
+  transform: scale(0.95);
 }
 
 .carousel-nav-btn:focus-visible {
@@ -232,8 +238,21 @@ onMounted(() => {
   overflow: hidden;
   border-radius: var(--radius-sm);
   background-color: var(--card-bg);
-  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   margin-bottom: var(--space-3);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.carousel-card:hover .card-cover-wrap {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55), 0 3px 8px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.carousel-card:active .card-cover-wrap {
+  transform: scale(0.97) translateY(0);
+  transition-duration: 0.08s;
 }
 
 .cover-link {
@@ -318,6 +337,20 @@ onMounted(() => {
 @media (max-width: 600px) {
   .carousel-card {
     flex-basis: 120px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel-nav-btn,
+  .card-cover-wrap {
+    transition: none;
+  }
+
+  .carousel-card:hover .card-cover-wrap,
+  .carousel-card:active .card-cover-wrap,
+  .carousel-nav-btn:hover:not([aria-disabled="true"]),
+  .carousel-nav-btn:active:not([aria-disabled="true"]) {
+    transform: none;
   }
 }
 </style>

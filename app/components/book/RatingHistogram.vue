@@ -172,12 +172,34 @@ const accessibleSummary = computed(() => {
   align-items: flex-end;
 }
 
+@keyframes growHistogramUp {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
 .histogram-bar {
   width: 100%;
   min-height: 2px;
   background-color: var(--star-color);
   border-radius: 1px;
+  transform-origin: bottom;
+  animation: growHistogramUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+.histogram-bar-track:nth-child(1) .histogram-bar { animation-delay: 0.02s; }
+.histogram-bar-track:nth-child(2) .histogram-bar { animation-delay: 0.04s; }
+.histogram-bar-track:nth-child(3) .histogram-bar { animation-delay: 0.06s; }
+.histogram-bar-track:nth-child(4) .histogram-bar { animation-delay: 0.08s; }
+.histogram-bar-track:nth-child(5) .histogram-bar { animation-delay: 0.10s; }
+.histogram-bar-track:nth-child(6) .histogram-bar { animation-delay: 0.12s; }
+.histogram-bar-track:nth-child(7) .histogram-bar { animation-delay: 0.14s; }
+.histogram-bar-track:nth-child(8) .histogram-bar { animation-delay: 0.16s; }
+.histogram-bar-track:nth-child(9) .histogram-bar { animation-delay: 0.18s; }
+.histogram-bar-track:nth-child(10) .histogram-bar { animation-delay: 0.20s; }
 
 .histogram-bar[data-count="0"] {
   background-color: var(--input-bg);
@@ -192,6 +214,26 @@ const accessibleSummary = computed(() => {
 .histogram-star-label {
   color: var(--star-color);
   font-size: var(--font-size-xs);
+}
+
+@keyframes growHistogramRight {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes histogramRowEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .rating-histogram-large {
@@ -212,7 +254,29 @@ const accessibleSummary = computed(() => {
   gap: var(--space-3);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-tight);
+  animation: histogramRowEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+.histogram-row:nth-child(1) .histogram-row-fill,
+.histogram-row:nth-child(1) { animation-delay: 0.03s; }
+.histogram-row:nth-child(2) .histogram-row-fill,
+.histogram-row:nth-child(2) { animation-delay: 0.06s; }
+.histogram-row:nth-child(3) .histogram-row-fill,
+.histogram-row:nth-child(3) { animation-delay: 0.09s; }
+.histogram-row:nth-child(4) .histogram-row-fill,
+.histogram-row:nth-child(4) { animation-delay: 0.12s; }
+.histogram-row:nth-child(5) .histogram-row-fill,
+.histogram-row:nth-child(5) { animation-delay: 0.15s; }
+.histogram-row:nth-child(6) .histogram-row-fill,
+.histogram-row:nth-child(6) { animation-delay: 0.18s; }
+.histogram-row:nth-child(7) .histogram-row-fill,
+.histogram-row:nth-child(7) { animation-delay: 0.21s; }
+.histogram-row:nth-child(8) .histogram-row-fill,
+.histogram-row:nth-child(8) { animation-delay: 0.24s; }
+.histogram-row:nth-child(9) .histogram-row-fill,
+.histogram-row:nth-child(9) { animation-delay: 0.27s; }
+.histogram-row:nth-child(10) .histogram-row-fill,
+.histogram-row:nth-child(10) { animation-delay: 0.30s; }
 
 .histogram-row-label {
   color: var(--text-bright);
@@ -237,6 +301,8 @@ const accessibleSummary = computed(() => {
   height: 100%;
   background-color: var(--star-color);
   border-radius: var(--radius-sm);
+  transform-origin: left;
+  animation: growHistogramRight 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .histogram-row-count {
@@ -248,6 +314,15 @@ const accessibleSummary = computed(() => {
 .histogram-row[data-count="0"] .histogram-row-label,
 .histogram-row[data-count="0"] .histogram-row-count {
   opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .histogram-bar,
+  .histogram-row,
+  .histogram-row-fill {
+    animation: none;
+    transition: none;
+  }
 }
 
 .sr-only {

@@ -54,6 +54,21 @@ h1, h2, h3 {
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
+.page-enter-active,
+.page-leave-active {
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
+.page-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

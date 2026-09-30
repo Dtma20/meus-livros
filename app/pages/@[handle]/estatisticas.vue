@@ -289,6 +289,17 @@ useSeoMeta({
   line-height: var(--line-height-tight);
 }
 
+@keyframes statsSectionFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .stat-tiles {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -298,6 +309,16 @@ useSeoMeta({
   border-top: 1px solid var(--input-bg);
   border-bottom: 1px solid var(--input-bg);
 }
+
+.stat-tiles > * {
+  animation: statsSectionFadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stat-tiles > :nth-child(1) { animation-delay: 0.02s; }
+.stat-tiles > :nth-child(2) { animation-delay: 0.05s; }
+.stat-tiles > :nth-child(3) { animation-delay: 0.08s; }
+.stat-tiles > :nth-child(4) { animation-delay: 0.11s; }
+.stat-tiles > :nth-child(5) { animation-delay: 0.14s; }
 
 /* Two columns on phones; an odd last tile spans both so no row holds one tile at half width. */
 @media (max-width: 600px) {
@@ -320,7 +341,13 @@ useSeoMeta({
 .stats-section {
   width: 100%;
   box-sizing: border-box;
+  animation: statsSectionFadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+.stats-body > :nth-child(1) { animation-delay: 0.06s; }
+.stats-body > :nth-child(2) { animation-delay: 0.12s; }
+.stats-body > :nth-child(3) { animation-delay: 0.18s; }
+.stats-body > :nth-child(4) { animation-delay: 0.24s; }
 
 .stats-grid-lists {
   display: grid;
@@ -356,5 +383,12 @@ useSeoMeta({
   margin: 0 0 var(--space-4);
   font-size: var(--font-size-sm);
   color: var(--text-color);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-tiles > *,
+  .stats-section {
+    animation: none;
+  }
 }
 </style>

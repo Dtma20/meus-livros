@@ -1,6 +1,7 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-01-01',
   app: {
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       htmlAttrs: {
         lang: 'pt-BR'
