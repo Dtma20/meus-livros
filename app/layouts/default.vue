@@ -30,6 +30,7 @@
         <p class="attribution">
           Capas de livros via Open Library
         </p>
+        <slot name="footer-extra" />
       </div>
     </footer>
   </div>
@@ -136,6 +137,11 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   align-items: center;
   background-color: transparent;
   transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.site-nav :deep(button.nav-link) {
+  min-height: 36px;
+  box-sizing: border-box;
 }
 
 .nav-link:hover {

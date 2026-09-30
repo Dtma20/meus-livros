@@ -80,13 +80,22 @@
                   Começou em {{ formatReadingDate(book.started_on) }}
                 </p>
 
-                <NuxtLink
-                  :to="`/entrada/${book.id}`"
-                  class="continue-link"
-                  :aria-label="`Continuar lendo ${book.work.title}`"
-                >
-                  Continuar lendo
-                </NuxtLink>
+                <div class="in-progress-actions">
+                  <NuxtLink
+                    :to="`/entrada/${book.id}`"
+                    class="continue-link"
+                    :aria-label="`Continuar lendo ${book.work.title}`"
+                  >
+                    Continuar lendo
+                  </NuxtLink>
+                  <NuxtLink
+                    :to="`/app/entrada/${book.id}/editar?terminar=1`"
+                    class="finish-link"
+                    :aria-label="`Terminei ${book.work.title}`"
+                  >
+                    Terminei
+                  </NuxtLink>
+                </div>
               </div>
             </article>
           </div>
@@ -371,6 +380,7 @@ useHead({
 
 .section-link:focus-visible,
 .continue-link:focus-visible,
+.finish-link:focus-visible,
 .dashboard-empty-row-link:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
@@ -417,6 +427,7 @@ useHead({
 }
 
 .in-progress-title {
+  min-height: 24px;
   font-family: var(--font-serif);
   font-size: var(--font-size-lg);
   font-weight: 600;
@@ -469,11 +480,34 @@ useHead({
   font-variant-numeric: tabular-nums;
 }
 
+.in-progress-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-5);
+  margin-top: auto;
+}
+
+.finish-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--space-8);
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  text-decoration: underline;
+  text-decoration-color: var(--input-bg);
+  text-underline-offset: 0.3em;
+}
+
+.finish-link:hover {
+  color: var(--text-bright);
+  text-decoration-color: currentColor;
+}
+
 .continue-link {
   display: inline-flex;
   align-items: center;
   min-height: var(--space-8);
-  margin-top: auto;
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--text-bright);
@@ -488,7 +522,8 @@ useHead({
 }
 
 @media (pointer: coarse) {
-  .continue-link {
+  .continue-link,
+  .finish-link {
     min-height: var(--target-min-size);
   }
 }

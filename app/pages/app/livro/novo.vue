@@ -19,7 +19,7 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: 'Adicionar livro ao catálogo',
+  title: 'Adicionar livro novo',
 })
 
 const route = useRoute()

@@ -58,12 +58,24 @@
           {{ loadMoreError }}
         </p>
       </div>
+
+      <aside v-if="readingNow.length > 0" class="reading-now" aria-labelledby="reading-now-title">
+        <h2 id="reading-now-title" class="reading-now-title">Lendo agora no grupo</h2>
+        <ul class="reading-now-list">
+          <li v-for="entry in readingNow" :key="entry.id" class="reading-now-item">
+            <NuxtLink :to="`/entrada/${entry.id}`" class="reading-now-work">{{ entry.work.title }}</NuxtLink>
+            <NuxtLink :to="`/@${entry.user.handle}`" class="reading-now-user">
+              {{ entry.user.display_name || `@${entry.user.handle}` }}
+            </NuxtLink>
+          </li>
+        </ul>
+      </aside>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import FeedItem from '~/components/feed/FeedItem.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
@@ -87,6 +99,19 @@ const { data, pending, error, refresh } = await useAsyncData<FeedPageResponse>(
 
 const entries = ref<FeedEntry[]>(data.value?.entries ? [...data.value.entries] : [])
 const nextCursor = ref<string | null>(data.value?.nextCursor ?? null)
+
+const readingNow = computed(() => {
+  const seen = new Set<string>()
+  return entries.value
+    .filter((entry) => entry.started_on && !entry.finished_on)
+    .filter((entry) => {
+      const key = `${entry.user.handle}:${entry.work.id}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    .slice(0, 8)
+})
 const loadingMore = ref(false)
 const loadMoreError = ref<string | null>(null)
 
@@ -127,8 +152,99 @@ async function loadMore() {
   margin: 0 auto;
 }
 
-.activity-page > * {
+.activity-page > .page-header,
+.activity-page > .activity-loading,
+.activity-page > :deep(.empty-state),
+.activity-page > :deep(.error-state) {
   max-width: 48rem;
+}
+
+.reading-now {
+  /* Below 1024px the aside only repeats rows already in the feed, so it is hidden. */
+  display: none;
+}
+
+.reading-now-title {
+  font-family: var(--font-serif);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--text-bright);
+  margin: 0 0 var(--space-3);
+}
+
+.reading-now-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--input-bg);
+}
+
+.reading-now-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--input-bg);
+}
+
+.reading-now-work {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  font-family: var(--font-serif);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-bright);
+  text-decoration: none;
+}
+
+.reading-now-user {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.reading-now-work:hover,
+.reading-now-user:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.reading-now-work:focus-visible,
+.reading-now-user:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+@media (min-width: 1024px) {
+  .activity-page .activity-content {
+    display: grid;
+    grid-template-columns: minmax(0, 48rem) minmax(14rem, 18rem);
+    column-gap: var(--space-12);
+    align-items: start;
+  }
+
+  .reading-now {
+    display: block;
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    position: sticky;
+    top: var(--space-6);
+  }
+
+  .feed-list {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .load-more-section {
+    grid-column: 1;
+    grid-row: 2;
+  }
 }
 
 .page-header {

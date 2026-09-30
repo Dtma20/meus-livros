@@ -3,7 +3,13 @@
     <h2 class="year-columns-title">
       {{ title }}
     </h2>
-    <div class="year-columns-scroll">
+    <div
+      ref="scrollEl"
+      class="year-columns-scroll"
+      :tabindex="scrollable ? 0 : undefined"
+      :role="scrollable ? 'region' : undefined"
+      :aria-label="scrollable ? `${title}, role para ver outros anos` : undefined"
+    >
       <ol class="year-columns-track">
         <li
           v-for="item in items"
@@ -37,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { formatThousands } from '~/utils/number'
 
 export interface YearColumnItem {
@@ -58,6 +64,30 @@ const props = withDefaults(
     highlightYear: null,
   },
 )
+
+const scrollEl = ref<HTMLElement | null>(null)
+const scrollable = ref(false)
+
+function measure(): void {
+  const el = scrollEl.value
+  scrollable.value = !!el && el.scrollWidth > el.clientWidth + 1
+}
+
+// Years run oldest to newest, so the chart opens on its end: the latest year is the one people look for.
+// Runs only after mount, so the server render and hydration are untouched.
+onMounted(() => {
+  const el = scrollEl.value
+  if (!el) return
+  measure()
+  if (scrollable.value) {
+    el.scrollTo({ left: el.scrollWidth, behavior: 'instant' })
+  }
+  window.addEventListener('resize', measure, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', measure)
+})
 
 const maxBooks = computed(() => {
   if (!props.items || props.items.length === 0) return 0
@@ -105,6 +135,7 @@ function formatAriaLabel(item: YearColumnItem): string {
 
 .year-columns-scroll {
   overflow-x: auto;
+  scroll-behavior: auto;
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
   padding-bottom: var(--space-1);
@@ -127,6 +158,7 @@ function formatAriaLabel(item: YearColumnItem): string {
   align-items: center;
   justify-content: flex-end;
   min-width: var(--target-min-size);
+  color: var(--text-color);
   text-decoration: none;
   box-sizing: border-box;
   padding: var(--space-1) 0;
@@ -163,7 +195,7 @@ function formatAriaLabel(item: YearColumnItem): string {
   width: 100%;
   background-color: var(--text-color);
   border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  transition: height 0.2s ease, background-color 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .year-column.is-highlight .column-bar {
@@ -184,6 +216,12 @@ function formatAriaLabel(item: YearColumnItem): string {
 .year-column.is-highlight .column-year {
   color: var(--poster-border);
   font-weight: 600;
+}
+
+.year-columns-scroll:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {

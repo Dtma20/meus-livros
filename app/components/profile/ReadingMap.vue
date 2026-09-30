@@ -1,8 +1,17 @@
 <template>
-  <div class="reading-map-card" role="region" aria-label="Mapa de leituras">
+  <details class="reading-map-card" :open="isOpen" @toggle="onToggle">
+    <summary class="map-summary-row">
+      <h2 class="map-title">Mapa de leituras</h2>
+      <span class="map-count"><span aria-hidden="true">&middot;&nbsp;</span>{{ countrySummary }}</span>
+      <span v-if="selectedCountry" class="map-filtering">&middot; filtrando: {{ selectedCountry }}</span>
+    </summary>
+
     <div class="map-header">
+      <p class="map-hint">
+        <span class="hint-pointer">Clique num país para filtrar os livros, ou use o filtro País.</span>
+        <span class="hint-touch">Toque num país para filtrar os livros, ou use o filtro País.</span>
+      </p>
       <div class="map-title-row">
-        <h2 class="map-title">Mapa de leituras</h2>
         <div class="map-status" aria-live="polite">
           <template v-if="activeInfo">
             <span class="country-name">{{ activeInfo.name }}</span>
@@ -29,11 +38,6 @@
             >
               Limpar &times;
             </button>
-          </template>
-          <template v-else>
-            <span class="map-summary">
-              {{ totalMappedCountries }} {{ totalMappedCountries === 1 ? 'país registrado' : 'países registrados' }}
-            </span>
           </template>
         </div>
       </div>
@@ -70,11 +74,11 @@
     <p v-if="unmappedNote" class="unmapped-note">
       {{ unmappedNote }}
     </p>
-  </div>
+  </details>
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { WORLD_MAP_PATHS, WORLD_MAP_VIEW_BOX } from '~/assets/world-map'
 import { getMapColorTier } from '~/utils/reading-map'
 import { formatCountryName } from '~~/shared/schemas/profile'
@@ -94,6 +98,29 @@ const props = withDefaults(
 const emit = defineEmits<{
   (e: 'select', country: string): void
 }>()
+
+const MAP_OPEN_KEY = 'ml:reading-map-open'
+const isOpen = ref(false)
+
+onMounted(() => {
+  try {
+    isOpen.value = window.localStorage.getItem(MAP_OPEN_KEY) === '1'
+  }
+  catch {
+    // storage unavailable: stay closed
+  }
+})
+
+function onToggle(e: Event): void {
+  const open = (e.target as HTMLDetailsElement).open
+  isOpen.value = open
+  try {
+    window.localStorage.setItem(MAP_OPEN_KEY, open ? '1' : '0')
+  }
+  catch {
+    // ignore
+  }
+}
 
 const hoveredCountry = ref<{ code: string; name: string; count: number } | null>(null)
 
@@ -146,6 +173,15 @@ const totalMappedCountries = computed(() => {
     if (c > 0) count++
   }
   return count
+})
+
+const totalCountries = computed(() => totalMappedCountries.value + props.unmappedCountries.length)
+
+const countrySummary = computed(() => {
+  const total = totalCountries.value
+  const outside = props.unmappedCountries.length
+  const base = `${total} ${total === 1 ? 'país' : 'países'} no total`
+  return outside > 0 ? `${base} (${outside} fora do mapa)` : base
 })
 
 function getSelectedCountryCount(): number {
@@ -225,13 +261,85 @@ function clearSelection() {
   box-sizing: border-box;
 }
 
+.reading-map-card:not([open]) {
+  padding-block: var(--space-2, 8px);
+}
+
+.map-summary-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2, 8px);
+  cursor: pointer;
+  min-height: 36px;
+  align-items: center;
+  border-radius: var(--radius-sm, 4px);
+}
+
+.map-summary-row:focus-visible {
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline-offset: var(--focus-ring-offset, 2px);
+}
+
+.map-summary-row {
+  list-style: none;
+}
+
+.map-summary-row::-webkit-details-marker {
+  display: none;
+}
+
+.map-summary-row::after {
+  content: '';
+  margin-left: auto;
+  width: 0.5em;
+  height: 0.5em;
+  border-right: 2px solid var(--text-color, #9ab);
+  border-bottom: 2px solid var(--text-color, #9ab);
+  transform: rotate(45deg);
+}
+
+.reading-map-card[open] .map-summary-row::after {
+  transform: rotate(-135deg);
+}
+
+.map-count {
+  color: var(--text-color, #9ab);
+  font-size: var(--font-size-sm, 0.875rem);
+  white-space: nowrap;
+}
+
+.map-filtering {
+  color: var(--text-bright, #fff);
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: 600;
+}
+
 .map-header {
-  margin-bottom: var(--space-3, 12px);
+  margin: var(--space-3, 12px) 0;
+}
+
+.hint-touch {
+  display: inline;
+}
+
+.hint-pointer {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .hint-touch {
+    display: none;
+  }
+
+  .hint-pointer {
+    display: inline;
+  }
 }
 
 .map-title-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2, 8px);
@@ -240,15 +348,23 @@ function clearSelection() {
 .map-title {
   font-size: var(--font-size-base, 1rem);
   font-weight: 600;
-  color: #fff;
+  color: var(--text-bright, #fff);
   margin: 0;
   line-height: var(--line-height-tight, 1.2);
+}
+
+.map-hint {
+  margin: 0 0 var(--space-1, 4px);
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--text-color, #9ab);
 }
 
 .map-status {
   display: flex;
   align-items: center;
   gap: var(--space-2, 8px);
+  /* Reserved so hovering a country does not push the map down. */
+  min-height: 28px;
   font-size: var(--font-size-sm, 0.875rem);
 }
 
@@ -259,11 +375,6 @@ function clearSelection() {
 
 .country-count {
   color: var(--highlight, #f59e0b);
-}
-
-.map-summary {
-  color: var(--text-color, #9ab);
-  font-size: var(--font-size-sm, 0.875rem);
 }
 
 .clear-filter-btn {

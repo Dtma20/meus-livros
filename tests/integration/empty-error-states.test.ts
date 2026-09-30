@@ -107,7 +107,7 @@ describe('TASK-020 Integration: Profile filtering empty state and restoration', 
 })
 
 describe('TASK-020 Integration: Search with no results shows manual-add as primary action', () => {
-  it('shows "Não encontramos esse livro." with "Adicionar à mão" as primary action and "Buscar online" as secondary', async () => {
+  it('shows "Não encontramos esse livro." with "Adicionar livro novo" as primary action and "Buscar online" as secondary', async () => {
     const originalFetch = global.fetch
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -133,7 +133,7 @@ describe('TASK-020 Integration: Search with no results shows manual-add as prima
 
     const primaryBtn = container.querySelector('[data-testid="search-add-manual"]') as HTMLElement
     expect(primaryBtn).not.toBeNull()
-    expect(primaryBtn.textContent?.trim()).toBe('Adicionar à mão')
+    expect(primaryBtn.textContent?.trim()).toBe('Adicionar livro novo')
     expect(primaryBtn.classList.contains('empty-btn-primary')).toBe(true)
 
     app.unmount()

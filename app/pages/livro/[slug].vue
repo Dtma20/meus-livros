@@ -51,7 +51,7 @@
               <div class="work-rating-average">
                 <StarRating :rating="work.average_rating" />
                 <span class="rating-text">
-                  {{ formatRating(work.average_rating) }} · {{ work.log_count }} {{ work.log_count === 1 ? 'leitura' : 'leituras' }}
+                  {{ ratingLine }}
                 </span>
               </div>
               <RatingHistogram v-if="showHistogram" :ratings="logRatings" />
@@ -108,10 +108,13 @@
               >
                 <div class="user-log-meta">
                   <span class="user-log-date">
-                    {{ log.finished_on ? formatReadingDate(log.finished_on, log.finished_precision) : 'Lendo agora' }}
+                    {{ log.finished_on ? `Terminou em ${formatReadingDate(log.finished_on, log.finished_precision)}` : 'Lendo agora' }}
                   </span>
                   <div v-if="log.rating !== null && log.rating > 0" class="user-log-stars">
                     <StarRating :rating="log.rating" />
+                  </div>
+                  <div v-if="log.review" class="user-log-review">
+                    <ReviewText :text="getExcerpt(log.review)" />
                   </div>
                 </div>
                 <NuxtLink
@@ -152,8 +155,9 @@
                 <div class="log-header">
                   <span class="log-who">
                     <NuxtLink :to="'/@' + log.user.handle" class="user-link">
-                      @{{ log.user.handle }}
+                      {{ log.user.display_name || `@${log.user.handle}` }}
                     </NuxtLink>
+                    <span v-if="log.user.display_name" class="log-handle">@{{ log.user.handle }}</span>
                     <span class="log-when">
                       {{ log.finished_on ? `terminou em ${formatReadingDate(log.finished_on, log.finished_precision)}` : 'lendo agora' }}
                     </span>
@@ -172,7 +176,7 @@
                   <NuxtLink
                     :to="'/entrada/' + log.id"
                     class="entry-link"
-                    :aria-label="`Ver leitura de @${log.user.handle}`"
+                    :aria-label="`Ver leitura de ${log.user.display_name || `@${log.user.handle}`}`"
                   >
                     Ver leitura
                   </NuxtLink>
@@ -196,17 +200,25 @@
           </section>
 
           <div v-if="canDeleteWork" class="work-creator-actions">
+            <p class="visually-hidden" role="status" aria-live="polite">{{ deleteAnnouncement }}</p>
+            <template v-if="pendingSeconds > 0">
+              <span class="remove-msg" aria-hidden="true">Este livro será removido do catálogo em {{ pendingSeconds }} s.</span>
+              <button ref="undoBtnRef" type="button" class="undo-btn" @click="undoDeleteWork">Desfazer</button>
+            </template>
+            <span v-else-if="isDeletingWork" class="remove-msg" aria-hidden="true">Removendo o livro...</span>
+            <template v-else-if="deleteWorkError">
+              <span class="delete-error-msg" aria-hidden="true">{{ deleteWorkError }}</span>
+              <button type="button" class="undo-btn" @click="startDeleteWork">Tentar de novo</button>
+            </template>
             <button
+              v-else
+              ref="deleteBtnRef"
               type="button"
               class="delete-work-btn"
-              :disabled="isDeletingWork"
-              @click="handleDeleteWork"
+              @click="startDeleteWork"
             >
-              {{ isDeletingWork ? 'Excluindo livro...' : 'Excluir livro do catálogo' }}
+              Excluir livro do catálogo
             </button>
-            <p v-if="deleteWorkError" class="delete-error-msg" role="alert">
-              {{ deleteWorkError }}
-            </p>
           </div>
         </div>
       </article>
@@ -215,8 +227,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import { useFlash } from '~/composables/useFlash'
 import BookCover from '~/components/book/BookCover.vue'
 import RatingHistogram from '~/components/book/RatingHistogram.vue'
 import StarRating from '~/components/book/StarRating.vue'
@@ -270,7 +283,8 @@ function editionDetails(edition: WorkEditionView): string {
   if (edition.published_year) parts.push(String(edition.published_year))
   if (edition.page_count) parts.push(`${edition.page_count} págs.`)
   if (edition.isbn13) parts.push(`ISBN ${edition.isbn13}`)
-  if (edition.language) parts.push(edition.language.toUpperCase())
+  const language = formatLanguage(edition.language)
+  if (language) parts.push(language)
   return parts.join(', ')
 }
 
@@ -396,6 +410,18 @@ const logRatings = computed<number[]>(() => {
 
 const showHistogram = computed(() => logRatings.value.length >= 3)
 
+// "4,5 · 1 nota · 2 leituras": the rated count only appears when it differs
+// from the readings count, so an average of one rating never reads as two.
+const ratingLine = computed(() => {
+  if (!work.value || work.value.average_rating === null) return ''
+  const count = work.value.log_count
+  const rated = logRatings.value.length
+  const parts = [formatRating(work.value.average_rating)]
+  if (rated !== count) parts.push(`${rated} ${rated === 1 ? 'nota' : 'notas'}`)
+  parts.push(`${count} ${count === 1 ? 'leitura' : 'leituras'}`)
+  return parts.join(' · ')
+})
+
 const canDeleteWork = computed(() => {
   if (!work.value || !session.value?.user?.id) return false
   return work.value.created_by === session.value.user.id && work.value.log_count === 0
@@ -404,12 +430,108 @@ const canDeleteWork = computed(() => {
 const isDeletingWork = ref(false)
 const deleteWorkError = ref('')
 
-async function handleDeleteWork(): Promise<void> {
-  if (!work.value) return
-  if (!confirm('Tem certeza que deseja excluir este livro do catálogo? Esta ação removerá a obra e suas edições.')) {
-    return
-  }
+// Mesmo padrão da remoção de leitura (entrada/[id].vue): o clique abre uma
+// contagem com "Desfazer" e o DELETE só sai quando ela termina ou quando a
+// pessoa sai da página.
+const UNDO_SECONDS = 6
+const pendingSeconds = ref(0)
+const deleteAnnouncement = ref('')
+const undoBtnRef = ref<HTMLButtonElement | null>(null)
+const deleteBtnRef = ref<HTMLButtonElement | null>(null)
+let undoTimer: ReturnType<typeof setInterval> | null = null
 
+const flash = typeof useState === 'function' ? useFlash() : null
+const DELETED_FLASH = 'Livro removido do catálogo.'
+const LEAVE_FAILED_FLASH = 'Não foi possível remover o livro do catálogo. Tente de novo na página dele.'
+const AFTER_DELETE_DESTINATION = '/'
+
+function clearUndoTimer(): void {
+  if (undoTimer) {
+    clearInterval(undoTimer)
+    undoTimer = null
+  }
+}
+
+function startDeleteWork(): void {
+  if (!work.value || pendingSeconds.value > 0 || isDeletingWork.value) return
+  deleteWorkError.value = ''
+  pendingSeconds.value = UNDO_SECONDS
+  deleteAnnouncement.value = `Este livro será removido do catálogo em ${UNDO_SECONDS} segundos. Desfazer.`
+  void nextTick(() => undoBtnRef.value?.focus())
+  clearUndoTimer()
+  undoTimer = setInterval(() => {
+    pendingSeconds.value -= 1
+    if (pendingSeconds.value <= 0) {
+      clearUndoTimer()
+      pendingSeconds.value = 0
+      deleteAnnouncement.value = 'Removendo o livro...'
+      void performDeleteWork()
+    }
+  }, 1000)
+}
+
+function undoDeleteWork(): void {
+  clearUndoTimer()
+  pendingSeconds.value = 0
+  deleteAnnouncement.value = 'Remoção cancelada.'
+  void nextTick(() => deleteBtnRef.value?.focus())
+}
+
+function goTo(dest: string): Promise<unknown> {
+  const run = () => navigateTo(dest)
+  return Promise.resolve(nuxtApp ? nuxtApp.runWithContext(run) : run())
+}
+
+// Sair da página durante a contagem não cancela: fora dela já não há como
+// desfazer. O id vem do registro carregado, não da rota (que na saída já é a
+// de destino).
+function deleteOnLeave(): void {
+  if (pendingSeconds.value <= 0 || !work.value) return
+  clearUndoTimer()
+  pendingSeconds.value = 0
+  $fetch(`/api/works/${work.value.id}`, { method: 'DELETE', timeout: 15_000 })
+    .then(() => flash?.set(DELETED_FLASH))
+    .catch(() => flash?.set(LEAVE_FAILED_FLASH, 'error'))
+}
+
+// Fechar a aba: `$fetch` não sobrevive ao descarregamento, `keepalive` sim.
+let deletedOnPagehide = false
+
+function onPageHide(): void {
+  if (pendingSeconds.value <= 0 || !work.value) return
+  clearUndoTimer()
+  pendingSeconds.value = 0
+  deletedOnPagehide = true
+  void fetch(`/api/works/${work.value.id}`, {
+    method: 'DELETE',
+    keepalive: true,
+    credentials: 'same-origin',
+  }).catch(() => {})
+}
+
+// Voltar pelo histórico restaura do bfcache um livro já removido.
+function onPageShow(e: PageTransitionEvent): void {
+  if (!e.persisted || !deletedOnPagehide) return
+  deletedOnPagehide = false
+  void goTo(AFTER_DELETE_DESTINATION).then(() => flash?.set(DELETED_FLASH))
+}
+
+onMounted(() => {
+  window.addEventListener('pagehide', onPageHide)
+  window.addEventListener('pageshow', onPageShow)
+})
+
+onBeforeUnmount(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('pagehide', onPageHide)
+    window.removeEventListener('pageshow', onPageShow)
+  }
+  deleteOnLeave()
+  clearUndoTimer()
+})
+
+async function performDeleteWork(): Promise<void> {
+  if (!work.value) return
   isDeletingWork.value = true
   deleteWorkError.value = ''
 
@@ -418,18 +540,16 @@ async function handleDeleteWork(): Promise<void> {
       method: 'DELETE',
       timeout: 15_000,
     })
-    if (nuxtApp) {
-      void nuxtApp.runWithContext(() => navigateTo('/'))
-    } else {
-      void navigateTo('/')
-    }
+    await goTo(AFTER_DELETE_DESTINATION)
+    flash?.set(DELETED_FLASH)
   } catch (err: unknown) {
     if (isTimeoutOrAbort(err)) {
       deleteWorkError.value = TIMEOUT_MESSAGE
-      return
+    } else {
+      const fetchErr = err as { data?: { message?: string } }
+      deleteWorkError.value = fetchErr.data?.message ?? 'Não foi possível remover o livro do catálogo.'
     }
-    const fetchErr = err as { data?: { message?: string } }
-    deleteWorkError.value = fetchErr.data?.message ?? 'Não foi possível excluir o livro do catálogo.'
+    deleteAnnouncement.value = deleteWorkError.value
   } finally {
     isDeletingWork.value = false
   }
@@ -653,6 +773,11 @@ async function handleDeleteWork(): Promise<void> {
   margin-left: var(--space-1);
 }
 
+.user-log-review {
+  flex-basis: 100%;
+  margin-top: var(--space-2);
+}
+
 .user-logs-section {
   margin-bottom: var(--space-8);
 }
@@ -683,10 +808,12 @@ async function handleDeleteWork(): Promise<void> {
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
 }
 
 .user-log-date {
-  color: #fff;
+  color: var(--text-bright);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }
@@ -796,6 +923,7 @@ async function handleDeleteWork(): Promise<void> {
   gap: 0 var(--space-2);
 }
 
+.log-handle,
 .log-when {
   font-size: var(--font-size-xs);
   color: var(--text-color);
@@ -833,9 +961,48 @@ async function handleDeleteWork(): Promise<void> {
 .work-creator-actions {
   margin-top: var(--space-6);
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-height: 44px;
+  font-size: var(--font-size-sm);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.remove-msg {
+  color: var(--text-bright);
+}
+
+.undo-btn {
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) 0;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+.undo-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .delete-work-btn {

@@ -29,7 +29,9 @@
       >
         <div class="member-info">
           <div class="member-header">
-            <span class="member-name">{{ member.display_name }}</span>
+            <span class="member-name">
+              {{ member.display_name }}<span v-if="isViewer(member.handle)" class="member-you"> · você</span>
+            </span>
             <span class="member-handle">
               @{{ member.handle }} &middot;
               {{ member.visible_log_count === 1 ? '1 leitura' : `${member.visible_log_count} leituras` }}
@@ -69,6 +71,7 @@ import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import type { MembersResponse } from '~~/shared/schemas/members'
+import type { AuthSessionState, AuthSessionUser } from '~/middleware/auth'
 
 definePageMeta({
   layout: 'app',
@@ -91,6 +94,22 @@ const { data, pending, error, refresh } = await useAsyncData<MembersResponse>(
 )
 
 const members = computed(() => data.value?.members ?? [])
+
+// The auth middleware only fills `auth:session` on /app routes, so a direct load of
+// /membros asks /api/users/me for the viewer's handle, as the stats pages do.
+const session = useState<AuthSessionState | null>('auth:session', () => null)
+const { data: viewer } = await useAsyncData<string | null>('members-viewer', () =>
+  session.value?.user?.handle
+    ? Promise.resolve(session.value.user.handle)
+    : requestFetch<AuthSessionUser | null>('/api/users/me', { retry: 0, timeout: 10000 })
+        .then((me) => me?.handle ?? null)
+        .catch(() => null),
+)
+const viewerHandle = computed(() => viewer.value?.toLowerCase() ?? null)
+
+function isViewer(handle: string): boolean {
+  return viewerHandle.value !== null && handle.toLowerCase() === viewerHandle.value
+}
 </script>
 
 <style scoped>
@@ -172,6 +191,13 @@ const members = computed(() => data.value?.members ?? [])
   overflow-wrap: anywhere;
 }
 
+.member-you {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-color);
+}
+
 .member-handle {
   color: var(--text-color);
   font-size: var(--font-size-sm);
@@ -203,13 +229,24 @@ const members = computed(() => data.value?.members ?? [])
   background-color: var(--input-bg);
 }
 
-@media (max-width: 599px) {
+/* Phones keep the cover strip beside the name, three smaller thumbnails instead of four. */
+@media (max-width: 600px) {
   .member-card {
-    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3);
+    padding: var(--space-3) 0;
   }
+
+  .member-name {
+    font-size: var(--font-size-lg);
+  }
+
   .member-covers {
-    grid-template-columns: repeat(4, minmax(0, 56px));
+    grid-template-columns: repeat(3, 36px);
+    gap: var(--space-1);
+  }
+
+  .member-cover-item:nth-child(n + 4) {
+    display: none;
   }
 }
 

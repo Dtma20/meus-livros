@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
-import { afterEach, describe, expect, it } from 'vitest'
-import { createApp, type App } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createApp, nextTick, type App } from 'vue'
 import ReadingBlocksSection from '../../app/components/log/ReadingBlocksSection.vue'
+
+vi.hoisted(() => {
+  const globalScope = globalThis as unknown as Record<string, unknown>
+  globalScope.useState = (_key: string, init?: () => unknown) => ({ value: init ? init() : null })
+})
 
 const mounted: Array<{ app: App; container: HTMLElement }> = []
 
@@ -126,5 +131,166 @@ describe('ReadingBlocksSection', () => {
     expect(container.querySelector('section.reading-blocks-container')).not.toBeNull()
     expect(container.querySelector('.finished-summary')).toBeNull()
     expect(container.textContent).toContain('Começo lento.')
+  })
+})
+
+const inProgress = {
+  pages_read: 20,
+  current_page: 20,
+  total_pages: 336,
+  percentage: 6,
+  is_complete: false,
+}
+
+const BLOCK = { id: 'b1', start_page: 1, end_page: 20, comment: 'Começo lento.', read_at: '2026-09-01' }
+
+async function flush(): Promise<void> {
+  await nextTick()
+  await nextTick()
+}
+
+function setNumber(container: HTMLElement, id: string, value: string): void {
+  const el = container.querySelector<HTMLInputElement>(`#${id}`)
+  if (!el) throw new Error(`Campo ${id} não encontrado.`)
+  el.value = value
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+}
+
+describe('ReadingBlocksSection - block form validation', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('shows one error per field, marks them invalid and focuses the first', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [],
+      initialProgress: { ...inProgress, pages_read: 0, current_page: 0, percentage: 0 },
+      isOwner: true,
+      editionPageCount: 336,
+    })
+    buttonsMatching(container, 'Registrar trecho lido')[0]?.click()
+    await flush()
+
+    setNumber(container, 'block-start-page', '0')
+    setNumber(container, 'block-end-page', '400')
+    const note = container.querySelector<HTMLTextAreaElement>('#block-comment')
+    if (!note) throw new Error('Campo de anotação não encontrado.')
+    note.value = 'a'.repeat(5001)
+    note.dispatchEvent(new Event('input', { bubbles: true }))
+    await flush()
+
+    container.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await flush()
+
+    const start = container.querySelector('#block-start-page')
+    const end = container.querySelector('#block-end-page')
+    expect(start?.getAttribute('aria-invalid')).toBe('true')
+    expect(start?.getAttribute('aria-describedby')).toBe('block-start-page-error')
+    expect(end?.getAttribute('aria-invalid')).toBe('true')
+    expect(container.querySelector('#block-end-page-error')?.textContent).toBe('Página final: o livro tem 336 páginas.')
+    expect(note.getAttribute('aria-invalid')).toBe('true')
+    expect(container.querySelector('#block-comment-error')?.textContent).toContain('limite é 5.000')
+    expect(document.activeElement).toBe(start)
+    expect(note.value).toHaveLength(5001)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('ReadingBlocksSection - delete with undo', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  function mountOwnerWithBlock() {
+    return mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+  }
+
+  it('removes the block at once, offers Desfazer and never asks window.confirm', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }))
+    const confirmMock = vi.fn(() => true)
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('confirm', confirmMock)
+    const container = mountOwnerWithBlock()
+
+    buttonsMatching(container, 'Excluir')[0]?.click()
+    await flush()
+
+    expect(container.textContent).not.toContain('Começo lento.')
+    const undo = buttonsMatching(container, 'Desfazer')[0]
+    expect(undo).toBeDefined()
+    expect(document.activeElement).toBe(undo)
+    expect(container.querySelector('[role="status"]')?.textContent).toBe('Trecho removido. Desfazer em 6 segundos.')
+    expect(confirmMock).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    undo?.click()
+    await flush()
+    vi.advanceTimersByTime(7000)
+    await flush()
+
+    expect(container.textContent).toContain('Começo lento.')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('sends the DELETE only when the countdown ends', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mountOwnerWithBlock()
+
+    buttonsMatching(container, 'Excluir')[0]?.click()
+    await flush()
+    vi.advanceTimersByTime(5000)
+    expect(fetchMock).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(1000)
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((fetchMock.mock.calls[0] as unknown[] | undefined)?.[0]).toBe('/api/logs/log-1/blocks/b1')
+    expect(buttonsMatching(container, 'Desfazer')).toHaveLength(0)
+  })
+
+  it('restores the block and shows the error when the DELETE fails', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ message: 'Falhou.' }), { status: 500 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mountOwnerWithBlock()
+
+    buttonsMatching(container, 'Excluir')[0]?.click()
+    await flush()
+    vi.advanceTimersByTime(6000)
+    await vi.runAllTimersAsync()
+    await flush()
+
+    expect(container.textContent).toContain('Começo lento.')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('O trecho voltou para a lista.')
+  })
+
+  it('sends the DELETE right away when the section unmounts during the countdown', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn(async () => new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+    mountOwnerWithBlock()
+    const entry = mounted[mounted.length - 1]
+
+    const container = entry?.container as HTMLElement
+    buttonsMatching(container, 'Excluir')[0]?.click()
+    await flush()
+    entry?.app.unmount()
+    mounted.pop()
+    container.remove()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

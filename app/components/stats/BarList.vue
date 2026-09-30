@@ -131,6 +131,7 @@ function formatCount(count: number): string {
 }
 
 .bar-item-link {
+  color: var(--text-bright);
   text-decoration: none;
   min-height: var(--target-min-size);
   display: inline-flex;
@@ -167,12 +168,17 @@ function formatCount(count: number): string {
   height: 100%;
   background-color: var(--highlight);
   border-radius: var(--radius-sm);
-  transition: width 0.2s ease;
+
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bar-fill {
     transition: none;
   }
+}
+
+.bar-item-label::first-letter,
+.bar-item-link::first-letter {
+  text-transform: uppercase;
 }
 </style>

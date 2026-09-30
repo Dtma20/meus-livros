@@ -106,7 +106,7 @@
       >
         <summary class="guide-summary">
           <div class="guide-summary-title">
-            <span>Estrutura esperada do arquivo JSON</span>
+            <span>Ver formato do arquivo</span>
           </div>
           <span class="guide-chevron" aria-hidden="true">▾</span>
         </summary>
@@ -118,7 +118,7 @@
 
           <div class="guide-box">
             <div class="guide-box-header">
-              <span class="guide-box-title">Exemplo de modelo:</span>
+              <span class="guide-box-title">Exemplo com dois livros (o segundo só com os campos obrigatórios):</span>
               <button
                 type="button"
                 class="btn-copy-template"
@@ -294,6 +294,10 @@ const sampleJson = JSON.stringify(
       rate: 4.5,
       read_in: '2024-03-15',
       review: 'Uma das maiores obras da literatura brasileira.',
+    },
+    {
+      title: 'Vidas Secas',
+      author: 'Graciliano Ramos',
     },
   ],
   null,

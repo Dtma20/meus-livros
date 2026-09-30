@@ -1,9 +1,9 @@
 <template>
   <div class="log-page-container">
     <div class="log-page-card">
-      <h1 class="page-title">Editar registro</h1>
+      <h1 class="page-title">{{ concluding ? 'Concluir leitura' : 'Editar registro' }}</h1>
       <p class="page-desc">
-        Atualize sua leitura ou corrija as informações do livro.
+        {{ concluding ? 'Dê a nota, escreva a resenha se quiser e salve para concluir.' : 'Atualize sua leitura ou corrija as informações do livro.' }}
       </p>
 
       <div v-if="pending" class="loading-state">
@@ -16,7 +16,7 @@
       </div>
 
       <template v-else>
-        <div class="tabs-nav tabs-nav--full" role="tablist">
+        <div class="tabs-nav tabs-nav--full" role="tablist" aria-label="O que editar">
           <button
             id="tab-registro"
             type="button"
@@ -25,7 +25,9 @@
             :class="{ active: activeTab === 'registro' }"
             :aria-selected="activeTab === 'registro'"
             aria-controls="panel-registro"
+            :tabindex="activeTab === 'registro' ? 0 : -1"
             @click="activeTab = 'registro'"
+            @keydown="onTabKeydown($event)"
           >
             Editar registro
           </button>
@@ -37,7 +39,9 @@
             :class="{ active: activeTab === 'livro' }"
             :aria-selected="activeTab === 'livro'"
             aria-controls="panel-livro"
+            :tabindex="activeTab === 'livro' ? 0 : -1"
             @click="activeTab = 'livro'"
+            @keydown="onTabKeydown($event)"
           >
             Editar informações do livro
           </button>
@@ -53,6 +57,7 @@
             :key="logFormKey"
             mode="edit"
             :initial-log="log"
+            :finishing="finishing"
           />
         </div>
 
@@ -134,7 +139,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import EditionEditor from '~/components/book/EditionEditor.vue'
 import WorkEditForm from '~/components/book/WorkEditForm.vue'
@@ -150,9 +155,30 @@ definePageMeta({
 const route = useRoute()
 const id = computed(() => route.params.id as string)
 
+// `?terminar=1` vem do atalho "Terminei": o formulário abre pronto para concluir.
+const finishing = computed(() => route.query.terminar === '1')
+
 const logFormKey = ref(0)
 const addingEdition = ref(false)
-const activeTab = ref<'registro' | 'livro'>('registro')
+type TabKey = 'registro' | 'livro'
+const activeTab = ref<TabKey>('registro')
+
+const TAB_ORDER: readonly TabKey[] = ['registro', 'livro']
+
+function onTabKeydown(event: KeyboardEvent): void {
+  const index = TAB_ORDER.indexOf(activeTab.value)
+  let next = index
+  if (event.key === 'ArrowRight') next = (index + 1) % TAB_ORDER.length
+  else if (event.key === 'ArrowLeft') next = (index - 1 + TAB_ORDER.length) % TAB_ORDER.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = TAB_ORDER.length - 1
+  else return
+  event.preventDefault()
+  const tab = TAB_ORDER[next]
+  if (!tab) return
+  activeTab.value = tab
+  nextTick(() => document.getElementById(`tab-${tab}`)?.focus())
+}
 
 const { data: log, pending, error } = useAsyncData<LogWithDetails>(
   `log-${id.value}`,
@@ -163,6 +189,9 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
     }),
 )
 
+// Mesma regra do LogForm: "Terminei" só vale para uma leitura em andamento.
+const concluding = computed(() => finishing.value && !log.value?.finished_on)
+
 const slug = computed(() => log.value?.work?.slug || '')
 
 function fetchWork(workSlug: string): Promise<WorkWithDetails> {
@@ -172,9 +201,16 @@ function fetchWork(workSlug: string): Promise<WorkWithDetails> {
   })
 }
 
+// No SSR as duas buscas correm juntas e o slug ainda está vazio quando esta
+// começa; sem o fallback o payload levava `null` e, como o slug não muda mais
+// depois da hidratação, o `watch` nunca refazia a busca.
 const { data: work, error: workError } = useAsyncData<WorkWithDetails | null>(
   `entry-work-${id.value}`,
-  () => (slug.value ? fetchWork(slug.value) : Promise.resolve(null)),
+  async () => {
+    const workSlug = slug.value
+      || (await $fetch<LogWithDetails>(`/api/logs/${id.value}` as string, { timeout: 15_000, retry: 0 })).work?.slug
+    return workSlug ? fetchWork(workSlug) : null
+  },
   { watch: [slug] },
 )
 
@@ -201,33 +237,35 @@ async function onEditionAdded(): Promise<void> {
 }
 
 useSeoMeta({
-  title: () => (log.value ? `Editar: ${log.value.work.title}` : 'Editar registro'),
+  title: () => {
+    const verb = concluding.value ? 'Concluir leitura' : 'Editar'
+    if (!log.value) return concluding.value ? verb : 'Editar registro'
+    return `${verb}: ${log.value.work.title}`
+  },
 })
 </script>
 
 <style scoped>
 .log-page-container {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: var(--space-4) 0;
   width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: var(--space-2) 0;
 }
 
 .log-page-card {
-  background-color: var(--card-bg);
-  border-radius: var(--radius-md);
-  padding: var(--space-8);
   width: 100%;
-  max-width: 580px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  max-width: 40rem;
 }
 
 .page-title {
+  font-family: var(--font-serif);
   font-size: var(--font-size-2xl);
+  font-weight: 600;
+  letter-spacing: -0.015em;
   margin-top: 0;
   margin-bottom: var(--space-2);
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .page-desc {

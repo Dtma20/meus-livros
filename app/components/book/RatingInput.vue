@@ -32,7 +32,7 @@
             class="star-half star-half-left"
             :disabled="disabled"
             tabindex="-1"
-            :aria-label="`${star - 0.5} estrelas`"
+            :aria-label="starLabel(star - 0.5)"
             @mouseover="onHover(star - 0.5)"
             @click="onClickRating(star - 0.5)"
           />
@@ -42,7 +42,7 @@
             class="star-half star-half-right"
             :disabled="disabled"
             tabindex="-1"
-            :aria-label="`${star} estrelas`"
+            :aria-label="starLabel(star)"
             @mouseover="onHover(star)"
             @click="onClickRating(star)"
           />
@@ -129,6 +129,11 @@ const ratingDisplayLabel = computed(() => {
   const formatted = String(r).replace('.', ',')
   return `${formatted} ★`
 })
+
+function starLabel(val: number): string {
+  const n = val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  return `${n} ${val === 1 ? 'estrela' : 'estrelas'}`
+}
 
 function onHover(val: number): void {
   if (props.disabled) return
@@ -308,7 +313,7 @@ function onKeydown(e: KeyboardEvent): void {
   outline-offset: 2px;
 }
 
-@media (hover: none) {
+@media (hover: none), (pointer: coarse) {
   .stars-track {
     gap: 0;
   }

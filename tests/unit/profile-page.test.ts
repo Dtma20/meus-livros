@@ -237,6 +237,32 @@ describe('ProfilePage (app/pages/@[handle]/index.vue) - Visibility switcher and 
     wrapper.unmount()
   })
 
+  it('keeps the header totals for the whole library when a visibility tab is selected', async () => {
+    mockPageData.value = {
+      profile: sampleProfile,
+      currentUser: { id: 'user-1', handle: 'diogo', email: 'diogo@test.com' },
+    }
+
+    const wrapper = mount(ProfilePage)
+    await wrapper.router.push('/@diogo')
+    await flushAsync()
+
+    const headerBooks = () => wrapper.find('.profile-header .stats .stat .stat-num')?.textContent?.trim()
+    expect(headerBooks()).toBe('2')
+    expect(wrapper.find('.visibility-summary')).toBeNull()
+
+    const tabs = wrapper.findAll<HTMLButtonElement>('.visibility-tab')
+    tabs[2]?.click()
+    await flushAsync()
+
+    expect(wrapper.findAll('.book-card-item')).toHaveLength(1)
+    expect(headerBooks()).toBe('2')
+    expect(wrapper.find('.profile-header')?.textContent).not.toContain('(filtros ativos)')
+    expect(wrapper.find('.visibility-summary')?.textContent?.replace(/\s+/g, ' ').trim()).toBe('Mostrando 1 de 2 livros')
+
+    wrapper.unmount()
+  })
+
   it('does not render "Editar perfil" or visibility tabs when viewer is a stranger', async () => {
     mockPageData.value = {
       profile: sampleProfile,

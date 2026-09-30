@@ -211,7 +211,9 @@ describe('ReadingMap.vue (component unit)', () => {
     expect(svg?.getAttribute('aria-label')).toContain('2 países com livros registrados')
 
     expect(wrapper.text()).toContain('Mapa de leituras')
-    expect(wrapper.text()).toContain('2 países registrados')
+    expect(wrapper.find('.map-count')?.textContent).toContain('2 países')
+    // The count lives once, in the summary; the inner status line no longer repeats it.
+    expect(wrapper.text()).not.toContain('países registrados')
 
     wrapper.unmount()
   })

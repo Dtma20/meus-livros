@@ -24,44 +24,31 @@
 
     <div v-else class="profile-content">
       <header class="profile-header">
-        <div class="identity">
-          <div class="name-row">
-            <h1 class="display-name">{{ profile.user.display_name }}</h1>
-            <button
-              type="button"
-              class="handle"
-              :title="copied ? 'Link copiado' : 'Copiar link do perfil'"
-              @click="copyProfileLink(profile.user.handle)"
-            >
-              @{{ profile.user.handle }}
-            </button>
-          </div>
-          <p class="copy-feedback" role="status" aria-live="polite">
-            {{ copyFeedback }}
-          </p>
-          <div v-if="isOwner" class="profile-actions">
-            <NuxtLink to="/app/perfil" class="btn-edit-profile">
-              Editar perfil
-            </NuxtLink>
-            <a
-              href="/api/library/export"
-              download="meus-livros-export.json"
-              class="btn-edit-profile btn-export-profile"
-              title="Exportar biblioteca em JSON"
-            >
-              Exportar JSON
-            </a>
-          </div>
+        <div class="name-row">
+          <h1 class="display-name">{{ profile.user.display_name }}</h1>
+          <button
+            type="button"
+            class="handle"
+            :aria-label="`Copiar link do perfil @${profile.user.handle}`"
+            :title="copied ? 'Link copiado' : 'Copiar link do perfil'"
+            @click="copyProfileLink(profile.user.handle)"
+          >
+            @{{ profile.user.handle }}
+          </button>
+          <NuxtLink v-if="isOwner" to="/app/perfil" class="btn-edit-profile">
+            Editar perfil
+          </NuxtLink>
+          <span class="copy-feedback" role="status" aria-live="polite">{{ copyFeedback }}</span>
         </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
 
-        <p class="stats" aria-label="Estatísticas dos livros exibidos">
-          <span class="stat"><span class="stat-num">{{ filteredStats.totalBooks.toLocaleString('pt-BR') }}</span> {{ filteredStats.totalBooks === 1 ? 'livro' : 'livros' }}</span>
-          <span class="stat"><span class="stat-num">{{ filteredStats.uniqueAuthors.toLocaleString('pt-BR') }}</span> {{ filteredStats.uniqueAuthors === 1 ? 'autor' : 'autores' }}</span>
-          <span class="stat"><span class="stat-num">{{ filteredStats.uniqueCountries.toLocaleString('pt-BR') }}</span> {{ filteredStats.uniqueCountries === 1 ? 'país' : 'países' }}</span>
-          <small v-if="hasActiveFilters" class="filter-indicator stats-filter-indicator">(filtros ativos)</small>
-        </p>
-        <div class="stats-action">
+        <div class="stats-row">
+          <p class="stats" aria-label="Totais da biblioteca">
+            <span class="stat"><span class="stat-num">{{ headerStats.totalBooks.toLocaleString('pt-BR') }}</span> {{ headerStats.totalBooks === 1 ? 'livro' : 'livros' }}</span>
+            <span class="stat"><span class="stat-num">{{ headerStats.uniqueAuthors.toLocaleString('pt-BR') }}</span> {{ headerStats.uniqueAuthors === 1 ? 'autor' : 'autores' }}</span>
+            <span class="stat"><span class="stat-num">{{ headerStats.uniqueCountries.toLocaleString('pt-BR') }}</span> {{ headerStats.uniqueCountries === 1 ? 'país' : 'países' }}</span>
+            <small v-if="hasActiveFilters" class="filter-indicator stats-filter-indicator">(filtros ativos)</small>
+          </p>
           <NuxtLink :to="`/@${profile.user.handle}/estatisticas`" class="stats-link">
             Ver estatísticas
           </NuxtLink>
@@ -87,38 +74,64 @@
         <div v-if="isOwner" class="visibility-bar">
           <div class="visibility-nav" role="tablist" aria-label="Filtrar por visibilidade">
             <button
+              id="vis-tab-todos"
               type="button"
               role="tab"
               :aria-selected="visibilityFilter === 'todos'"
+              aria-controls="profile-collection"
+              :tabindex="visibilityFilter === 'todos' ? 0 : -1"
               class="visibility-tab"
               :class="{ active: visibilityFilter === 'todos' }"
               @click="setVisibilityFilter('todos')"
+              @keydown="onTabsKeydown($event, VISIBILITY_TABS, visibilityFilter, setVisibilityFilter, 'vis-tab-')"
             >
               Todos <span class="tab-count">{{ visibilityCounts.todos }}</span>
             </button>
             <button
+              id="vis-tab-publico"
               type="button"
               role="tab"
               :aria-selected="visibilityFilter === 'publico'"
+              aria-controls="profile-collection"
+              :tabindex="visibilityFilter === 'publico' ? 0 : -1"
               class="visibility-tab"
               :class="{ active: visibilityFilter === 'publico' }"
               @click="setVisibilityFilter('publico')"
+              @keydown="onTabsKeydown($event, VISIBILITY_TABS, visibilityFilter, setVisibilityFilter, 'vis-tab-')"
             >
               Públicos <span class="tab-count">{{ visibilityCounts.publico }}</span>
             </button>
             <button
+              id="vis-tab-privado"
               type="button"
               role="tab"
               :aria-selected="visibilityFilter === 'privado'"
+              aria-controls="profile-collection"
+              :tabindex="visibilityFilter === 'privado' ? 0 : -1"
               class="visibility-tab"
               :class="{ active: visibilityFilter === 'privado' }"
               @click="setVisibilityFilter('privado')"
+              @keydown="onTabsKeydown($event, VISIBILITY_TABS, visibilityFilter, setVisibilityFilter, 'vis-tab-')"
             >
               Privados <span class="tab-count">{{ visibilityCounts.privado }}</span>
             </button>
           </div>
         </div>
 
+        <div
+          id="profile-collection"
+          :role="isOwner ? 'tabpanel' : undefined"
+          :aria-labelledby="isOwner ? `vis-tab-${visibilityFilter}` : undefined"
+        >
+        <p
+          v-if="isOwner && visibilityFilter !== 'todos' && !hasActiveFilters"
+          class="visibility-summary"
+          role="status"
+          aria-live="polite"
+        >
+          Mostrando {{ displayedLogs.length.toLocaleString('pt-BR') }} de {{ logs.length.toLocaleString('pt-BR') }}
+          {{ logs.length === 1 ? 'livro' : 'livros' }}
+        </p>
         <div v-if="displayedLogs.length === 0" class="empty-visibility-results">
           <EmptyState
             v-if="visibilityFilter === 'privado'"
@@ -139,7 +152,7 @@
         <template v-else>
         <ClientOnly>
           <ReadingMap
-            v-if="showMap"
+            v-if="mapReady"
             :country-counts="readingMapData.countryCounts"
             :selected-country="filterCountry"
             :unmapped-countries="readingMapData.unmappedCountries"
@@ -148,45 +161,60 @@
         </ClientOnly>
 
         <div class="controls-row">
-        <div class="controls-filters" :class="{ 'is-diary-view': currentView === 'diario' }">
-          <FilterBar
-            v-model:genre="filterGenre"
-            v-model:country="filterCountry"
-            v-model:decade="filterDecade"
-            v-model:sort-by="sortBy"
-            :available-genres="availableGenres"
-            :available-countries="availableCountries"
-            :available-decades="availableDecades"
-            :has-active-filters="hasActiveFilters"
-            @reset="resetFilters"
-          />
-        </div>
+          <div class="controls-filters" :class="{ 'is-diary-view': currentView === 'diario' }">
+            <FilterBar
+              v-model:genre="filterGenre"
+              v-model:country="filterCountry"
+              v-model:decade="filterDecade"
+              v-model:sort-by="sortBy"
+              :available-genres="availableGenres"
+              :available-countries="availableCountries"
+              :available-decades="availableDecades"
+              :has-active-filters="hasActiveFilters"
+              :shown-count="sortedBooks.length"
+              :total-count="logs.length"
+              @reset="resetFilters"
+            />
+          </div>
 
-        <div class="view-toggle-bar">
-          <div class="view-nav" role="tablist" aria-label="Modo de visualização">
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="currentView === 'grade'"
-              class="view-tab"
-              :class="{ active: currentView === 'grade' }"
-              @click="setView('grade')"
-            >
-              Grade
-            </button>
-            <button
-              type="button"
-              role="tab"
-              :aria-selected="currentView === 'diario'"
-              class="view-tab"
-              :class="{ active: currentView === 'diario' }"
-              @click="setView('diario')"
-            >
-              Diário
-            </button>
+          <div class="view-toggle-bar">
+            <span class="view-label">Ver como</span>
+            <div class="view-nav" role="tablist" aria-label="Modo de visualização">
+              <button
+                id="view-tab-grade"
+                type="button"
+                role="tab"
+                :aria-selected="currentView === 'grade'"
+                aria-controls="profile-view-panel"
+                :tabindex="currentView === 'grade' ? 0 : -1"
+                class="view-tab"
+                :class="{ active: currentView === 'grade' }"
+                @keydown="onTabsKeydown($event, VIEW_TABS, currentView, setView, 'view-tab-')"
+                @click="setView('grade')"
+              >
+                Grade
+              </button>
+              <button
+                id="view-tab-diario"
+                type="button"
+                role="tab"
+                :aria-selected="currentView === 'diario'"
+                aria-controls="profile-view-panel"
+                :tabindex="currentView === 'diario' ? 0 : -1"
+                class="view-tab"
+                :class="{ active: currentView === 'diario' }"
+                @keydown="onTabsKeydown($event, VIEW_TABS, currentView, setView, 'view-tab-')"
+                @click="setView('diario')"
+              >
+                Diário
+              </button>
+            </div>
           </div>
         </div>
-        </div>
+
+        <p v-if="currentView === 'diario'" class="view-help">
+          Cada leitura em ordem de data, com releituras separadas.
+        </p>
 
         <div v-if="hasActiveFilters && sortedBooks.length === 0" class="empty-filter-results">
           <EmptyState
@@ -198,6 +226,11 @@
         </div>
 
         <template v-else>
+          <div
+            id="profile-view-panel"
+            role="tabpanel"
+            :aria-labelledby="`view-tab-${currentView}`"
+          >
           <DiaryList v-if="currentView === 'diario'" :logs="sortedBooks" />
 
           <BookGrid v-else>
@@ -229,32 +262,44 @@
               />
             </div>
           </BookGrid>
+          </div>
 
           <footer v-if="sortedBooks.length > 0" class="paginometer" aria-label="Estatísticas de páginas dos livros exibidos">
             <div class="page-stat">
               <strong>{{ formatThousands(filteredStats.totalPages) }}</strong>
               <span class="page-stat-label">
-                Páginas Lidas
+                Páginas lidas
                 <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
               </span>
             </div>
             <div class="page-stat">
               <strong>{{ filteredStats.averagePages }}</strong>
               <span class="page-stat-label">
-                Média p/ Livro
+                Média por livro
                 <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
               </span>
             </div>
           </footer>
+          <p v-if="isOwner" class="export-row">
+            <a
+              href="/api/library/export"
+              download="meus-livros-export.json"
+              class="export-link"
+              title="Exportar biblioteca em JSON"
+            >
+              Exportar JSON
+            </a>
+          </p>
         </template>
-      </template>
+        </template>
+        </div>
     </template>
   </div>
 </div>
 </template>
 
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, onUnmounted, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BookCard from '~/components/book/BookCard.vue'
 import BookGrid from '~/components/book/BookGrid.vue'
@@ -394,6 +439,30 @@ useSeoMeta({
 })
 
 type VisibilityFilter = 'todos' | 'publico' | 'privado'
+
+const VISIBILITY_TABS: readonly VisibilityFilter[] = ['todos', 'publico', 'privado']
+const VIEW_TABS: readonly ('grade' | 'diario')[] = ['grade', 'diario']
+
+function onTabsKeydown<T extends string>(
+  event: KeyboardEvent,
+  order: readonly T[],
+  current: T,
+  select: (value: T) => void,
+  idPrefix: string,
+): void {
+  const index = order.indexOf(current)
+  let next = index
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % order.length
+  else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index - 1 + order.length) % order.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = order.length - 1
+  else return
+  event.preventDefault()
+  const value = order[next]
+  if (value === undefined) return
+  select(value)
+  nextTick(() => document.getElementById(`${idPrefix}${value}`)?.focus())
+}
 const visibilityFilter = ref<VisibilityFilter>('todos')
 
 const logs = computed(() => profile.value?.logs || [])
@@ -421,24 +490,10 @@ const displayedLogs = computed(() => {
 
 const readingMapData = computed(() => aggregateReadingMapData(displayedLogs.value))
 
-const showMap = ref(false)
-let mediaQueryList: MediaQueryList | null = null
-
-function updateShowMap(e: MediaQueryListEvent | MediaQueryList) {
-  showMap.value = e.matches
-}
-
+// Loaded only after mount, so the async chunk never holds back the page's Suspense.
+const mapReady = ref(false)
 onMounted(() => {
-  mediaQueryList = window.matchMedia('(min-width: 601px)')
-  showMap.value = mediaQueryList.matches
-  mediaQueryList.addEventListener('change', updateShowMap)
-})
-
-onUnmounted(() => {
-  if (mediaQueryList) {
-    mediaQueryList.removeEventListener('change', updateShowMap)
-    mediaQueryList = null
-  }
+  mapReady.value = true
 })
 
 const {
@@ -454,6 +509,59 @@ const {
   sortedBooks,
   filteredStats,
 } = useBookFilters(displayedLogs)
+
+// The header totals describe the whole library this viewer may see. They follow
+// the genre/country/decade filters (marked "(filtros ativos)"), but not the
+// owner's visibility tab: that tab only narrows the grid, and the count for it
+// sits next to the grid ("Mostrando N de M livros").
+const headerFilters = useBookFilters(logs)
+watch(
+  [filterGenre, filterCountry, filterDecade],
+  ([genre, country, decade]) => {
+    headerFilters.filterGenre.value = genre
+    headerFilters.filterCountry.value = country
+    headerFilters.filterDecade.value = decade
+  },
+  { immediate: true, flush: 'sync' },
+)
+const headerStats = headerFilters.filteredStats
+
+const SORT_MODES = ['read_desc', 'read_asc', 'rating', 'year_desc', 'year_asc', 'alpha']
+const FILTER_QUERY_KEYS = ['genero', 'pais', 'decada', 'ordem'] as const
+
+function queryString(value: unknown): string {
+  const first = Array.isArray(value) ? value[0] : value
+  return typeof first === 'string' ? first : ''
+}
+
+// Filters live in the URL so a filtered view can be shared and survives a reload.
+// Values that no longer match the library are ignored.
+const initialGenre = queryString(route.query.genero)
+if (availableGenres.value.includes(initialGenre)) filterGenre.value = initialGenre
+const initialCountry = queryString(route.query.pais)
+if (availableCountries.value.includes(initialCountry)) filterCountry.value = initialCountry
+const initialDecade = queryString(route.query.decada)
+if (availableDecades.value.map(String).includes(initialDecade)) filterDecade.value = initialDecade
+const initialSort = queryString(route.query.ordem)
+if (SORT_MODES.includes(initialSort)) sortBy.value = initialSort as typeof sortBy.value
+
+watch([filterGenre, filterCountry, filterDecade, sortBy], () => {
+  if (!router) return
+  const wanted: Record<(typeof FILTER_QUERY_KEYS)[number], string> = {
+    genero: filterGenre.value,
+    pais: filterCountry.value,
+    decada: filterDecade.value === '' || filterDecade.value == null ? '' : String(filterDecade.value),
+    ordem: sortBy.value === 'read_desc' ? '' : sortBy.value,
+  }
+  const query: Record<string, unknown> = { ...route.query }
+  let changed = false
+  for (const key of FILTER_QUERY_KEYS) {
+    if (queryString(query[key]) === wanted[key]) continue
+    changed = true
+    query[key] = wanted[key] === '' ? undefined : wanted[key]
+  }
+  if (changed) void router.replace({ query: query as typeof route.query })
+})
 
 function setVisibilityFilter(filter: VisibilityFilter) {
   visibilityFilter.value = filter
@@ -541,84 +649,69 @@ onBeforeUnmount(() => {
 
 .profile-header {
   text-align: left;
-  margin-bottom: var(--space-8, 32px);
-}
-
-.identity {
-  max-width: 100%;
+  margin-bottom: var(--space-6, 24px);
 }
 
 .name-row {
   display: flex;
   align-items: baseline;
-  justify-content: flex-start;
-  gap: var(--space-3, 12px);
   flex-wrap: wrap;
 }
 
-.display-name {
-  font-family: var(--font-serif);
-  font-size: var(--font-size-3xl, 2rem);
-  font-weight: 600;
-  letter-spacing: -0.015em;
-  margin: 0;
-  color: var(--text-bright);
-  line-height: var(--line-height-tight, 1.2);
+.name-row > * {
+  margin-right: var(--space-3, 12px);
+}
+
+.name-row > .copy-feedback {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--text-color, #9ab);
+}
+
+.export-row {
+  display: flex;
+  justify-content: flex-end;
+  margin: var(--space-2) 0 0;
 }
 
 .handle {
-  font-family: inherit;
-  font-size: var(--font-size-lg, 1.125rem);
-  font-weight: 500;
-  line-height: var(--line-height-tight, 1.2);
-  color: var(--text-color, #9ab);
   background: none;
   border: none;
-  padding: 0;
-  min-height: var(--target-min-size, 44px);
+  padding: 2px 0;
+  min-height: 24px;
+  font: inherit;
+  font-size: var(--font-size-base, 1rem);
+  color: var(--text-color, #9ab);
   cursor: pointer;
-  transition: color 0.2s;
+  border-radius: var(--radius-sm, 4px);
 }
 
-.handle:hover,
-.handle:focus-visible {
-  color: var(--highlight, #f59e0b);
+@media (pointer: coarse) {
+  .handle {
+    padding: 12px 8px;
+    margin: -12px 4px -12px -8px;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+}
+
+.handle:hover {
+  color: var(--text-bright);
 }
 
 .handle:focus-visible {
   outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
   outline-offset: var(--focus-ring-offset, 2px);
-  border-radius: var(--radius-sm, 4px);
 }
 
-.copy-feedback {
-  margin: 0;
-  min-height: 1.25em;
-  font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
-}
-
-.profile-actions {
-  display: flex;
-  align-items: stretch;
-  gap: var(--space-5, 20px);
-  justify-content: flex-start;
-  margin-top: var(--space-3, 12px);
-  margin-bottom: var(--space-6, 24px);
-}
-
-.profile-actions > * {
-  white-space: nowrap;
-}
-
-.btn-edit-profile {
+.btn-edit-profile,
+.export-link {
   display: inline-flex;
   align-items: center;
   padding: var(--space-1, 4px) 0;
   font-size: var(--font-size-sm, 0.875rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-bright);
   text-decoration: underline;
-  text-decoration-color: var(--input-bg, #2c3440);
+  text-decoration-color: var(--highlight, #f59e0b);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.3em;
   line-height: var(--line-height-normal, 1.5);
@@ -626,17 +719,24 @@ onBeforeUnmount(() => {
   min-height: 36px;
 }
 
-.btn-edit-profile:hover {
+.btn-edit-profile:visited,
+.export-link:visited {
   color: var(--text-bright);
 }
 
-.btn-edit-profile:focus-visible {
+.btn-edit-profile:hover,
+.export-link:hover {
+  color: var(--highlight, #f59e0b);
+}
+
+.btn-edit-profile:focus-visible,
+.export-link:focus-visible {
   outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
 .visibility-bar {
-  margin-bottom: var(--space-5, 20px);
+  margin-bottom: var(--space-4, 16px);
 }
 
 .visibility-nav {
@@ -686,20 +786,35 @@ onBeforeUnmount(() => {
   margin: var(--space-8, 32px) 0;
 }
 
+.visibility-summary {
+  margin: 0 0 var(--space-3, 12px);
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--text-color, #9ab);
+  font-variant-numeric: tabular-nums;
+}
+
 .bio {
   color: var(--text-color, #9ab);
   font-size: var(--font-size-base, 1rem);
   max-width: 600px;
-  margin: var(--space-3, 12px) 0 var(--space-4, 16px);
+  margin: var(--space-2, 8px) 0 0;
   line-height: var(--line-height-relaxed, 1.6);
   white-space: pre-wrap;
+}
+
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-4, 16px);
+  margin-top: var(--space-2, 8px);
 }
 
 .stats {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  margin: var(--space-3, 12px) 0 0;
+  margin: 0;
   color: var(--text-color, #9ab);
   font-size: var(--font-size-base, 1rem);
 }
@@ -719,10 +834,6 @@ onBeforeUnmount(() => {
   margin: 0 0 0 var(--space-3, 12px);
 }
 
-.stats-action {
-  margin-top: var(--space-1, 4px);
-}
-
 .stats-link {
   display: inline-flex;
   align-items: center;
@@ -732,7 +843,7 @@ onBeforeUnmount(() => {
   text-decoration-color: var(--highlight, #f59e0b);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.3em;
-  min-height: var(--target-min-size, 44px);
+  min-height: 36px;
   border-radius: var(--radius-sm, 4px);
   transition: color 0.2s;
 }
@@ -746,14 +857,14 @@ onBeforeUnmount(() => {
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
-.is-diary-view :deep(.sort-label),
-.is-diary-view :deep(.sort-select) {
+.is-diary-view :deep(.sort-field) {
   display: none;
 }
 
 .controls-row {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: var(--space-4);
 }
 
@@ -764,41 +875,42 @@ onBeforeUnmount(() => {
 
 .view-toggle-bar {
   display: flex;
-  justify-content: flex-start;
-  margin-bottom: var(--space-4, 16px);
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1, 4px);
+  flex-shrink: 0;
 }
 
-@media (max-width: 640px) {
-  .controls-row {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-  }
-
-  .view-toggle-bar {
-    order: -1;
-  }
+.view-label {
+  color: var(--text-color, #9ab);
+  font-size: var(--font-size-xs, 0.75rem);
+  line-height: var(--line-height-tight, 1.2);
 }
 
 .view-nav {
   display: inline-flex;
-  gap: var(--space-5, 20px);
+  border: 1px solid var(--input-bg, #2c3440);
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
 }
 
 .view-tab {
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
   color: var(--text-color, #9ab);
   font-size: var(--font-size-sm, 0.875rem);
   font-family: inherit;
   font-weight: 500;
-  padding: var(--space-2, 8px) 0;
+  padding: 0 var(--space-4, 16px);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  transition: color 0.2s;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.view-tab + .view-tab {
+  border-left: 1px solid var(--input-bg, #2c3440);
 }
 
 .view-tab:hover:not(.active) {
@@ -807,12 +919,33 @@ onBeforeUnmount(() => {
 
 .view-tab.active {
   color: var(--text-bright);
-  border-bottom-color: var(--highlight, #f59e0b);
+  background-color: var(--input-bg, #2c3440);
 }
 
 .view-tab:focus-visible {
   outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
-  outline-offset: var(--focus-ring-offset, 2px);
+  outline-offset: -2px;
+}
+
+.view-help {
+  margin: 0 0 var(--space-4, 16px);
+  color: var(--text-color, #9ab);
+  font-size: var(--font-size-sm, 0.875rem);
+}
+
+@media (max-width: 640px) {
+  .controls-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3, 12px);
+  }
+
+  .view-toggle-bar {
+    order: -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
 }
 
 .book-card-item {
@@ -844,6 +977,10 @@ onBeforeUnmount(() => {
   white-space: nowrap;
 }
 
+.paginometer .export-link {
+  margin-left: auto;
+}
+
 .paginometer {
   margin-top: var(--space-12, 48px);
   padding-top: var(--space-5, 20px);
@@ -852,6 +989,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: var(--space-2, 8px) var(--space-8, 32px);
   color: var(--text-color, #9ab);
+  align-items: baseline;
 }
 
 .page-stat strong {
@@ -881,20 +1019,16 @@ onBeforeUnmount(() => {
 
 @media (pointer: coarse) {
   .btn-edit-profile,
+  .export-link,
   .visibility-tab,
   .view-tab {
     min-height: var(--target-min-size, 44px);
   }
 }
 
-@media (max-width: 600px) {
-  .profile-actions {
-    flex-wrap: wrap;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .btn-edit-profile,
+  .export-link,
   .handle,
   .visibility-tab,
   .view-tab {

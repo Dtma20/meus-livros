@@ -5,31 +5,33 @@
   <section v-else-if="!showFinishedSummary" class="reading-blocks-container" aria-labelledby="reading-progress-title">
     <div class="section-header">
       <div class="header-text">
-        <h2 id="reading-progress-title" class="section-heading">Progresso da leitura</h2>
-        <p class="section-subtitle">
+        <h2 id="reading-progress-title" ref="headingRef" class="section-heading" tabindex="-1">Progresso da leitura</h2>
+        <p v-if="progress.pages_read > 0" class="section-subtitle">
           <template v-if="progress.total_pages">
             {{ progress.pages_read }} de {{ progress.total_pages }} páginas lidas ({{ progress.percentage ?? 0 }}%)
           </template>
-          <template v-else-if="progress.pages_read > 0">
-            {{ progress.pages_read }} páginas registradas
-          </template>
           <template v-else>
-            Nenhuma página registrada ainda
+            {{ progress.pages_read }} páginas registradas
           </template>
         </p>
       </div>
 
       <button
-        v-if="isOwner && !showAddForm"
+        v-if="isOwner && !showAddForm && blocks.length > 0"
+        ref="headerAddBtnRef"
         type="button"
         class="btn-add-block"
-        @click="openAddForm"
+        @click="openAddForm('header')"
       >
         + Registrar trecho lido
       </button>
     </div>
 
-    <div class="progress-bar-wrap" role="progressbar" aria-label="Progresso da leitura" :aria-valuenow="progress.percentage ?? 0" aria-valuemin="0" aria-valuemax="100">
+    <p v-if="saveNotice" class="save-notice" role="status" aria-live="polite">
+      {{ saveNotice }}
+    </p>
+
+    <div v-if="progress.pages_read > 0" class="progress-bar-wrap" role="progressbar" aria-label="Progresso da leitura" :aria-valuenow="progress.percentage ?? 0" aria-valuemin="0" aria-valuemax="100">
       <div class="progress-bar-track">
         <div
           class="progress-bar-fill"
@@ -43,7 +45,7 @@
         {{ editingBlock ? 'Editar trecho lido' : 'Registrar novo trecho lido' }}
       </h3>
 
-      <form @submit.prevent="saveBlock">
+      <form novalidate @submit.prevent="saveBlock">
         <div class="form-pages-row">
           <div class="form-field">
             <label for="block-start-page" class="field-label">Página inicial</label>
@@ -52,10 +54,14 @@
               v-model.number="formStartPage"
               type="number"
               min="1"
+              :max="knownTotalPages ?? undefined"
               required
               class="field-input"
               placeholder="ex: 45"
+              :aria-invalid="blockErrors.start_page ? 'true' : undefined"
+              :aria-describedby="blockErrors.start_page ? 'block-start-page-error' : undefined"
             >
+            <span v-if="blockErrors.start_page" id="block-start-page-error" class="field-error-msg">{{ blockErrors.start_page }}</span>
           </div>
 
           <div class="form-field">
@@ -65,10 +71,14 @@
               v-model.number="formEndPage"
               type="number"
               min="1"
+              :max="knownTotalPages ?? undefined"
               required
               class="field-input"
               placeholder="ex: 72"
+              :aria-invalid="blockErrors.end_page ? 'true' : undefined"
+              :aria-describedby="blockErrors.end_page ? 'block-end-page-error' : undefined"
             >
+            <span v-if="blockErrors.end_page" id="block-end-page-error" class="field-error-msg">{{ blockErrors.end_page }}</span>
           </div>
 
           <div class="form-field">
@@ -84,9 +94,14 @@
         </div>
 
         <div class="form-field mt-3">
-          <label for="block-comment" class="field-label">
-            Anotação / Comentário sobre este trecho (opcional)
-          </label>
+          <div class="label-row">
+            <label for="block-comment" class="field-label">
+              Anotação / Comentário sobre este trecho (opcional)
+            </label>
+            <span class="char-count" :class="{ 'char-count-limit': formComment.length > COMMENT_MAX }">
+              {{ formComment.length.toLocaleString('pt-BR') }} / 5.000
+            </span>
+          </div>
           <textarea
             id="block-comment"
             v-model="formComment"
@@ -94,7 +109,22 @@
             maxlength="5000"
             class="field-input field-textarea"
             placeholder="O que chamou sua atenção neste trecho?"
+            :aria-invalid="blockErrors.comment ? 'true' : undefined"
+            :aria-describedby="blockErrors.comment ? 'block-comment-error' : undefined"
           />
+          <span v-if="blockErrors.comment" id="block-comment-error" class="field-error-msg">{{ blockErrors.comment }}</span>
+        </div>
+
+        <div
+          v-if="invalidBlockFields.length > 0"
+          class="error-summary"
+          role="alert"
+        >
+          <span>Corrija {{ invalidBlockFields.length === 1 ? '1 campo' : `${invalidBlockFields.length} campos` }}: </span>
+          <template v-for="(key, i) in invalidBlockFields" :key="key">
+            <button type="button" class="error-summary-link" @click="focusBlockField(key)">{{ BLOCK_FIELD_LABELS[key] }}</button><span v-if="i < invalidBlockFields.length - 1">, </span>
+          </template>
+          <span>.</span>
         </div>
 
         <p v-if="formError" class="field-error-msg" role="alert">
@@ -113,7 +143,7 @@
             type="button"
             class="btn-cancel"
             :disabled="saving"
-            @click="cancelForm"
+            @click="onCancelClick"
           >
             Cancelar
           </button>
@@ -122,19 +152,30 @@
     </div>
 
     <div class="blocks-list">
+      <p v-if="isOwner" class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
+      <div v-if="pendingRemoval" class="undo-strip">
+        <span class="undo-msg">Trecho removido.</span>
+        <span class="undo-count" aria-hidden="true">{{ pendingSeconds }} s</span>
+        <button ref="undoBtnRef" type="button" class="undo-btn" @click="undoRemove">Desfazer</button>
+      </div>
+
       <p v-if="deleteError" class="field-error-msg" role="alert">
         {{ deleteError }}
       </p>
 
-      <div v-if="blocks.length === 0 && !showAddForm" class="empty-blocks-note">
-        <p>Nenhum trecho com anotação registrado para esta leitura.</p>
+      <div v-if="blocks.length === 0 && !showAddForm && !pendingRemoval" class="empty-blocks-note">
+        <p>{{ progress.pages_read === 0 ? 'Nenhuma página registrada ainda.' : 'Nenhum trecho com anotação registrado.' }}</p>
+        <p v-if="isOwner" class="empty-blocks-help">
+          Registre até onde leu e, se quiser, uma nota sobre o trecho.
+        </p>
         <button
           v-if="isOwner"
+          ref="emptyAddBtnRef"
           type="button"
           class="empty-blocks-action"
-          @click="openAddForm"
+          @click="openAddForm('empty')"
         >
-          Registrar o primeiro trecho
+          Registrar trecho lido
         </button>
       </div>
 
@@ -142,6 +183,7 @@
         v-for="block in blocks"
         :key="block.id"
         class="block-card"
+        :data-block-id="block.id"
       >
         <div class="block-card-header">
           <div class="block-page-range">
@@ -171,7 +213,7 @@
               class="btn-icon btn-icon-delete"
               title="Excluir trecho"
               aria-label="Excluir trecho"
-              @click="confirmDelete(block)"
+              @click="startRemove(block)"
             >
               Excluir
             </button>
@@ -187,7 +229,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useFlash } from '~/composables/useFlash'
 import type { ReadingBlockView, ReadingProgressView } from '~~/shared/schemas/reading-block'
 import { calculateReadingProgress } from '~~/shared/utils/reading-progress'
 
@@ -240,6 +283,8 @@ watch(
 
 const showFinishedSummary = computed(() => !props.isOwner && props.isFinished && blocks.value.length === 0)
 const finishedPageCount = computed(() => progress.value.total_pages || props.editionPageCount || null)
+// Total conhecido de páginas da edição; sem ele não há limite superior no cliente.
+const knownTotalPages = computed(() => props.editionPageCount || progress.value.total_pages || null)
 
 function updateLocalProgress(): void {
   const intervals = blocks.value.map((b) => ({
@@ -270,6 +315,79 @@ const formReadAt = ref('')
 const formError = ref('')
 const deleteError = ref('')
 const saving = ref(false)
+const saveNotice = ref('')
+let noticeTimer: ReturnType<typeof setTimeout> | null = null
+
+const COMMENT_MAX = 5000
+type BlockFieldKey = 'start_page' | 'end_page' | 'comment'
+const BLOCK_FIELD_ORDER: BlockFieldKey[] = ['start_page', 'end_page', 'comment']
+const BLOCK_FIELD_LABELS: Record<BlockFieldKey, string> = {
+  start_page: 'Página inicial',
+  end_page: 'Página final',
+  comment: 'Anotação',
+}
+const BLOCK_FIELD_IDS: Record<BlockFieldKey, string> = {
+  start_page: 'block-start-page',
+  end_page: 'block-end-page',
+  comment: 'block-comment',
+}
+const blockErrors = ref<Partial<Record<BlockFieldKey, string>>>({})
+const invalidBlockFields = computed(() => BLOCK_FIELD_ORDER.filter((key) => blockErrors.value[key]))
+
+function clearBlockError(key: BlockFieldKey): void {
+  if (!blockErrors.value[key]) return
+  blockErrors.value = Object.fromEntries(
+    Object.entries(blockErrors.value).filter(([k]) => k !== key),
+  )
+}
+
+watch(formStartPage, () => clearBlockError('start_page'))
+watch(formEndPage, () => clearBlockError('end_page'))
+watch(formComment, () => clearBlockError('comment'))
+
+async function focusBlockField(key: BlockFieldKey): Promise<void> {
+  await nextTick()
+  const el = document.getElementById(BLOCK_FIELD_IDS[key])
+  if (!el) return
+  el.focus({ preventScroll: true })
+  const reduce = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView?.({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })
+}
+
+function isPage(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1
+}
+
+function validateBlock(): boolean {
+  const errors: Partial<Record<BlockFieldKey, string>> = {}
+  const start = formStartPage.value
+  const end = formEndPage.value
+  const total = knownTotalPages.value
+  if (!isPage(start)) {
+    errors.start_page = 'Página inicial: informe um número inteiro a partir de 1.'
+  } else if (total && start > total) {
+    errors.start_page = `Página inicial: o livro tem ${total} páginas.`
+  }
+  if (!isPage(end)) {
+    errors.end_page = 'Página final: informe um número inteiro a partir de 1.'
+  } else if (isPage(start) && end < start) {
+    errors.end_page = 'Página final: informe um número igual ou maior que a página inicial.'
+  } else if (total && end > total) {
+    errors.end_page = `Página final: o livro tem ${total} páginas.`
+  }
+  const length = formComment.value.trim().length
+  if (length > COMMENT_MAX) {
+    const extra = length - COMMENT_MAX
+    errors.comment = `Anotação: o texto tem ${length.toLocaleString('pt-BR')} caracteres e o limite é 5.000. Apague ${extra.toLocaleString('pt-BR')} para poder salvar.`
+  }
+  blockErrors.value = errors
+  return Object.keys(errors).length === 0
+}
+
+onBeforeUnmount(() => {
+  if (noticeTimer) clearTimeout(noticeTimer)
+})
 
 function getTodayString(): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -280,7 +398,34 @@ function getTodayString(): string {
   }).format(new Date())
 }
 
-function openAddForm(): void {
+// O botão que abriu o formulário some (v-if) enquanto ele está aberto. Ao abrir,
+// o foco vai para "Página inicial"; ao fechar, volta para quem abriu, ou para o
+// botão do cabeçalho quando o do estado vazio deixou de existir.
+type AddOpener = 'header' | 'empty'
+const headerAddBtnRef = ref<HTMLButtonElement | null>(null)
+const emptyAddBtnRef = ref<HTMLButtonElement | null>(null)
+let addOpener: AddOpener | null = null
+
+function returnFocusToAddTrigger(): void {
+  const opener = addOpener
+  addOpener = null
+  if (!opener) return
+  void nextTick(() => {
+    const target = opener === 'empty'
+      ? emptyAddBtnRef.value ?? headerAddBtnRef.value
+      : headerAddBtnRef.value ?? emptyAddBtnRef.value
+    target?.focus()
+  })
+}
+
+function onCancelClick(): void {
+  const wasAdding = showAddForm.value
+  cancelForm()
+  if (wasAdding) returnFocusToAddTrigger()
+}
+
+function openAddForm(opener: AddOpener = 'header'): void {
+  addOpener = opener
   editingBlock.value = null
   const lastEndPage = progress.value.current_page
   formStartPage.value = lastEndPage > 0 ? lastEndPage + 1 : 1
@@ -288,7 +433,9 @@ function openAddForm(): void {
   formComment.value = ''
   formReadAt.value = getTodayString()
   formError.value = ''
+  blockErrors.value = {}
   showAddForm.value = true
+  void nextTick(() => document.getElementById(BLOCK_FIELD_IDS.start_page)?.focus())
 }
 
 function startEdit(block: ReadingBlockView): void {
@@ -299,21 +446,21 @@ function startEdit(block: ReadingBlockView): void {
   formComment.value = block.comment || ''
   formReadAt.value = block.read_at
   formError.value = ''
+  blockErrors.value = {}
 }
 
 function cancelForm(): void {
   showAddForm.value = false
   editingBlock.value = null
   formError.value = ''
+  blockErrors.value = {}
 }
 
 async function saveBlock(): Promise<void> {
-  if (!formStartPage.value || formStartPage.value < 1) {
-    formError.value = 'A página inicial deve ser maior ou igual a 1.'
-    return
-  }
-  if (!formEndPage.value || formEndPage.value < formStartPage.value) {
-    formError.value = 'A página final deve ser maior ou igual à página inicial.'
+  formError.value = ''
+  if (!validateBlock()) {
+    const first = invalidBlockFields.value[0]
+    if (first) await focusBlockField(first)
     return
   }
 
@@ -360,8 +507,13 @@ async function saveBlock(): Promise<void> {
       blocks.value.unshift(created)
     }
 
+    const wasEditing = Boolean(editingBlock.value)
     updateLocalProgress()
     cancelForm()
+    if (!wasEditing) returnFocusToAddTrigger()
+    saveNotice.value = wasEditing ? 'Trecho atualizado.' : 'Trecho salvo.'
+    if (noticeTimer) clearTimeout(noticeTimer)
+    noticeTimer = setTimeout(() => { saveNotice.value = '' }, 4000)
   } catch (err: unknown) {
     formError.value = err instanceof Error ? err.message : 'Ocorreu um erro ao salvar.'
   } finally {
@@ -369,25 +521,143 @@ async function saveBlock(): Promise<void> {
   }
 }
 
-async function confirmDelete(block: ReadingBlockView): Promise<void> {
-  const confirmed = window.confirm(`Deseja excluir o registro das páginas ${block.start_page} a ${block.end_page}?`)
-  if (!confirmed) return
+// Excluir segue o padrão da remoção de leitura: o trecho sai da lista na
+// hora, "Desfazer" fica disponível por 6 s e o DELETE só sai quando a
+// contagem acaba. Sair da página durante a contagem confirma a exclusão.
+const UNDO_SECONDS = 6
+const LEAVE_FAILED_FLASH = 'Não foi possível excluir o trecho. Ele continua na leitura.'
+interface PendingRemoval {
+  block: ReadingBlockView
+  index: number
+}
+const pendingRemoval = ref<PendingRemoval | null>(null)
+const pendingSeconds = ref(0)
+const removeAnnouncement = ref('')
+const undoBtnRef = ref<HTMLButtonElement | null>(null)
+const headingRef = ref<HTMLElement | null>(null)
+let undoTimer: ReturnType<typeof setInterval> | null = null
+const flash = props.isOwner ? useFlash() : null
 
+function clearUndoTimer(): void {
+  if (undoTimer) {
+    clearInterval(undoTimer)
+    undoTimer = null
+  }
+}
+
+function restoreBlock(removal: PendingRemoval): void {
+  if (blocks.value.some((b) => b.id === removal.block.id)) return
+  const index = Math.min(removal.index, blocks.value.length)
+  blocks.value.splice(index, 0, removal.block)
+  updateLocalProgress()
+}
+
+function focusBlockDelete(blockId: string): void {
+  void nextTick(() => {
+    document
+      .querySelector<HTMLElement>(`[data-block-id="${blockId}"] .btn-icon-delete`)
+      ?.focus()
+  })
+}
+
+function sendDelete(blockId: string, keepalive = false): Promise<Response> {
+  return fetch(`/api/logs/${props.logId}/blocks/${blockId}`, {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    keepalive,
+  })
+}
+
+function startRemove(block: ReadingBlockView): void {
+  // Um segundo "Excluir" durante a contagem confirma o anterior na hora.
+  if (pendingRemoval.value) void commitRemoval()
+  if (editingBlock.value?.id === block.id) cancelForm()
+
+  const index = blocks.value.findIndex((b) => b.id === block.id)
+  if (index === -1) return
   deleteError.value = ''
+  blocks.value.splice(index, 1)
+  updateLocalProgress()
+
+  pendingRemoval.value = { block, index }
+  pendingSeconds.value = UNDO_SECONDS
+  removeAnnouncement.value = `Trecho removido. Desfazer em ${UNDO_SECONDS} segundos.`
+  void nextTick(() => undoBtnRef.value?.focus())
+  clearUndoTimer()
+  undoTimer = setInterval(() => {
+    pendingSeconds.value -= 1
+    if (pendingSeconds.value <= 0) void commitRemoval()
+  }, 1000)
+}
+
+function undoRemove(): void {
+  const removal = pendingRemoval.value
+  if (!removal) return
+  clearUndoTimer()
+  pendingRemoval.value = null
+  pendingSeconds.value = 0
+  restoreBlock(removal)
+  removeAnnouncement.value = 'Exclusão cancelada.'
+  focusBlockDelete(removal.block.id)
+}
+
+async function commitRemoval(): Promise<void> {
+  const removal = pendingRemoval.value
+  if (!removal) return
+  const hadFocus = document.activeElement === undoBtnRef.value
+  clearUndoTimer()
+  pendingRemoval.value = null
+  pendingSeconds.value = 0
+  if (hadFocus) void nextTick(() => headingRef.value?.focus())
+
   try {
-    const res = await fetch(`/api/logs/${props.logId}/blocks/${block.id}`, {
-      method: 'DELETE',
-    })
+    const res = await sendDelete(removal.block.id)
     if (!res.ok) {
       const body = await res.json().catch(() => null) as { message?: string } | null
       throw new Error(body?.message || 'Não foi possível excluir o trecho.')
     }
-    blocks.value = blocks.value.filter((b) => b.id !== block.id)
-    updateLocalProgress()
+    removeAnnouncement.value = 'Trecho excluído.'
   } catch (err: unknown) {
-    deleteError.value = err instanceof Error ? err.message : 'Não foi possível excluir o trecho. Tente novamente.'
+    restoreBlock(removal)
+    const reason = err instanceof Error ? err.message : 'Não foi possível excluir o trecho.'
+    deleteError.value = `${reason} O trecho voltou para a lista.`
   }
 }
+
+// Navegação dentro do app: o componente desmonta e o pedido sai na hora;
+// o resultado ruim aparece como aviso na página seguinte.
+function removeOnLeave(): void {
+  const removal = pendingRemoval.value
+  if (!removal) return
+  clearUndoTimer()
+  pendingRemoval.value = null
+  pendingSeconds.value = 0
+  sendDelete(removal.block.id, true)
+    .then((res) => {
+      if (!res.ok) flash?.set(LEAVE_FAILED_FLASH, 'error')
+    })
+    .catch(() => flash?.set(LEAVE_FAILED_FLASH, 'error'))
+}
+
+// Fechar a aba ou recarregar: só `keepalive` sobrevive ao descarregamento.
+function onPageHide(): void {
+  const removal = pendingRemoval.value
+  if (!removal) return
+  clearUndoTimer()
+  pendingRemoval.value = null
+  pendingSeconds.value = 0
+  void sendDelete(removal.block.id, true).catch(() => {})
+}
+
+onMounted(() => {
+  window.addEventListener('pagehide', onPageHide)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pagehide', onPageHide)
+  removeOnLeave()
+  clearUndoTimer()
+})
 
 function formatBlockDate(dateStr: string): string {
   if (!dateStr) return ''
@@ -422,8 +692,125 @@ function formatBlockDate(dateStr: string): string {
 .section-heading {
   font-size: var(--font-size-lg);
   font-weight: 600;
-  color: #fff;
+  color: var(--text-bright);
   margin: 0;
+}
+
+.section-heading:focus {
+  outline: none;
+}
+
+.section-heading:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.undo-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-4);
+  border: 1px dashed var(--input-bg);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-bright);
+}
+
+.undo-count {
+  color: var(--text-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.undo-btn {
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  padding: var(--space-2) 0;
+  min-height: var(--target-min-size);
+  cursor: pointer;
+  color: var(--text-bright);
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+.undo-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.char-count {
+  font-size: var(--font-size-xs);
+  color: var(--text-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.char-count-limit {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+.error-summary {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-size: var(--font-size-sm);
+}
+
+.error-summary-link {
+  background: transparent;
+  border: none;
+  padding: var(--space-1) 0;
+  margin: 0 2px;
+  display: inline-block;
+  min-height: 24px;
+  color: var(--text-bright);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--danger-text);
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.error-summary-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.section-help,
+.save-notice {
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+  margin: 0 0 var(--space-4);
+}
+
+.save-notice {
+  color: var(--success);
 }
 
 .section-subtitle {
@@ -438,6 +825,7 @@ function formatBlockDate(dateStr: string): string {
   border: 1px solid var(--highlight);
   border-radius: var(--radius-md);
   padding: var(--space-1) var(--space-3);
+  min-height: var(--target-min-size);
   font-size: var(--font-size-sm);
   font-weight: 500;
   cursor: pointer;
@@ -445,7 +833,7 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .btn-add-block:hover {
-  background-color: rgba(99, 102, 241, 0.1);
+  background-color: var(--highlight-soft);
 }
 
 .progress-bar-wrap {
@@ -468,7 +856,7 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .block-form-card {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: var(--bg-color);
   border: 1px solid var(--input-bg);
   border-radius: var(--radius-md);
   padding: var(--space-4);
@@ -478,7 +866,7 @@ function formatBlockDate(dateStr: string): string {
 .form-card-title {
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: #fff;
+  color: var(--text-bright);
   margin-top: 0;
   margin-bottom: var(--space-3);
 }
@@ -507,16 +895,24 @@ function formatBlockDate(dateStr: string): string {
 
 .field-input {
   background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  color: #fff;
+  color: var(--text-bright);
   padding: var(--space-2);
+  min-height: var(--target-min-size);
+  box-sizing: border-box;
   font-size: var(--font-size-sm);
+  font-family: inherit;
   outline: none;
 }
 
 .field-input:focus {
   border-color: var(--highlight);
+  box-shadow: 0 0 0 2px var(--highlight-glow);
+}
+
+.field-input[aria-invalid='true'] {
+  border-color: var(--danger);
 }
 
 .field-textarea {
@@ -525,9 +921,9 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .field-error-msg {
-  color: #f87171;
+  color: var(--danger-text);
   font-size: var(--font-size-xs);
-  margin: var(--space-2) 0 0;
+  margin: var(--space-1) 0 0;
 }
 
 .form-btn-row {
@@ -538,7 +934,7 @@ function formatBlockDate(dateStr: string): string {
 
 .btn-save {
   background-color: var(--highlight);
-  color: #fff;
+  color: var(--on-highlight);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-4);
@@ -554,7 +950,7 @@ function formatBlockDate(dateStr: string): string {
 .btn-cancel {
   background: transparent;
   color: var(--text-color);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid var(--input-bg);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-size-sm);
@@ -568,32 +964,50 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .empty-blocks-note {
-  text-align: center;
-  padding: var(--space-6) var(--space-4);
+  padding: var(--space-2) 0 var(--space-4);
   color: var(--text-color);
   font-size: var(--font-size-sm);
 }
 
+.empty-blocks-note p {
+  margin: 0;
+}
+
+.empty-blocks-note .empty-blocks-help {
+  margin-top: var(--space-1);
+  color: var(--text-color);
+}
+
 .empty-blocks-action {
-  background: none;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target-min-size);
+  padding: var(--space-2) var(--space-4);
+  margin-top: var(--space-3);
+  background: transparent;
+  border: 1px solid var(--highlight);
+  border-radius: var(--radius-md);
   color: var(--highlight);
-  text-decoration: underline;
   cursor: pointer;
+  font: inherit;
   font-size: var(--font-size-sm);
-  margin-top: var(--space-2);
+  font-weight: 500;
+}
+
+.empty-blocks-action:hover {
+  background-color: var(--highlight-soft);
+}
+
+.empty-blocks-action:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .block-card {
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--input-bg);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
-  transition: border-color 0.15s;
-}
-
-.block-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .block-card-header {
@@ -614,7 +1028,7 @@ function formatBlockDate(dateStr: string): string {
 .page-badge {
   font-weight: 600;
   font-size: var(--font-size-sm);
-  color: #fff;
+  color: var(--text-bright);
 }
 
 .page-count-badge {
@@ -647,19 +1061,27 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .btn-icon:hover {
-  color: #fff;
-  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--text-bright);
+  background-color: var(--input-bg);
 }
 
 .btn-icon-delete:hover {
-  color: #f87171;
-  background-color: rgba(239, 68, 68, 0.1);
+  color: var(--danger-text);
+  background-color: var(--input-bg);
+}
+
+.btn-icon:focus-visible,
+.btn-save:focus-visible,
+.btn-cancel:focus-visible,
+.btn-add-block:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .block-comment {
   margin: var(--space-2) 0 0;
   font-size: var(--font-size-sm);
-  color: #e2e8f0;
+  color: var(--text-bright);
   line-height: var(--line-height-relaxed);
   white-space: pre-wrap;
 }

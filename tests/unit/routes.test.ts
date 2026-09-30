@@ -379,7 +379,7 @@ describe('Page stubs and route parameters', () => {
     expect(wNew.text()).toContain('Registrar leitura')
     expect(wNew.text()).toContain('Buscar no catálogo')
     expect(wNew.text()).toContain('Adicionar livro novo')
-    expect(wNew.text()).toContain('Importar JSON')
+    expect(wNew.text()).toContain('Importar de arquivo')
     wNew.unmount()
 
     const wProfile = mount(EditProfilePage)

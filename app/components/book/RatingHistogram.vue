@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="hasRatings"
+    v-if="hasRatings && size === 'small'"
     class="rating-histogram"
     role="img"
     :aria-label="accessibleSummary"
@@ -26,6 +26,29 @@
     </div>
     <span class="sr-only">{{ accessibleSummary }}</span>
   </div>
+  <ol
+    v-else-if="hasRatings && size === 'large'"
+    class="rating-histogram-large"
+    aria-label="Distribuição das notas"
+  >
+    <li
+      v-for="bar in largeRows"
+      :key="bar.value"
+      class="histogram-row"
+      :data-rating="bar.value"
+      :data-count="bar.count"
+    >
+      <span class="histogram-row-label">
+        {{ formatRatingNumber(bar.value) }}<span aria-hidden="true">{{ '\u00a0★' }}</span><span class="sr-only">{{ bar.value === 1 ? ' estrela:' : ' estrelas:' }}</span>
+      </span>
+      <span class="histogram-row-track" aria-hidden="true">
+        <span class="histogram-row-fill" :style="{ width: `${bar.heightPercent}%` }" />
+      </span>
+      <span class="histogram-row-count">
+        {{ bar.count }}<span class="sr-only">{{ bar.count === 1 ? ' avaliação' : ' avaliações' }}</span>
+      </span>
+    </li>
+  </ol>
 </template>
 
 <script setup lang="ts">
@@ -34,9 +57,15 @@ import { computed } from 'vue'
 const props = withDefaults(
   defineProps<{
     ratings?: number[]
+    /**
+     * `small` is the 120x36 book-page sparkline. `large` is the stats-page
+     * version: one labelled row per half-star value with its count.
+     */
+    size?: 'small' | 'large'
   }>(),
   {
     ratings: () => [],
+    size: 'small',
   },
 )
 
@@ -88,6 +117,12 @@ const bars = computed(() => {
     }
   })
 })
+
+const largeRows = computed(() => [...bars.value].reverse())
+
+function formatRatingNumber(val: number): string {
+  return String(val).replace('.', ',')
+}
 
 function formatRatingValue(val: number): string {
   const str = String(val).replace('.', ',')
@@ -157,6 +192,62 @@ const accessibleSummary = computed(() => {
 .histogram-star-label {
   color: var(--star-color);
   font-size: var(--font-size-xs);
+}
+
+.rating-histogram-large {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  max-width: 32rem;
+}
+
+.histogram-row {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr 2.5rem;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-tight);
+}
+
+.histogram-row-label {
+  color: var(--text-bright);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.histogram-row-label [aria-hidden="true"] {
+  color: var(--star-color);
+}
+
+.histogram-row-track {
+  display: block;
+  height: var(--space-2);
+  background-color: var(--input-bg);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.histogram-row-fill {
+  display: block;
+  height: 100%;
+  background-color: var(--star-color);
+  border-radius: var(--radius-sm);
+}
+
+.histogram-row-count {
+  color: var(--text-color);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.histogram-row[data-count="0"] .histogram-row-label,
+.histogram-row[data-count="0"] .histogram-row-count {
+  opacity: 0.6;
 }
 
 .sr-only {

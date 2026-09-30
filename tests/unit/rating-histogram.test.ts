@@ -64,4 +64,27 @@ describe('RatingHistogram.vue', () => {
     expect(wrapperUndefined.find('.rating-histogram')).toBeNull()
     wrapperUndefined.unmount()
   })
+
+  it('large variant lists every half-star value, highest first, with its visible count', () => {
+    const wrapper = mount(RatingHistogram, { ratings: [5, 5, 4.5, 1], size: 'large' })
+
+    expect(wrapper.find('.rating-histogram')).toBeNull()
+    const rows = wrapper.findAll<HTMLElement>('.histogram-row')
+    expect(rows).toHaveLength(10)
+    expect(rows[0]?.dataset.rating).toBe('5')
+    expect(rows[9]?.dataset.rating).toBe('0.5')
+
+    const row45 = wrapper.find('.histogram-row[data-rating="4.5"]')
+    expect(row45?.querySelector('.histogram-row-label')?.textContent?.trim()).toBe('4,5 ★ estrelas:')
+    expect(row45?.querySelector('.histogram-row-count')?.textContent?.trim()).toBe('1 avaliação')
+    expect(wrapper.find('.histogram-row[data-rating="5"] .histogram-row-count')?.textContent?.trim()).toBe('2 avaliações')
+    expect(wrapper.find('.histogram-row[data-rating="3"] .histogram-row-count')?.textContent?.trim()).toBe('0 avaliações')
+    wrapper.unmount()
+  })
+
+  it('large variant renders nothing without ratings', () => {
+    const wrapper = mount(RatingHistogram, { ratings: [], size: 'large' })
+    expect(wrapper.html()).toBe('<!--v-if-->')
+    wrapper.unmount()
+  })
 })

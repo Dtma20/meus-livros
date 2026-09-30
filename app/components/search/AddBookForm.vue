@@ -51,11 +51,18 @@
 
     <form class="add-book-form" novalidate @submit.prevent="handleSubmit(false)">
       <div v-if="!hideHeader" class="form-header">
-        <h1 class="form-title">Cadastrar livro</h1>
+        <h1 class="form-title">Adicionar livro novo</h1>
         <p class="form-copy">
           Não encontrou? Adicione o livro - leva menos de um minuto.
         </p>
       </div>
+
+      <p v-if="draftRestored" class="draft-notice" role="status" aria-live="polite">
+        <span>Rascunho anterior restaurado.</span>
+        <button type="button" class="draft-discard-btn" @click="discardDraft">
+          Descartar rascunho
+        </button>
+      </p>
 
       <div v-if="serverError" class="server-error" role="alert">
         {{ serverError }}
@@ -266,8 +273,10 @@
               class="form-input"
               placeholder="ex: Brasil, EUA, Portugal, Roma Antiga"
               maxlength="100"
+              :class="{ 'has-error': errors.author_country }"
               :disabled="submitting"
-              aria-describedby="author-country-hint"
+              :aria-invalid="errors.author_country ? 'true' : undefined"
+              :aria-describedby="errors.author_country ? 'author-country-hint author-country-error' : 'author-country-hint'"
             >
             <span id="author-country-hint" class="field-hint">Preenchido ao cadastrar o autor. Autores já cadastrados mantêm o país atual.</span>
             <span v-if="errors.author_country" id="author-country-error" class="field-error" role="alert">
@@ -423,6 +432,20 @@
         </div>
       </div>
 
+      <div
+        v-if="invalidFields.length > 0"
+        id="add-book-summary"
+        class="error-summary"
+        role="alert"
+        tabindex="-1"
+      >
+        <span>Corrija {{ invalidFields.length === 1 ? '1 campo' : `${invalidFields.length} campos` }}: </span>
+        <template v-for="(key, i) in invalidFields" :key="key">
+          <button type="button" class="error-summary-link" @click="focusField(key)">{{ FIELD_LABELS[key] }}</button><span v-if="i < invalidFields.length - 1">, </span>
+        </template>
+        <span>.</span>
+      </div>
+
       <div class="form-actions">
         <button
           type="submit"
@@ -430,7 +453,7 @@
           :disabled="submitting"
         >
           <span v-if="submitting" class="spinner" aria-hidden="true" />
-          <span>{{ submitting ? 'Cadastrando...' : 'Cadastrar livro' }}</span>
+          <span>{{ submitting ? 'Adicionando...' : 'Adicionar livro' }}</span>
         </button>
 
         <button
@@ -449,7 +472,7 @@
 
 <script setup lang="ts">
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
-import { onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import BookCover from '../book/BookCover.vue'
 import GenrePicker from './GenrePicker.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
@@ -515,6 +538,60 @@ interface DuplicateWorkState {
   cover_url?: string | null
 }
 const duplicateWork = ref<DuplicateWorkState | null>(null)
+
+// Error recovery, same pattern as LogForm: summary above the submit button,
+// focus + scroll to the first invalid field. Fields inside a closed
+// disclosure open it before receiving focus.
+const FIELD_ORDER = [
+  'title',
+  'authors',
+  'first_published_year',
+  'author_country',
+  'page_count',
+  'published_year',
+  'cover_url',
+] as const
+type FieldKey = typeof FIELD_ORDER[number]
+const FIELD_LABELS: Record<FieldKey, string> = {
+  title: 'Título',
+  authors: 'Autor',
+  first_published_year: 'Ano da 1ª publicação',
+  author_country: 'País do autor',
+  page_count: 'Número de páginas',
+  published_year: 'Ano desta edição',
+  cover_url: 'URL da capa',
+}
+const FIELD_INPUT_IDS: Record<FieldKey, string> = {
+  title: 'book-title',
+  authors: 'author-input',
+  first_published_year: 'work-year',
+  author_country: 'author-country',
+  page_count: 'edition-pages',
+  published_year: 'edition-year',
+  cover_url: 'edition-cover-url',
+}
+const invalidFields = computed(() => FIELD_ORDER.filter((key) => errors.value[key]))
+
+async function focusField(key: FieldKey): Promise<void> {
+  if (key === 'first_published_year' || key === 'author_country') showMoreDetails.value = true
+  if (key === 'page_count' || key === 'published_year' || key === 'cover_url') showEdition.value = true
+  await nextTick()
+  const el = document.getElementById(FIELD_INPUT_IDS[key])
+  if (!el) return
+  el.focus({ preventScroll: true })
+  const reduce = typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView?.({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })
+}
+
+async function focusFirstInvalid(): Promise<void> {
+  const first = invalidFields.value[0]
+  if (first) await focusField(first)
+}
+
+watch(title, () => {
+  if (errors.value.title) validateField('title')
+})
 
 function addAuthor(name: string): void {
   const trimmed = name.trim()
@@ -784,11 +861,28 @@ function saveDraft(): void {
   }
 }
 
-function restoreDraft(): void {
+function isBlank(value: unknown): boolean {
+  if (value === null || value === undefined) return true
+  if (typeof value === 'string') return value.trim() === ''
+  if (Array.isArray(value)) return value.length === 0
+  return false
+}
+
+// True when the stored draft holds something the user typed, beyond a title
+// that the search prefill would have supplied anyway.
+function draftHasContent(draft: Record<string, unknown>): boolean {
+  const ignored = new Set(['showMoreDetails', 'showEdition'])
+  if (props.initialTitle) ignored.add('title')
+  return Object.entries(draft).some(([key, value]) => !ignored.has(key) && !isBlank(value))
+}
+
+function restoreDraft(): boolean {
   try {
     const raw = localStorage.getItem(DRAFT_KEY)
-    if (!raw) return
+    if (!raw) return false
     const draft = JSON.parse(raw)
+    if (!draft || typeof draft !== 'object') return false
+    const hasContent = draftHasContent(draft as Record<string, unknown>)
 
     if (!props.initialTitle && draft.title) title.value = draft.title
     if (Array.isArray(draft.authors) && draft.authors.length > 0) {
@@ -837,8 +931,41 @@ function restoreDraft(): void {
       editionCoverUrl.value = draft.editionCoverUrl
       previewCoverUrl.value = typeof draft.editionCoverUrl === 'string' ? draft.editionCoverUrl.trim() : ''
     }
+    return hasContent
   } catch {
+    return false
   }
+}
+
+const draftRestored = ref(false)
+
+async function discardDraft(): Promise<void> {
+  title.value = props.initialTitle || ''
+  authors.value = []
+  authorInput.value = ''
+  authorCountry.value = ''
+  firstPublishedYear.value = null
+  originalLanguage.value = ''
+  genreIds.value = []
+  seriesName.value = ''
+  seriesNumber.value = ''
+  showMoreDetails.value = false
+  showEdition.value = false
+  editionIsbn.value = ''
+  editionPublisher.value = ''
+  editionPageCount.value = null
+  editionPublishedYear.value = null
+  editionLanguage.value = ''
+  editionCoverUrl.value = ''
+  previewCoverUrl.value = ''
+  errors.value = {}
+  serverError.value = ''
+  draftRestored.value = false
+  // The field watcher re-saves the reset values before the next render;
+  // clear after that flush so no draft key is left behind.
+  await nextTick()
+  clearDraft()
+  document.getElementById('book-title')?.focus()
 }
 
 function clearDraft(): void {
@@ -874,7 +1001,7 @@ watch(
 )
 
 onMounted(() => {
-  restoreDraft()
+  draftRestored.value = restoreDraft()
   if (props.initialTitle) {
     title.value = props.initialTitle
   }
@@ -885,7 +1012,10 @@ async function handleSubmit(force = false): Promise<void> {
     addAuthor(authorInput.value)
   }
 
-  if (!validateAll()) return
+  if (!validateAll()) {
+    await focusFirstInvalid()
+    return
+  }
 
   submitting.value = true
   serverError.value = ''
@@ -1351,6 +1481,53 @@ function handleCancel(): void {
   margin-top: var(--space-4);
   padding-left: var(--space-2);
   border-left: 2px solid rgba(255, 255, 255, 0.08);
+}
+
+.draft-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--text-color);
+}
+
+.error-summary {
+  margin-top: var(--space-6);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-sm);
+  color: var(--text-bright);
+  font-size: var(--font-size-sm);
+}
+
+.error-summary + .form-actions {
+  margin-top: var(--space-4);
+}
+
+.draft-discard-btn,
+.error-summary-link {
+  background: transparent;
+  border: none;
+  padding: var(--space-1) 0;
+  margin: 0 2px;
+  display: inline-block;
+  min-height: 24px;
+  color: var(--text-bright);
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--highlight);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+  cursor: pointer;
+}
+
+.error-summary:focus-visible,
+.draft-discard-btn:focus-visible,
+.error-summary-link:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 .form-actions {

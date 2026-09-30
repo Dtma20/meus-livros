@@ -1,7 +1,8 @@
 <template>
   <div v-if="!isHidden" class="header-search">
-    <div class="header-search-desktop">
-      <SearchBox @select="onSelectWork" />
+    <div ref="desktopRef" class="header-search-desktop">
+      <SearchBox ref="desktopBoxRef" placeholder="Buscar livros" key-shortcut="/" @select="onSelectWork" />
+      <kbd class="search-kbd" aria-hidden="true">/</kbd>
     </div>
 
     <button
@@ -36,7 +37,7 @@
       @keydown="onMobileKeydown"
     >
       <div class="mobile-search-input-wrap">
-        <SearchBox @select="onSelectWork" />
+        <SearchBox ref="mobileBoxRef" key-shortcut="/" @select="onSelectWork" />
       </div>
       <button
         type="button"
@@ -67,6 +68,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SearchBox from './SearchBox.vue'
+import { FOCUS_SEARCH_EVENT } from '~/composables/useKeyboardShortcuts'
 
 type AppRoute = ReturnType<typeof useRoute>
 
@@ -82,18 +84,37 @@ const route = getSafeRoute()
 
 const isHidden = computed(() => {
   const p = route?.path || ''
-  return p === '/entrar' || p.startsWith('/entrar/')
+  return p === '/entrar' || p.startsWith('/entrar/') || p === '/app/novo'
 })
 
 const isMobileOpen = ref(false)
 const searchButtonRef = ref<HTMLButtonElement | null>(null)
 const mobileRowRef = ref<HTMLDivElement | null>(null)
 
+const desktopRef = ref<HTMLDivElement | null>(null)
+const desktopBoxRef = ref<InstanceType<typeof SearchBox> | null>(null)
+const mobileBoxRef = ref<InstanceType<typeof SearchBox> | null>(null)
+
+function findSearchInput(root: HTMLElement | null): HTMLInputElement | null {
+  return root?.querySelector<HTMLInputElement>('input') ?? null
+}
+
 async function openMobile(): Promise<void> {
   isMobileOpen.value = true
   await nextTick()
-  const input = mobileRowRef.value?.querySelector<HTMLInputElement>('input')
-  input?.focus()
+  findSearchInput(mobileRowRef.value)?.focus()
+}
+
+function onFocusSearchRequest(): void {
+  if (window.matchMedia('(min-width: 768px)').matches) {
+    findSearchInput(desktopRef.value)?.focus()
+  }
+  else if (!isMobileOpen.value) {
+    void openMobile()
+  }
+  else {
+    findSearchInput(mobileRowRef.value)?.focus()
+  }
 }
 
 function closeMobile(): void {
@@ -131,9 +152,13 @@ function onWindowKeydown(e: KeyboardEvent): void {
   }
 }
 
+// A busca do cabeçalho é por página: ao navegar, fecha o modo móvel e apaga
+// o texto e os resultados, para que "zzqxjw" não siga para a próxima tela.
 watch(
   () => route?.path,
   () => {
+    desktopBoxRef.value?.reset()
+    mobileBoxRef.value?.reset()
     if (isMobileOpen.value) {
       isMobileOpen.value = false
     }
@@ -143,12 +168,14 @@ watch(
 onMounted(() => {
   if (typeof window !== 'undefined') {
     window.addEventListener('keydown', onWindowKeydown)
+    window.addEventListener(FOCUS_SEARCH_EVENT, onFocusSearchRequest)
   }
 })
 
 onBeforeUnmount(() => {
   if (typeof window !== 'undefined') {
     window.removeEventListener('keydown', onWindowKeydown)
+    window.removeEventListener(FOCUS_SEARCH_EVENT, onFocusSearchRequest)
   }
 })
 </script>
@@ -169,6 +196,27 @@ onBeforeUnmount(() => {
   .header-search-desktop {
     display: block;
     width: 100%;
+    position: relative;
+  }
+
+  .search-kbd {
+    position: absolute;
+    top: 50%;
+    right: var(--space-3);
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-family: var(--font-sans);
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    padding: 2px var(--space-2);
+    color: var(--text-color);
+    border: 1px solid var(--input-bg);
+    border-radius: var(--radius-sm);
+  }
+
+  .header-search-desktop:has(input:focus) .search-kbd,
+  .header-search-desktop:has(input:not(:placeholder-shown)) .search-kbd {
+    display: none;
   }
 
   .header-search-trigger {
@@ -217,6 +265,16 @@ onBeforeUnmount(() => {
 .header-search-trigger:focus-visible {
   outline: 2px solid var(--highlight);
   outline-offset: 2px;
+}
+
+.search-kbd {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .search-kbd {
+    display: block;
+  }
 }
 
 .search-icon {
