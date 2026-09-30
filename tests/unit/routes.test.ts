@@ -126,11 +126,10 @@ describe('Layout: default.vue', () => {
     wrapper.unmount()
   })
 
-  it('renders footer with Open Library attribution line', () => {
+  it('does not render footer by default', () => {
     const wrapper = mount(DefaultLayout)
-    const footer = wrapper.find('footer.site-footer')
-    expect(footer).not.toBeNull()
-    expect(footer?.textContent).toContain('Capas de livros via Open Library')
+    const footer = wrapper.find('footer')
+    expect(footer).toBeNull()
     wrapper.unmount()
   })
 
@@ -182,7 +181,7 @@ describe('Layout: app.vue', () => {
       { href: '/app/perfil', text: 'Perfil' }
     ])
 
-    expect(wrapper.text()).toContain('Capas de livros via Open Library')
+    expect(wrapper.find('footer')).toBeNull()
     wrapper.unmount()
   })
 

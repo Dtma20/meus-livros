@@ -32,11 +32,6 @@
         <kbd aria-hidden="true">?</kbd>
       </button>
     </template>
-    <template #footer-extra>
-      <button type="button" class="shortcuts-trigger" @click="shortcutsRef?.open()">
-        Atalhos
-      </button>
-    </template>
     <div class="flash-region" role="status" aria-live="polite">
       <div
         v-if="flashMessage"
@@ -385,27 +380,6 @@ async function handleSignOut() {
   margin-block: -3px;
 }
 
-.shortcuts-trigger {
-  font: inherit;
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-  background: none;
-  border: 0;
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.shortcuts-trigger:hover {
-  color: var(--highlight);
-}
-
-.shortcuts-trigger:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
 .nav-shortcuts {
   background: none;
   border: 0;
@@ -432,7 +406,6 @@ async function handleSignOut() {
 }
 
 @media (hover: none), (max-width: 767.98px) {
-  .shortcuts-trigger,
   .nav-shortcuts {
     display: none;
   }

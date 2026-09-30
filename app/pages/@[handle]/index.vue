@@ -38,6 +38,15 @@
           <NuxtLink v-if="isOwner" to="/app/perfil" class="btn-edit-profile">
             Editar perfil
           </NuxtLink>
+          <a
+            v-if="isOwner"
+            href="/api/library/export"
+            download="meus-livros-export.json"
+            class="export-link"
+            title="Exportar biblioteca em JSON"
+          >
+            Exportar JSON
+          </a>
           <span class="copy-feedback" role="status" aria-live="polite">{{ copyFeedback }}</span>
         </div>
         <p v-if="profile.user.bio" class="bio">{{ profile.user.bio }}</p>
@@ -228,13 +237,14 @@
         <template v-else>
           <div
             id="profile-view-panel"
+            class="profile-scroll-panel"
             role="tabpanel"
             :aria-labelledby="`view-tab-${currentView}`"
           >
           <DiaryList v-if="currentView === 'diario'" :logs="sortedBooks" />
 
           <BookGrid v-else>
-            <div v-for="(log, i) in sortedBooks" :key="log.id" class="book-card-item">
+            <div v-for="(log, i) in sortedBooks" :key="log.id" v-reveal class="book-card-item">
               <div v-if="log.finished_on === null || log.visibility === 'privado'" class="card-badges">
                 <span
                   v-if="log.finished_on === null"
@@ -263,33 +273,6 @@
             </div>
           </BookGrid>
           </div>
-
-          <footer v-if="sortedBooks.length > 0" class="paginometer" aria-label="Estatísticas de páginas dos livros exibidos">
-            <div class="page-stat">
-              <strong>{{ formatThousands(filteredStats.totalPages) }}</strong>
-              <span class="page-stat-label">
-                Páginas lidas
-                <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
-              </span>
-            </div>
-            <div class="page-stat">
-              <strong>{{ filteredStats.averagePages }}</strong>
-              <span class="page-stat-label">
-                Média por livro
-                <small v-if="hasActiveFilters" class="filter-indicator">(filtros ativos)</small>
-              </span>
-            </div>
-          </footer>
-          <p v-if="isOwner" class="export-row">
-            <a
-              href="/api/library/export"
-              download="meus-livros-export.json"
-              class="export-link"
-              title="Exportar biblioteca em JSON"
-            >
-              Exportar JSON
-            </a>
-          </p>
         </template>
         </template>
         </div>
@@ -309,10 +292,10 @@ import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { useBookFilters } from '~/composables/useBookFilters'
+import { vReveal } from '~/composables/useScrollReveal'
 import { aggregateReadingMapData } from '~/utils/reading-map'
 import type { ProfileResponse } from '~~/shared/schemas/profile'
 import type { AuthSessionUser } from '~/middleware/auth'
-import { formatThousands } from '~/utils/number'
 
 const ReadingMap = defineAsyncComponent(() => import('~/components/profile/ReadingMap.vue'))
 
@@ -507,7 +490,6 @@ const {
   hasActiveFilters,
   resetFilters,
   sortedBooks,
-  filteredStats,
 } = useBookFilters(displayedLogs)
 
 // The header totals describe the whole library this viewer may see. They follow
@@ -948,9 +930,55 @@ onBeforeUnmount(() => {
   }
 }
 
+.profile-scroll-panel {
+  max-height: 640px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: var(--space-2, 8px);
+  padding-bottom: var(--space-4, 16px);
+  margin-right: calc(-1 * var(--space-2, 8px));
+  scrollbar-width: thin;
+  scrollbar-color: var(--input-bg, #2c3440) transparent;
+}
+
+.profile-scroll-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.profile-scroll-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.profile-scroll-panel::-webkit-scrollbar-thumb {
+  background: var(--input-bg, #2c3440);
+  border-radius: var(--radius-full, 9999px);
+}
+.profile-scroll-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--text-color, #9ab);
+}
+
 .book-card-item {
   position: relative;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: 0s;
+  will-change: opacity, transform;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 240px;
 }
+
+.book-card-item.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.book-card-item.is-revealed:nth-child(6n + 1) { transition-delay: 0.03s; }
+.book-card-item.is-revealed:nth-child(6n + 2) { transition-delay: 0.06s; }
+.book-card-item.is-revealed:nth-child(6n + 3) { transition-delay: 0.09s; }
+.book-card-item.is-revealed:nth-child(6n + 4) { transition-delay: 0.12s; }
+.book-card-item.is-revealed:nth-child(6n + 5) { transition-delay: 0.15s; }
+.book-card-item.is-revealed:nth-child(6n + 6) { transition-delay: 0.18s; }
 
 .card-badges {
   position: absolute;
@@ -975,34 +1003,6 @@ onBeforeUnmount(() => {
   font-weight: 600;
   pointer-events: none;
   white-space: nowrap;
-}
-
-.paginometer .export-link {
-  margin-left: auto;
-}
-
-.paginometer {
-  margin-top: var(--space-12, 48px);
-  padding-top: var(--space-5, 20px);
-  border-top: 1px solid var(--input-bg, #2c3440);
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2, 8px) var(--space-8, 32px);
-  color: var(--text-color, #9ab);
-  align-items: baseline;
-}
-
-.page-stat strong {
-  font-size: var(--font-size-base, 1rem);
-  font-weight: 600;
-  color: var(--text-bright);
-  font-variant-numeric: tabular-nums;
-  margin-right: var(--space-1, 4px);
-}
-
-.page-stat-label {
-  font-size: var(--font-size-sm, 0.875rem);
-  color: var(--text-color, #9ab);
 }
 
 .filter-indicator {
@@ -1031,8 +1031,11 @@ onBeforeUnmount(() => {
   .export-link,
   .handle,
   .visibility-tab,
-  .view-tab {
-    transition: none;
+  .view-tab,
+  .book-card-item {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
   }
 }
 </style>

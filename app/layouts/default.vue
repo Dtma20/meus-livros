@@ -24,15 +24,6 @@
     <main id="conteudo-principal" class="container" tabindex="-1">
       <slot />
     </main>
-
-    <footer class="site-footer">
-      <div class="footer-inner">
-        <p class="attribution">
-          Capas de livros via Open Library
-        </p>
-        <slot name="footer-extra" />
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -162,24 +153,6 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   outline: none;
 }
 
-.site-footer {
-  border-top: 1px solid var(--input-bg);
-  padding: var(--space-5) 0;
-  margin-top: auto;
-}
-
-.footer-inner {
-  margin: 0 auto;
-  padding: 0 var(--space-8);
-  text-align: center;
-}
-
-.attribution {
-  color: var(--text-color);
-  font-size: var(--font-size-xs);
-  margin: 0;
-}
-
 @media (max-width: 767.98px) {
   .site-title {
     min-height: var(--target-min-size);
@@ -202,10 +175,6 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   .container {
     padding: var(--space-4);
     padding-bottom: var(--space-10);
-  }
-
-  .footer-inner {
-    padding: 0 var(--space-4);
   }
 
   .site-nav {

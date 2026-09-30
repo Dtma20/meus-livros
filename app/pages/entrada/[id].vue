@@ -204,14 +204,14 @@
         />
       </template>
 
-      <footer class="entry-footer">
+      <nav class="entry-nav-links" aria-label="Navegação da leitura">
         <NuxtLink :to="`/@${logData.user.handle}`" class="footer-link">
           {{ isOwner ? 'Voltar para a sua biblioteca' : `Outras leituras de ${logData.user.display_name}` }}
         </NuxtLink>
         <NuxtLink :to="`/livro/${logData.work.slug}`" class="footer-link">
           Ver todas as edições de {{ logData.work.title }}
         </NuxtLink>
-      </footer>
+      </nav>
 
       <div v-if="isOwner" class="remove-zone">
         <p class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
@@ -994,7 +994,7 @@ async function performDelete(): Promise<void> {
   margin: 0;
 }
 
-.entry-footer {
+.entry-nav-links {
   display: flex;
   justify-content: space-between;
   align-items: center;

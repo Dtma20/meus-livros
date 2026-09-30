@@ -474,24 +474,21 @@ describe('app/pages/@[handle]/index.vue: header and footer stats agree', () => {
     expect(headerStat(wrapper.container, 'Autores')).toBe('2')
     expect(headerStat(wrapper.container, 'Países')).toBe('1')
     expect(wrapper.container.querySelector('.profile-header')?.textContent).toContain('(filtros ativos)')
-    expect(wrapper.container.querySelector('.paginometer strong')?.textContent?.trim()).toBe('100')
+    expect(wrapper.container.querySelector('footer')).toBeNull()
 
     wrapper.unmount()
   })
 
-  it('zero results leave no "Páginas lidas" in the DOM', async () => {
+  it('zero results show empty state message', async () => {
     mockPageData.value = { profile: sampleProfile(), currentUser: null }
     const wrapper = await mountProfilePage()
-
-    expect(wrapper.container.textContent).toContain('Páginas lidas')
 
     await chooseOption(wrapper.container, 'Filosofia')
     await chooseOption(wrapper.container, 'Brasil')
 
     expect(wrapper.container.querySelectorAll('.book-card-item')).toHaveLength(0)
     expect(wrapper.container.textContent).toContain('Nenhum livro com esses filtros.')
-    expect(wrapper.container.textContent).not.toContain('Páginas lidas')
-    expect(wrapper.container.querySelector('.paginometer')).toBeNull()
+    expect(wrapper.container.querySelector('footer')).toBeNull()
     expect(headerStat(wrapper.container, 'Livros')).toBe('0')
 
     wrapper.unmount()

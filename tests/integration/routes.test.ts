@@ -82,12 +82,11 @@ describe('Route integration HTTP tests', () => {
     }
   })
 
-  it('GET / returns 200 and renders default layout with footer attribution', async () => {
+  it('GET / returns 200 and renders default layout', async () => {
     const res = await fetch(`${baseUrl}/`, { redirect: 'manual' })
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('Terminou o livro? Conte pro grupo.')
-    expect(html).toContain('Capas de livros via Open Library')
     expect(html).toContain('Meus Livros')
   })
 
@@ -188,7 +187,7 @@ describe('Route integration HTTP tests', () => {
     expect(res.headers.get('location')).toBe('/entrar?next=/app/entrada/x/editar')
   })
 
-  it('GET /rota-inexistente renders error.vue with pt-BR copy, status 404, and footer attribution', async () => {
+  it('GET /rota-inexistente renders error.vue with pt-BR copy and status 404', async () => {
     const res = await fetch(`${baseUrl}/rota-inexistente`, {
       headers: { accept: 'text/html' }
     })
@@ -197,7 +196,6 @@ describe('Route integration HTTP tests', () => {
 
     expect(html).toContain('Não encontramos essa página.')
     expect(html).toContain('Ir para o início')
-    expect(html).toContain('Capas de livros via Open Library')
     expect(html).not.toContain('stack')
   })
 

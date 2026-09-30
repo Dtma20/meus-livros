@@ -133,16 +133,15 @@ describe('HeaderSearch and default layout', () => {
     wrapper.unmount()
   })
 
-  it('renders updated footer text "Capas de livros via Open Library"', async () => {
+  it('does not render footer in default layout', async () => {
     const router = createTestRouter('/')
     await router.isReady()
 
     const wrapper = mount(DefaultLayout, {}, router)
     await nextTick()
 
-    const footer = wrapper.find('footer.site-footer')
-    expect(footer?.textContent).toContain('Capas de livros via Open Library')
-    expect(footer?.textContent).not.toContain('Dados bibliográficos parcialmente do Open Library')
+    const footer = wrapper.find('footer')
+    expect(footer).toBeNull()
 
     wrapper.unmount()
   })
