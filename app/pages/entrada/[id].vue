@@ -92,7 +92,7 @@
             <NuxtLink
               v-if="isOwner && !logData.finished_on"
               :to="`/app/entrada/${logData.id}/editar?terminar=1`"
-              class="btn btn-primary finish-btn"
+              class="btn btn-secondary finish-btn"
               :aria-label="`Terminei ${logData.work.title}`"
             >
               <svg
@@ -156,7 +156,7 @@
             <NuxtLink
               v-if="isOwner"
               :to="`/app/entrada/${logData.id}/editar`"
-              class="btn btn-ghost edit-btn"
+              class="btn btn-secondary edit-btn"
             >
               <svg
                 class="btn-icon"

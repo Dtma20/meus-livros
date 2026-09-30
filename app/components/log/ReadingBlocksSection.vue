@@ -20,7 +20,7 @@
         v-if="isOwner && !showAddForm && blocks.length > 0"
         ref="headerAddBtnRef"
         type="button"
-        class="btn btn-ghost btn-sm btn-add-block"
+        class="btn btn-secondary btn-sm btn-add-block"
         @click="openAddForm('header')"
       >
         + Registrar trecho lido
@@ -798,15 +798,6 @@ function formatBlockDate(dateStr: string): string {
   margin: var(--space-1) 0 0;
 }
 
-.btn-add-block {
-  color: var(--highlight);
-  border-color: var(--highlight);
-}
-
-.btn-add-block:hover {
-  background-color: var(--highlight-soft);
-}
-
 .progress-bar-wrap {
   width: 100%;
   margin-bottom: var(--space-6);
@@ -926,8 +917,6 @@ function formatBlockDate(dateStr: string): string {
 
 .empty-blocks-action {
   margin-top: var(--space-3);
-  border-color: var(--highlight);
-  color: var(--highlight);
 }
 
 .block-card {

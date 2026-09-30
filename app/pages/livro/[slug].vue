@@ -60,7 +60,7 @@
             <div class="work-actions">
               <NuxtLink
                 :to="primaryActionHref"
-                class="btn btn-primary work-primary-action"
+                class="btn btn-secondary work-primary-action"
               >
                 {{ primaryActionLabel }}
               </NuxtLink>
