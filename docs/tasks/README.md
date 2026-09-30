@@ -1,6 +1,6 @@
 # Implementation tasks
 
-68 tasks, numbered 001-068. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
+70 tasks, numbered 001-070. Each is one clear objective, 30 minutes to a few hours, independently reviewable and objectively verifiable.
 
 **Read [../README.md](../README.md) first.** The two blocking questions in [../open-questions.md](../open-questions.md) were settled on 2026-09-19 - Q2 resolved, Q1's risk accepted with a mitigation due before [023](023-deploy-to-vercel.md). 001 is complete.
 
@@ -60,7 +60,7 @@
 | [048](048-nav-touch-targets.md) | Header links big enough to tap | 10 Frontend polish | 1h | - |
 | [049](049-platform-reset.md) | Global element reset and platform finish | 11 Visual audit | 1-2h | - |
 | [050](050-retire-blue-and-greens.md) | Retire the old blue and the ad-hoc greens | 11 Visual audit | 1-2h | - |
-| 051 | OG fallback in the current brand (done by the reviewer in `74a1402`; no task file, spec in [../visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md)) | 11 Visual audit | 1-2h | - |
+| 051 | OG fallback in the current brand (done by the reviewer in `74a1402`; no task file, spec in [../reports/visual-audit-2026-09-28.md](../reports/visual-audit-2026-09-28.md)) | 11 Visual audit | 1-2h | - |
 | [052](052-profile-above-the-fold.md) | Profile: books above the fold, quieter handle | 11 Visual audit | 1-2h | - |
 | [053](053-permalink-review-first.md) | Permalink: the review comes first | 11 Visual audit | 1-2h | - |
 | [054](054-dashboard-content-first.md) | Dashboard: content before empty states | 11 Visual audit | 1-2h | - |
@@ -78,8 +78,10 @@
 | [066](066-edition-deletion-permission.md) | Who may delete an edition | 13 Security round | - | - |
 | [067](067-rate-limit-hardening.md) | Rate limits: bounded keys, cleanup, no lockout, import limit | 13 Security round | - | - |
 | [068](068-anonymous-writes.md) | Anonymous writes: no forged log lines, bounded search misses | 13 Security round | - | - |
+| [069](069-otp-consumers-check-allowlist.md) | Codes stop working when the invite is removed | 14 Security follow-up | - | - |
+| [070](070-auth-catch-all-error-shape.md) | Auth route errors in the project's shape | 14 Security follow-up | - | - |
 
-There is no total estimate: 049-059 carry ranges and 060-068 carry none.
+There is no total estimate: 049-059 carry ranges and 060-070 carry none.
 
 ---
 

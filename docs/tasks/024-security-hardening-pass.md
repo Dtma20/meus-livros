@@ -81,6 +81,8 @@ Work through [security.md](../security.md) §13 item by item, recording evidence
 
 Plus: each rate limit verified by exceeding it and observing 429.
 
+Plus: on production, a request carrying a forged `X-Forwarded-For: 203.0.113.9` is rate-limited under the real client IP, not under the forged one. `server/utils/client-ip.ts` trusts the first entry of that header, and the sign-in lockout (B-5 of the 2026-09-28 review, TASK-067) relies on Vercel overwriting it.
+
 ## Acceptance criteria
 
 - [ ] Every item in [security.md](../security.md) §13 is checked with recorded evidence

@@ -27,7 +27,7 @@ Resíduo: só uma diferença de tempo, porque o ramo encaminhado ainda executa `
 | M-5 | MÉDIO | Corrigido | `ca64f53`; `rate-limit.ts` | Chaves em SHA-256, limpeza, checagens sequenciais. `server/api/auth/[...all].ts` continua fora do `defineApiHandler`, então um erro de banco no wrapper cai no handler do Nitro |
 | M-6 | MÉDIO | Corrigido | `9ba2aab`; o logger em `auth.ts` | O logger próprio omite o SQL. O formato real numa falha de banco não foi verificado |
 | B-1 | BAIXO | Corrigido | `ac79d46`; `reading-blocks.ts` | `innerJoin(users)` |
-| B-2 | BAIXO | **Aberto** | `catalog.ts` `deleteWork` | Conta os registros sem `visibleLogs`. Nenhuma task cobre |
+| B-2 | BAIXO | Risco aceito | `catalog.ts` `deleteWork`; `docs/security.md` §12 | Aceito na rodada de 2026-09-28, conforme `security.md` §12 e o "Explicitly excluded" da TASK-066. A pergunta só funciona numa obra que o próprio curioso cadastrou, e uma resposta negativa apaga a obra |
 | B-3 | BAIXO | Corrigido | `066e13a` (064) | Set-password sem checar o handle é deliberado (064) |
 | B-4 | BAIXO | Corrigido | `066e13a` | Limite de 10/h e `hasPassword` antes do scrypt |
 | B-5 | BAIXO | Parcial | `ca64f53`; `rate-limit.ts` | Trancar a conta exige 50 tentativas por hora de pelo menos 5 IPs. Depende de o `x-forwarded-for` não ser forjável na Vercel: não verificado |
@@ -41,13 +41,15 @@ Resíduo: só uma diferença de tempo, porque o ramo encaminhado ainda executa `
 
 ## O que ainda está aberto
 
-Precisa de task nova:
+Viraram tasks:
 
-1. **B-2, junto com o 403 do M-2:** contar só registros visíveis, ou responder igual nos dois casos.
-2. **Resíduo do M-1:** `removeInvite` apagar as linhas de `verification` do endereço, ou `/sign-in/email-otp` e `/email-otp/reset-password` checarem a allowlist.
-3. **`server/api/auth/[...all].ts`:** envolver num tratamento de erro, para que um erro de banco não chegue ao Nitro.
-4. **`/sign-in/email-otp`:** remontar o corpo só com `email` e `otp`.
-5. **M-4:** limitar `author` a 300 e decidir se 3000 obras por hora é aceitável. Se for, registrar em `docs/security.md`.
-6. **M-3:** decidir a visibilidade padrão de um arquivo antigo sem o campo, que hoje é `publico`.
+- [TASK-069](../tasks/069-otp-consumers-check-allowlist.md) cobre o resíduo do M-1 e a observação sobre `name`/`image`. `/sign-in/email-otp` e `/email-otp/reset-password` passam a checar a allowlist e a encaminhar um corpo montado pelo servidor.
+- [TASK-070](../tasks/070-auth-catch-all-error-shape.md) põe `server/api/auth/[...all].ts` dentro de `defineApiHandler`.
+- A TASK-024 ganhou a verificação de `X-Forwarded-For` forjado em produção (B-5). A medição de tempo do A-1 e a auditoria de logs do M-6 já estavam lá.
 
-Já coberto pela 024: a medição de tempo do A-1 e a auditoria de logs do M-6. A confirmação do `x-forwarded-for` na Vercel (B-5) só está implícita e vale explicitar lá.
+Pendentes de decisão do dono, sem task:
+
+- **M-4:** na importação, `author` é um texto de até 500 caracteres (`shared/schemas/export-import.ts`). No cadastro normal, cada nome vai até 200 caracteres, com no máximo 5 autores (`shared/schemas/work.ts`). Alinhar os dois? E 3000 obras por hora pela importação é aceitável? Se for, registrar em `docs/security.md` §12.
+- **M-3:** um arquivo exportado antes de `f939bba` não tem visibilidade e é importado como `publico`. O padrão deveria ser `privado`?
+
+Sem ação: o 403 da TASK-066 revela ao criador que outra pessoa usa a edição. A TASK-066 decidiu que edição é dado público de catálogo, e o caso é da mesma família do B-2.

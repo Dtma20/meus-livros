@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Where it is going:** a small social reading platform for the owner's ~30-person university friend group. Multi-user, pt-BR-first, invite-only, zero infrastructure cost. What is left before the first invite is deployment and the pre-launch checks - see [docs/agent-workflow.md](docs/agent-workflow.md) §5.
 
-**Read [docs/README.md](docs/README.md) before doing any architectural work.** The full plan lives in `docs/`, and `docs/tasks/` holds the task files, 001-068 (051 has none - the reviewer did it directly).
+**Read [docs/README.md](docs/README.md) before doing any architectural work.** The full plan lives in `docs/`, and `docs/tasks/` holds the task files, 001-070 (051 has none - the reviewer did it directly).
 
 ---
 
