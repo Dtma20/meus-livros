@@ -176,6 +176,44 @@
             </NuxtLink>
           </div>
 
+          <div v-if="isOwner" class="remove-zone">
+            <p class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
+            <template v-if="pendingSeconds > 0">
+              <span class="remove-msg" aria-hidden="true">Esta leitura será removida em {{ pendingSeconds }} s.</span>
+              <button ref="undoBtnRef" type="button" class="btn btn-ghost btn-sm undo-btn" @click="undoDelete">Desfazer</button>
+            </template>
+            <template v-else-if="isDeleting">
+              <span class="remove-msg" aria-hidden="true">Removendo...</span>
+            </template>
+            <template v-else-if="deleteError">
+              <span class="remove-msg remove-error" aria-hidden="true">{{ deleteError }}</span>
+              <button type="button" class="btn btn-ghost btn-sm undo-btn" @click="startDelete">Tentar de novo</button>
+            </template>
+            <button
+              v-else
+              ref="removeBtnRef"
+              type="button"
+              class="btn btn-danger btn-sm delete-btn"
+              @click="startDelete"
+            >
+              <svg
+                class="btn-icon"
+                viewBox="0 0 24 24"
+                width="13"
+                height="13"
+                stroke="currentColor"
+                stroke-width="2"
+                fill="none"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              <span>Remover esta leitura</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -212,30 +250,6 @@
           Ver todas as edições de {{ logData.work.title }}
         </NuxtLink>
       </nav>
-
-      <div v-if="isOwner" class="remove-zone">
-        <p class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
-        <template v-if="pendingSeconds > 0">
-          <span class="remove-msg" aria-hidden="true">Esta leitura será removida em {{ pendingSeconds }} s.</span>
-          <button ref="undoBtnRef" type="button" class="btn btn-ghost btn-sm undo-btn" @click="undoDelete">Desfazer</button>
-        </template>
-        <template v-else-if="isDeleting">
-          <span class="remove-msg" aria-hidden="true">Removendo...</span>
-        </template>
-        <template v-else-if="deleteError">
-          <span class="remove-msg remove-error" aria-hidden="true">{{ deleteError }}</span>
-          <button type="button" class="btn btn-ghost btn-sm undo-btn" @click="startDelete">Tentar de novo</button>
-        </template>
-        <button
-          v-else
-          ref="removeBtnRef"
-          type="button"
-          class="btn btn-danger btn-sm delete-btn"
-          @click="startDelete"
-        >
-          Remover esta leitura
-        </button>
-      </div>
       </div>
       </div>
     </article>
@@ -822,12 +836,6 @@ async function performDelete(): Promise<void> {
   margin-top: auto;
 }
 
-@media (min-width: 541px) {
-  .actions-row {
-    justify-content: flex-start;
-  }
-}
-
 .share-btn.is-copied {
   background-color: color-mix(in srgb, var(--success) 12%, transparent);
   border-color: var(--success);
@@ -843,13 +851,19 @@ async function performDelete(): Promise<void> {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: center;
   gap: var(--space-2) var(--space-3);
-  min-height: 44px;
-  margin-top: var(--space-4);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--input-bg);
+  margin-top: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   font-size: var(--font-size-sm);
+}
+
+@media (min-width: 541px) {
+  .actions-row,
+  .remove-zone {
+    justify-content: flex-start;
+  }
 }
 
 .remove-msg {

@@ -60,7 +60,7 @@
             <div class="work-actions">
               <NuxtLink
                 :to="primaryActionHref"
-                class="work-primary-action"
+                class="btn btn-primary work-primary-action"
               >
                 {{ primaryActionLabel }}
               </NuxtLink>
@@ -667,32 +667,7 @@ async function performDeleteWork(): Promise<void> {
 }
 
 .work-primary-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--highlight);
-  color: var(--bg-color);
-  font-weight: 700;
-  font-size: var(--font-size-sm);
-  padding: 0 var(--space-4);
-  min-height: var(--target-min-size, 44px);
-  border-radius: var(--radius-sm);
-  text-decoration: none;
-  box-sizing: border-box;
-  transition: opacity 0.2s, transform 0.1s;
-}
-
-.work-primary-action:hover {
-  opacity: 0.9;
-}
-
-.work-primary-action:active {
-  transform: translateY(1px);
-}
-
-.work-primary-action:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
+  white-space: nowrap;
 }
 
 .work-series {
