@@ -115,7 +115,10 @@
             <button
               type="button"
               class="btn btn-secondary share-btn"
-              :class="{ 'is-copied': copied }"
+              :class="{
+                'is-copied': copied,
+                'col-span-2': !isOwner || logData.finished_on
+              }"
               :aria-label="copied ? 'Link copiado para a área de transferência' : 'Compartilhar esta entrada'"
               @click="handleShare"
             >
@@ -829,9 +832,8 @@ async function performDelete(): Promise<void> {
 }
 
 .actions-row {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--space-2);
   width: 100%;
   max-width: 260px;
@@ -842,8 +844,13 @@ async function performDelete(): Promise<void> {
   width: 100%;
   font-size: var(--font-size-sm);
   min-height: 38px;
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2) 6px;
+  gap: 6px;
   box-sizing: border-box;
+}
+
+.actions-row .col-span-2 {
+  grid-column: span 2;
 }
 
 .share-btn.is-copied {
