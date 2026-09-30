@@ -5,6 +5,7 @@ import { db } from '../db'
 import { users } from '../db/schema'
 import type { User, Visibility } from '../db/types'
 import { isEmailAllowed } from './auth'
+import { invalidateFeedCache } from './feed'
 
 export interface CreateUserData {
   email: string
@@ -286,6 +287,10 @@ export async function updateUserProfile(userId: string, data: UpdateUserData): P
         message: 'Usuário não encontrado.',
       },
     })
+  }
+
+  if (data.display_name !== undefined || data.profile_visibility !== undefined) {
+    invalidateFeedCache()
   }
 
   return updated

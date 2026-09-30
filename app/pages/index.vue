@@ -123,13 +123,23 @@
             action-href="/app/novo"
           />
 
-          <div v-else class="feed-list">
-            <FeedItem
-              v-for="(entry, i) in entries"
-              :key="entry.id"
-              :entry="entry"
-              :loading="i < 2 ? 'eager' : 'lazy'"
+          <div v-else class="feed-scroll-wrapper">
+            <NewPostsPill
+              :visible="hasNewPosts"
+              :count="newPostsCount"
+              label="Novas atividades no grupo"
+              @click="loadNewPosts"
             />
+            <div ref="feedScrollContainer" class="feed-scroll-container">
+              <div class="feed-list">
+                <FeedItem
+                  v-for="(entry, i) in entries"
+                  :key="entry.id"
+                  :entry="entry"
+                  :loading="i < 2 ? 'eager' : 'lazy'"
+                />
+              </div>
+            </div>
           </div>
         </section>
 
@@ -156,16 +166,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import LandingView from '~/components/landing/LandingView.vue'
 import BookCover from '~/components/book/BookCover.vue'
 import ReadingCarousel from '~/components/dashboard/ReadingCarousel.vue'
 import ShelfSection from '~/components/dashboard/ShelfSection.vue'
 import FeedItem from '~/components/feed/FeedItem.vue'
+import NewPostsPill from '~/components/feed/NewPostsPill.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { formatReadingDate } from '~/utils/entry'
+import { useFeedNewPosts } from '~/composables/useFeedNewPosts'
 import type { AuthSessionState } from '~/middleware/auth'
 import type { FeedEntry, FeedResponse } from '~~/shared/schemas/feed'
 import type {
@@ -266,7 +278,57 @@ const isAuthenticated = computed(() => Boolean(pageData.value?.authenticated))
 const inProgressBooks = computed(() => pageData.value?.inProgress ?? [])
 const completedBooks = computed(() => pageData.value?.completed ?? [])
 const shelfBooks = computed(() => pageData.value?.shelf ?? [])
-const entries = computed(() => pageData.value?.entries ?? [])
+const entries = ref<FeedEntry[]>(pageData.value?.entries ? [...pageData.value.entries] : [])
+const feedScrollContainer = ref<HTMLElement | null>(null)
+const feedSectionRef = ref<HTMLElement | null>(null)
+
+watch(
+  () => pageData.value?.entries,
+  (newVal) => {
+    if (newVal) {
+      entries.value = [...newVal]
+    }
+  },
+)
+
+const {
+  hasNewPosts,
+  newPostsCount,
+  applyNewPosts,
+} = useFeedNewPosts({
+  enabled: isAuthenticated,
+  getTopId: () => entries.value[0]?.id,
+  getExistingIds: () => new Set(entries.value.map((e) => e.id)),
+  fetchLatest: async () => {
+    const res = await $fetch<FeedResponse>('/api/feed/recentes', {
+      retry: 0,
+      timeout: 10000,
+    })
+    return res?.entries ?? []
+  },
+})
+
+function loadNewPosts() {
+  const fresh = applyNewPosts()
+  if (fresh.length > 0) {
+    entries.value = [...fresh, ...entries.value]
+  }
+  if (import.meta.client) {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    feedScrollContainer.value?.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    })
+    const rect = feedSectionRef.value?.getBoundingClientRect()
+    if (rect && rect.top < 0) {
+      feedSectionRef.value?.scrollIntoView({
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+        block: 'nearest',
+      })
+    }
+  }
+}
+
 const hasFeedError = computed(() => Boolean(pageData.value?.hasFeedError))
 
 function progressOf(book: DashboardInProgressBook): number {
@@ -560,10 +622,47 @@ useHead({
   text-underline-offset: 0.3em;
 }
 
+.feed-scroll-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.feed-scroll-wrapper :deep(.new-posts-pill-container) {
+  position: absolute;
+  top: var(--space-3);
+  left: 0;
+  right: 0;
+}
+
+.feed-scroll-container {
+  max-height: 520px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: var(--space-2);
+  margin-right: calc(-1 * var(--space-2));
+  border-top: 1px solid var(--input-bg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--input-bg) transparent;
+}
+
+.feed-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+.feed-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.feed-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--input-bg);
+  border-radius: var(--radius-full);
+}
+.feed-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-color);
+}
+
 .feed-list {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--input-bg);
 }
 
 @media (max-width: 600px) {

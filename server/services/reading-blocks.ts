@@ -9,6 +9,7 @@ import type {
 import { calculateReadingProgress } from '../../shared/utils/reading-progress'
 import { db } from '../db'
 import { editions, reading_blocks, reading_logs, users } from '../db/schema'
+import { invalidateFeedCache } from './feed'
 import { visibleLogs, type Viewer } from './visibility'
 
 export async function getBlocksForLog(
@@ -125,6 +126,8 @@ export async function createBlock(
     .set({ updated_at: new Date() })
     .where(eq(reading_logs.id, logId))
 
+  invalidateFeedCache()
+
   return created
 }
 
@@ -180,6 +183,8 @@ export async function updateBlock(
     })
   }
 
+  invalidateFeedCache()
+
   return updated
 }
 
@@ -208,4 +213,6 @@ export async function deleteBlock(
     .update(reading_logs)
     .set({ updated_at: new Date() })
     .where(eq(reading_logs.id, existing.log_id))
+
+  invalidateFeedCache()
 }

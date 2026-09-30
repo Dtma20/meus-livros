@@ -12,6 +12,7 @@ import {
 import { normalizeIsbn } from '../utils/isbn'
 import { slugify } from '../utils/slug'
 import { logger } from '../utils/logger'
+import { invalidateFeedCache } from './feed'
 import type { LivroJson, ImportResult } from '../../shared/schemas/export-import'
 import { logVisibilitySchema, type LogVisibility } from '../../shared/schemas/log'
 
@@ -475,6 +476,10 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
     importedCount,
     skippedCount,
   })
+
+  if (importedCount > 0) {
+    invalidateFeedCache()
+  }
 
   return {
     importedCount,

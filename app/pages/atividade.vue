@@ -36,27 +36,36 @@
     />
 
     <div v-else class="activity-content">
-      <div class="feed-list">
-        <FeedItem
-          v-for="(entry, i) in entries"
-          :key="entry.id"
-          :entry="entry"
-          :loading="i < 2 ? 'eager' : 'lazy'"
+      <div class="feed-column">
+        <NewPostsPill
+          :visible="hasNewPosts"
+          :count="newPostsCount"
+          label="Novas atividades no grupo"
+          @click="loadNewPosts"
         />
-      </div>
 
-      <div v-if="nextCursor" class="load-more-section">
-        <button
-          type="button"
-          class="btn-secondary btn-load-more"
-          :disabled="loadingMore"
-          @click="loadMore"
-        >
-          {{ loadingMore ? 'Carregando…' : 'Carregar mais' }}
-        </button>
-        <p v-if="loadMoreError" class="load-more-error" role="alert">
-          {{ loadMoreError }}
-        </p>
+        <div class="feed-list">
+          <FeedItem
+            v-for="(entry, i) in entries"
+            :key="entry.id"
+            :entry="entry"
+            :loading="i < 2 ? 'eager' : 'lazy'"
+          />
+        </div>
+
+        <div v-if="nextCursor" class="load-more-section">
+          <button
+            type="button"
+            class="btn-secondary btn-load-more"
+            :disabled="loadingMore"
+            @click="loadMore"
+          >
+            {{ loadingMore ? 'Carregando…' : 'Carregar mais' }}
+          </button>
+          <p v-if="loadMoreError" class="load-more-error" role="alert">
+            {{ loadMoreError }}
+          </p>
+        </div>
       </div>
 
       <aside v-if="readingNow.length > 0" class="reading-now" aria-labelledby="reading-now-title">
@@ -77,8 +86,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import FeedItem from '~/components/feed/FeedItem.vue'
+import NewPostsPill from '~/components/feed/NewPostsPill.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
+import { useFeedNewPosts } from '~/composables/useFeedNewPosts'
 import type { FeedEntry, FeedPageResponse } from '~~/shared/schemas/feed'
 
 definePageMeta({
@@ -141,6 +152,37 @@ async function loadMore() {
     loadMoreError.value = 'Não foi possível carregar mais atividades.'
   } finally {
     loadingMore.value = false
+  }
+}
+
+const {
+  hasNewPosts,
+  newPostsCount,
+  applyNewPosts,
+} = useFeedNewPosts({
+  getTopId: () => entries.value[0]?.id,
+  getExistingIds: () => new Set(entries.value.map((e) => e.id)),
+  fetchLatest: async () => {
+    const res = await $fetch<FeedPageResponse>('/api/feed', {
+      params: { limit: 20 },
+      retry: 0,
+      timeout: 10000,
+    })
+    return res?.entries ?? []
+  },
+})
+
+function loadNewPosts() {
+  const fresh = applyNewPosts()
+  if (fresh.length > 0) {
+    entries.value = [...fresh, ...entries.value]
+  }
+  if (import.meta.client) {
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
+    })
   }
 }
 </script>
@@ -220,6 +262,11 @@ async function loadMore() {
   border-radius: var(--radius-sm);
 }
 
+.feed-column {
+  position: relative;
+  width: 100%;
+}
+
 @media (min-width: 1024px) {
   .activity-page .activity-content {
     display: grid;
@@ -231,19 +278,14 @@ async function loadMore() {
   .reading-now {
     display: block;
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1;
     position: sticky;
     top: var(--space-6);
   }
 
-  .feed-list {
+  .feed-column {
     grid-column: 1;
     grid-row: 1;
-  }
-
-  .load-more-section {
-    grid-column: 1;
-    grid-row: 2;
   }
 }
 

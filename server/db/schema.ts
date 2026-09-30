@@ -176,7 +176,9 @@ export const reading_logs = pgTable(
     ),
     index('reading_logs_user_idx').on(table.user_id, table.finished_on.desc().nullsLast()),
     index('reading_logs_work_idx').on(table.work_id),
-    index('reading_logs_public_idx').on(table.created_at.desc()).where(sql`${table.visibility} = 'publico'`),
+    index('reading_logs_public_idx')
+      .on(table.created_at.desc(), table.id.desc())
+      .where(sql`${table.visibility} = 'publico'`),
   ],
 )
 
