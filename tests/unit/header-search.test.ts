@@ -1,9 +1,19 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, type Component, defineComponent, h, nextTick, Suspense } from 'vue'
 import { createMemoryHistory, createRouter, type Router } from 'vue-router'
+import axe from 'axe-core'
 
 import DefaultLayout from '../../app/layouts/default.vue'
 import HeaderSearch from '../../app/components/search/HeaderSearch.vue'
+import SearchBox from '../../app/components/search/SearchBox.vue'
+
+const realFetch = global.fetch
+
+afterEach(() => {
+  global.fetch = realFetch
+  vi.useRealTimers()
+  document.body.replaceChildren()
+})
 
 vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
@@ -81,6 +91,38 @@ function mount<T extends Component>(
       container.remove()
     }
   }
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise
+    reject = rejectPromise
+  })
+  return { promise, resolve, reject }
+}
+
+function searchResponse(title: string): Response {
+  return {
+    ok: true,
+    json: async () => ({
+      works: [{
+        id: title,
+        slug: title.toLowerCase().replaceAll(' ', '-'),
+        title,
+        authors: [],
+        first_published_year: null,
+        cover_url: null,
+      }],
+    }),
+  } as Response
+}
+
+async function flushMicrotasks(): Promise<void> {
+  await Promise.resolve()
+  await Promise.resolve()
+  await nextTick()
 }
 
 describe('HeaderSearch and default layout', () => {
@@ -228,5 +270,171 @@ describe('HeaderSearch and default layout', () => {
     expect(wrapper.find('.header-search-mobile-row')).toBeNull()
 
     wrapper.unmount()
+  })
+})
+
+describe('SearchBox request lifecycle', () => {
+  it('clears old results immediately and ignores a response after its query was replaced', async () => {
+    vi.useFakeTimers()
+    const originalFetch = global.fetch
+    const oldRequest = deferred<Response>()
+    const latestRequest = deferred<Response>()
+    const fetchSpy = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(searchResponse('Resultado anterior'))
+      .mockReturnValueOnce(oldRequest.promise)
+      .mockReturnValueOnce(latestRequest.promise)
+    global.fetch = fetchSpy
+
+    const wrapper = mount(SearchBox, { navigateOnSelect: false })
+    const input = wrapper.find<HTMLInputElement>('input[type="search"]')
+    if (!input) throw new Error('search input not found')
+
+    input.focus()
+    input.value = 'primeira busca'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(250)
+    await flushMicrotasks()
+    expect(wrapper.text()).toContain('Resultado anterior')
+
+    input.value = 'segunda busca'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    expect(wrapper.text()).not.toContain('Resultado anterior')
+    expect(wrapper.find('.search-spinner')).not.toBeNull()
+
+    await vi.advanceTimersByTimeAsync(250)
+    const staleSignal = fetchSpy.mock.calls[1]?.[1]?.signal
+    expect(staleSignal?.aborted).toBe(false)
+
+    input.value = 'busca atual'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    expect(staleSignal?.aborted).toBe(true)
+
+    oldRequest.resolve(searchResponse('Resposta obsoleta'))
+    await flushMicrotasks()
+    expect(wrapper.text()).not.toContain('Resposta obsoleta')
+    expect(wrapper.find('.search-spinner')).not.toBeNull()
+
+    await vi.advanceTimersByTimeAsync(250)
+    latestRequest.resolve(searchResponse('Resultado atual'))
+    await flushMicrotasks()
+    expect(wrapper.text()).toContain('Resultado atual')
+    expect(wrapper.text()).not.toContain('Resposta obsoleta')
+    expect(wrapper.find('.search-spinner')).toBeNull()
+
+    wrapper.unmount()
+    global.fetch = originalFetch
+    vi.useRealTimers()
+  })
+
+  it('shows a recoverable error and retries the same query', async () => {
+    vi.useFakeTimers()
+    const originalFetch = global.fetch
+    const fetchSpy = vi.fn<typeof fetch>()
+      .mockRejectedValueOnce(new TypeError('offline'))
+      .mockResolvedValueOnce(searchResponse('Resultado recuperado'))
+    global.fetch = fetchSpy
+
+    const wrapper = mount(SearchBox, { navigateOnSelect: false })
+    const input = wrapper.find<HTMLInputElement>('input[type="search"]')
+    if (!input) throw new Error('search input not found')
+    input.focus()
+    input.value = 'livro procurado'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(250)
+    await flushMicrotasks()
+
+    expect(wrapper.find('[role="alert"]')?.textContent ?? '').toContain('Não foi possível buscar livros agora.')
+    expect(wrapper.find('button.search-retry')?.textContent?.trim()).toBe('Tentar novamente')
+
+    const retry = wrapper.find<HTMLButtonElement>('button.search-retry')
+    retry?.focus()
+    retry?.click()
+    expect(document.activeElement).toBe(input)
+    await nextTick()
+    await flushMicrotasks()
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Resultado recuperado')
+    expect(wrapper.find('[role="alert"]')).toBeNull()
+
+    wrapper.unmount()
+    global.fetch = originalFetch
+    vi.useRealTimers()
+  })
+
+  it('exposes a controlled listbox only while selectable results exist', async () => {
+    vi.useFakeTimers()
+    const originalFetch = global.fetch
+    const fetchSpy = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ works: [] }) } as Response)
+      .mockRejectedValueOnce(new TypeError('offline'))
+      .mockResolvedValueOnce(searchResponse('Resultado atual'))
+    global.fetch = fetchSpy
+
+    const wrapper = mount(SearchBox, { navigateOnSelect: false })
+    const input = wrapper.find<HTMLInputElement>('input[type="search"]')
+    if (!input) throw new Error('search input not found')
+    input.focus()
+
+    const search = async (term: string) => {
+      input.value = term
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      await nextTick()
+      expect(input.getAttribute('aria-expanded')).toBe('false')
+      expect(input.hasAttribute('aria-controls')).toBe(false)
+      await vi.advanceTimersByTimeAsync(250)
+      await flushMicrotasks()
+    }
+
+    await search('nenhum livro')
+    expect(wrapper.find('.search-empty')).not.toBeNull()
+    expect(wrapper.find('[role="listbox"]')).toBeNull()
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(input.hasAttribute('aria-controls')).toBe(false)
+    expect(wrapper.find('.search-empty button')?.closest('[role="listbox"]')).toBeNull()
+
+    await search('falha livro')
+    expect(wrapper.find('[role="alert"]')).not.toBeNull()
+    expect(wrapper.find('[role="listbox"]')).toBeNull()
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(input.hasAttribute('aria-controls')).toBe(false)
+    expect(wrapper.find('.search-retry')?.closest('[role="listbox"]')).toBeNull()
+
+    await search('resultado livro')
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+    expect(input.getAttribute('aria-controls')).toBe(wrapper.find('[role="listbox"]')?.id)
+    expect(wrapper.find('[role="listbox"]')).not.toBeNull()
+
+    wrapper.unmount()
+    global.fetch = originalFetch
+    vi.useRealTimers()
+  })
+
+  it('has no axe violations in the search error state', async () => {
+    vi.useFakeTimers()
+    const originalFetch = global.fetch
+    global.fetch = vi.fn<typeof fetch>().mockRejectedValue(new TypeError('offline'))
+
+    const wrapper = mount(SearchBox, { navigateOnSelect: false })
+    const input = wrapper.find<HTMLInputElement>('input[type="search"]')
+    if (!input) throw new Error('search input not found')
+    input.focus()
+    input.value = 'livro erro'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(250)
+    await flushMicrotasks()
+    expect(wrapper.find('[role="alert"]')).not.toBeNull()
+
+    vi.useRealTimers()
+    const result = await axe.run(wrapper.container)
+    expect(result.violations.map(violation => violation.id)).toEqual([])
+
+    wrapper.unmount()
+    global.fetch = originalFetch
   })
 })

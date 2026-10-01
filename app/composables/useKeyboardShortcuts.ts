@@ -1,4 +1,5 @@
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, watch } from 'vue'
+import { useKeyboardShortcutPreferences } from './useKeyboardShortcutPreferences'
 
 export const FOCUS_SEARCH_EVENT = 'ml:focus-search'
 
@@ -33,12 +34,12 @@ function showChordHint(): void {
     'background:var(--card-bg)',
     'color:var(--text-bright)',
     'border:1px solid var(--input-bg)',
-    'border-radius:var(--radius-sm,4px)',
+    'border-radius:var(--radius-sm,6px)',
     'font-size:var(--font-size-sm,0.875rem)',
   ].join(';')
   const kbd = document.createElement('kbd')
   kbd.textContent = 'g'
-  kbd.style.cssText = 'font-family:inherit;padding:0 var(--space-1,4px);border:1px solid var(--input-bg);border-radius:var(--radius-sm,4px)'
+  kbd.style.cssText = 'font-family:inherit;padding:0 var(--space-1,4px);border:1px solid var(--input-bg);border-radius:var(--radius-sm,6px)'
   hint.append(kbd, ' … i Início · a Atividade · m Membros · p Perfil')
   document.body.appendChild(hint)
 }
@@ -48,6 +49,7 @@ function hideChordHint(): void {
 }
 
 export function useKeyboardShortcuts(options: ShortcutOptions): void {
+  const { characterKeyShortcutsEnabled } = useKeyboardShortcutPreferences()
   let chordTimer: ReturnType<typeof setTimeout> | null = null
   let awaitingChord = false
 
@@ -58,10 +60,15 @@ export function useKeyboardShortcuts(options: ShortcutOptions): void {
     chordTimer = null
   }
 
+  watch(characterKeyShortcutsEnabled, (enabled) => {
+    if (!enabled) clearChord()
+  }, { flush: 'sync' })
+
   function onKeydown(e: KeyboardEvent): void {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
     if (isTypingTarget(e.target)) return
     if (document.querySelector('dialog[open]')) return
+    if (!characterKeyShortcutsEnabled.value) return
 
     if (awaitingChord && e.key === 'Escape') {
       clearChord()
@@ -84,6 +91,13 @@ export function useKeyboardShortcuts(options: ShortcutOptions): void {
       }
     }
 
+    if (e.key === 'g') {
+      awaitingChord = true
+      showChordHint()
+      chordTimer = setTimeout(clearChord, CHORD_WINDOW_MS)
+      return
+    }
+
     if (e.key === '/') {
       e.preventDefault()
       window.dispatchEvent(new Event(FOCUS_SEARCH_EVENT))
@@ -95,11 +109,6 @@ export function useKeyboardShortcuts(options: ShortcutOptions): void {
     else if (e.key === 'n') {
       e.preventDefault()
       void navigateTo('/app/novo')
-    }
-    else if (e.key === 'g') {
-      awaitingChord = true
-      showChordHint()
-      chordTimer = setTimeout(clearChord, CHORD_WINDOW_MS)
     }
   }
 

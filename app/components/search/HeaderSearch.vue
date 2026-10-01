@@ -1,8 +1,14 @@
 <template>
   <div v-if="!isHidden" class="header-search">
     <div ref="desktopRef" class="header-search-desktop">
-      <SearchBox ref="desktopBoxRef" placeholder="Buscar livros" key-shortcut="/" @select="onSelectWork" />
-      <kbd class="search-kbd" aria-hidden="true">/</kbd>
+      <SearchBox
+        ref="desktopBoxRef"
+        placeholder="Buscar livros"
+        key-shortcut="/"
+        :character-key-shortcuts-enabled="characterKeyShortcutsEnabled"
+        @select="onSelectWork"
+      />
+      <kbd v-if="characterKeyShortcutsEnabled" class="search-kbd" aria-hidden="true">/</kbd>
     </div>
 
     <button
@@ -37,7 +43,12 @@
       @keydown="onMobileKeydown"
     >
       <div class="mobile-search-input-wrap">
-        <SearchBox ref="mobileBoxRef" key-shortcut="/" @select="onSelectWork" />
+        <SearchBox
+          ref="mobileBoxRef"
+          key-shortcut="/"
+          :character-key-shortcuts-enabled="characterKeyShortcutsEnabled"
+          @select="onSelectWork"
+        />
       </div>
       <button
         type="button"
@@ -69,6 +80,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SearchBox from './SearchBox.vue'
 import { FOCUS_SEARCH_EVENT } from '~/composables/useKeyboardShortcuts'
+import { useKeyboardShortcutPreferences } from '~/composables/useKeyboardShortcutPreferences'
 
 type AppRoute = ReturnType<typeof useRoute>
 
@@ -81,6 +93,7 @@ function getSafeRoute(): AppRoute | null {
 }
 
 const route = getSafeRoute()
+const { characterKeyShortcutsEnabled } = useKeyboardShortcutPreferences()
 
 const isHidden = computed(() => {
   const p = route?.path || ''
@@ -261,8 +274,8 @@ onBeforeUnmount(() => {
 }
 
 .header-search-trigger:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .search-kbd {
@@ -327,7 +340,7 @@ onBeforeUnmount(() => {
 }
 
 .mobile-close-btn:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 </style>

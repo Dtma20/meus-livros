@@ -7,7 +7,7 @@
       <NuxtLink to="/membros" class="nav-link nav-link-desktop">
         Membros
       </NuxtLink>
-      <NuxtLink to="/app/novo" class="nav-link nav-link-desktop" aria-keyshortcuts="n">
+      <NuxtLink to="/app/novo" class="nav-link nav-link-desktop" :aria-keyshortcuts="characterKeyShortcutsEnabled ? 'n' : undefined">
         Registrar leitura
       </NuxtLink>
       <NuxtLink :to="profileLink" class="nav-link nav-link-desktop">
@@ -25,8 +25,8 @@
         type="button"
         class="nav-link nav-shortcuts"
         aria-label="Atalhos de teclado"
-        aria-keyshortcuts="Shift+?"
-        title="Atalhos de teclado (?)"
+        :aria-keyshortcuts="characterKeyShortcutsEnabled ? '?' : undefined"
+        :title="characterKeyShortcutsEnabled ? 'Atalhos de teclado (?)' : 'Atalhos de teclado'"
         @click="shortcutsRef?.open()"
       >
         <kbd aria-hidden="true">?</kbd>
@@ -103,9 +103,11 @@ import type { AuthSessionState } from '~/middleware/auth'
 import { authClient } from '~/utils/auth-client'
 import ShortcutsDialog from '~/components/ui/ShortcutsDialog.vue'
 import { useKeyboardShortcuts } from '~/composables/useKeyboardShortcuts'
+import { useKeyboardShortcutPreferences } from '~/composables/useKeyboardShortcutPreferences'
 import { useFlash, type FlashMessage } from '~/composables/useFlash'
 
 const session = useState<AuthSessionState>('auth:session')
+const { characterKeyShortcutsEnabled } = useKeyboardShortcutPreferences()
 const isSigningOut = ref(false)
 
 const FLASH_MS = 5000
@@ -318,6 +320,7 @@ async function handleSignOut() {
   box-sizing: border-box;
 }
 
+
 .bottom-nav-link:hover {
   color: var(--highlight);
 }
@@ -373,9 +376,10 @@ async function handleSignOut() {
   color: var(--text-bright);
 }
 
-@media (hover: none), (max-width: 767.98px) {
+@media (pointer: coarse) {
   .nav-shortcuts {
-    display: none;
+    min-width: var(--target-min-size);
+    min-height: var(--target-min-size);
   }
 }
 
