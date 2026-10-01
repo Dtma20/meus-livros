@@ -37,6 +37,19 @@ export function createFormDraftKey(
   ].join(':')
 }
 
+const FORM_DRAFT_PREFIX = 'meus-livros:form-draft:'
+// Pre-v1 drafts had one fixed key per form and no user scope.
+const LEGACY_DRAFT_KEYS = ['meus-livros:log-draft', 'meus-livros:add-book-draft']
+
+export function clearStoredFormDrafts(storage: Storage): void {
+  const keys: string[] = []
+  for (let i = 0; i < storage.length; i++) {
+    const key = storage.key(i)
+    if (key && (key.startsWith(FORM_DRAFT_PREFIX) || LEGACY_DRAFT_KEYS.includes(key))) keys.push(key)
+  }
+  for (const key of keys) storage.removeItem(key)
+}
+
 export function useFormDraft<T>(options: UseFormDraftOptions<T>): UseFormDraft<T> {
   const delay = options.debounceMs ?? 250
   let timer: ReturnType<typeof setTimeout> | null = null

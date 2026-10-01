@@ -105,6 +105,7 @@ import ShortcutsDialog from '~/components/ui/ShortcutsDialog.vue'
 import { useKeyboardShortcuts } from '~/composables/useKeyboardShortcuts'
 import { useKeyboardShortcutPreferences } from '~/composables/useKeyboardShortcutPreferences'
 import { useFlash, type FlashMessage } from '~/composables/useFlash'
+import { clearStoredFormDrafts } from '~/composables/useFormDraft'
 
 const session = useState<AuthSessionState>('auth:session')
 const { characterKeyShortcutsEnabled } = useKeyboardShortcutPreferences()
@@ -171,7 +172,14 @@ async function handleSignOut() {
   catch {
   }
 
+  // Clearing the session first makes open forms cancel their pending draft
+  // write, so nothing is re-saved after the drafts below are removed.
   session.value = { user: null, fetched: false }
+  try {
+    clearStoredFormDrafts(window.localStorage)
+  }
+  catch {
+  }
   await navigateTo('/', { external: true })
 }
 </script>

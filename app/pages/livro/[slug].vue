@@ -280,12 +280,19 @@ const isNotFound = computed(() => {
   return status === 404
 })
 
-if (error.value) {
+if (error.value && isNotFound.value) {
   throw createError({
-    statusCode: error.value.statusCode || 404,
+    statusCode: 404,
     statusMessage: 'Obra não encontrada',
     fatal: true,
   })
+}
+
+// Any other failure renders the retry state instead of a fake 404.
+if (import.meta.server && error.value && typeof useRequestEvent === 'function') {
+  const event = useRequestEvent()
+  const err = error.value as { statusCode?: number; status?: number }
+  if (event) setResponseStatus(event, err.statusCode || err.status || 500)
 }
 
 function formatAuthorCountry(author: WorkAuthorView): string | null {

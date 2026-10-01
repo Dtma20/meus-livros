@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { createApp, defineComponent, h, ref, Suspense, type Component } from 'vue'
 import ShelfSection from '../../app/components/dashboard/ShelfSection.vue'
 import IndexPage from '../../app/pages/index.vue'
@@ -178,6 +178,60 @@ describe('dashboard order', () => {
     expect(wrapper.find('.shelf-empty-row')).toBeNull()
     expect(isBefore(inProgress, shelf)).toBe(true)
     expect(isBefore(shelf, feed)).toBe(true)
+    wrapper.unmount()
+  })
+})
+
+describe('dashboard partial failure', () => {
+  const originalUseAsyncData = globalScope.useAsyncData
+  const originalUseState = globalScope.useState
+  const originalUseRequestFetch = globalScope.useRequestFetch
+
+  afterEach(() => {
+    globalScope.useAsyncData = originalUseAsyncData
+    globalScope.useState = originalUseState
+    globalScope.useRequestFetch = originalUseRequestFetch
+  })
+
+  function runFetcher(failing: string) {
+    globalScope.useState = (key: string, init?: () => unknown) => ({
+      value: key === 'auth:session'
+        ? { user: { id: 'u1', handle: 'leitor' }, fetched: true }
+        : (init ? init() : null),
+    })
+    globalScope.useRequestFetch = () => async (url: string) => {
+      if (url === failing) throw new Error('falhou')
+      if (url === '/api/dashboard') return { inProgress: [inProgressBook], completed: [], shelf: [shelfBook] }
+      return { entries: [] }
+    }
+    globalScope.useAsyncData = async (_key: string, handler: () => Promise<unknown>) => ({
+      data: ref(await handler()),
+      pending: ref(false),
+      refresh: async () => {},
+    })
+  }
+
+  it('keeps the shelves when only the feed fails and shows the error in the feed section', async () => {
+    runFetcher('/api/feed/recentes')
+    const wrapper = mount(IndexPage)
+    await flushAsync()
+
+    expect(wrapper.find('.in-progress-section')).not.toBeNull()
+    expect(wrapper.find('.shelf-section')).not.toBeNull()
+    const feed = wrapper.find('.feed-section')
+    expect(feed?.textContent).toContain('Não foi possível carregar a atividade do grupo.')
+    expect(feed?.textContent).not.toContain('Ninguém registrou nada ainda')
+    expect(wrapper.text()).not.toContain('Não foi possível carregar suas leituras.')
+    wrapper.unmount()
+  })
+
+  it('shows the page-level error when the dashboard itself fails', async () => {
+    runFetcher('/api/dashboard')
+    const wrapper = mount(IndexPage)
+    await flushAsync()
+
+    expect(wrapper.text()).toContain('Não foi possível carregar suas leituras.')
+    expect(wrapper.find('.dashboard-content')).toBeNull()
     wrapper.unmount()
   })
 })

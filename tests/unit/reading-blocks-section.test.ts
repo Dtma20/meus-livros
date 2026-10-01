@@ -293,6 +293,29 @@ describe('ReadingBlocksSection - delete with undo', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('restores the block when a pagehide DELETE fails and the page returns from the back-forward cache', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ message: 'Falhou.' }), { status: 500 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mountOwnerWithBlock()
+
+    buttonsMatching(container, 'Excluir')[0]?.click()
+    await flush()
+    window.dispatchEvent(new Event('pagehide'))
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((fetchMock.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({ keepalive: true })
+    expect(container.textContent).not.toContain('Começo lento.')
+
+    const pageshow = new Event('pageshow')
+    Object.defineProperty(pageshow, 'persisted', { value: true })
+    window.dispatchEvent(pageshow)
+    await flush()
+
+    expect(container.textContent).toContain('Começo lento.')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('O trecho voltou para a lista.')
+  })
+
   it('restores overlapping optimistic deletes in source order without clearing the newer undo', async () => {
     vi.useFakeTimers()
     let rejectFirst: ((response: Response) => void) | undefined

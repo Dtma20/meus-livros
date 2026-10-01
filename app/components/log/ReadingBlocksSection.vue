@@ -246,7 +246,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useFlash } from '~/composables/useFlash'
-import { useDelayedDelete, type DelayedDeleteContext } from '~/composables/useDelayedDelete'
+import { useDelayedDelete, type DelayedDeleteContext, type PageHideDeleteResult } from '~/composables/useDelayedDelete'
 import type { ReadingBlockView, ReadingProgressView } from '~~/shared/schemas/reading-block'
 import { calculateReadingProgress } from '~~/shared/utils/reading-progress'
 
@@ -400,7 +400,10 @@ function validateBlock(): boolean {
   return Object.keys(errors).length === 0
 }
 
+let sectionActive = true
+
 onBeforeUnmount(() => {
+  sectionActive = false
   if (noticeTimer) clearTimeout(noticeTimer)
 })
 
@@ -587,10 +590,26 @@ const {
   },
   onFailure: (removal, error, context) => {
     const reason = error instanceof Error ? error.message : 'Não foi possível excluir o trecho.'
-    if (context.reason === 'leave' || context.reason === 'pagehide') {
+    if (context.reason === 'leave') {
       flash?.set(LEAVE_FAILED_FLASH, 'error')
       return
     }
+    restoreBlock(removal)
+    deleteError.value = `${reason} O trecho voltou para a lista.`
+    removeAnnouncement.value = deleteError.value
+  },
+  // A delete sent on pagehide reports here once the page is shown again
+  // from the back-forward cache, or after the section has unmounted.
+  onPageHideResult: (removal, result: PageHideDeleteResult) => {
+    if (result.success) {
+      if (sectionActive) removeAnnouncement.value = 'Trecho excluído.'
+      return
+    }
+    if (!sectionActive) {
+      flash?.set(LEAVE_FAILED_FLASH, 'error')
+      return
+    }
+    const reason = result.error instanceof Error ? result.error.message : 'Não foi possível excluir o trecho.'
     restoreBlock(removal)
     deleteError.value = `${reason} O trecho voltou para a lista.`
     removeAnnouncement.value = deleteError.value
