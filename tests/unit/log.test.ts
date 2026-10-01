@@ -154,10 +154,22 @@ describe('RatingInput.vue', () => {
     wrapper.unmount()
   })
 
-  it('renders 10 half-star clickable buttons across 5 stars', () => {
-    const wrapper = mountComponent({ modelValue: null })
-    const halfButtons = wrapper.findAll('.star-half')
-    expect(halfButtons).toHaveLength(10)
+  it('accepts pointer range input in half-star increments', async () => {
+    let emittedValue: number | null = null
+    const wrapper = mountComponent({
+      modelValue: null,
+      'onUpdate:modelValue': (val: number | null) => {
+        emittedValue = val
+      },
+    })
+    const slider = wrapper.find<HTMLInputElement>('input[type="range"]')
+    expect(slider?.step).toBe('0.5')
+    if (!slider) throw new Error('rating slider not found')
+
+    slider.value = '3.5'
+    slider.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    expect(emittedValue).toBe(3.5)
     wrapper.unmount()
   })
 

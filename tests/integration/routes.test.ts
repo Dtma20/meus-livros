@@ -107,7 +107,7 @@ describe('Route integration HTTP tests', () => {
     expect(res.status).toBe(200)
     const html = await res.text()
 
-    expect(html).toContain('Diogo Amorim')
+    expect(html).toContain('Leitor de teste')
     expect(html).toContain('@dtma23')
   })
 

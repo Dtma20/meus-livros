@@ -320,7 +320,7 @@ async function handleRemoveInvite(invite: InviteView) {
 
 .convites-title {
   font-size: var(--font-size-2xl);
-  color: #fff;
+  color: var(--text-strong);
   margin: 0;
 }
 
@@ -333,7 +333,7 @@ async function handleRemoveInvite(invite: InviteView) {
 
 .section-title {
   font-size: var(--font-size-lg);
-  color: #fff;
+  color: var(--text-strong);
   margin: 0 0 var(--space-4) 0;
 }
 
@@ -341,50 +341,13 @@ async function handleRemoveInvite(invite: InviteView) {
   background-color: var(--card-bg);
   border-radius: var(--radius-md);
   padding: var(--space-6);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 .invite-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.form-label {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: #fff;
-}
-
-.form-input {
-  background-color: var(--input-bg);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  color: #fff;
-  font-size: var(--font-size-base);
-  font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: var(--target-min-size);
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--highlight);
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
-}
-
-.form-input:focus-visible {
-  border-color: var(--highlight);
-  box-shadow: none;
 }
 
 .input-error {
@@ -409,33 +372,8 @@ async function handleRemoveInvite(invite: InviteView) {
   margin: 0;
 }
 
-.submit-btn {
-  background-color: var(--highlight);
-  color: #14181c;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  font-size: var(--font-size-base);
-  font-weight: bold;
-  cursor: pointer;
-  min-height: var(--target-min-size);
-  box-sizing: border-box;
-  transition: opacity 0.2s;
+.invite-form > .submit-btn {
   margin-top: var(--space-1);
-}
-
-.submit-btn:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.submit-btn:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.submit-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .invites-list-section {
@@ -481,7 +419,7 @@ async function handleRemoveInvite(invite: InviteView) {
 }
 
 .invite-email {
-  color: #fff;
+  color: var(--text-strong);
   font-weight: 600;
   font-size: var(--font-size-base);
   word-break: break-all;
@@ -508,7 +446,7 @@ async function handleRemoveInvite(invite: InviteView) {
 }
 
 .invite-note {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-sm);
   margin: var(--space-1) 0 0 0;
 }

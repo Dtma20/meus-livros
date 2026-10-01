@@ -5,6 +5,8 @@
   --card-bg: #232a31;
   --text-color: #9ab;
   --text-bright: #c9d1d9;
+  --text-strong: #fff;
+  --text-muted: var(--text-color);
   --poster-border: #fff;
   --star-color: #f59e0b;
   --highlight: #f59e0b;
@@ -42,6 +44,7 @@
   --font-size-3xl: 2rem;
 
   --line-height-tight: 1.2;
+  --line-height-snug: 1.35;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.6;
 
@@ -49,6 +52,8 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-full: 9999px;
+
+  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
 
   --focus-ring-color: var(--highlight);
   --focus-ring-width: 2px;

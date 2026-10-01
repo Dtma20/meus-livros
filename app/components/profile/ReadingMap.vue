@@ -271,7 +271,7 @@ function clearSelection() {
   cursor: pointer;
   min-height: 36px;
   align-items: center;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
 }
 
 .map-summary-row:focus-visible {
@@ -380,7 +380,7 @@ function clearSelection() {
   color: var(--text-color, #9ab);
   padding: 2px var(--space-2, 8px);
   min-height: 28px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   cursor: pointer;
   font-size: var(--font-size-xs, 0.75rem);
   font-family: inherit;

@@ -13,8 +13,8 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', href: '/favicon.ico?v=3', sizes: 'any' },
         { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=3' },
-        { rel: 'preconnect', href: 'https://covers.openlibrary.org', crossorigin: '' },
-        { rel: 'preconnect', href: 'https://m.media-amazon.com', crossorigin: '' },
+        { rel: 'preconnect', href: 'https://covers.openlibrary.org' },
+        { rel: 'preconnect', href: 'https://m.media-amazon.com' },
       ]
     }
   },

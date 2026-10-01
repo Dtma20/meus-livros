@@ -256,7 +256,7 @@ async function handleSubmit() {
   font-size: var(--font-size-2xl);
   margin-top: 0;
   margin-bottom: var(--space-2);
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .welcome-desc {
@@ -279,7 +279,7 @@ async function handleSubmit() {
 }
 
 .notice-box strong {
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .welcome-form {
@@ -288,47 +288,9 @@ async function handleSubmit() {
   gap: var(--space-5);
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.form-label {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: #fff;
-}
-
 .field-hint {
   font-size: var(--font-size-xs);
   color: var(--text-color);
-}
-
-.form-input {
-  background-color: var(--input-bg);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  color: #fff;
-  font-size: var(--font-size-base);
-  font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 44px;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--highlight);
-  box-shadow: 0 0 0 2px var(--highlight-glow);
-}
-
-.form-input:focus-visible {
-  border-color: var(--highlight);
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .form-input:disabled {

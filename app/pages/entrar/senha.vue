@@ -331,7 +331,7 @@ function changeEmail() {
   padding: var(--space-8);
   width: 100%;
   max-width: 420px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 .login-logo-header {
@@ -344,7 +344,7 @@ function changeEmail() {
   font-size: var(--font-size-2xl);
   font-weight: 700;
   margin: 0 0 var(--space-2) 0;
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .login-desc {
@@ -360,22 +360,10 @@ function changeEmail() {
   gap: var(--space-4);
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
 .label-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.form-label {
-  font-size: var(--font-size-sm);
-  color: #fff;
-  font-weight: 500;
 }
 
 .toggle-password-btn {
@@ -401,22 +389,8 @@ function changeEmail() {
   border-radius: var(--radius-sm);
 }
 
-.form-input {
-  background-color: var(--input-bg);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: #fff;
-  font-family: var(--font-sans);
-  font-size: var(--font-size-base);
-  padding: var(--space-3) var(--space-4);
-  transition: border-color 0.2s;
-  outline: none;
-  min-height: 44px;
-  box-sizing: border-box;
-}
-
-.form-input:focus-visible {
-  border-color: var(--highlight);
+.login-form .form-input {
+  padding-inline: var(--space-4);
 }
 
 .form-input:disabled {
@@ -443,7 +417,7 @@ function changeEmail() {
 
 .email-badge {
   font-size: var(--font-size-sm);
-  color: #fff;
+  color: var(--text-strong);
   word-break: break-all;
 }
 
