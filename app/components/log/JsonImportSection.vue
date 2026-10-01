@@ -33,6 +33,7 @@
           type="file"
           accept=".json,application/json"
           class="file-input-hidden"
+          :disabled="isSubmitting"
           @change="handleFileChange"
         >
         <div class="drop-content">
@@ -44,7 +45,7 @@
           <p class="drop-instruction">
             Arraste seu arquivo <strong>.json</strong> aqui ou
           </p>
-          <button type="button" class="btn btn-secondary btn-select-file" @click="triggerFileInput">
+          <button type="button" class="btn btn-secondary btn-select-file" :disabled="isSubmitting" @click="triggerFileInput">
             Selecionar arquivo do computador
           </button>
         </div>
@@ -127,6 +128,7 @@
                 {{ copied ? '✓ Copiado!' : 'Copiar modelo' }}
               </button>
             </div>
+            <p class="copy-feedback field-hint" role="status" aria-live="polite">{{ copyFeedback }}</p>
             <pre class="guide-code"><code>{{ sampleJson }}</code></pre>
           </div>
 
@@ -262,7 +264,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import type { LivroJson } from '~~/shared/schemas/export-import'
 
 const isDragging = ref(false)
@@ -279,7 +281,23 @@ const successSummary = ref<{ imported: number; skipped: number } | null>(null)
 
 const isGuideOpen = ref(true)
 const copied = ref(false)
+const copyFeedback = ref('')
 let copyTimeout: ReturnType<typeof setTimeout> | null = null
+let activeReader: FileReader | null = null
+let readVersion = 0
+let disposed = false
+
+function cancelRead() {
+  readVersion++
+  activeReader?.abort()
+  activeReader = null
+}
+
+onBeforeUnmount(() => {
+  disposed = true
+  cancelRead()
+  if (copyTimeout) clearTimeout(copyTimeout)
+})
 
 const sampleJson = JSON.stringify(
   [
@@ -305,20 +323,28 @@ const sampleJson = JSON.stringify(
 )
 
 async function copyTemplate() {
+  copyFeedback.value = ''
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(sampleJson)
+      if (disposed) return
       copied.value = true
+      copyFeedback.value = 'Modelo copiado.'
       if (copyTimeout) clearTimeout(copyTimeout)
       copyTimeout = setTimeout(() => {
         copied.value = false
       }, 2000)
     } catch {
+      if (disposed) return
+      copyFeedback.value = 'Não foi possível copiar. Selecione o modelo abaixo e copie manualmente.'
     }
+  } else {
+    copyFeedback.value = 'Selecione o modelo abaixo e copie manualmente.'
   }
 }
 
 function triggerFileInput() {
+  if (isSubmitting.value) return
   fileInputRef.value?.click()
 }
 
@@ -338,8 +364,14 @@ function handleFileChange(event: Event) {
 }
 
 function readFile(file: File) {
+  if (isSubmitting.value) return
+  cancelRead()
+  const version = readVersion
   parseError.value = ''
   apiError.value = ''
+  allParsedBooks.value = []
+  previewBooks.value = []
+  totalParsedBooks.value = 0
 
   if (!file.name.endsWith('.json') && file.type !== 'application/json') {
     parseError.value = 'Por favor, selecione um arquivo no formato .json válido.'
@@ -347,7 +379,10 @@ function readFile(file: File) {
   }
 
   const reader = new FileReader()
+  activeReader = reader
   reader.onload = (e) => {
+    if (version !== readVersion) return
+    activeReader = null
     try {
       const text = e.target?.result as string
       const json = JSON.parse(text)
@@ -377,6 +412,12 @@ function readFile(file: File) {
     } catch {
       parseError.value = 'Não foi possível ler o arquivo. Verifique se a sintaxe do JSON está correta.'
     }
+  }
+
+  reader.onerror = () => {
+    if (version !== readVersion) return
+    activeReader = null
+    parseError.value = 'Não foi possível ler o arquivo. Selecione-o novamente e tente outra vez.'
   }
 
   reader.readAsText(file)
@@ -410,6 +451,7 @@ async function submitImport() {
 }
 
 function reset() {
+  cancelRead()
   parseError.value = ''
   apiError.value = ''
   isSubmitting.value = false
@@ -455,7 +497,7 @@ function reset() {
 }
 
 .drop-instruction {
-  color: #fff;
+  color: var(--text-strong, #fff);
   font-size: var(--font-size-base, 1rem);
   margin: 0 0 var(--space-3, 12px) 0;
 }
@@ -482,7 +524,7 @@ function reset() {
   border: 1px solid rgba(239, 68, 68, 0.4);
   color: #fca5a5;
   padding: 12px 16px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   font-size: var(--font-size-sm, 0.875rem);
   margin-top: 16px;
 }
@@ -506,7 +548,7 @@ function reset() {
 
 .preview-title {
   font-size: var(--font-size-base, 1rem);
-  color: #fff;
+  color: var(--text-strong, #fff);
   margin: 0;
 }
 
@@ -540,7 +582,7 @@ function reset() {
 }
 
 .preview-item-title {
-  color: #fff;
+  color: var(--text-strong, #fff);
   font-weight: 500;
 }
 
@@ -599,7 +641,7 @@ function reset() {
 }
 
 .success-title {
-  color: #fff;
+  color: var(--text-strong, #fff);
   font-size: var(--font-size-xl, 1.25rem);
   margin: 0 0 8px 0;
 }
@@ -650,7 +692,7 @@ function reset() {
   gap: 8px;
   font-size: var(--font-size-sm, 0.875rem);
   font-weight: 600;
-  color: #fff;
+  color: var(--text-strong, #fff);
 }
 
 .guide-icon {
@@ -692,7 +734,7 @@ details[open] .guide-chevron {
 .guide-box {
   background-color: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--input-bg, #2c3440);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   padding: 12px;
   margin-bottom: 16px;
 }
@@ -702,6 +744,10 @@ details[open] .guide-chevron {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+}
+
+.copy-feedback:empty {
+  margin: 0;
 }
 
 .guide-box-title {
@@ -756,7 +802,7 @@ details[open] .guide-chevron {
 .field-item {
   background-color: rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.04);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   padding: 8px 10px;
 }
 
@@ -769,7 +815,7 @@ details[open] .guide-chevron {
 
 .field-name {
   font-weight: 600;
-  color: #fff !important;
+  color: var(--text-strong, #fff) !important;
 }
 
 .badge-req {
@@ -793,8 +839,8 @@ details[open] .guide-chevron {
 }
 
 .field-type {
-  font-size: 0.6875rem;
-  color: #6e7681;
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--text-muted, var(--text-color, #9ab));
   margin-left: auto;
 }
 
@@ -805,7 +851,7 @@ details[open] .guide-chevron {
 }
 
 .field-desc em {
-  color: #fff;
+  color: var(--text-strong, #fff);
   font-style: normal;
 }
 </style>
