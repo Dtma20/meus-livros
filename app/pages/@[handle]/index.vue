@@ -305,7 +305,7 @@ definePageMeta({
 })
 
 const route = useRoute()
-const router = typeof useRouter === 'function' ? useRouter() : null
+const router = useRouter()
 const handle = computed(() => (route.params.handle as string) || '')
 
 const currentView = computed<'grade' | 'diario'>(() => {
@@ -319,9 +319,7 @@ function setView(view: 'grade' | 'diario') {
   } else {
     delete query.vista
   }
-  if (router) {
-    void router.push({ query })
-  }
+  void router.push({ query })
 }
 
 const requestFetch = useRequestFetch()
@@ -522,7 +520,6 @@ const initialSort = queryString(route.query.ordem)
 if (SORT_MODES.includes(initialSort)) sortBy.value = initialSort as typeof sortBy.value
 
 watch([filterGenre, filterCountry, filterDecade, sortBy], () => {
-  if (!router) return
   const wanted: Record<(typeof FILTER_QUERY_KEYS)[number], string> = {
     genero: filterGenre.value,
     pais: filterCountry.value,
@@ -635,6 +632,13 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
 }
 
+.display-name {
+  margin: 0;
+  color: var(--text-strong, #fff);
+  font-size: var(--font-size-2xl, 1.5rem);
+  line-height: var(--line-height-tight, 1.2);
+}
+
 .profile-actions {
   display: inline-flex;
   align-items: center;
@@ -657,6 +661,12 @@ onBeforeUnmount(() => {
   color: var(--text-color, #9ab);
   cursor: pointer;
   border-radius: var(--radius-sm, 6px);
+}
+
+@media (min-width: 900px) {
+  .display-name {
+    font-size: var(--font-size-3xl, 2rem);
+  }
 }
 
 @media (pointer: coarse) {
@@ -786,7 +796,7 @@ onBeforeUnmount(() => {
   text-decoration-thickness: 2px;
   text-underline-offset: 0.3em;
   min-height: 36px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   transition: color 0.2s;
 }
 
@@ -832,7 +842,7 @@ onBeforeUnmount(() => {
 .view-nav {
   display: inline-flex;
   border: 1px solid var(--input-bg, #2c3440);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   overflow: hidden;
 }
 
@@ -918,14 +928,19 @@ onBeforeUnmount(() => {
 
 .book-card-item {
   position: relative;
-  opacity: 0;
-  transform: translateY(24px);
+  opacity: 1;
+  transform: none;
   transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: 0s;
   will-change: opacity, transform;
   content-visibility: auto;
   contain-intrinsic-size: 0 240px;
+}
+
+.book-card-item.reveal-enabled:not(.is-revealed) {
+  opacity: 0;
+  transform: translateY(24px);
 }
 
 .book-card-item.is-revealed {
@@ -959,7 +974,7 @@ onBeforeUnmount(() => {
   border: 1px solid var(--highlight, #f59e0b);
   font-size: var(--font-size-xs, 0.75rem);
   padding: 2px 6px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   font-weight: 600;
   pointer-events: none;
   white-space: nowrap;

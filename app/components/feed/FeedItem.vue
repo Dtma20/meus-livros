@@ -16,6 +16,7 @@
           :cover-url="entry.edition?.cover_url || entry.work.cover_url"
           :ol-cover-id="entry.edition?.ol_cover_id"
           :isbn13="entry.edition?.isbn13 || entry.work.isbn13"
+          mobile-size="small"
           :loading="loading"
         />
       </NuxtLink>
@@ -88,8 +89,8 @@ const authorsText = computed(() => {
   margin: 0 calc(-1 * var(--space-3));
   border-bottom: 1px solid var(--input-bg);
   border-radius: var(--radius-md);
-  opacity: 0;
-  transform: translateY(28px);
+  opacity: 1;
+  transform: none;
   transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
               background-color 0.2s ease;
@@ -97,6 +98,11 @@ const authorsText = computed(() => {
   will-change: opacity, transform;
   content-visibility: auto;
   contain-intrinsic-size: 0 220px;
+}
+
+.feed-row.reveal-enabled:not(.is-revealed) {
+  opacity: 0;
+  transform: translateY(28px);
 }
 
 .feed-row.is-revealed {
@@ -277,6 +283,8 @@ const authorsText = computed(() => {
   .feed-cover-col {
     width: 48px;
     min-width: 48px;
+    height: auto;
+    aspect-ratio: 2 / 3;
   }
 }
 

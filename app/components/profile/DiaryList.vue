@@ -63,6 +63,7 @@
                         :cover-url="log.work.cover_url || log.edition?.cover_url"
                         :ol-cover-id="log.edition?.ol_cover_id"
                         :isbn13="log.edition?.isbn13"
+                        size="small"
                       />
                     </div>
                   </NuxtLink>
@@ -170,13 +171,18 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 
 .diary-row {
   border-bottom: 1px solid var(--input-bg, #2c3440);
-  opacity: 0;
-  transform: translateY(16px);
+  opacity: 1;
+  transform: none;
   transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
               background-color 0.15s ease;
   transition-delay: 0s;
   will-change: opacity, transform;
+}
+
+.diary-row.reveal-enabled:not(.is-revealed) {
+  opacity: 0;
+  transform: translateY(16px);
 }
 
 .diary-row.is-revealed {
@@ -225,7 +231,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
   width: 32px;
   height: 48px;
   flex-shrink: 0;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   overflow: hidden;
   background-color: var(--input-bg, #2c3440);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -266,7 +272,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 .diary-title-link:focus-visible {
   outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
   outline-offset: var(--focus-ring-offset, 2px);
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
 }
 
 .col-author {

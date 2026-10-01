@@ -3,22 +3,33 @@
     class="book-cover"
     :class="{ 'is-loading': hidden, 'is-loaded': loaded }"
   >
-    <img
-      ref="imgRef"
-      :src="currentSrc"
-      :alt="alt"
-      :loading="loading ?? 'lazy'"
-      :fetchpriority="loading === 'eager' ? 'high' : undefined"
-      class="book-cover-img"
-      @load="onLoad"
-      @error="onError"
-    >
+    <picture>
+      <source
+        v-if="mobileSrcSet"
+        media="(max-width: 600px)"
+        :srcset="mobileSrcSet"
+      >
+      <img
+        ref="imgRef"
+        :src="currentSrc"
+        :alt="alt"
+        :loading="loading ?? 'lazy'"
+        :fetchpriority="loading === 'eager' ? 'high' : undefined"
+        :srcset="currentSrcSet"
+        decoding="async"
+        class="book-cover-img"
+        @load="onLoad"
+        @error="onError"
+      >
+    </picture>
   </span>
 </template>
 
 <script setup lang="ts">
 import { isHttpsCoverUrl } from '~~/shared/schemas/work'
 import { computed, onMounted, ref, watch } from 'vue'
+
+type CoverSize = 'small' | 'medium' | 'large'
 
 const props = defineProps<{
   alt: string
@@ -28,6 +39,8 @@ const props = defineProps<{
   isbn13?: string | null
   isbn?: string | null
   loading?: 'lazy' | 'eager'
+  size?: CoverSize
+  mobileSize?: CoverSize
 }>()
 
 const failed = ref(false)
@@ -41,7 +54,9 @@ watch(
     props.olCoverId,
     props.isbn13,
     props.isbn,
-    props.title
+    props.title,
+    props.size,
+    props.mobileSize
   ],
   () => {
     failed.value = false
@@ -157,31 +172,61 @@ const placeholderSrc = computed(() =>
   generatePlaceholderSvg(props.title, authorFromAlt(props.alt, props.title))
 )
 
-const currentSrc = computed(() => {
-  if (failed.value) {
-    return placeholderSrc.value
-  }
+const selectedSize = computed(() => props.size ?? 'medium')
 
-  if (props.coverUrl) {
-    if (isHttpsCoverUrl(props.coverUrl)) {
-      return props.coverUrl.trim()
-    }
-    return placeholderSrc.value
-  }
+function openLibrarySize(size: CoverSize): 'S' | 'M' | 'L' {
+  if (size === 'small') return 'S'
+  if (size === 'large') return 'L'
+  return 'M'
+}
 
+function openLibraryCoverUrl(size: CoverSize): string | undefined {
   if (props.olCoverId != null && String(props.olCoverId).trim() !== '') {
-    return `https://covers.openlibrary.org/b/id/${encodeURIComponent(String(props.olCoverId).trim())}-M.jpg`
+    const id = encodeURIComponent(String(props.olCoverId).trim())
+    return `https://covers.openlibrary.org/b/id/${id}-${openLibrarySize(size)}.jpg`
   }
 
   const rawIsbn = props.isbn13 ?? props.isbn
-  if (rawIsbn) {
-    const clean = String(rawIsbn).replace(/[-\s]/g, '').trim()
-    if (clean) {
-      return `https://covers.openlibrary.org/b/isbn/${clean}-L.jpg?default=false`
-    }
+  if (!rawIsbn) return undefined
+  const cleanIsbn = String(rawIsbn).replace(/[-\s]/g, '').trim()
+  if (!cleanIsbn) return undefined
+
+  return `https://covers.openlibrary.org/b/isbn/${cleanIsbn}-${openLibrarySize(size)}.jpg?default=false`
+}
+
+function openLibrarySrcSet(size: CoverSize): string | undefined {
+  if (failed.value || props.coverUrl) return undefined
+  const firstUrl = openLibraryCoverUrl(size)
+  if (!firstUrl) return undefined
+
+  if (size === 'small') {
+    const mediumUrl = openLibraryCoverUrl('medium')
+    return mediumUrl ? `${firstUrl} 1x, ${mediumUrl} 2x` : undefined
   }
 
-  return placeholderSrc.value
+  if (size === 'medium') {
+    const largeUrl = openLibraryCoverUrl('large')
+    return largeUrl ? `${firstUrl} 1x, ${largeUrl} 2x` : undefined
+  }
+
+  return undefined
+}
+
+const currentSrc = computed(() => {
+  if (failed.value) return placeholderSrc.value
+
+  if (props.coverUrl) {
+    return isHttpsCoverUrl(props.coverUrl) ? props.coverUrl.trim() : placeholderSrc.value
+  }
+
+  return openLibraryCoverUrl(selectedSize.value) ?? placeholderSrc.value
+})
+
+const currentSrcSet = computed(() => openLibrarySrcSet(selectedSize.value))
+const mobileSrcSet = computed(() => {
+  const mobileSize = props.mobileSize
+  if (!mobileSize || mobileSize === selectedSize.value) return undefined
+  return openLibrarySrcSet(mobileSize)
 })
 
 function syncWithImage() {
@@ -196,7 +241,7 @@ function syncWithImage() {
   hidden.value = !currentSrc.value.startsWith('data:')
 }
 
-watch(currentSrc, syncWithImage, { flush: 'post' })
+watch(() => [currentSrc.value, currentSrcSet.value, mobileSrcSet.value], syncWithImage, { flush: 'post' })
 
 onMounted(syncWithImage)
 

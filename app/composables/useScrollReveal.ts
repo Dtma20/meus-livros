@@ -22,19 +22,24 @@ function getSharedObserver(): IntersectionObserver | null {
     return null
   }
   if (!sharedObserver) {
-    sharedObserver = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const cb = revealCallbacks.get(entry.target)
-          if (cb) cb(entry)
-        }
-      },
-      {
-        root: null,
-        rootMargin: '0px 0px -10px 0px',
-        threshold: 0.02,
-      },
-    )
+    try {
+      sharedObserver = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            const cb = revealCallbacks.get(entry.target)
+            if (cb) cb(entry)
+          }
+        },
+        {
+          root: null,
+          rootMargin: '0px 0px -10px 0px',
+          threshold: 0.02,
+        },
+      )
+    }
+    catch {
+      sharedObserver = null
+    }
   }
   return sharedObserver
 }
@@ -52,6 +57,7 @@ export function registerRevealElement(el: HTMLElement) {
   }
 
   const handleIntersection = (entry: IntersectionObserverEntry) => {
+    el.classList.add('reveal-enabled')
     if (entry.isIntersecting) {
       el.classList.add('is-revealed')
     } else {
@@ -62,18 +68,27 @@ export function registerRevealElement(el: HTMLElement) {
 
       if (entry.boundingClientRect.top >= visibleBottom - 25) {
         el.classList.remove('is-revealed')
+      } else {
+        el.classList.add('is-revealed')
       }
     }
   }
 
   revealCallbacks.set(el, handleIntersection)
-  observer.observe(el)
+  try {
+    observer.observe(el)
+  }
+  catch {
+    revealCallbacks.delete(el)
+    el.classList.remove('reveal-enabled')
+    el.classList.add('is-revealed')
+  }
 }
 
 export function unregisterRevealElement(el: HTMLElement) {
   if (!sharedObserver) return
-  sharedObserver.unobserve(el)
   revealCallbacks.delete(el)
+  sharedObserver.unobserve(el)
 }
 
 export const vReveal: Directive<HTMLElement> = {

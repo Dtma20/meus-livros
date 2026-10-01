@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createApp, createSSRApp, h, nextTick, ref, type Ref } from 'vue'
-import { renderToString } from 'vue/server-renderer'
+import { renderToString } from '@vue/server-renderer'
 import BookCover from '../../app/components/book/BookCover.vue'
 
 type CoverProps = {
@@ -11,6 +11,8 @@ type CoverProps = {
   coverUrl?: string | null
   olCoverId?: number | string | null
   isbn13?: string | null
+  size?: 'small' | 'medium' | 'large'
+  mobileSize?: 'small' | 'medium' | 'large'
 }
 
 function mount(initial: CoverProps) {
@@ -84,6 +86,110 @@ describe('BookCover.vue server render', () => {
     expect(html).not.toContain('is-loading')
     expect(html).not.toContain('is-loaded')
   })
+
+  it('uses the medium ISBN cover by default and offers the large Open Library source at 2x', async () => {
+    const html = await renderToString(
+      createSSRApp({
+        render: () => h(BookCover, {
+          alt: 'Capa ISBN',
+          isbn13: '9780000000000',
+          loading: 'eager',
+        })
+      })
+    )
+    const img = new DOMParser().parseFromString(html, 'text/html').querySelector('img')
+
+    expect(img?.getAttribute('src')).toBe(
+      'https://covers.openlibrary.org/b/isbn/9780000000000-M.jpg?default=false'
+    )
+    expect(img?.getAttribute('srcset')).toBe(
+      'https://covers.openlibrary.org/b/isbn/9780000000000-M.jpg?default=false 1x, ' +
+      'https://covers.openlibrary.org/b/isbn/9780000000000-L.jpg?default=false 2x'
+    )
+    expect(img?.getAttribute('decoding')).toBe('async')
+    expect(img?.getAttribute('loading')).toBe('eager')
+    expect(img?.getAttribute('fetchpriority')).toBe('high')
+  })
+
+  it('uses Open Library small and medium variants for a small slot', async () => {
+    const html = await renderToString(
+      createSSRApp({
+        render: () => h(BookCover, {
+          alt: 'Capa pequena',
+          isbn13: '9780000000000',
+          size: 'small',
+        })
+      })
+    )
+    const img = new DOMParser().parseFromString(html, 'text/html').querySelector('img')
+
+    expect(img?.getAttribute('src')).toBe(
+      'https://covers.openlibrary.org/b/isbn/9780000000000-S.jpg?default=false'
+    )
+    expect(img?.getAttribute('srcset')).toBe(
+      'https://covers.openlibrary.org/b/isbn/9780000000000-S.jpg?default=false 1x, ' +
+      'https://covers.openlibrary.org/b/isbn/9780000000000-M.jpg?default=false 2x'
+    )
+  })
+
+  it('keeps Open Library ID covers on the S/M path without the ISBN default flag', async () => {
+    const html = await renderToString(
+      createSSRApp({
+        render: () => h(BookCover, {
+          alt: 'Capa por ID',
+          olCoverId: 123,
+          size: 'small',
+        })
+      })
+    )
+    const img = new DOMParser().parseFromString(html, 'text/html').querySelector('img')
+
+    expect(img?.getAttribute('src')).toBe('https://covers.openlibrary.org/b/id/123-S.jpg')
+    expect(img?.getAttribute('srcset')).toBe(
+      'https://covers.openlibrary.org/b/id/123-S.jpg 1x, ' +
+      'https://covers.openlibrary.org/b/id/123-M.jpg 2x'
+    )
+  })
+
+  it('offers a smaller Open Library source at the feed mobile breakpoint', async () => {
+    const html = await renderToString(
+      createSSRApp({
+        render: () => h(BookCover, {
+          alt: 'Capa responsiva',
+          isbn13: '9780000000000',
+          mobileSize: 'small',
+        })
+      })
+    )
+    const document = new DOMParser().parseFromString(html, 'text/html')
+    const source = document.querySelector('source')
+    const img = document.querySelector('img')
+
+    expect(source?.getAttribute('media')).toBe('(max-width: 600px)')
+    expect(source?.getAttribute('srcset')).toContain('-S.jpg?default=false 1x')
+    expect(img?.getAttribute('src')).toContain('-M.jpg?default=false')
+  })
+
+  it('keeps a stored external cover ahead of the ISBN fallback', async () => {
+    const amazonCover = 'https://images-na.ssl-images-amazon.com/images/I/cover.jpg'
+    const html = await renderToString(
+      createSSRApp({
+        render: () => h(BookCover, {
+          alt: 'Capa externa',
+          coverUrl: amazonCover,
+          isbn13: '9780000000000',
+          mobileSize: 'small',
+        })
+      })
+    )
+    const document = new DOMParser().parseFromString(html, 'text/html')
+    const img = document.querySelector('img')
+
+    expect(img?.getAttribute('src')).toBe(amazonCover)
+    expect(img?.hasAttribute('srcset')).toBe(false)
+    expect(document.querySelector('source')).toBeNull()
+    expect(img?.getAttribute('loading')).toBe('lazy')
+  })
 })
 
 describe('BookCover.vue loading placeholder', () => {
@@ -134,7 +240,7 @@ describe('BookCover.vue loading placeholder', () => {
     const wrapper = mount({ alt: 'Capa 404', title: 'Livro Desconhecido', isbn13: '9780000000000' })
     await nextTick()
     expect(wrapper.img()?.getAttribute('src')).toBe(
-      'https://covers.openlibrary.org/b/isbn/9780000000000-L.jpg?default=false'
+      'https://covers.openlibrary.org/b/isbn/9780000000000-M.jpg?default=false'
     )
     expect(wrapper.root()?.classList.contains('is-loading')).toBe(true)
 
