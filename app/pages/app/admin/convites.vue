@@ -374,6 +374,16 @@ async function handleRemoveInvite(invite: InviteView) {
 
 .invite-form > .submit-btn {
   margin-top: var(--space-1);
+  background-color: var(--highlight);
+  border-color: transparent;
+  color: var(--on-highlight);
+  font-weight: bold;
+}
+
+.invite-form > .submit-btn:hover:not(:disabled):not([aria-disabled="true"]) {
+  background-color: var(--highlight-hover);
+  border-color: transparent;
+  color: var(--on-highlight);
 }
 
 .invites-list-section {
