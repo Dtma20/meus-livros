@@ -244,8 +244,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useFlash } from '~/composables/useFlash'
+import { useDelayedDelete, type DelayedDeleteContext } from '~/composables/useDelayedDelete'
 import type { ReadingBlockView, ReadingProgressView } from '~~/shared/schemas/reading-block'
 import { calculateReadingProgress } from '~~/shared/utils/reading-progress'
 
@@ -538,20 +539,10 @@ interface PendingRemoval {
   block: ReadingBlockView
   index: number
 }
-const pendingRemoval = ref<PendingRemoval | null>(null)
-const pendingSeconds = ref(0)
 const removeAnnouncement = ref('')
 const undoBtnRef = ref<HTMLButtonElement | null>(null)
 const headingRef = ref<HTMLElement | null>(null)
-let undoTimer: ReturnType<typeof setInterval> | null = null
 const flash = props.isOwner ? useFlash() : null
-
-function clearUndoTimer(): void {
-  if (undoTimer) {
-    clearInterval(undoTimer)
-    undoTimer = null
-  }
-}
 
 function restoreBlock(removal: PendingRemoval): void {
   if (blocks.value.some((b) => b.id === removal.block.id)) return
@@ -568,7 +559,7 @@ function focusBlockDelete(blockId: string): void {
   })
 }
 
-function sendDelete(blockId: string, keepalive = false): Promise<Response> {
+function sendDelete(blockId: string, keepalive: boolean): Promise<Response> {
   return fetch(`/api/logs/${props.logId}/blocks/${blockId}`, {
     method: 'DELETE',
     credentials: 'same-origin',
@@ -576,8 +567,39 @@ function sendDelete(blockId: string, keepalive = false): Promise<Response> {
   })
 }
 
+const {
+  pendingItem: delayedRemoval,
+  secondsRemaining: pendingSeconds,
+  start: startDelayedRemoval,
+  cancel: cancelDelayedRemoval,
+} = useDelayedDelete<PendingRemoval>({
+  remove: async (removal: PendingRemoval, context: DelayedDeleteContext) => {
+    const res = await sendDelete(removal.block.id, context.keepalive)
+    if (!res.ok) {
+      const body = await res.json().catch(() => null) as { message?: string } | null
+      throw new Error(body?.message || 'Não foi possível excluir o trecho.')
+    }
+  },
+  onSuccess: (_removal, context) => {
+    if (context.reason === 'countdown' || context.reason === 'replacement' || context.reason === 'retry') {
+      removeAnnouncement.value = 'Trecho excluído.'
+    }
+  },
+  onFailure: (removal, error, context) => {
+    const reason = error instanceof Error ? error.message : 'Não foi possível excluir o trecho.'
+    if (context.reason === 'leave' || context.reason === 'pagehide') {
+      flash?.set(LEAVE_FAILED_FLASH, 'error')
+      return
+    }
+    restoreBlock(removal)
+    deleteError.value = `${reason} O trecho voltou para a lista.`
+    removeAnnouncement.value = deleteError.value
+  },
+})
+
+const pendingRemoval = computed<PendingRemoval | null>(() => delayedRemoval.value)
+
 function startRemove(block: ReadingBlockView): void {
-  if (pendingRemoval.value) void commitRemoval()
   if (editingBlock.value?.id === block.id) cancelForm()
 
   const index = blocks.value.findIndex((b) => b.id === block.id)
@@ -586,82 +608,19 @@ function startRemove(block: ReadingBlockView): void {
   blocks.value.splice(index, 1)
   updateLocalProgress()
 
-  pendingRemoval.value = { block, index }
-  pendingSeconds.value = UNDO_SECONDS
+  const removal = { block, index }
   removeAnnouncement.value = `Trecho removido. Desfazer em ${UNDO_SECONDS} segundos.`
   void nextTick(() => undoBtnRef.value?.focus())
-  clearUndoTimer()
-  undoTimer = setInterval(() => {
-    pendingSeconds.value -= 1
-    if (pendingSeconds.value <= 0) void commitRemoval()
-  }, 1000)
+  startDelayedRemoval(removal)
 }
 
 function undoRemove(): void {
-  const removal = pendingRemoval.value
+  const removal = cancelDelayedRemoval()
   if (!removal) return
-  clearUndoTimer()
-  pendingRemoval.value = null
-  pendingSeconds.value = 0
   restoreBlock(removal)
   removeAnnouncement.value = 'Exclusão cancelada.'
   focusBlockDelete(removal.block.id)
 }
-
-async function commitRemoval(): Promise<void> {
-  const removal = pendingRemoval.value
-  if (!removal) return
-  const hadFocus = document.activeElement === undoBtnRef.value
-  clearUndoTimer()
-  pendingRemoval.value = null
-  pendingSeconds.value = 0
-  if (hadFocus) void nextTick(() => headingRef.value?.focus())
-
-  try {
-    const res = await sendDelete(removal.block.id)
-    if (!res.ok) {
-      const body = await res.json().catch(() => null) as { message?: string } | null
-      throw new Error(body?.message || 'Não foi possível excluir o trecho.')
-    }
-    removeAnnouncement.value = 'Trecho excluído.'
-  } catch (err: unknown) {
-    restoreBlock(removal)
-    const reason = err instanceof Error ? err.message : 'Não foi possível excluir o trecho.'
-    deleteError.value = `${reason} O trecho voltou para a lista.`
-  }
-}
-
-function removeOnLeave(): void {
-  const removal = pendingRemoval.value
-  if (!removal) return
-  clearUndoTimer()
-  pendingRemoval.value = null
-  pendingSeconds.value = 0
-  sendDelete(removal.block.id, true)
-    .then((res) => {
-      if (!res.ok) flash?.set(LEAVE_FAILED_FLASH, 'error')
-    })
-    .catch(() => flash?.set(LEAVE_FAILED_FLASH, 'error'))
-}
-
-function onPageHide(): void {
-  const removal = pendingRemoval.value
-  if (!removal) return
-  clearUndoTimer()
-  pendingRemoval.value = null
-  pendingSeconds.value = 0
-  void sendDelete(removal.block.id, true).catch(() => {})
-}
-
-onMounted(() => {
-  window.addEventListener('pagehide', onPageHide)
-})
-
-onBeforeUnmount(() => {
-  window.removeEventListener('pagehide', onPageHide)
-  removeOnLeave()
-  clearUndoTimer()
-})
 
 function formatBlockDate(dateStr: string): string {
   if (!dateStr) return ''
