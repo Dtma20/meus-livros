@@ -73,7 +73,7 @@ describe('BookCover.vue', () => {
     const img = wrapper.find('img')
     expect(img).not.toBeNull()
     expect(img?.getAttribute('src')).toBe(
-      'https://covers.openlibrary.org/b/isbn/9788598078397-L.jpg?default=false'
+      'https://covers.openlibrary.org/b/isbn/9788598078397-M.jpg?default=false'
     )
     expect(img?.getAttribute('alt')).toBe('Capa de 1984')
     wrapper.unmount()
@@ -87,7 +87,7 @@ describe('BookCover.vue', () => {
     })
     const img = wrapper.find('img')
     expect(img?.getAttribute('src')).toBe(
-      'https://covers.openlibrary.org/b/isbn/9788532511010-L.jpg?default=false'
+      'https://covers.openlibrary.org/b/isbn/9788532511010-M.jpg?default=false'
     )
     wrapper.unmount()
   })
@@ -99,7 +99,7 @@ describe('BookCover.vue', () => {
     })
     const img = wrapper.find('img')
     expect(img?.getAttribute('src')).toBe(
-      'https://covers.openlibrary.org/b/isbn/9788598078397-L.jpg?default=false'
+      'https://covers.openlibrary.org/b/isbn/9788598078397-M.jpg?default=false'
     )
     wrapper.unmount()
   })
