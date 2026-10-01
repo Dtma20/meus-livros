@@ -113,7 +113,7 @@ const cardAriaLabel = computed(() => {
 .card:focus-visible {
   outline: 2px solid var(--highlight, #f59e0b);
   outline-offset: 4px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
 }
 
 .media {
@@ -124,7 +124,7 @@ const cardAriaLabel = computed(() => {
 .poster {
   width: 100%;
   aspect-ratio: 2 / 3;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   border: var(--poster-border-width) solid var(--input-bg, #2c3440);
   background-color: #1e2328;
   overflow: hidden;

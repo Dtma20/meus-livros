@@ -183,7 +183,7 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
       await logsService.createLog(
         {
           work_id: workAId,
-          edition_id: editionBId, // Belongs to work B, not work A!
+          edition_id: editionBId,
           finished_on: '2026-01-01',
           finished_precision: 'dia',
           visibility: 'publico',
@@ -258,7 +258,7 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
           rating: 1.0,
           review: 'Ataque de B',
         },
-        userBId, // User B is not the owner!
+        userBId,
       )
     } catch (err) {
       caught = err

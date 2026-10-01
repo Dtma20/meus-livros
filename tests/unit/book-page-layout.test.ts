@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref, Suspense } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -148,5 +147,23 @@ describe('BookPage two-column structure', () => {
     expect(main?.querySelector('.logs-section')).not.toBeNull()
     expect(container.querySelector('.work-header .genre-chip')).not.toBeNull()
     expect(container.querySelector('.work-header .work-primary-action')).not.toBeNull()
+  })
+})
+
+describe('BookPage loading errors', () => {
+  afterEach(() => {
+    mockError.value = null
+    mockWorkData.value = null
+  })
+
+  it('shows the retry state, not "não encontrado", when the request fails without a 404', async () => {
+    mockWorkData.value = null
+    mockError.value = { message: 'fetch failed' }
+    const container = mountPage()
+    await flushAsync()
+
+    expect(container.textContent).toContain('Algo deu errado. Tente de novo.')
+    expect(container.textContent).toContain('Tentar de novo')
+    expect(container.textContent).not.toContain('Livro não encontrado.')
   })
 })

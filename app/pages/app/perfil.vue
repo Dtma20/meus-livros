@@ -419,7 +419,7 @@ async function handleChangePassword() {
   padding: var(--space-8);
   width: 100%;
   max-width: 540px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 .password-card {
@@ -434,7 +434,7 @@ async function handleChangePassword() {
   font-size: var(--font-size-2xl);
   margin-top: 0;
   margin-bottom: var(--space-2);
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .profile-desc {
@@ -450,22 +450,10 @@ async function handleChangePassword() {
   gap: var(--space-5);
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
 .label-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.form-label {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: #fff;
 }
 
 .toggle-password-btn {
@@ -509,37 +497,6 @@ async function handleChangePassword() {
 .immutable-hint {
   color: var(--text-color);
   font-style: italic;
-}
-
-.form-input {
-  background-color: var(--input-bg);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  color: #fff;
-  font-size: var(--font-size-base);
-  font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 44px;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--highlight);
-  box-shadow: 0 0 0 2px var(--highlight-glow);
-}
-
-.form-input:focus-visible {
-  border-color: var(--highlight);
-  box-shadow: none;
-}
-
-.form-textarea {
-  resize: vertical;
-  min-height: 90px;
-  line-height: var(--line-height-normal);
 }
 
 .handle-input-wrapper {
@@ -625,7 +582,7 @@ async function handleChangePassword() {
 .radio-title {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .radio-desc {

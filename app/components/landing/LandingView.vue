@@ -15,8 +15,6 @@ import LandingClosing from '~/components/landing/LandingClosing.vue'
 </script>
 
 <style scoped>
-/* Hallmark · pre-emit critique: P4 H4 E4 S4 R4 V4 */
-/* Hallmark · genre: editorial · macrostructure: Long Document (hero: H9 CSS-drawn shelf; entry: marginalia; list: F3 spec sheet) · theme: project tokens (tokens.css, dark) · enrichment: Tier A pure CSS · nav/footer: owned by layouts, not touched */
 .landing-experience {
   display: flex;
   flex-direction: column;

@@ -7,7 +7,7 @@
       <NuxtLink to="/membros" class="nav-link nav-link-desktop">
         Membros
       </NuxtLink>
-      <NuxtLink to="/app/novo" class="nav-link nav-link-desktop" aria-keyshortcuts="n">
+      <NuxtLink to="/app/novo" class="nav-link nav-link-desktop" :aria-keyshortcuts="characterKeyShortcutsEnabled ? 'n' : undefined">
         Registrar leitura
       </NuxtLink>
       <NuxtLink :to="profileLink" class="nav-link nav-link-desktop">
@@ -25,8 +25,8 @@
         type="button"
         class="nav-link nav-shortcuts"
         aria-label="Atalhos de teclado"
-        aria-keyshortcuts="Shift+?"
-        title="Atalhos de teclado (?)"
+        :aria-keyshortcuts="characterKeyShortcutsEnabled ? '?' : undefined"
+        :title="characterKeyShortcutsEnabled ? 'Atalhos de teclado (?)' : 'Atalhos de teclado'"
         @click="shortcutsRef?.open()"
       >
         <kbd aria-hidden="true">?</kbd>
@@ -103,9 +103,12 @@ import type { AuthSessionState } from '~/middleware/auth'
 import { authClient } from '~/utils/auth-client'
 import ShortcutsDialog from '~/components/ui/ShortcutsDialog.vue'
 import { useKeyboardShortcuts } from '~/composables/useKeyboardShortcuts'
+import { useKeyboardShortcutPreferences } from '~/composables/useKeyboardShortcutPreferences'
 import { useFlash, type FlashMessage } from '~/composables/useFlash'
+import { clearStoredFormDrafts } from '~/composables/useFormDraft'
 
 const session = useState<AuthSessionState>('auth:session')
+const { characterKeyShortcutsEnabled } = useKeyboardShortcutPreferences()
 const isSigningOut = ref(false)
 
 const FLASH_MS = 5000
@@ -133,8 +136,6 @@ function showPendingFlash(): void {
   flashTimer = setTimeout(dismissFlash, FLASH_MS)
 }
 
-// Só no cliente: a mensagem nasce de uma ação no navegador e renderizá-la
-// no SSR quebraria a hidratação.
 onMounted(() => {
   showPendingFlash()
   watch(() => flash.state.value, (value) => {
@@ -171,7 +172,14 @@ async function handleSignOut() {
   catch {
   }
 
+  // Clearing the session first makes open forms cancel their pending draft
+  // write, so nothing is re-saved after the drafts below are removed.
   session.value = { user: null, fetched: false }
+  try {
+    clearStoredFormDrafts(window.localStorage)
+  }
+  catch {
+  }
   await navigateTo('/', { external: true })
 }
 </script>
@@ -228,8 +236,6 @@ async function handleSignOut() {
   color: var(--text-color);
 }
 
-/* default.vue fixa `button.nav-link` em 36px com `.site-nav :deep(...)`;
-   a cadeia de quatro classes vence essa regra sem depender da ordem. */
 @media (pointer: coarse) {
   .site-nav .nav-link.nav-btn {
     min-height: var(--target-min-size);
@@ -239,8 +245,6 @@ async function handleSignOut() {
   }
 }
 
-/* No desktop com toque a linha do cabeçalho não cresce: a margem negativa
-   devolve os 8px a mais. */
 @media (pointer: coarse) and (min-width: 768px) {
   .site-nav .nav-link.nav-btn {
     margin-block: -4px;
@@ -324,6 +328,7 @@ async function handleSignOut() {
   box-sizing: border-box;
 }
 
+
 .bottom-nav-link:hover {
   color: var(--highlight);
 }
@@ -350,8 +355,6 @@ async function handleSignOut() {
   color: var(--highlight);
 }
 
-/* O círculo (28px) é mais alto que os ícones de 22px: a margem negativa
-   mantém o rótulo na mesma linha de base dos vizinhos. */
 .bottom-nav-register .register-icon-wrapper {
   margin-block: -3px;
 }
@@ -381,9 +384,10 @@ async function handleSignOut() {
   color: var(--text-bright);
 }
 
-@media (hover: none), (max-width: 767.98px) {
+@media (pointer: coarse) {
   .nav-shortcuts {
-    display: none;
+    min-width: var(--target-min-size);
+    min-height: var(--target-min-size);
   }
 }
 

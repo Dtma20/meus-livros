@@ -57,10 +57,6 @@ import { computed } from 'vue'
 const props = withDefaults(
   defineProps<{
     ratings?: number[]
-    /**
-     * `small` is the 120x36 book-page sparkline. `large` is the stats-page
-     * version: one labelled row per half-star value with its count.
-     */
     size?: 'small' | 'large'
   }>(),
   {

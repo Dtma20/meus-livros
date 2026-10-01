@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import { createApp, type Component } from 'vue'
 import RatingHistogram from '../../app/components/book/RatingHistogram.vue'

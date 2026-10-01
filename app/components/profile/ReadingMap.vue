@@ -107,7 +107,6 @@ onMounted(() => {
     isOpen.value = window.localStorage.getItem(MAP_OPEN_KEY) === '1'
   }
   catch {
-    // storage unavailable: stay closed
   }
 })
 
@@ -118,7 +117,6 @@ function onToggle(e: Event): void {
     window.localStorage.setItem(MAP_OPEN_KEY, open ? '1' : '0')
   }
   catch {
-    // ignore
   }
 }
 
@@ -273,7 +271,7 @@ function clearSelection() {
   cursor: pointer;
   min-height: 36px;
   align-items: center;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
 }
 
 .map-summary-row:focus-visible {
@@ -363,7 +361,6 @@ function clearSelection() {
   display: flex;
   align-items: center;
   gap: var(--space-2, 8px);
-  /* Reserved so hovering a country does not push the map down. */
   min-height: 28px;
   font-size: var(--font-size-sm, 0.875rem);
 }
@@ -383,7 +380,7 @@ function clearSelection() {
   color: var(--text-color, #9ab);
   padding: 2px var(--space-2, 8px);
   min-height: 28px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   cursor: pointer;
   font-size: var(--font-size-xs, 0.75rem);
   font-family: inherit;

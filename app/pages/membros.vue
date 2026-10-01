@@ -95,8 +95,6 @@ const { data, pending, error, refresh } = await useAsyncData<MembersResponse>(
 
 const members = computed(() => data.value?.members ?? [])
 
-// The auth middleware only fills `auth:session` on /app routes, so a direct load of
-// /membros asks /api/users/me for the viewer's handle, as the stats pages do.
 const session = useState<AuthSessionState | null>('auth:session', () => null)
 const { data: viewer } = await useAsyncData<string | null>('members-viewer', () =>
   session.value?.user?.handle
@@ -229,7 +227,6 @@ function isViewer(handle: string): boolean {
   background-color: var(--input-bg);
 }
 
-/* Phones keep the cover strip beside the name, three smaller thumbnails instead of four. */
 @media (max-width: 600px) {
   .member-card {
     gap: var(--space-3);

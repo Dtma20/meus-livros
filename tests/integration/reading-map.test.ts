@@ -108,7 +108,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-025 - Reading map integration tests', () 
       finished_on: '2024-02-15',
       finished_precision: 'dia',
       format: 'fisico',
-      visibility: 'privado', // Private log!
+      visibility: 'privado',
     })
 
     ancientRomeWorkTitle = `${MARKER} Meditações`

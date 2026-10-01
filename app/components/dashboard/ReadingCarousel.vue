@@ -281,7 +281,6 @@ onMounted(() => {
   overflow: hidden;
 }
 
-/* The title link stretches over the whole card, so the tap target is the card, not one line of text. */
 .card-title::after {
   content: "";
   position: absolute;

@@ -1,8 +1,9 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LogEntry } from '../../shared/types/logger'
 import { Logger, sanitizeLogData } from '../../server/utils/logger'
 
 describe('Logger unit tests', () => {
+  afterEach(() => vi.unstubAllEnvs())
   describe('Sanitization of sensitive data', () => {
     it('redacts emails in Error messages and stacks', () => {
       const entries: LogEntry[] = []
@@ -167,6 +168,7 @@ describe('Logger unit tests', () => {
     })
 
     it('emits human-readable format with timestamp and modules in development mode', () => {
+      vi.stubEnv('LOG_FORMAT', 'pretty')
       let output = ''
       const devLogger = new Logger({
         minLevel: 'DEBUG',

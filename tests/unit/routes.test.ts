@@ -355,7 +355,7 @@ describe('Page stubs and route parameters', () => {
 
     expect(router.currentRoute.value.params.id).toBe('42')
 
-    expect(wrapper.text()).toContain('Entrada não encontrada')
+    expect(wrapper.text()).toContain('Algo deu errado. Tente de novo.')
     wrapper.unmount()
   })
 

@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, type App } from 'vue'
 import ReadingBlocksSection from '../../app/components/log/ReadingBlocksSection.vue'
@@ -292,5 +291,82 @@ describe('ReadingBlocksSection - delete with undo', () => {
     container.remove()
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('restores the block when a pagehide DELETE fails and the page returns from the back-forward cache', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ message: 'Falhou.' }), { status: 500 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mountOwnerWithBlock()
+
+    buttonsMatching(container, 'Excluir')[0]?.click()
+    await flush()
+    window.dispatchEvent(new Event('pagehide'))
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((fetchMock.mock.calls[0] as unknown[] | undefined)?.[1]).toMatchObject({ keepalive: true })
+    expect(container.textContent).not.toContain('Começo lento.')
+
+    const pageshow = new Event('pageshow')
+    Object.defineProperty(pageshow, 'persisted', { value: true })
+    window.dispatchEvent(pageshow)
+    await flush()
+
+    expect(container.textContent).toContain('Começo lento.')
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain('O trecho voltou para a lista.')
+  })
+
+  it('restores overlapping optimistic deletes in source order without clearing the newer undo', async () => {
+    vi.useFakeTimers()
+    let rejectFirst: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { rejectFirst = resolve }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [
+        BLOCK,
+        { id: 'b2', start_page: 21, end_page: 40, comment: 'Continuação.', read_at: '2026-09-02' },
+      ],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    container.querySelector<HTMLElement>('[data-block-id="b1"] .btn-icon-delete')?.click()
+    await flush()
+    container.querySelector<HTMLElement>('[data-block-id="b2"] .btn-icon-delete')?.click()
+    await flush()
+    expect(buttonsMatching(container, 'Desfazer')).toHaveLength(1)
+
+    rejectFirst?.(new Response(JSON.stringify({ message: 'Falhou a primeira exclusão.' }), { status: 500 }))
+    await flush()
+    expect(buttonsMatching(container, 'Desfazer')).toHaveLength(1)
+
+    buttonsMatching(container, 'Desfazer')[0]?.click()
+    await flush()
+    const order = Array.from(container.querySelectorAll<HTMLElement>('.block-card')).map(card => card.dataset.blockId)
+    expect(order).toEqual(['b1', 'b2'])
+    expect(document.activeElement).toBe(container.querySelector('[data-block-id="b2"] .btn-icon-delete'))
+  })
+
+  it('keeps active form fields when the parent refreshes the block snapshot', async () => {
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+    buttonsMatching(container, 'Registrar trecho lido')[0]?.click()
+    await flush()
+    const comment = container.querySelector<HTMLTextAreaElement>('#block-comment')
+    if (!comment) throw new Error('Campo de anotação não encontrado.')
+    comment.value = 'Meu rascunho local.'
+    comment.dispatchEvent(new Event('input', { bubbles: true }))
+
+    expect(comment.value).toBe('Meu rascunho local.')
+    expect(container.textContent).toContain('Começo lento.')
   })
 })

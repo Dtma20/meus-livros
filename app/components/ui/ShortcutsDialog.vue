@@ -21,8 +21,25 @@
           </span>
         </li>
       </ul>
-      <p class="shortcuts-note">
+      <div class="shortcuts-preference">
+        <label class="shortcuts-preference-label">
+          <input
+            type="checkbox"
+            :checked="!characterKeyShortcutsEnabled"
+            aria-describedby="shortcuts-preference-help"
+            @change="onPreferenceChange"
+          >
+          <span>Desativar atalhos sem modificadores</span>
+        </label>
+        <p id="shortcuts-preference-help" class="shortcuts-preference-help">
+          Inclui teclas isoladas como <kbd>/</kbd>, <kbd>n</kbd> e <kbd>?</kbd>, e sequências <kbd>g</kbd> + <kbd>i</kbd>, <kbd>g</kbd> + <kbd>a</kbd>, <kbd>g</kbd> + <kbd>m</kbd> e <kbd>g</kbd> + <kbd>p</kbd>.
+        </p>
+      </div>
+      <p v-if="characterKeyShortcutsEnabled" class="shortcuts-note">
         Pressione <kbd>?</kbd> a qualquer momento para ver esta lista de novo.
+      </p>
+      <p v-else class="shortcuts-note">
+        Atalhos sem modificadores estão desativados. Use o botão Atalhos de teclado para abrir esta lista.
       </p>
       <button type="button" class="btn btn-secondary shortcuts-close" @click="close">
         Fechar
@@ -33,6 +50,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useKeyboardShortcutPreferences } from '~/composables/useKeyboardShortcutPreferences'
 
 const items = [
   { keys: ['/'], label: 'Buscar livros' },
@@ -45,7 +63,13 @@ const items = [
 ]
 
 const dialogRef = ref<HTMLDialogElement | null>(null)
+const { characterKeyShortcutsEnabled, setCharacterKeyShortcutsEnabled } = useKeyboardShortcutPreferences()
 let previouslyFocused: HTMLElement | null = null
+
+function onPreferenceChange(e: Event): void {
+  if (!(e.target instanceof HTMLInputElement)) return
+  setCharacterKeyShortcutsEnabled(!e.target.checked)
+}
 
 function open(): void {
   const dialog = dialogRef.value
@@ -112,6 +136,39 @@ defineExpose({ open })
   font-size: var(--font-size-sm);
 }
 
+.shortcuts-preference {
+  margin-bottom: var(--space-4);
+}
+
+.shortcuts-preference-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min-size);
+  color: var(--text-bright);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.shortcuts-preference-label input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--highlight);
+  flex: 0 0 auto;
+}
+
+.shortcuts-preference-label input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.shortcuts-preference-help {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+}
+
 .shortcuts-note {
   margin: 0 0 var(--space-4);
   font-size: var(--font-size-sm);
@@ -141,6 +198,6 @@ kbd {
 }
 
 .shortcuts-close {
-  /* Inherits from .btn.btn-secondary */
+  min-height: var(--target-min-size);
 }
 </style>

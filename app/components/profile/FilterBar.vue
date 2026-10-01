@@ -171,7 +171,7 @@ function decadeLabel(decade: number): string {
   color: var(--text-bright);
   border: 1px solid transparent;
   padding: 8px 12px;
-  border-radius: var(--radius-sm, 4px);
+  border-radius: var(--radius-sm, 6px);
   cursor: pointer;
   font-size: var(--font-size-sm, 0.875rem);
   font-family: inherit;
@@ -239,7 +239,7 @@ function decadeLabel(decade: number): string {
     background-color: var(--input-bg, #2c3440);
     color: var(--text-bright);
     border: 1px solid transparent;
-    border-radius: var(--radius-sm, 4px);
+    border-radius: var(--radius-sm, 6px);
     font: inherit;
     font-size: var(--font-size-sm, 0.875rem);
     cursor: pointer;

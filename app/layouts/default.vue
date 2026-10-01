@@ -135,6 +135,13 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   box-sizing: border-box;
 }
 
+@media (pointer: coarse), (max-width: 767.98px) {
+  .site-nav :deep(button.nav-link) {
+    min-height: var(--target-min-size);
+    min-width: var(--target-min-size);
+  }
+}
+
 .nav-link:hover {
   background-color: var(--card-bg);
   color: var(--highlight);
@@ -189,11 +196,15 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
 @media (max-width: 400px) {
   .header-inner {
     padding: var(--space-3) var(--space-2);
-    gap: var(--space-2);
+    gap: var(--space-1);
   }
 
   .site-title {
-    padding: var(--space-1) var(--space-2);
+    padding: var(--space-1) 0;
+  }
+
+  .site-nav {
+    gap: var(--space-1);
   }
 }
 </style>

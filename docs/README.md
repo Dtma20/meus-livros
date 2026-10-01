@@ -20,6 +20,7 @@
 | Move the 86 existing books | [migration.md](migration.md) |
 | Deploy, back up, or set env vars | [infrastructure.md](infrastructure.md) |
 | Know what we deliberately did *not* build | [architecture-review.md](architecture-review.md) |
+| Understand implementation decisions and non-obvious details | [code-annotations.md](code-annotations.md) |
 | Find an unresolved decision | [open-questions.md](open-questions.md) |
 | Delegate a task to an agent, or pick up where a session stopped | [agent-workflow.md](agent-workflow.md) |
 | **Start coding** | **[tasks/README.md](tasks/README.md)** |

@@ -11,8 +11,14 @@
       </div>
 
       <div v-else-if="error || !log" class="error-state">
-        <p class="error-text">Registro não encontrado ou você não tem permissão para editá-lo.</p>
-        <NuxtLink to="/" class="back-link">← Ir para o início</NuxtLink>
+        <template v-if="isLogNotFound">
+          <p class="error-text">Registro não encontrado ou você não tem permissão para editá-lo.</p>
+          <NuxtLink to="/" class="back-link">← Ir para o início</NuxtLink>
+        </template>
+        <template v-else>
+          <p class="error-text">Não foi possível carregar o registro. Tente novamente.</p>
+          <button type="button" class="btn btn-secondary" @click="() => { void refreshLog() }">Tentar novamente</button>
+        </template>
       </div>
 
       <template v-else>
@@ -155,7 +161,6 @@ definePageMeta({
 const route = useRoute()
 const id = computed(() => route.params.id as string)
 
-// `?terminar=1` vem do atalho "Terminei": o formulário abre pronto para concluir.
 const finishing = computed(() => route.query.terminar === '1')
 
 const logFormKey = ref(0)
@@ -180,7 +185,7 @@ function onTabKeydown(event: KeyboardEvent): void {
   nextTick(() => document.getElementById(`tab-${tab}`)?.focus())
 }
 
-const { data: log, pending, error } = useAsyncData<LogWithDetails>(
+const { data: log, pending, error, refresh: refreshLog } = useAsyncData<LogWithDetails>(
   `log-${id.value}`,
   () =>
     $fetch<LogWithDetails>(`/api/logs/${id.value}` as string, {
@@ -189,7 +194,12 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
     }),
 )
 
-// Mesma regra do LogForm: "Terminei" só vale para uma leitura em andamento.
+const isLogNotFound = computed(() => {
+  const status = (error.value as { statusCode?: number; status?: number } | null)?.statusCode
+    || (error.value as { statusCode?: number; status?: number } | null)?.status
+  return status === 404
+})
+
 const concluding = computed(() => finishing.value && !log.value?.finished_on)
 
 const slug = computed(() => log.value?.work?.slug || '')
@@ -201,9 +211,6 @@ function fetchWork(workSlug: string): Promise<WorkWithDetails> {
   })
 }
 
-// No SSR as duas buscas correm juntas e o slug ainda está vazio quando esta
-// começa; sem o fallback o payload levava `null` e, como o slug não muda mais
-// depois da hidratação, o `watch` nunca refazia a busca.
 const { data: work, error: workError } = useAsyncData<WorkWithDetails | null>(
   `entry-work-${id.value}`,
   async () => {

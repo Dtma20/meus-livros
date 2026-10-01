@@ -42,9 +42,6 @@
 </template>
 
 <script setup lang="ts">
-// Lombadas desenhadas em CSS. Títulos e páginas vêm do acervo original do site
-// (legacy/livros.json), na ordem em que foram lidos. Nada é buscado de fora.
-// tone: 1 = card-bg, 2 = input-bg, 3 = text-color, 4 = highlight (o livro do registro mostrado logo abaixo).
 const books = [
   { title: 'O meu pé de laranja lima', pages: 192, tone: 2 },
   { title: '1984', pages: 440, tone: 3 },

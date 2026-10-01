@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import { createApp, defineComponent, h, type Component } from 'vue'
 import BarList from '../../app/components/stats/BarList.vue'

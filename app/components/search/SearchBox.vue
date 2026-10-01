@@ -10,15 +10,15 @@
         role="combobox"
         class="search-input"
         :placeholder="placeholder"
-        :aria-keyshortcuts="keyShortcut || undefined"
+        :aria-keyshortcuts="characterKeyShortcutsEnabled && keyShortcut ? keyShortcut : undefined"
         autocomplete="off"
         autocorrect="off"
         autocapitalize="off"
         spellcheck="false"
         aria-autocomplete="list"
-        :aria-expanded="isOpen"
-        :aria-controls="listId"
-        :aria-activedescendant="activeItemId"
+        :aria-expanded="hasResultList"
+        :aria-controls="hasResultList ? listId : undefined"
+        :aria-activedescendant="hasResultList ? activeItemId : undefined"
         @keydown="onKeydown"
         @focus="onFocus"
         @blur="onBlur"
@@ -29,74 +29,84 @@
     <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">{{ announcement }}</div>
 
     <ul
-      v-if="isOpen"
+      v-if="hasResultList"
       :id="listId"
       ref="listRef"
       class="search-results"
-      :role="results.length > 0 ? 'listbox' : undefined"
+      role="listbox"
       :aria-label="resultsLabel"
     >
-      <template v-if="results.length > 0">
-        <li
-          v-for="(work, index) in results"
-          :id="itemId(index)"
-          :key="work.id || index"
-          class="search-result"
-          :class="{ 'is-active': index === activeIndex }"
-          role="option"
-          :aria-selected="index === activeIndex"
-          @mousedown.prevent="selectWork(work)"
-          @mouseover="activeIndex = index"
-        >
-          <div class="result-cover">
-            <BookCover
-              :title="work.title"
-              :cover-url="work.cover_url"
-              :alt="`Capa de ${work.title}`"
-              loading="lazy"
-            />
-          </div>
-          <div class="result-content">
-            <span class="result-title">{{ work.title }}</span>
-            <span v-if="work.authors.length" class="result-author">
-              {{ work.authors.map((a) => a.name).join(', ') }}
-            </span>
-            <span v-if="work.first_published_year" class="result-year">
-              {{ work.first_published_year }}
-            </span>
-          </div>
-        </li>
-        <li
-          :id="itemId(results.length)"
-          class="search-result search-add-option"
-          :class="{ 'is-active': activeIndex === results.length }"
-          role="option"
-          :aria-selected="activeIndex === results.length"
-          data-testid="search-add-option"
-          @mousedown.prevent="goToAdd()"
-          @mouseover="activeIndex = results.length"
-        >
-          <span class="add-option-hint">Não é nenhum destes?</span>{{ ' ' }}<span class="add-option-action">Adicionar livro novo</span>
-        </li>
-      </template>
-
       <li
-        v-else-if="!loading && searched"
-        class="search-empty"
+        v-for="(work, index) in results"
+        :id="itemId(index)"
+        :key="work.id || index"
+        class="search-result"
+        :class="{ 'is-active': index === activeIndex }"
+        role="option"
+        :aria-selected="index === activeIndex"
+        @mousedown.prevent="selectWork(work)"
+        @mouseover="activeIndex = index"
       >
-        <span class="empty-headline">Não encontramos esse livro.</span>
-        <div class="empty-actions">
-          <button
-            type="button"
-            class="btn btn-primary btn-sm empty-btn-primary"
-            data-testid="search-add-manual"
-            @click="goToAdd()"
-          >
-            Adicionar livro novo
-          </button>
+        <div class="result-cover">
+          <BookCover
+            :title="work.title"
+            :cover-url="work.cover_url"
+            :alt="`Capa de ${work.title}`"
+            size="small"
+            loading="lazy"
+          />
+        </div>
+        <div class="result-content">
+          <span class="result-title">{{ work.title }}</span>
+          <span v-if="work.authors.length" class="result-author">
+            {{ work.authors.map((a) => a.name).join(', ') }}
+          </span>
+          <span v-if="work.first_published_year" class="result-year">
+            {{ work.first_published_year }}
+          </span>
         </div>
       </li>
+      <li
+        :id="itemId(results.length)"
+        class="search-result search-add-option"
+        :class="{ 'is-active': activeIndex === results.length }"
+        role="option"
+        :aria-selected="activeIndex === results.length"
+        data-testid="search-add-option"
+        @mousedown.prevent="goToAdd()"
+        @mouseover="activeIndex = results.length"
+      >
+        <span class="add-option-hint">Não é nenhum destes?</span>{{ ' ' }}<span class="add-option-action">Adicionar livro novo</span>
+      </li>
     </ul>
+
+    <div
+      v-else-if="isOpen && !loading && searched"
+      ref="messagePanelRef"
+      class="search-panel search-empty"
+    >
+      <span class="empty-headline">Não encontramos esse livro.</span>
+      <div class="empty-actions">
+        <button
+          type="button"
+          class="btn btn-primary btn-sm empty-btn-primary"
+          data-testid="search-add-manual"
+          @click="goToAdd()"
+        >
+          Adicionar livro novo
+        </button>
+      </div>
+    </div>
+    <div
+      v-else-if="isOpen && !loading && searchError"
+      ref="messagePanelRef"
+      class="search-panel search-error"
+    >
+      <p role="alert">{{ searchError }}</p>
+      <button type="button" class="btn btn-secondary btn-sm search-retry" @click="retrySearch">
+        Tentar novamente
+      </button>
+    </div>
   </div>
 </template>
 
@@ -112,6 +122,7 @@ const props = withDefaults(
     landmarkLabel?: string
     placeholder?: string
     keyShortcut?: string
+    characterKeyShortcutsEnabled?: boolean
   }>(),
   {
     initialQuery: '',
@@ -119,6 +130,7 @@ const props = withDefaults(
     landmarkLabel: 'Buscar livros',
     placeholder: 'Buscar livros…',
     keyShortcut: '',
+    characterKeyShortcutsEnabled: true,
   },
 )
 
@@ -134,17 +146,19 @@ const itemId = (i: number) => `search-item-${uid}-${i}`
 const query = ref(props.initialQuery || '')
 const results = ref<SearchResult[]>([])
 const loading = ref(false)
+const searchError = ref('')
 const activeIndex = ref(-1)
 const focused = ref(false)
 const searched = ref(false)
-const lastQuery = ref('')
 
 const inputRef = ref<HTMLInputElement | null>(null)
 const listRef = ref<HTMLUListElement | null>(null)
+const messagePanelRef = ref<HTMLDivElement | null>(null)
 
 const isOpen = computed(
-  () => focused.value && query.value.trim().length >= 2 && (results.value.length > 0 || (!loading.value && searched.value)),
+  () => focused.value && query.value.trim().length >= 2 && (results.value.length > 0 || (!loading.value && (searched.value || Boolean(searchError.value)))),
 )
+const hasResultList = computed(() => isOpen.value && results.value.length > 0)
 
 const activeItemId = computed(() =>
   activeIndex.value >= 0 ? itemId(activeIndex.value) : undefined,
@@ -167,32 +181,30 @@ function announce(text: string): void {
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+let blurTimer: ReturnType<typeof setTimeout> | null = null
 let abortController: AbortController | null = null
+let searchGeneration = 0
 
-async function fetchResults(term: string): Promise<void> {
-  if (term.length < 2) {
-    results.value = []
-    searched.value = false
-    loading.value = false
-    return
-  }
-
+async function fetchResults(term: string, generation: number): Promise<void> {
+  if (generation !== searchGeneration || term.length < 2) return
   abortController?.abort()
-  abortController = new AbortController()
-  const signal = abortController.signal
+  const controller = new AbortController()
+  abortController = controller
 
   loading.value = true
+  searchError.value = ''
 
   try {
     const res = await fetch(
       `/api/search?q=${encodeURIComponent(term)}`,
-      { signal },
+      { signal: controller.signal },
     )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json() as { works: SearchResult[] }
+    if (generation !== searchGeneration || controller.signal.aborted || term !== query.value.trim()) return
     results.value = data.works
-    lastQuery.value = term
     searched.value = true
+    searchError.value = ''
     const n = data.works.length
     announce(
       n === 0
@@ -200,37 +212,52 @@ async function fetchResults(term: string): Promise<void> {
         : `${n} ${n === 1 ? 'resultado' : 'resultados'}, ou adicione um livro novo`,
     )
     activeIndex.value = -1
-  } catch (err) {
-    if ((err as { name?: string }).name === 'AbortError') return
-    if (results.value.length === 0) {
-      results.value = []
-      searched.value = false
-    }
+  } catch {
+    if (controller.signal.aborted || generation !== searchGeneration || term !== query.value.trim()) return
+    results.value = []
+    searched.value = false
+    activeIndex.value = -1
+    searchError.value = 'Não foi possível buscar livros agora.'
   } finally {
-    loading.value = false
+    if (generation === searchGeneration && abortController === controller) {
+      loading.value = false
+      abortController = null
+    }
   }
 }
 
 watch(query, (val) => {
   const trimmed = val.trim()
+  const generation = ++searchGeneration
   searched.value = false
 
   if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = null
+  abortController?.abort()
+  abortController = null
+  results.value = []
+  searchError.value = ''
+  activeIndex.value = -1
+  if (announceTimer) clearTimeout(announceTimer)
+  announceTimer = null
+  announcement.value = ''
+
   if (trimmed.length < 2) {
-    if (announceTimer) clearTimeout(announceTimer)
-    announcement.value = ''
-    abortController?.abort()
-    results.value = []
     loading.value = false
     return
   }
 
   loading.value = true
-  debounceTimer = setTimeout(() => fetchResults(trimmed), 250)
-})
+  debounceTimer = setTimeout(() => {
+    debounceTimer = null
+    void fetchResults(trimmed, generation)
+  }, 250)
+}, { flush: 'sync' })
 
 onBeforeUnmount(() => {
+  searchGeneration++
   if (debounceTimer) clearTimeout(debounceTimer)
+  if (blurTimer) clearTimeout(blurTimer)
   if (announceTimer) clearTimeout(announceTimer)
   abortController?.abort()
 })
@@ -238,7 +265,6 @@ onBeforeUnmount(() => {
 function onKeydown(e: KeyboardEvent): void {
   if (!isOpen.value) return
 
-  // Com resultados, a última opção é "Adicionar livro novo" (índice results.length).
   const total = results.value.length > 0 ? results.value.length + 1 : 0
 
   if (e.key === 'ArrowDown') {
@@ -273,13 +299,17 @@ function scrollActiveIntoView(): void {
 }
 
 function onFocus(): void {
+  if (blurTimer) clearTimeout(blurTimer)
+  blurTimer = null
   focused.value = true
 }
 
 function onBlur(): void {
-  setTimeout(() => {
+  if (blurTimer) clearTimeout(blurTimer)
+  blurTimer = setTimeout(() => {
+    blurTimer = null
     const activeEl = typeof document !== 'undefined' ? document.activeElement : null
-    if (activeEl && listRef.value?.contains(activeEl)) {
+    if (activeEl && (listRef.value?.contains(activeEl) || messagePanelRef.value?.contains(activeEl))) {
       return
     }
     focused.value = false
@@ -294,19 +324,23 @@ function selectWork(work: SearchResult): void {
   }
 }
 
-/** Volta ao estado inicial: sem texto, sem resultados, lista fechada. */
 function reset(): void {
+  searchGeneration++
   if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = null
+  if (blurTimer) clearTimeout(blurTimer)
+  blurTimer = null
   if (announceTimer) clearTimeout(announceTimer)
+  announceTimer = null
   abortController?.abort()
+  abortController = null
   query.value = ''
   results.value = []
   searched.value = false
+  searchError.value = ''
   loading.value = false
-  lastQuery.value = ''
   announcement.value = ''
   activeIndex.value = -1
-  // Se o campo segue focado, continua valendo: digitar de novo abre a lista.
   focused.value = typeof document !== 'undefined' && document.activeElement === inputRef.value
 }
 
@@ -330,6 +364,23 @@ function goToAdd(): void {
     : `/app/livro/novo${retParam ? `?${retParam.replace(/^&/, '')}` : ''}`
 
   void navigateTo(dest)
+}
+
+function retrySearch(): void {
+  const term = query.value.trim()
+  if (term.length < 2) return
+  inputRef.value?.focus()
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = null
+  abortController?.abort()
+  abortController = null
+  const generation = ++searchGeneration
+  results.value = []
+  searched.value = false
+  searchError.value = ''
+  activeIndex.value = -1
+  loading.value = true
+  void fetchResults(term, generation)
 }
 
 </script>
@@ -366,6 +417,7 @@ function goToAdd(): void {
   border: 1px solid var(--input-bg);
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-3);
+  min-height: var(--target-min-size);
   font-size: var(--font-size-base);
   font-family: var(--font-sans);
   outline: none;
@@ -380,6 +432,12 @@ function goToAdd(): void {
 
 .search-input:focus {
   border-color: var(--highlight);
+  box-shadow: 0 0 0 2px var(--highlight-glow);
+}
+
+.search-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .search-input::-webkit-search-cancel-button {
@@ -417,6 +475,18 @@ function goToAdd(): void {
   z-index: 200;
   max-height: 360px;
   overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.search-panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: var(--card-bg);
+  border: 1px solid var(--input-bg);
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
@@ -508,6 +578,19 @@ function goToAdd(): void {
   cursor: default;
 }
 
+.search-error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  color: var(--danger-text);
+}
+
+.search-error p {
+  margin: 0;
+}
+
 .empty-headline {
   color: var(--text-color);
   font-size: var(--font-size-sm);
@@ -521,7 +604,11 @@ function goToAdd(): void {
 }
 
 .empty-btn-primary {
-  /* Inherits from .btn.btn-primary.btn-sm */
+  min-height: var(--target-min-size);
+}
+
+.search-retry {
+  min-height: var(--target-min-size);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -74,16 +73,11 @@ async function mountAt(component: Component, routePath: string, path: string) {
 }
 
 describe('back-to-home copy', () => {
-  it('entry permalink not-found state links to / with "Ir para o início" in the EmptyState button', async () => {
+  it('entry permalink without a response status shows a recoverable error state', async () => {
     const wrapper = await mountAt(EntryPage, '/entrada/:id()', '/entrada/nao-existe')
 
-    expect(wrapper.text()).toContain('Entrada não encontrada')
-    expect(wrapper.text()).not.toContain('Voltar para o início')
-
-    const home = wrapper.links().find((a) => a.textContent?.trim() === 'Ir para o início')
-    expect(home).toBeDefined()
-    expect(home?.getAttribute('href')).toBe('/')
-    expect(home?.classList.contains('empty-btn')).toBe(true)
+    expect(wrapper.text()).toContain('Algo deu errado. Tente de novo.')
+    expect(wrapper.text()).toContain('Tentar de novo')
     wrapper.unmount()
   })
 

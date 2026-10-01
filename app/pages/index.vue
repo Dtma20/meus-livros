@@ -10,7 +10,7 @@
       </div>
 
       <ErrorState
-        v-else-if="hasFeedError"
+        v-else-if="hasDashboardError"
         title="Algo deu errado. Tente de novo."
         message="Não foi possível carregar suas leituras."
         action-label="Tentar de novo"
@@ -116,8 +116,16 @@
             </NuxtLink>
           </div>
 
+          <ErrorState
+            v-if="hasFeedError"
+            heading-tag="h3"
+            title="Não foi possível carregar a atividade do grupo."
+            action-label="Tentar de novo"
+            @retry="refresh"
+          />
+
           <EmptyState
-            v-if="entries.length === 0"
+            v-else-if="entries.length === 0"
             title="Ninguém registrou nada ainda. Seja o primeiro."
             action-label="Registrar leitura"
             action-href="/app/novo"
@@ -193,6 +201,7 @@ interface HomeAsyncData {
   completed: DashboardCompletedBook[]
   shelf: DashboardShelfBook[]
   entries: FeedEntry[]
+  hasDashboardError?: boolean
   hasFeedError: boolean
   redirectTo?: string
 }
@@ -239,30 +248,23 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
     }
   }
 
-  try {
-    const [dashboard, feed] = await Promise.all([
-      requestFetch<DashboardResponse>('/api/dashboard'),
-      requestFetch<FeedResponse>('/api/feed/recentes'),
-    ])
+  // Settled separately: a feed failure only replaces the feed section,
+  // and the reader's own shelves still render.
+  const [dashboardRes, feedRes] = await Promise.allSettled([
+    requestFetch<DashboardResponse>('/api/dashboard'),
+    requestFetch<FeedResponse>('/api/feed/recentes'),
+  ])
+  const dashboard = dashboardRes.status === 'fulfilled' ? dashboardRes.value : null
+  const feed = feedRes.status === 'fulfilled' ? feedRes.value : null
 
-    return {
-      authenticated: true,
-      inProgress: dashboard?.inProgress ?? [],
-      completed: dashboard?.completed ?? [],
-      shelf: dashboard?.shelf ?? [],
-      entries: feed?.entries ?? [],
-      hasFeedError: false,
-    }
-  }
-  catch {
-    return {
-      authenticated: true,
-      inProgress: [],
-      completed: [],
-      shelf: [],
-      entries: [],
-      hasFeedError: true,
-    }
+  return {
+    authenticated: true,
+    inProgress: dashboard?.inProgress ?? [],
+    completed: dashboard?.completed ?? [],
+    shelf: dashboard?.shelf ?? [],
+    entries: feed?.entries ?? [],
+    hasDashboardError: dashboardRes.status === 'rejected',
+    hasFeedError: feedRes.status === 'rejected',
   }
 })
 
@@ -329,6 +331,7 @@ function loadNewPosts() {
   }
 }
 
+const hasDashboardError = computed(() => Boolean(pageData.value?.hasDashboardError))
 const hasFeedError = computed(() => Boolean(pageData.value?.hasFeedError))
 
 function progressOf(book: DashboardInProgressBook): number {

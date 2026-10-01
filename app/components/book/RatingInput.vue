@@ -2,17 +2,29 @@
   <div class="rating-input-container">
     <div
       class="rating-input"
-      role="slider"
-      tabindex="0"
-      aria-label="Avaliação em estrelas"
-      aria-valuemin="0"
-      aria-valuemax="5"
-      :aria-valuenow="modelValue ?? 0"
-      :aria-valuetext="ariaValueText"
       :class="{ 'is-disabled': disabled }"
-      @keydown="onKeydown"
-      @mouseleave="onMouseLeave"
     >
+      <input
+        class="rating-slider"
+        type="range"
+        role="slider"
+        min="0"
+        max="5"
+        step="0.5"
+        :value="modelValue ?? 0"
+        :disabled="disabled"
+        :tabindex="disabled ? -1 : 0"
+        aria-valuemin="0"
+        aria-valuemax="5"
+        :aria-valuenow="modelValue ?? 0"
+        :aria-valuetext="ariaValueText"
+        :aria-labelledby="labelledBy || undefined"
+        :aria-label="labelledBy ? undefined : 'Avaliação em estrelas'"
+        @input="onPointerInput"
+        @keydown="onKeydown"
+        @pointermove="onPointerMove"
+        @pointerleave="onMouseLeave"
+      >
       <svg class="rating-defs" aria-hidden="true" width="0" height="0">
         <defs>
           <clipPath :id="`half-clip-${uid}`">
@@ -21,32 +33,12 @@
         </defs>
       </svg>
 
-      <div class="stars-track">
+      <div class="stars-track" aria-hidden="true">
         <div
           v-for="star in 5"
           :key="star"
           class="star-wrapper"
         >
-          <button
-            type="button"
-            class="star-half star-half-left"
-            :disabled="disabled"
-            tabindex="-1"
-            :aria-label="starLabel(star - 0.5)"
-            @mouseover="onHover(star - 0.5)"
-            @click="onClickRating(star - 0.5)"
-          />
-
-          <button
-            type="button"
-            class="star-half star-half-right"
-            :disabled="disabled"
-            tabindex="-1"
-            :aria-label="starLabel(star)"
-            @mouseover="onHover(star)"
-            @click="onClickRating(star)"
-          />
-
           <svg
             class="star-svg"
             viewBox="0 0 24 24"
@@ -98,10 +90,12 @@ const props = withDefaults(
   defineProps<{
     modelValue?: number | null
     disabled?: boolean
+    labelledBy?: string
   }>(),
   {
     modelValue: null,
     disabled: false,
+    labelledBy: undefined,
   },
 )
 
@@ -130,23 +124,26 @@ const ratingDisplayLabel = computed(() => {
   return `${formatted} ★`
 })
 
-function starLabel(val: number): string {
-  const n = val.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
-  return `${n} ${val === 1 ? 'estrela' : 'estrelas'}`
-}
-
-function onHover(val: number): void {
-  if (props.disabled) return
-  hoverRating.value = val
-}
-
 function onMouseLeave(): void {
   hoverRating.value = null
 }
 
-function onClickRating(val: number): void {
+function onPointerInput(e: Event): void {
   if (props.disabled) return
-  emit('update:modelValue', val)
+  const target = e.currentTarget
+  if (!(target instanceof HTMLInputElement)) return
+  hoverRating.value = null
+  emit('update:modelValue', target.valueAsNumber > 0 ? target.valueAsNumber : null)
+}
+
+function onPointerMove(e: PointerEvent): void {
+  if (props.disabled) return
+  const target = e.currentTarget
+  if (!(target instanceof HTMLInputElement)) return
+  const bounds = target.getBoundingClientRect()
+  if (bounds.width <= 0) return
+  const progress = Math.max(0, Math.min(1, (e.clientX - bounds.left) / bounds.width))
+  hoverRating.value = Math.round(progress * 10) / 2
 }
 
 function clearRating(): void {
@@ -198,17 +195,19 @@ function onKeydown(e: KeyboardEvent): void {
 }
 
 .rating-input {
+  position: relative;
   display: inline-flex;
   align-items: center;
   outline: none;
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
+  box-sizing: content-box;
   transition: box-shadow 0.15s ease-in-out;
 }
 
-.rating-input:focus-visible {
-  outline: 2px solid var(--highlight);
-  outline-offset: 2px;
+.rating-input:has(.rating-slider:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .rating-input.is-disabled {
@@ -220,6 +219,48 @@ function onKeydown(e: KeyboardEvent): void {
 .rating-defs {
   position: absolute;
   pointer-events: none;
+}
+
+.rating-slider {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-2);
+  width: calc(100% - var(--space-2) - var(--space-2));
+  height: calc(100% - var(--space-1) - var(--space-1));
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  appearance: none;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.rating-slider:disabled {
+  cursor: not-allowed;
+}
+
+.rating-slider::-webkit-slider-runnable-track {
+  height: 100%;
+  background: transparent;
+}
+
+.rating-slider::-webkit-slider-thumb {
+  width: 1px;
+  height: 100%;
+  appearance: none;
+  background: transparent;
+}
+
+.rating-slider::-moz-range-track {
+  height: 100%;
+  background: transparent;
+}
+
+.rating-slider::-moz-range-thumb {
+  width: 1px;
+  height: 100%;
+  border: 0;
+  background: transparent;
 }
 
 .stars-track {
@@ -235,29 +276,6 @@ function onKeydown(e: KeyboardEvent): void {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.star-half {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 50%;
-  height: 100%;
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  cursor: pointer;
-  z-index: 2;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.star-half-left {
-  left: 0;
-}
-
-.star-half-right {
-  right: 0;
 }
 
 .star-svg {
@@ -319,8 +337,13 @@ function onKeydown(e: KeyboardEvent): void {
   }
 
   .star-wrapper {
-    width: var(--space-12);
+    width: var(--target-min-size);
     height: var(--target-min-size);
+  }
+
+  .clear-rating-btn {
+    min-width: var(--target-min-size);
+    min-height: var(--target-min-size);
   }
 }
 

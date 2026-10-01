@@ -212,7 +212,6 @@ describe('ReadingMap.vue (component unit)', () => {
 
     expect(wrapper.text()).toContain('Mapa de leituras')
     expect(wrapper.find('.map-count')?.textContent).toContain('2 países')
-    // The count lives once, in the summary; the inner status line no longer repeats it.
     expect(wrapper.text()).not.toContain('países registrados')
 
     wrapper.unmount()

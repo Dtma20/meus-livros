@@ -1,5 +1,6 @@
 <template>
   <div class="entry-page">
+    <p v-if="isOwner" class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
     <div v-if="isPending" class="entry-status-wrap" role="status">
       <LoadingSkeleton :count="1" />
     </div>
@@ -115,11 +116,12 @@
             <button
               type="button"
               class="btn btn-secondary share-btn"
+              :disabled="isSharing"
               :class="{
                 'is-copied': copied,
                 'col-span-2': !isOwner || logData.finished_on
               }"
-              :aria-label="copied ? 'Link copiado para a área de transferência' : 'Compartilhar esta entrada'"
+              :aria-label="isSharing ? 'Compartilhando esta entrada' : copied ? 'Link copiado para a área de transferência' : 'Compartilhar esta entrada'"
               @click="handleShare"
             >
               <svg
@@ -153,7 +155,7 @@
               >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              <span>{{ copied ? 'Link copiado!' : 'Compartilhar' }}</span>
+              <span>{{ isSharing ? 'Compartilhando...' : copied ? 'Link copiado!' : 'Compartilhar' }}</span>
             </button>
 
             <NuxtLink
@@ -204,8 +206,15 @@
             </button>
           </div>
 
+          <p v-if="feedbackMessage" class="share-feedback" role="status" aria-live="polite">
+            {{ feedbackMessage }}
+          </p>
+          <div v-if="fallbackVisible" class="share-url-fallback">
+            <label for="share-url-fallback">Link para copiar</label>
+            <input id="share-url-fallback" type="url" readonly :value="shareUrl">
+          </div>
+
           <div v-if="isOwner && (pendingSeconds > 0 || isDeleting || deleteError)" class="remove-zone">
-            <p class="visually-hidden" role="status" aria-live="polite">{{ removeAnnouncement }}</p>
             <template v-if="pendingSeconds > 0">
               <span class="remove-msg" aria-hidden="true">Esta leitura será removida em {{ pendingSeconds }} s.</span>
               <button ref="undoBtnRef" type="button" class="btn btn-ghost btn-sm undo-btn" @click="undoDelete">Desfazer</button>
@@ -281,6 +290,8 @@ import {
 import type { LogWithDetails } from '~~/shared/schemas/log'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { useFlash } from '~/composables/useFlash'
+import { useDelayedDelete, type DelayedDeleteContext, type PageHideDeleteResult } from '~/composables/useDelayedDelete'
+import { useShareFeedback } from '~/composables/useShareFeedback'
 
 definePageMeta({
   middleware: 'home-layout',
@@ -293,16 +304,14 @@ const id = computed(() => {
 })
 
 const requestFetch = useRequestFetch()
-const reqUrl = typeof useRequestURL === 'function' ? useRequestURL() : null
-const origin = computed(() => reqUrl?.origin || 'http://localhost:3000')
+const reqUrl = useRequestURL()
+const origin = computed(() => reqUrl.origin)
 
-const event = import.meta.server && typeof useRequestEvent === 'function' ? useRequestEvent() : null
+const event = import.meta.server ? useRequestEvent() : null
 
-const session = typeof useState === 'function'
-  ? useState<{ user?: { id?: string; handle?: string } | null }>('auth:session', () => ({ user: null }))
-  : ref({ user: null })
+const session = useState<{ user?: { id?: string; handle?: string } | null }>('auth:session', () => ({ user: null }))
 
-const nuxtApp = typeof useNuxtApp === 'function' ? useNuxtApp() : null
+const nuxtApp = useNuxtApp()
 const flash = useFlash()
 
 const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
@@ -334,7 +343,7 @@ const hasError = computed(() => Boolean(error?.value))
 const is404 = computed(() => {
   const status = (error?.value as { statusCode?: number; status?: number })?.statusCode
     || (error?.value as { statusCode?: number; status?: number })?.status
-  return status === 404 || (!logData.value && !isPending.value)
+  return status === 404 || !id.value
 })
 
 const sectionOrder = computed<Array<'review' | 'blocks'>>(() =>
@@ -400,8 +409,7 @@ const ogImage = computed(() => {
   return resolveEntryOgImageUrl(logData.value, origin.value)
 })
 
-if (typeof useSeoMeta === 'function') {
-  useSeoMeta({
+useSeoMeta({
     title: () => pageTitle.value,
     ogTitle: () => ogTitle.value,
     description: () => ogDescription.value,
@@ -414,100 +422,112 @@ if (typeof useSeoMeta === 'function') {
     twitterTitle: () => ogTitle.value,
     twitterDescription: () => ogDescription.value,
     twitterImage: () => ogImage.value,
-  })
-}
+})
 
-if (typeof useHead === 'function') {
-  useHead({
+useHead({
     link: [
       {
         rel: 'canonical',
         href: () => canonicalUrl.value,
       },
     ],
+})
+
+const {
+  copied,
+  fallbackVisible,
+  feedbackMessage,
+  isSharing,
+  shareUrl,
+  share: shareWithFeedback,
+} = useShareFeedback()
+
+async function handleShare() {
+  await shareWithFeedback({
+    title: ogTitle.value,
+    text: ogDescription.value,
+    url: canonicalUrl.value,
   })
 }
 
-const copied = ref(false)
-
-async function handleShare() {
-  const url = canonicalUrl.value
-  const shareData = {
-    title: ogTitle.value,
-    text: ogDescription.value,
-    url,
-  }
-
-  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-    try {
-      await navigator.share(shareData)
-      return
-    } catch (err: unknown) {
-      if ((err as Error)?.name === 'AbortError') {
-        return
-      }
-    }
-  }
-
-  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-    try {
-      await navigator.clipboard.writeText(url)
-      copied.value = true
-      setTimeout(() => {
-        copied.value = false
-      }, 2500)
-    } catch {
-    }
-  }
-}
-
-const isDeleting = ref(false)
 const deleteError = ref('')
 
-const UNDO_SECONDS = 6
-const pendingSeconds = ref(0)
 const removeAnnouncement = ref('')
 const undoBtnRef = ref<HTMLButtonElement | null>(null)
 const removeBtnRef = ref<HTMLButtonElement | null>(null)
-let undoTimer: ReturnType<typeof setInterval> | null = null
-
-function clearUndoTimer(): void {
-  if (undoTimer) {
-    clearInterval(undoTimer)
-    undoTimer = null
-  }
+interface EntryDeleteSnapshot {
+  logId: string
+  destination: string
 }
 
-function startDelete(): void {
-  if (!logData.value || pendingSeconds.value > 0 || isDeleting.value) return
-  deleteError.value = ''
-  pendingSeconds.value = UNDO_SECONDS
-  removeAnnouncement.value = `Esta leitura será removida em ${UNDO_SECONDS} segundos. Desfazer.`
-  void nextTick(() => undoBtnRef.value?.focus())
-  clearUndoTimer()
-  undoTimer = setInterval(() => {
-    pendingSeconds.value -= 1
-    if (pendingSeconds.value <= 0) {
-      clearUndoTimer()
-      pendingSeconds.value = 0
-      removeAnnouncement.value = 'Removendo a leitura...'
-      void performDelete()
+let pageActive = true
+onBeforeUnmount(() => { pageActive = false })
+
+const {
+  pendingItem: pendingDelete,
+  secondsRemaining: pendingSeconds,
+  isCommitting: isDeleting,
+  start: scheduleDelete,
+  cancel: cancelDelete,
+} = useDelayedDelete<EntryDeleteSnapshot>({
+  remove: async (item, context: DelayedDeleteContext) => {
+    if (context.keepalive) {
+      const response = await fetch(`/api/logs/${item.logId}`, {
+        method: 'DELETE',
+        keepalive: true,
+        credentials: 'same-origin',
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { message?: string } | null
+        throw new Error(body?.message || 'Não foi possível remover a leitura: ocorreu um erro no servidor. Tente de novo.')
+      }
+      return
     }
-  }, 1000)
+    await $fetch(`/api/logs/${item.logId}`, { method: 'DELETE', timeout: 15_000 })
+  },
+  onSuccess: (item, context) => {
+    if (context.reason === 'leave') {
+      flash.set(DELETED_FLASH)
+      return
+    }
+    if (!pageActive) return
+    flash.set(DELETED_FLASH)
+    void goTo(item.destination)
+  },
+  onFailure: (item, error, context) => {
+    if (context.reason === 'leave' || !pageActive) return
+    setDeleteError(error)
+  },
+  onPageHideResult: (item, result: PageHideDeleteResult) => {
+    if (!pageActive) return
+    if (result.success) {
+      flash.set(DELETED_FLASH)
+      void goTo(item.destination)
+      return
+    }
+    setDeleteError(result.error)
+  },
+})
+
+const isDeletePending = computed(() => pendingDelete.value !== null)
+
+function startDelete(): void {
+  if (!logData.value || isDeletePending.value || isDeleting.value) return
+  deleteError.value = ''
+  const seconds = 6
+  removeAnnouncement.value = `Esta leitura será removida em ${seconds} segundos. Desfazer.`
+  scheduleDelete({ logId: loadedLogId(), destination: afterDeleteDestination() })
+  void nextTick(() => undoBtnRef.value?.focus())
 }
 
 function undoDelete(): void {
-  clearUndoTimer()
-  pendingSeconds.value = 0
+  if (!cancelDelete()) return
   removeAnnouncement.value = 'Remoção cancelada.'
   void nextTick(() => removeBtnRef.value?.focus())
 }
 
 const DELETED_FLASH = 'Leitura removida.'
-const LEAVE_FAILED_FLASH = 'Não foi possível remover a leitura. Tente de novo na página dela.'
 
-// Na saída, `route.params.id` já é o da rota de destino (ou nenhum): o id
-// vem do registro carregado, que não muda com a navegação.
 function loadedLogId(): string {
   return logData.value?.id ?? id.value
 }
@@ -518,56 +538,25 @@ function afterDeleteDestination(): string {
 
 function goTo(dest: string): Promise<unknown> {
   const run = () => navigateTo(dest)
-  return Promise.resolve(nuxtApp ? nuxtApp.runWithContext(run) : run())
+  return Promise.resolve(nuxtApp.runWithContext(run))
 }
 
-// Sair da página durante a contagem não cancela: o usuário pediu a remoção
-// e, fora da página, já não tem como desfazer. A requisição sai na hora e o
-// resultado aparece como aviso no layout, na página seguinte.
-function deleteOnLeave(): void {
-  if (pendingSeconds.value <= 0) return
-  clearUndoTimer()
-  pendingSeconds.value = 0
-  const logId = loadedLogId()
-  $fetch(`/api/logs/${logId}`, { method: 'DELETE', timeout: 15_000 })
-    .then(() => flash.set(DELETED_FLASH))
-    .catch(() => flash.set(LEAVE_FAILED_FLASH, 'error'))
-}
-
-// Fechar a aba ou sair do site: `$fetch` não sobrevive ao descarregamento,
-// `keepalive` sim. A rota de DELETE não lê corpo.
-let deletedOnPagehide = false
-
-function onPageHide(): void {
-  if (pendingSeconds.value <= 0) return
-  clearUndoTimer()
-  pendingSeconds.value = 0
-  deletedOnPagehide = true
-  void fetch(`/api/logs/${loadedLogId()}`, {
-    method: 'DELETE',
-    keepalive: true,
-    credentials: 'same-origin',
-  }).catch(() => {})
-}
-
-// Voltar pelo histórico restaura a página do bfcache com a entrada já
-// removida; manda para a biblioteca em vez de mostrar dados apagados.
-function onPageShow(e: PageTransitionEvent): void {
-  if (!e.persisted || !deletedOnPagehide) return
-  deletedOnPagehide = false
-  void goTo(afterDeleteDestination()).then(() => flash.set(DELETED_FLASH))
+function setDeleteError(error: unknown): void {
+  if (isTimeoutOrAbort(error)) {
+    deleteError.value = TIMEOUT_MESSAGE
+  } else if (error instanceof Error) {
+    deleteError.value = error.message
+  } else {
+    const fetchErr = error as { data?: { message?: string } }
+    deleteError.value = fetchErr.data?.message ?? 'Não foi possível remover a leitura: ocorreu um erro no servidor. Tente de novo.'
+  }
+  removeAnnouncement.value = deleteError.value
 }
 
 onMounted(() => {
-  window.addEventListener('pagehide', onPageHide)
-  window.addEventListener('pageshow', onPageShow)
   startRequestedDelete()
 })
 
-// O "Remover esta leitura" do formulário de edição deixa o id desta leitura em
-// `entry:remove-request` (estado de memória, nunca a URL) e navega para cá: a
-// remoção começa com a mesma contagem e o mesmo "Desfazer". O pedido é
-// consumido na leitura, então recarregar a página não o repete.
 const removeRequest = useState<string | null>('entry:remove-request', () => null)
 
 function startRequestedDelete(): void {
@@ -586,39 +575,6 @@ function handleRemoveRequest(): boolean {
   return true
 }
 
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('pagehide', onPageHide)
-    window.removeEventListener('pageshow', onPageShow)
-  }
-  deleteOnLeave()
-  clearUndoTimer()
-})
-
-async function performDelete(): Promise<void> {
-  isDeleting.value = true
-  deleteError.value = ''
-
-  try {
-    await $fetch(`/api/logs/${id.value}`, {
-      method: 'DELETE',
-      timeout: 15_000,
-    })
-    await goTo(afterDeleteDestination())
-    flash.set(DELETED_FLASH)
-  } catch (err: unknown) {
-    if (isTimeoutOrAbort(err)) {
-      deleteError.value = TIMEOUT_MESSAGE
-      removeAnnouncement.value = TIMEOUT_MESSAGE
-      return
-    }
-    const fetchErr = err as { data?: { message?: string } }
-    deleteError.value = fetchErr.data?.message ?? 'Não foi possível remover o livro da biblioteca.'
-    removeAnnouncement.value = deleteError.value
-  } finally {
-    isDeleting.value = false
-  }
-}
 </script>
 
 <style scoped>
@@ -682,8 +638,6 @@ async function performDelete(): Promise<void> {
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1) var(--space-2);
-  /* Alvo de toque maior que a linha de texto: o padding cresce a área e a
-     margem negativa devolve o espaço, então o cabeçalho não muda de altura. */
   padding-block: 4px;
   margin-block: -4px;
   text-decoration: none;
@@ -957,9 +911,6 @@ async function performDelete(): Promise<void> {
   text-decoration-color: currentColor;
 }
 
-/* Fica depois das regras base de propósito: com a mesma especificidade,
-   a ordem decide, e antes daqui `.book-card-section { flex-direction: row }`
-   vencia e espremia título e metadados em 144px ao lado da capa. */
 @media (min-width: 1024px) {
   .entry-article {
     max-width: none;
@@ -994,8 +945,6 @@ async function performDelete(): Promise<void> {
     margin-bottom: var(--space-4);
   }
 
-  /* A coluna da direita começa rente ao topo, qualquer que seja a primeira
-     seção (resenha, progresso da leitura ou o resumo de páginas). */
   .entry-main > :first-child {
     margin-top: 0;
     padding-top: 0;
