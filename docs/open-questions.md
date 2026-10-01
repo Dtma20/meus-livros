@@ -48,6 +48,17 @@ Unresolved decisions and unverified assumptions. Nothing important is hidden her
 
 **Status (2026-09-19):** unanswered, and it blocks nothing before launch. Import is post-MVP either way; the answer only reorders the backlog.
 
+### Q7 - Should leaving during the undo countdown delete or cancel? [PENDING - 2026-09-30]
+
+**Why it matters.** Deleting a reading or a passage starts a 6 s countdown with Desfazer (`useDelayedDelete`). If the user navigates away before it ends, the DELETE is sent at once: leaving counts as confirming. On `/entrada/[id]` and `/livro/[slug]`, if that DELETE then fails, nothing tells the user; the passage list does show a flash.
+
+**Options**
+1. **Keep: leaving confirms.** Matches "the countdown is the confirmation"; the risk is a delete the user meant to undo but navigated past.
+2. **Cancel on leave.** Nothing is deleted unless the countdown finished; the risk is a user who believes it was deleted.
+3. Keep 1, and surface a failed delete-on-leave as a flash on the next page for entrada and livro too.
+
+**Status:** current behaviour is option 1. Raised in [reports/frontend-review-2026-09-30.md](reports/frontend-review-2026-09-30.md) §7; the owner has not decided.
+
 ---
 
 ### Q4 - Custom domain, or `.vercel.app`? [RESOLVED - 2026-09-19]

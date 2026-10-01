@@ -16,7 +16,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The Nuxt app is the root: `app/`, `server/`, `shared/`, `package.json`. `npm run dev` runs it against the database in `.env`. For a local database, `docker-compose.yml` defines a Postgres container, and `npx tsx scripts/dev.ts` starts Docker, waits for Postgres, seeds the genres and runs `nuxt dev` (it is not wired into `package.json`). `npm run test` refuses to run against a missing or stale `.vercel/output` bundle - run `npm run build` first.
 
-`docs/reports/` holds dated round reports (UX, visual audit, pre-deploy security review) and the agent reports from the correction rounds of 012 and 018. `docs/agent-prompts/` holds the prompts handed to implementing agents.
+`docs/reports/` holds dated round reports (UX, visual audit, pre-deploy security review, the 2026-09-30 frontend code review) and the agent reports from the correction rounds of 012 and 018. `docs/agent-prompts/` holds the prompts handed to implementing agents.
 
 The pre-Nuxt site lives in `legacy/` and stays runnable until the new app reaches parity. It must be served over HTTP - it `fetch`es `livros.json`, so `file://` fails on CORS.
 

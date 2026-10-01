@@ -126,9 +126,15 @@ Client-side only where interaction demands it:
 - Rating input: 10 half-star steps, keyboard-operable (arrow keys), `aria-valuenow`.
 - Review: plain `<textarea>`. No rich text, no markdown preview, no toolbar.
 - Edition picker: **collapsed by default** behind "li outra edição?". Most users never open it.
-- Submit disabled while in flight; the button shows a spinner; a failure keeps the typed text.
+- Submit disabled while in flight; the button shows a spinner; a failure keeps the typed text. `handleSubmit` also returns early while a save is pending, and controls stay disabled until navigation to the saved entry settles.
+- On edit, a field the user cleared is sent as `null`, never `undefined`: the service skips `undefined` fields, so `undefined` would mean "keep the old value".
 
-**Losing a typed review is the worst failure this app can have.** `LogForm` drafts to `localStorage` on every change, restores on mount, and clears only after a confirmed save. Wrapped in try/catch - private-mode browsers throw.
+**Losing a typed review is the worst failure this app can have.** `LogForm` and `AddBookForm` draft through `useFormDraft` (`app/composables/useFormDraft.ts`):
+
+- Key `meus-livros:form-draft:v1:<form>:<userId>:<mode>:<context>`. No user id, no draft. Another account on the same browser never restores it.
+- Writes are debounced (250 ms) and flushed on `beforeunload` and unmount; restore validates every field before applying it.
+- Cleared after a confirmed save, and on sign-out: `handleSignOut` calls `clearStoredFormDrafts`, which also removes the pre-v1 keys `meus-livros:log-draft` and `meus-livros:add-book-draft`.
+- Wrapped in try/catch - private-mode browsers throw.
 
 ---
 
@@ -144,6 +150,13 @@ Every list has all three. The current app has **none** - filtering to zero resul
 | Empty - new profile | "Ainda não registrou nenhum livro" + a link to `/app/novo` |
 | Empty - search miss | The **manual-add path, prominently**, not a dead end. This is the 60% case |
 | Open Library unavailable | "Não conseguimos buscar online agora" + manual add. Never an error page |
+
+Rules that came out of the 2026-09-30 review ([reports/frontend-review-2026-09-30.md](reports/frontend-review-2026-09-30.md)):
+
+- **404 and failure are different states.** A page shows "não encontrado" only for a real 404; any other error is `ErrorState` with retry, and the SSR response carries the real status.
+- **Independent sources fail independently.** The dashboard settles `/api/dashboard` and `/api/feed/recentes` separately; a feed failure shows an error inside the feed section and keeps the reader's shelves.
+- **Content is visible without JavaScript.** Scroll reveal only hides an element after the client adds `.reveal-enabled`; the SSR HTML is never at `opacity: 0`.
+- **Destructive actions are delayed, not confirmed.** `useDelayedDelete` runs a 6 s countdown with Desfazer; the DELETE is sent when it ends, on unmount, or with `keepalive` on `pagehide`. A `pagehide` result is reported after a back-forward-cache return; a failure restores the item and shows the error. Leaving mid-countdown deletes - see Q7 in [open-questions.md](open-questions.md).
 
 The search-miss state carries unusual weight: Open Library will fail to find the book roughly 60% of the time ([book-catalog.md](book-catalog.md)), so "não encontrei" is a **normal, expected outcome** and must look like a next step rather than a failure.
 
@@ -162,7 +175,8 @@ Accessibility fixes the current app needs (it is presently unusable with a scree
 - Cards become `<a>` wrapping the cover, not `<div @click>` - this also makes them middle-clickable and shareable.
 - Every cover `<img>` gets `alt="Capa de {title}, de {author}"`.
 - Modals: focus trap, Escape closes, focus restored, close control is a `<button aria-label="Fechar">`.
-- Star ratings expose `role="img"` with a text label; the input version is a real radio group.
+- Star ratings expose `role="img"` with a text label; the input version is a native `<input type="range" step="0.5">` labelled by the visible "Sua avaliação" (`aria-labelledby`).
+- Single-character shortcuts (`/`, `n`, `?`, `g` + letter) can be turned off in the shortcuts dialog (WCAG 2.1.4). The preference is per device, in `localStorage` key `ml:character-key-shortcuts-enabled`; the dialog stays reachable from the "Atalhos de teclado" button in the header.
 - Visible focus rings. Do not remove outlines.
 - Colour contrast: the existing `--text-color: #9ab` on `--bg-color: #14181c` is approximately 6.6:1 - passes AA. Keep it when extending the palette.
 
