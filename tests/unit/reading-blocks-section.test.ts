@@ -292,4 +292,58 @@ describe('ReadingBlocksSection - delete with undo', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  it('restores overlapping optimistic deletes in source order without clearing the newer undo', async () => {
+    vi.useFakeTimers()
+    let rejectFirst: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { rejectFirst = resolve }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [
+        BLOCK,
+        { id: 'b2', start_page: 21, end_page: 40, comment: 'Continuação.', read_at: '2026-09-02' },
+      ],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    container.querySelector<HTMLElement>('[data-block-id="b1"] .btn-icon-delete')?.click()
+    await flush()
+    container.querySelector<HTMLElement>('[data-block-id="b2"] .btn-icon-delete')?.click()
+    await flush()
+    expect(buttonsMatching(container, 'Desfazer')).toHaveLength(1)
+
+    rejectFirst?.(new Response(JSON.stringify({ message: 'Falhou a primeira exclusão.' }), { status: 500 }))
+    await flush()
+    expect(buttonsMatching(container, 'Desfazer')).toHaveLength(1)
+
+    buttonsMatching(container, 'Desfazer')[0]?.click()
+    await flush()
+    const order = Array.from(container.querySelectorAll<HTMLElement>('.block-card')).map(card => card.dataset.blockId)
+    expect(order).toEqual(['b1', 'b2'])
+    expect(document.activeElement).toBe(container.querySelector('[data-block-id="b2"] .btn-icon-delete'))
+  })
+
+  it('keeps active form fields when the parent refreshes the block snapshot', async () => {
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+    buttonsMatching(container, 'Registrar trecho lido')[0]?.click()
+    await flush()
+    const comment = container.querySelector<HTMLTextAreaElement>('#block-comment')
+    if (!comment) throw new Error('Campo de anotação não encontrado.')
+    comment.value = 'Meu rascunho local.'
+    comment.dispatchEvent(new Event('input', { bubbles: true }))
+
+    expect(comment.value).toBe('Meu rascunho local.')
+    expect(container.textContent).toContain('Começo lento.')
+  })
 })

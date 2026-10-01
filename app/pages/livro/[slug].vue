@@ -6,10 +6,18 @@
 
     <div v-else-if="error || !work" class="error-state">
       <EmptyState
+        v-if="isNotFound"
         heading-tag="h1"
         title="Livro não encontrado."
         action-label="Ir para o início"
         action-href="/"
+      />
+      <ErrorState
+        v-else
+        heading-tag="h1"
+        title="Algo deu errado. Tente de novo."
+        action-label="Tentar de novo"
+        @retry="refresh"
       />
     </div>
 
@@ -227,7 +235,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useFlash } from '~/composables/useFlash'
 import BookCover from '~/components/book/BookCover.vue'
@@ -235,9 +243,11 @@ import RatingHistogram from '~/components/book/RatingHistogram.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
+import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { formatReadingDate } from '~/utils/entry'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
+import { useDelayedDelete, type DelayedDeleteContext, type PageHideDeleteResult } from '~/composables/useDelayedDelete'
 import type { WorkAuthorView, WorkEditionView, WorkWithDetails } from '~~/shared/schemas/work'
 import { formatCountry, formatLanguage, formatPublicationYear } from '~~/shared/schemas/work'
 
@@ -253,14 +263,22 @@ const requestUrl = useRequestURL()
 
 const session = typeof useState === 'function'
   ? useState<{ user?: { id?: string } | null }>('auth:session', () => ({ user: null }))
-  : ref({ user: null })
+  : ref<{ user?: { id?: string } | null }>({ user: null })
 
-const nuxtApp = typeof useNuxtApp === 'function' ? useNuxtApp() : null
+const nuxtApp = typeof useNuxtApp === 'function'
+  ? useNuxtApp()
+  : { runWithContext: (callback: () => unknown) => callback() }
 
-const { data: work, pending, error } = await useAsyncData<WorkWithDetails>(
+const { data: work, pending, error, refresh } = await useAsyncData<WorkWithDetails>(
   `work-${slug.value}`,
   () => requestFetch<WorkWithDetails>(`/api/works/${encodeURIComponent(slug.value)}`),
 )
+
+const isNotFound = computed(() => {
+  const status = (error.value as { statusCode?: number; status?: number } | null)?.statusCode
+    || (error.value as { statusCode?: number; status?: number } | null)?.status
+  return status === 404
+})
 
 if (error.value) {
   throw createError({
@@ -425,124 +443,99 @@ const canDeleteWork = computed(() => {
   return work.value.created_by === session.value.user.id && work.value.log_count === 0
 })
 
-const isDeletingWork = ref(false)
 const deleteWorkError = ref('')
 
-const UNDO_SECONDS = 6
-const pendingSeconds = ref(0)
 const deleteAnnouncement = ref('')
 const undoBtnRef = ref<HTMLButtonElement | null>(null)
 const deleteBtnRef = ref<HTMLButtonElement | null>(null)
-let undoTimer: ReturnType<typeof setInterval> | null = null
-
-const flash = typeof useState === 'function' ? useFlash() : null
+const flash = typeof useState === 'function' ? useFlash() : { set: (_text: string, _tone?: 'info' | 'error') => undefined }
 const DELETED_FLASH = 'Livro removido do catálogo.'
-const LEAVE_FAILED_FLASH = 'Não foi possível remover o livro do catálogo. Tente de novo na página dele.'
 const AFTER_DELETE_DESTINATION = '/'
 
-function clearUndoTimer(): void {
-  if (undoTimer) {
-    clearInterval(undoTimer)
-    undoTimer = null
-  }
+interface WorkDeleteSnapshot {
+  workId: string
 }
 
-function startDeleteWork(): void {
-  if (!work.value || pendingSeconds.value > 0 || isDeletingWork.value) return
-  deleteWorkError.value = ''
-  pendingSeconds.value = UNDO_SECONDS
-  deleteAnnouncement.value = `Este livro será removido do catálogo em ${UNDO_SECONDS} segundos. Desfazer.`
-  void nextTick(() => undoBtnRef.value?.focus())
-  clearUndoTimer()
-  undoTimer = setInterval(() => {
-    pendingSeconds.value -= 1
-    if (pendingSeconds.value <= 0) {
-      clearUndoTimer()
-      pendingSeconds.value = 0
-      deleteAnnouncement.value = 'Removendo o livro...'
-      void performDeleteWork()
+let pageActive = true
+onBeforeUnmount(() => { pageActive = false })
+
+const {
+  pendingItem: pendingDelete,
+  secondsRemaining: pendingSeconds,
+  isCommitting: isDeletingWork,
+  start: scheduleDelete,
+  cancel: cancelDelete,
+} = useDelayedDelete<WorkDeleteSnapshot>({
+  remove: async (item, context: DelayedDeleteContext) => {
+    if (context.keepalive) {
+      const response = await fetch(`/api/works/${item.workId}`, {
+        method: 'DELETE',
+        keepalive: true,
+        credentials: 'same-origin',
+      })
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { message?: string } | null
+        throw new Error(body?.message || 'Não foi possível remover o livro do catálogo: ocorreu um erro no servidor. Tente de novo.')
+      }
+      return
     }
-  }, 1000)
+    await $fetch(`/api/works/${item.workId}`, { method: 'DELETE', timeout: 15_000 })
+  },
+  onSuccess: (_item, context) => {
+    if (context.reason === 'leave') {
+      flash.set(DELETED_FLASH)
+      return
+    }
+    if (!pageActive) return
+    flash.set(DELETED_FLASH)
+    void goTo(AFTER_DELETE_DESTINATION)
+  },
+  onFailure: (_item, error, context) => {
+    if (context.reason === 'leave' || !pageActive) return
+    setDeleteWorkError(error)
+  },
+  onPageHideResult: (_item, result: PageHideDeleteResult) => {
+    if (!pageActive) return
+    if (result.success) {
+      flash.set(DELETED_FLASH)
+      void goTo(AFTER_DELETE_DESTINATION)
+      return
+    }
+    setDeleteWorkError(result.error)
+  },
+})
+
+const hasPendingDelete = computed(() => pendingDelete.value !== null)
+
+function startDeleteWork(): void {
+  if (!work.value || hasPendingDelete.value || isDeletingWork.value) return
+  deleteWorkError.value = ''
+  deleteAnnouncement.value = 'Este livro será removido do catálogo em 6 segundos. Desfazer.'
+  scheduleDelete({ workId: work.value.id })
+  void nextTick(() => undoBtnRef.value?.focus())
 }
 
 function undoDeleteWork(): void {
-  clearUndoTimer()
-  pendingSeconds.value = 0
+  if (!cancelDelete()) return
   deleteAnnouncement.value = 'Remoção cancelada.'
   void nextTick(() => deleteBtnRef.value?.focus())
 }
 
 function goTo(dest: string): Promise<unknown> {
   const run = () => navigateTo(dest)
-  return Promise.resolve(nuxtApp ? nuxtApp.runWithContext(run) : run())
+  return Promise.resolve(nuxtApp.runWithContext(run))
 }
 
-function deleteOnLeave(): void {
-  if (pendingSeconds.value <= 0 || !work.value) return
-  clearUndoTimer()
-  pendingSeconds.value = 0
-  $fetch(`/api/works/${work.value.id}`, { method: 'DELETE', timeout: 15_000 })
-    .then(() => flash?.set(DELETED_FLASH))
-    .catch(() => flash?.set(LEAVE_FAILED_FLASH, 'error'))
-}
-
-let deletedOnPagehide = false
-
-function onPageHide(): void {
-  if (pendingSeconds.value <= 0 || !work.value) return
-  clearUndoTimer()
-  pendingSeconds.value = 0
-  deletedOnPagehide = true
-  void fetch(`/api/works/${work.value.id}`, {
-    method: 'DELETE',
-    keepalive: true,
-    credentials: 'same-origin',
-  }).catch(() => {})
-}
-
-function onPageShow(e: PageTransitionEvent): void {
-  if (!e.persisted || !deletedOnPagehide) return
-  deletedOnPagehide = false
-  void goTo(AFTER_DELETE_DESTINATION).then(() => flash?.set(DELETED_FLASH))
-}
-
-onMounted(() => {
-  window.addEventListener('pagehide', onPageHide)
-  window.addEventListener('pageshow', onPageShow)
-})
-
-onBeforeUnmount(() => {
-  if (typeof window !== 'undefined') {
-    window.removeEventListener('pagehide', onPageHide)
-    window.removeEventListener('pageshow', onPageShow)
+function setDeleteWorkError(error: unknown): void {
+  if (isTimeoutOrAbort(error)) {
+    deleteWorkError.value = TIMEOUT_MESSAGE
+  } else if (error instanceof Error) {
+    deleteWorkError.value = error.message
+  } else {
+    const fetchErr = error as { data?: { message?: string } }
+    deleteWorkError.value = fetchErr.data?.message ?? 'Não foi possível remover o livro do catálogo: ocorreu um erro no servidor. Tente de novo.'
   }
-  deleteOnLeave()
-  clearUndoTimer()
-})
-
-async function performDeleteWork(): Promise<void> {
-  if (!work.value) return
-  isDeletingWork.value = true
-  deleteWorkError.value = ''
-
-  try {
-    await $fetch(`/api/works/${work.value.id}`, {
-      method: 'DELETE',
-      timeout: 15_000,
-    })
-    await goTo(AFTER_DELETE_DESTINATION)
-    flash?.set(DELETED_FLASH)
-  } catch (err: unknown) {
-    if (isTimeoutOrAbort(err)) {
-      deleteWorkError.value = TIMEOUT_MESSAGE
-    } else {
-      const fetchErr = err as { data?: { message?: string } }
-      deleteWorkError.value = fetchErr.data?.message ?? 'Não foi possível remover o livro do catálogo.'
-    }
-    deleteAnnouncement.value = deleteWorkError.value
-  } finally {
-    isDeletingWork.value = false
-  }
+  deleteAnnouncement.value = deleteWorkError.value
 }
 </script>
 

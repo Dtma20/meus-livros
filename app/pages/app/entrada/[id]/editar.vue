@@ -11,8 +11,14 @@
       </div>
 
       <div v-else-if="error || !log" class="error-state">
-        <p class="error-text">Registro não encontrado ou você não tem permissão para editá-lo.</p>
-        <NuxtLink to="/" class="back-link">← Ir para o início</NuxtLink>
+        <template v-if="isLogNotFound">
+          <p class="error-text">Registro não encontrado ou você não tem permissão para editá-lo.</p>
+          <NuxtLink to="/" class="back-link">← Ir para o início</NuxtLink>
+        </template>
+        <template v-else>
+          <p class="error-text">Não foi possível carregar o registro. Tente novamente.</p>
+          <button type="button" class="btn btn-secondary" @click="() => { void refreshLog() }">Tentar novamente</button>
+        </template>
       </div>
 
       <template v-else>
@@ -179,7 +185,7 @@ function onTabKeydown(event: KeyboardEvent): void {
   nextTick(() => document.getElementById(`tab-${tab}`)?.focus())
 }
 
-const { data: log, pending, error } = useAsyncData<LogWithDetails>(
+const { data: log, pending, error, refresh: refreshLog } = useAsyncData<LogWithDetails>(
   `log-${id.value}`,
   () =>
     $fetch<LogWithDetails>(`/api/logs/${id.value}` as string, {
@@ -187,6 +193,12 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
       retry: 0,
     }),
 )
+
+const isLogNotFound = computed(() => {
+  const status = (error.value as { statusCode?: number; status?: number } | null)?.statusCode
+    || (error.value as { statusCode?: number; status?: number } | null)?.status
+  return status === 404
+})
 
 const concluding = computed(() => finishing.value && !log.value?.finished_on)
 
