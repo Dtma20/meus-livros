@@ -320,7 +320,6 @@ useSeoMeta({
 .stat-tiles > :nth-child(4) { animation-delay: 0.11s; }
 .stat-tiles > :nth-child(5) { animation-delay: 0.14s; }
 
-/* Two columns on phones; an odd last tile spans both so no row holds one tile at half width. */
 @media (max-width: 600px) {
   .stat-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));

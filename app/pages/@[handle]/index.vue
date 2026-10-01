@@ -474,7 +474,6 @@ const displayedLogs = computed(() => {
 
 const readingMapData = computed(() => aggregateReadingMapData(displayedLogs.value))
 
-// Loaded only after mount, so the async chunk never holds back the page's Suspense.
 const mapReady = ref(false)
 onMounted(() => {
   mapReady.value = true
@@ -493,10 +492,6 @@ const {
   sortedBooks,
 } = useBookFilters(displayedLogs)
 
-// The header totals describe the whole library this viewer may see. They follow
-// the genre/country/decade filters (marked "(filtros ativos)"), but not the
-// owner's visibility tab: that tab only narrows the grid, and the count for it
-// sits next to the grid ("Mostrando N de M livros").
 const headerFilters = useBookFilters(logs)
 watch(
   [filterGenre, filterCountry, filterDecade],
@@ -517,8 +512,6 @@ function queryString(value: unknown): string {
   return typeof first === 'string' ? first : ''
 }
 
-// Filters live in the URL so a filtered view can be shared and survives a reload.
-// Values that no longer match the library are ignored.
 const initialGenre = queryString(route.query.genero)
 if (availableGenres.value.includes(initialGenre)) filterGenre.value = initialGenre
 const initialCountry = queryString(route.query.pais)

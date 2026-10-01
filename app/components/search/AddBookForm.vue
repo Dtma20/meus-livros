@@ -539,9 +539,6 @@ interface DuplicateWorkState {
 }
 const duplicateWork = ref<DuplicateWorkState | null>(null)
 
-// Error recovery, same pattern as LogForm: summary above the submit button,
-// focus + scroll to the first invalid field. Fields inside a closed
-// disclosure open it before receiving focus.
 const FIELD_ORDER = [
   'title',
   'authors',
@@ -868,8 +865,6 @@ function isBlank(value: unknown): boolean {
   return false
 }
 
-// True when the stored draft holds something the user typed, beyond a title
-// that the search prefill would have supplied anyway.
 function draftHasContent(draft: Record<string, unknown>): boolean {
   const ignored = new Set(['showMoreDetails', 'showEdition'])
   if (props.initialTitle) ignored.add('title')
@@ -961,8 +956,6 @@ async function discardDraft(): Promise<void> {
   errors.value = {}
   serverError.value = ''
   draftRestored.value = false
-  // The field watcher re-saves the reset values before the next render;
-  // clear after that flush so no draft key is left behind.
   await nextTick()
   clearDraft()
   document.getElementById('book-title')?.focus()

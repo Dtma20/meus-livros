@@ -298,7 +298,6 @@ watch(
 
 const showFinishedSummary = computed(() => !props.isOwner && props.isFinished && blocks.value.length === 0)
 const finishedPageCount = computed(() => progress.value.total_pages || props.editionPageCount || null)
-// Total conhecido de páginas da edição; sem ele não há limite superior no cliente.
 const knownTotalPages = computed(() => props.editionPageCount || progress.value.total_pages || null)
 
 function updateLocalProgress(): void {
@@ -413,9 +412,6 @@ function getTodayString(): string {
   }).format(new Date())
 }
 
-// O botão que abriu o formulário some (v-if) enquanto ele está aberto. Ao abrir,
-// o foco vai para "Página inicial"; ao fechar, volta para quem abriu, ou para o
-// botão do cabeçalho quando o do estado vazio deixou de existir.
 type AddOpener = 'header' | 'empty'
 const headerAddBtnRef = ref<HTMLButtonElement | null>(null)
 const emptyAddBtnRef = ref<HTMLButtonElement | null>(null)
@@ -536,9 +532,6 @@ async function saveBlock(): Promise<void> {
   }
 }
 
-// Excluir segue o padrão da remoção de leitura: o trecho sai da lista na
-// hora, "Desfazer" fica disponível por 6 s e o DELETE só sai quando a
-// contagem acaba. Sair da página durante a contagem confirma a exclusão.
 const UNDO_SECONDS = 6
 const LEAVE_FAILED_FLASH = 'Não foi possível excluir o trecho. Ele continua na leitura.'
 interface PendingRemoval {
@@ -584,7 +577,6 @@ function sendDelete(blockId: string, keepalive = false): Promise<Response> {
 }
 
 function startRemove(block: ReadingBlockView): void {
-  // Um segundo "Excluir" durante a contagem confirma o anterior na hora.
   if (pendingRemoval.value) void commitRemoval()
   if (editingBlock.value?.id === block.id) cancelForm()
 
@@ -639,8 +631,6 @@ async function commitRemoval(): Promise<void> {
   }
 }
 
-// Navegação dentro do app: o componente desmonta e o pedido sai na hora;
-// o resultado ruim aparece como aviso na página seguinte.
 function removeOnLeave(): void {
   const removal = pendingRemoval.value
   if (!removal) return
@@ -654,7 +644,6 @@ function removeOnLeave(): void {
     .catch(() => flash?.set(LEAVE_FAILED_FLASH, 'error'))
 }
 
-// Fechar a aba ou recarregar: só `keepalive` sobrevive ao descarregamento.
 function onPageHide(): void {
   const removal = pendingRemoval.value
   if (!removal) return

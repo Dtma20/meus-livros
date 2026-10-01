@@ -506,8 +506,6 @@ function undoDelete(): void {
 const DELETED_FLASH = 'Leitura removida.'
 const LEAVE_FAILED_FLASH = 'Não foi possível remover a leitura. Tente de novo na página dela.'
 
-// Na saída, `route.params.id` já é o da rota de destino (ou nenhum): o id
-// vem do registro carregado, que não muda com a navegação.
 function loadedLogId(): string {
   return logData.value?.id ?? id.value
 }
@@ -521,9 +519,6 @@ function goTo(dest: string): Promise<unknown> {
   return Promise.resolve(nuxtApp ? nuxtApp.runWithContext(run) : run())
 }
 
-// Sair da página durante a contagem não cancela: o usuário pediu a remoção
-// e, fora da página, já não tem como desfazer. A requisição sai na hora e o
-// resultado aparece como aviso no layout, na página seguinte.
 function deleteOnLeave(): void {
   if (pendingSeconds.value <= 0) return
   clearUndoTimer()
@@ -534,8 +529,6 @@ function deleteOnLeave(): void {
     .catch(() => flash.set(LEAVE_FAILED_FLASH, 'error'))
 }
 
-// Fechar a aba ou sair do site: `$fetch` não sobrevive ao descarregamento,
-// `keepalive` sim. A rota de DELETE não lê corpo.
 let deletedOnPagehide = false
 
 function onPageHide(): void {
@@ -550,8 +543,6 @@ function onPageHide(): void {
   }).catch(() => {})
 }
 
-// Voltar pelo histórico restaura a página do bfcache com a entrada já
-// removida; manda para a biblioteca em vez de mostrar dados apagados.
 function onPageShow(e: PageTransitionEvent): void {
   if (!e.persisted || !deletedOnPagehide) return
   deletedOnPagehide = false
@@ -564,10 +555,6 @@ onMounted(() => {
   startRequestedDelete()
 })
 
-// O "Remover esta leitura" do formulário de edição deixa o id desta leitura em
-// `entry:remove-request` (estado de memória, nunca a URL) e navega para cá: a
-// remoção começa com a mesma contagem e o mesmo "Desfazer". O pedido é
-// consumido na leitura, então recarregar a página não o repete.
 const removeRequest = useState<string | null>('entry:remove-request', () => null)
 
 function startRequestedDelete(): void {
@@ -682,8 +669,6 @@ async function performDelete(): Promise<void> {
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1) var(--space-2);
-  /* Alvo de toque maior que a linha de texto: o padding cresce a área e a
-     margem negativa devolve o espaço, então o cabeçalho não muda de altura. */
   padding-block: 4px;
   margin-block: -4px;
   text-decoration: none;
@@ -957,9 +942,6 @@ async function performDelete(): Promise<void> {
   text-decoration-color: currentColor;
 }
 
-/* Fica depois das regras base de propósito: com a mesma especificidade,
-   a ordem decide, e antes daqui `.book-card-section { flex-direction: row }`
-   vencia e espremia título e metadados em 144px ao lado da capa. */
 @media (min-width: 1024px) {
   .entry-article {
     max-width: none;
@@ -994,8 +976,6 @@ async function performDelete(): Promise<void> {
     margin-bottom: var(--space-4);
   }
 
-  /* A coluna da direita começa rente ao topo, qualquer que seja a primeira
-     seção (resenha, progresso da leitura ou o resumo de páginas). */
   .entry-main > :first-child {
     margin-top: 0;
     padding-top: 0;

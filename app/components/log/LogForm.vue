@@ -712,7 +712,6 @@ function changeBook(): void {
   saveDraft()
 }
 
-// Resumo de uma linha da edição escolhida, visível com a lista fechada.
 const editionSummary = computed(() => {
   const id = editionId.value
   if (!id) return 'Edição padrão'
@@ -862,8 +861,6 @@ function restoreDraft(): void {
     const draft = JSON.parse(raw)
     const chosenId = props.initialWork?.id
     if (chosenId && draft.work?.id !== chosenId) {
-      // Stale draft of another book: keep it in storage, but do not let the
-      // mount-time watcher overwrite it before the reader touches the form.
       skippedStaleDraft = true
       return
     }
@@ -964,15 +961,11 @@ watch(
   { immediate: true },
 )
 
-// "Terminei": só vale para uma leitura em andamento aberta para edição.
 const finishingMode = props.mode === 'edit'
   && props.finishing
   && Boolean(props.initialLog)
   && !props.initialLog?.finished_on
 
-// O modo de edição preenche o formulário já no setup, para o SSR entregar o
-// formulário e não a busca de livro. Nada aqui toca em window ou localStorage;
-// o rascunho continua sendo restaurado só no modo de criação, no onMounted.
 if (props.mode === 'edit' && props.initialLog) {
   const log = props.initialLog
   selectedWork.value = {
@@ -981,7 +974,6 @@ if (props.mode === 'edit' && props.initialLog) {
     slug: log.work.slug,
     authors: log.work.authors,
     first_published_year: log.work.first_published_year,
-    // As mesmas entradas de capa que a página da entrada usa.
     cover_url: log.edition?.cover_url ?? log.work.cover_url,
     ol_cover_id: log.edition?.ol_cover_id ?? null,
     isbn13: log.edition?.isbn13 ?? null,
@@ -998,10 +990,6 @@ if (props.mode === 'edit' && props.initialLog) {
   isCurrentlyReading.value = finishingMode ? false : !log.finished_on
 }
 
-// Proteção contra perda de dados na edição: o formulário compara o estado
-// atual com o que foi carregado. Com alterações pendentes, navegar dentro do
-// app abre o diálogo "Sair sem salvar?" e fechar ou recarregar a aba cai no
-// aviso nativo do navegador (o único permitido em `beforeunload`).
 function editSnapshot(): string {
   return JSON.stringify({
     editionId: editionId.value,
@@ -1022,7 +1010,6 @@ const isDirty = computed(() => (
   && editBaseline.value !== null
   && editSnapshot() !== editBaseline.value
 ))
-// Salvar com sucesso e "Remover esta leitura" saem sem perguntar.
 let allowLeave = false
 const leaveDialogRef = ref<HTMLDialogElement | null>(null)
 const stayBtnRef = ref<HTMLButtonElement | null>(null)
@@ -1045,7 +1032,6 @@ function stayOnPage(): void {
 }
 
 function onLeaveDialogClose(): void {
-  // Esc também fecha: continua editando.
   if (!allowLeave) pendingLeaveTo = null
 }
 
@@ -1070,7 +1056,6 @@ onBeforeUnmount(() => {
 onMounted(() => {
   if (props.mode === 'edit' && props.initialLog) {
     if (finishingMode) {
-      // No servidor a data "de hoje" é UTC; aqui vale a do navegador.
       finishedOn.value = getBrowserLocalDate()
       void nextTick(() => {
         document.querySelector<HTMLElement>('#log-rating-group [role="slider"]')?.focus()
@@ -1158,9 +1143,6 @@ async function handleSubmit(): Promise<void> {
   }
 }
 
-// A remoção acontece na página da entrada, que tem a contagem com
-// "Desfazer". O pedido viaja em estado de memória, nunca na URL: um link com
-// o pedido abriria a contagem para o dono, e sair da página confirma a remoção.
 const removeRequest = useState<string | null>('entry:remove-request', () => null)
 
 function handleDelete(): void {

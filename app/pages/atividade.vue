@@ -202,7 +202,6 @@ function loadNewPosts() {
 }
 
 .reading-now {
-  /* Below 1024px the aside only repeats rows already in the feed, so it is hidden. */
   display: none;
 }
 

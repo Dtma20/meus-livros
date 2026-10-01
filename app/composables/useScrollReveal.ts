@@ -60,8 +60,6 @@ export function registerRevealElement(el: HTMLElement) {
         ? Math.min(scrollParent.getBoundingClientRect().bottom, window.innerHeight)
         : window.innerHeight
 
-      // When element leaves through the bottom of visible container/viewport,
-      // un-reveal it so it slides up again when scrolled into view.
       if (entry.boundingClientRect.top >= visibleBottom - 25) {
         el.classList.remove('is-revealed')
       }

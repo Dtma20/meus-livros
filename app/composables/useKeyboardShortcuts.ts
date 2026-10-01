@@ -3,7 +3,6 @@ import { onBeforeUnmount, onMounted } from 'vue'
 export const FOCUS_SEARCH_EVENT = 'ml:focus-search'
 
 interface ShortcutOptions {
-  /** Destino do atalho `g p`; lido a cada uso, pois depende da sessão. */
   profilePath: () => string
   openHelp: () => void
 }
@@ -18,7 +17,6 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 const HINT_ID = 'ml-chord-hint'
 
-/** Dica visível (e anunciada) durante a janela do atalho de duas teclas. */
 function showChordHint(): void {
   if (document.getElementById(HINT_ID)) return
   const hint = document.createElement('div')
@@ -63,7 +61,6 @@ export function useKeyboardShortcuts(options: ShortcutOptions): void {
   function onKeydown(e: KeyboardEvent): void {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return
     if (isTypingTarget(e.target)) return
-    // Com um diálogo modal aberto, só ele responde ao teclado.
     if (document.querySelector('dialog[open]')) return
 
     if (awaitingChord && e.key === 'Escape') {

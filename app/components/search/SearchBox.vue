@@ -238,7 +238,6 @@ onBeforeUnmount(() => {
 function onKeydown(e: KeyboardEvent): void {
   if (!isOpen.value) return
 
-  // Com resultados, a última opção é "Adicionar livro novo" (índice results.length).
   const total = results.value.length > 0 ? results.value.length + 1 : 0
 
   if (e.key === 'ArrowDown') {
@@ -294,7 +293,6 @@ function selectWork(work: SearchResult): void {
   }
 }
 
-/** Volta ao estado inicial: sem texto, sem resultados, lista fechada. */
 function reset(): void {
   if (debounceTimer) clearTimeout(debounceTimer)
   if (announceTimer) clearTimeout(announceTimer)
@@ -306,7 +304,6 @@ function reset(): void {
   lastQuery.value = ''
   announcement.value = ''
   activeIndex.value = -1
-  // Se o campo segue focado, continua valendo: digitar de novo abre a lista.
   focused.value = typeof document !== 'undefined' && document.activeElement === inputRef.value
 }
 
@@ -521,7 +518,6 @@ function goToAdd(): void {
 }
 
 .empty-btn-primary {
-  /* Inherits from .btn.btn-primary.btn-sm */
 }
 
 @media (prefers-reduced-motion: reduce) {

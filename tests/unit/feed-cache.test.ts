@@ -19,7 +19,6 @@ function createQueryChain(result: unknown[]) {
   for (const method of methods) {
     chain[method] = vi.fn(() => chain)
   }
-  // Make chain thenable so awaiting it resolves to result
   chain.then = (resolve: (val: unknown) => unknown) => Promise.resolve(resolve(result))
   return chain
 }
@@ -59,7 +58,6 @@ describe('Feed in-memory TTL cache', () => {
       position: 1,
     }
 
-    // First call: logs query + authors query
     mockSelect
       .mockImplementationOnce(() => createQueryChain([dummyLog]))
       .mockImplementationOnce(() => createQueryChain([dummyAuthor]))
@@ -69,11 +67,10 @@ describe('Feed in-memory TTL cache', () => {
     expect(page1.entries[0]!.work.title).toBe('Dom Casmurro')
     expect(mockSelect).toHaveBeenCalledTimes(2)
 
-    // Second call with same viewer and limit: should hit cache without querying database
     const page2 = await getFeedPage(null, { limit: 20 })
     expect(page2.entries).toHaveLength(1)
     expect(page2.entries[0]!.work.title).toBe('Dom Casmurro')
-    expect(mockSelect).toHaveBeenCalledTimes(2) // No new DB queries!
+    expect(mockSelect).toHaveBeenCalledTimes(2)
   })
 
   it('clears the cache when invalidateFeedCache() is invoked', async () => {
@@ -103,7 +100,6 @@ describe('Feed in-memory TTL cache', () => {
       edition: null,
     }
 
-    // Call 1
     mockSelect
       .mockImplementationOnce(() => createQueryChain([dummyLog1]))
       .mockImplementationOnce(() => createQueryChain([]))
@@ -113,10 +109,8 @@ describe('Feed in-memory TTL cache', () => {
     expect(res1.entries[0]!.id).toBe('11111111-1111-4111-a111-111111111111')
     expect(mockSelect).toHaveBeenCalledTimes(2)
 
-    // Call invalidateFeedCache()
     invalidateFeedCache()
 
-    // Call 2 after invalidation: queries DB again
     mockSelect
       .mockImplementationOnce(() => createQueryChain([dummyLog2]))
       .mockImplementationOnce(() => createQueryChain([]))
@@ -155,7 +149,6 @@ describe('Feed in-memory TTL cache', () => {
     await getFeedPage(null, { cursor: validCursor, limit: 10 })
     expect(mockSelect).toHaveBeenCalledTimes(2)
 
-    // Second call with cursor should NOT hit cache
     await getFeedPage(null, { cursor: validCursor, limit: 10 })
     expect(mockSelect).toHaveBeenCalledTimes(4)
   })
@@ -184,6 +177,6 @@ describe('Feed in-memory TTL cache', () => {
 
     const feed2 = await getRecentFeed(null, 10)
     expect(feed2.entries).toHaveLength(1)
-    expect(mockSelect).toHaveBeenCalledTimes(2) // Cached!
+    expect(mockSelect).toHaveBeenCalledTimes(2)
   })
 })

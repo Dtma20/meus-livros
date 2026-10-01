@@ -221,7 +221,6 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   overflow: hidden;
 }
 
-/* The title link stretches over the row; "Começar a ler" sits above it and stays its own target. */
 .shelf-title::after {
   content: "";
   position: absolute;

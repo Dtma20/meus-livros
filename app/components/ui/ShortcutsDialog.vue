@@ -141,6 +141,5 @@ kbd {
 }
 
 .shortcuts-close {
-  /* Inherits from .btn.btn-secondary */
 }
 </style>

@@ -362,7 +362,6 @@ useSeoMeta({
   border-bottom: 1px solid var(--input-bg);
 }
 
-/* Two columns on phones; an odd last tile spans both so no row holds one tile at half width. */
 @media (max-width: 600px) {
   .stat-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));

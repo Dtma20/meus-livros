@@ -148,7 +148,6 @@ const ariaLabelText = computed(() => {
   border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
-/* Enter / Leave Transitions */
 .pill-fade-enter-active {
   transition:
     opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),

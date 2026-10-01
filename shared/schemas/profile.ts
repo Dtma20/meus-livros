@@ -87,7 +87,6 @@ export function formatCountryName(
       const formatted = getRegionNames().of(countryCode.trim().toUpperCase())
       if (formatted) return formatted
     } catch {
-      // Invalid region code: fall through to label
     }
   }
   return countryLabel?.trim() || ''

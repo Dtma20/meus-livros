@@ -60,8 +60,8 @@ describe('calculateReadingProgress unit tests', () => {
 
   it('handles out-of-order blocks with gaps', () => {
     const intervals = [
-      { start_page: 100, end_page: 120 }, // 21 pages
-      { start_page: 1, end_page: 50 },     // 50 pages
+      { start_page: 100, end_page: 120 },
+      { start_page: 1, end_page: 50 },
     ]
     const res = calculateReadingProgress(intervals, 400, false)
     expect(res.pagesRead).toBe(71)

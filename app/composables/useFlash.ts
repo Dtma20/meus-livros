@@ -5,12 +5,6 @@ export interface FlashMessage {
   tone: FlashTone
 }
 
-/**
- * Mensagem de uma só exibição que sobrevive a uma navegação do lado do
- * cliente: a página define (`set`) antes de navegar e o layout logado lê e
- * apaga (`consume`) ao montar ou quando ela muda. `useState` mantém o valor
- * isolado por requisição no SSR.
- */
 export function useFlash() {
   const state = useState<FlashMessage | null>('flash:message', () => null)
 

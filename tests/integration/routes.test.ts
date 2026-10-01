@@ -91,8 +91,6 @@ describe('Route integration HTTP tests', () => {
   })
 
   it('GET /api/works/:id/editions reaches its handler (not shadowed by the work GET route)', async () => {
-    // Two sibling files with different param names ([slug].get.ts and [id]/)
-    // made the router drop /:id/editions, so "Li outra edição" always looked empty.
     const res = await fetch(`${baseUrl}/api/works/00000000-0000-4000-8000-000000000000/editions`)
     const body = await res.text()
     expect(body).not.toContain('Page not found')

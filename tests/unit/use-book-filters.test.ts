@@ -335,7 +335,7 @@ describe('app/composables/useBookFilters', () => {
     })
     const logAncient = createSampleLog({
       id: 'ancient',
-      year: -49, // Math.floor(-49 / 10) * 10 = -50
+      year: -49,
     })
 
     const logs = ref([logModern, logAncient])

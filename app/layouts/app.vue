@@ -133,8 +133,6 @@ function showPendingFlash(): void {
   flashTimer = setTimeout(dismissFlash, FLASH_MS)
 }
 
-// Só no cliente: a mensagem nasce de uma ação no navegador e renderizá-la
-// no SSR quebraria a hidratação.
 onMounted(() => {
   showPendingFlash()
   watch(() => flash.state.value, (value) => {
@@ -228,8 +226,6 @@ async function handleSignOut() {
   color: var(--text-color);
 }
 
-/* default.vue fixa `button.nav-link` em 36px com `.site-nav :deep(...)`;
-   a cadeia de quatro classes vence essa regra sem depender da ordem. */
 @media (pointer: coarse) {
   .site-nav .nav-link.nav-btn {
     min-height: var(--target-min-size);
@@ -239,8 +235,6 @@ async function handleSignOut() {
   }
 }
 
-/* No desktop com toque a linha do cabeçalho não cresce: a margem negativa
-   devolve os 8px a mais. */
 @media (pointer: coarse) and (min-width: 768px) {
   .site-nav .nav-link.nav-btn {
     margin-block: -4px;
@@ -350,8 +344,6 @@ async function handleSignOut() {
   color: var(--highlight);
 }
 
-/* O círculo (28px) é mais alto que os ícones de 22px: a margem negativa
-   mantém o rótulo na mesma linha de base dos vizinhos. */
 .bottom-nav-register .register-icon-wrapper {
   margin-block: -3px;
 }

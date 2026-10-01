@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref, Suspense } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'

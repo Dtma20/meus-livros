@@ -73,8 +73,6 @@ function measure(): void {
   scrollable.value = !!el && el.scrollWidth > el.clientWidth + 1
 }
 
-// Years run oldest to newest, so the chart opens on its end: the latest year is the one people look for.
-// Runs only after mount, so the server render and hydration are untouched.
 onMounted(() => {
   const el = scrollEl.value
   if (!el) return

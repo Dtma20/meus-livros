@@ -86,7 +86,6 @@ describe('useFeedNewPosts', () => {
     expect(composable.newPostsCount.value).toBe(2)
     expect(composable.pendingNewEntries.value.map((e) => e.id)).toEqual(['3', '2'])
 
-    // Applying returns the fresh posts and resets state
     const applied = composable.applyNewPosts()
     expect(applied.map((e) => e.id)).toEqual(['3', '2'])
     expect(composable.hasNewPosts.value).toBe(false)
@@ -202,17 +201,14 @@ describe('useFeedNewPosts', () => {
 
     expect(callCount).toBe(0)
 
-    // Fast forward 1000ms
     await vi.advanceTimersByTimeAsync(1000)
     expect(callCount).toBe(1)
 
-    // Fast forward another 1000ms
     await vi.advanceTimersByTimeAsync(1000)
     expect(callCount).toBe(2)
 
     mountApp.unmount()
 
-    // After unmount, timer should not fire anymore
     await vi.advanceTimersByTimeAsync(2000)
     expect(callCount).toBe(2)
   })

@@ -155,7 +155,6 @@ definePageMeta({
 const route = useRoute()
 const id = computed(() => route.params.id as string)
 
-// `?terminar=1` vem do atalho "Terminei": o formulário abre pronto para concluir.
 const finishing = computed(() => route.query.terminar === '1')
 
 const logFormKey = ref(0)
@@ -189,7 +188,6 @@ const { data: log, pending, error } = useAsyncData<LogWithDetails>(
     }),
 )
 
-// Mesma regra do LogForm: "Terminei" só vale para uma leitura em andamento.
 const concluding = computed(() => finishing.value && !log.value?.finished_on)
 
 const slug = computed(() => log.value?.work?.slug || '')
@@ -201,9 +199,6 @@ function fetchWork(workSlug: string): Promise<WorkWithDetails> {
   })
 }
 
-// No SSR as duas buscas correm juntas e o slug ainda está vazio quando esta
-// começa; sem o fallback o payload levava `null` e, como o slug não muda mais
-// depois da hidratação, o `watch` nunca refazia a busca.
 const { data: work, error: workError } = useAsyncData<WorkWithDetails | null>(
   `entry-work-${id.value}`,
   async () => {

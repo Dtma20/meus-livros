@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it, vi } from 'vitest'

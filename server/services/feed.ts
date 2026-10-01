@@ -61,7 +61,7 @@ interface FeedCacheEntry {
 }
 
 const feedCache = new Map<string, FeedCacheEntry>()
-export const FEED_CACHE_TTL_MS = 30_000 // 30 seconds
+export const FEED_CACHE_TTL_MS = 30_000
 
 export function invalidateFeedCache(): void {
   feedCache.clear()

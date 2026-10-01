@@ -410,8 +410,6 @@ const logRatings = computed<number[]>(() => {
 
 const showHistogram = computed(() => logRatings.value.length >= 3)
 
-// "4,5 · 1 nota · 2 leituras": the rated count only appears when it differs
-// from the readings count, so an average of one rating never reads as two.
 const ratingLine = computed(() => {
   if (!work.value || work.value.average_rating === null) return ''
   const count = work.value.log_count
@@ -430,9 +428,6 @@ const canDeleteWork = computed(() => {
 const isDeletingWork = ref(false)
 const deleteWorkError = ref('')
 
-// Mesmo padrão da remoção de leitura (entrada/[id].vue): o clique abre uma
-// contagem com "Desfazer" e o DELETE só sai quando ela termina ou quando a
-// pessoa sai da página.
 const UNDO_SECONDS = 6
 const pendingSeconds = ref(0)
 const deleteAnnouncement = ref('')
@@ -482,9 +477,6 @@ function goTo(dest: string): Promise<unknown> {
   return Promise.resolve(nuxtApp ? nuxtApp.runWithContext(run) : run())
 }
 
-// Sair da página durante a contagem não cancela: fora dela já não há como
-// desfazer. O id vem do registro carregado, não da rota (que na saída já é a
-// de destino).
 function deleteOnLeave(): void {
   if (pendingSeconds.value <= 0 || !work.value) return
   clearUndoTimer()
@@ -494,7 +486,6 @@ function deleteOnLeave(): void {
     .catch(() => flash?.set(LEAVE_FAILED_FLASH, 'error'))
 }
 
-// Fechar a aba: `$fetch` não sobrevive ao descarregamento, `keepalive` sim.
 let deletedOnPagehide = false
 
 function onPageHide(): void {
@@ -509,7 +500,6 @@ function onPageHide(): void {
   }).catch(() => {})
 }
 
-// Voltar pelo histórico restaura do bfcache um livro já removido.
 function onPageShow(e: PageTransitionEvent): void {
   if (!e.persisted || !deletedOnPagehide) return
   deletedOnPagehide = false
@@ -572,7 +562,6 @@ async function performDeleteWork(): Promise<void> {
   color: var(--text-color);
 }
 
-/* The page is the surface: no wrapper card. Sections are split by rules. */
 .work-card {
   padding: 0;
 }

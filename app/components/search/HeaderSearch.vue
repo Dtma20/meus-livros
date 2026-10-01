@@ -152,8 +152,6 @@ function onWindowKeydown(e: KeyboardEvent): void {
   }
 }
 
-// A busca do cabeçalho é por página: ao navegar, fecha o modo móvel e apaga
-// o texto e os resultados, para que "zzqxjw" não siga para a próxima tela.
 watch(
   () => route?.path,
   () => {

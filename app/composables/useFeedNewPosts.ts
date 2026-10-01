@@ -2,38 +2,16 @@ import { computed, onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 import type { FeedEntry } from '~~/shared/schemas/feed'
 
 export interface UseFeedNewPostsOptions {
-  /**
-   * Returns the ID of the topmost entry currently displayed in the feed.
-   */
   getTopId: () => string | undefined
 
-  /**
-   * Fetches latest feed entries from the server.
-   */
   fetchLatest: () => Promise<FeedEntry[]>
 
-  /**
-   * Optional helper returning existing entry IDs to accurately detect new items
-   * even if the topmost item was removed or displaced beyond the fetch window.
-   */
   getExistingIds?: () => Set<string> | string[]
 
-  /**
-   * Polling interval in ms when page is visible.
-   * Default: 60_000 (60s).
-   */
   intervalMs?: number
 
-  /**
-   * Minimum throttle time between focus/visibility checks in ms.
-   * Default: 15_000 (15s).
-   */
   focusThrottleMs?: number
 
-  /**
-   * Whether polling is enabled.
-   * Default: true.
-   */
   enabled?: boolean | Ref<boolean> | (() => boolean)
 }
 
@@ -66,7 +44,6 @@ export function useFeedNewPosts(options: UseFeedNewPostsOptions) {
     if (!isEnabled()) return
     if (isChecking.value) return
 
-    // Non-intrusive: only poll when document is visible
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
       return
     }
@@ -83,25 +60,20 @@ export function useFeedNewPosts(options: UseFeedNewPostsOptions) {
       const topId = getTopId()
 
       if (!topId) {
-        // If feed was empty, all fetched entries are new
         pendingNewEntries.value = latest
         return
       }
 
-      // Check if current top item is in latest entries
       const matchIndex = latest.findIndex((e) => e.id === topId)
 
       if (matchIndex > 0) {
-        // Items before current top are new
         const fresh = latest.slice(0, matchIndex)
         pendingNewEntries.value = fresh
       } else if (matchIndex === 0) {
-        // The top item hasn't changed.
         if (pendingNewEntries.value.length > 0) {
           pendingNewEntries.value = []
         }
       } else {
-        // matchIndex === -1 (current top wasn't found in latest page)
         const existingRaw = getExistingIds ? getExistingIds() : [topId]
         const existingSet = existingRaw instanceof Set ? existingRaw : new Set(existingRaw)
 
@@ -111,7 +83,6 @@ export function useFeedNewPosts(options: UseFeedNewPostsOptions) {
         }
       }
     } catch {
-      // Silently ignore background polling errors
     } finally {
       isChecking.value = false
     }
@@ -130,19 +101,16 @@ export function useFeedNewPosts(options: UseFeedNewPostsOptions) {
   onMounted(() => {
     if (typeof window === 'undefined') return
 
-    // Set up periodic interval
     timer = setInterval(() => {
       check()
     }, intervalMs)
 
-    // Window focus listener with throttle
     const handleFocus = () => {
       if (Date.now() - lastCheckTime >= focusThrottleMs) {
         check()
       }
     }
 
-    // Visibility change listener with throttle
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && Date.now() - lastCheckTime >= focusThrottleMs) {
         check()

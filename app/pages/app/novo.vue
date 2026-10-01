@@ -211,12 +211,9 @@ const initialWork = ref<SearchResult | null>(null)
 const loadingWork = ref(false)
 const workError = ref(false)
 
-// Escolher um livro troca a tela inteira; sem isto o foco caía no <body>.
-// Leva o foco ao título do formulário e anuncia o livro escolhido.
 const shelfHeadingRef = ref<HTMLElement | null>(null)
 const selectionAnnouncement = ref('')
 let focusAfterLoad = false
-// Só depois de montar: numa carga direta com ?work_id o foco fica onde o navegador o pôs.
 let isMounted = false
 
 function focusShelfHeading(): void {
