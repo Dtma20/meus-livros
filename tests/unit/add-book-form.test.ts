@@ -1,17 +1,31 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { type Component, createApp, nextTick } from 'vue'
+import { type Component, createApp, nextTick, ref } from 'vue'
+import { createFormDraftKey } from '../../app/composables/useFormDraft'
 
-const DRAFT_KEY = 'meus-livros:add-book-draft'
+const DRAFT_KEY = createFormDraftKey('add-book', 'user-1', 'create', '/app/novo|')!
 
 let navigatedTo: string | null = null
 
 vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
   globalScope.useId = () => 'test-add-book-id'
+  globalScope.__draftTestUserId = 'user-1'
   globalScope.navigateTo = (dest: string) => {
     navigatedTo = dest
   }
+  globalScope.useState = (key: string, init?: () => unknown) => key === 'auth:session'
+    ? (globalScope.__draftTestSession as { value: unknown } | undefined)
+      ?? { value: { user: { id: globalScope.__draftTestUserId } } }
+    : { value: init ? init() : null }
 })
+
+const draftAuthSession = ref<{ user: { id: string } | null }>({ user: { id: 'user-1' } })
+const globalScope = globalThis as unknown as Record<string, unknown>
+globalScope.__draftTestSession = draftAuthSession
+
+function setDraftTestUserId(id: string): void {
+  draftAuthSession.value = { user: id ? { id } : null }
+}
 
 let AddBookForm: Component | undefined
 
@@ -49,15 +63,17 @@ describe('AddBookForm component', () => {
     localStorage.clear()
     navigatedTo = null
     vi.restoreAllMocks()
+    setDraftTestUserId('user-1')
+    globalScope.__draftTestUserId = 'user-1'
 
     mockFetch = vi.fn(async () => ({ id: 'work-new-1', slug: 'obra-nova' }))
-    const globalScope = globalThis as unknown as Record<string, unknown>
     globalScope.$fetch = mockFetch
   })
 
   afterEach(() => {
     localStorage.clear()
     document.body.innerHTML = ''
+    vi.useRealTimers()
   })
 
   it('pre-fills title from initialTitle prop (e.g. from search zero-state)', async () => {
@@ -293,6 +309,7 @@ describe('AddBookForm component', () => {
   })
 
   it('restores draft from localStorage on refresh', async () => {
+    vi.useFakeTimers()
     const first = await mountForm()
 
     const titleEl = first.titleInput()!
@@ -305,6 +322,7 @@ describe('AddBookForm component', () => {
     await nextTick()
     first.addAuthorBtn()!.click()
     await nextTick()
+    await vi.advanceTimersByTimeAsync(250)
 
     const raw = localStorage.getItem(DRAFT_KEY)
     expect(raw).toBeTruthy()
@@ -496,6 +514,203 @@ describe('AddBookForm component', () => {
       expect(label, `Input #${id} deve ter um <label for="${id}">`).toBeTruthy()
     }
 
+    form.unmount()
+  })
+
+  it('restores a partially typed author only for the same user and add-book context', async () => {
+    const first = await mountForm({ initialTitle: 'Livro A', returnTo: '/app/novo' })
+    const authorInput = first.authorInput()!
+    authorInput.value = 'Autor ainda não adicionado'
+    authorInput.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    first.unmount()
+
+    const restored = await mountForm({ initialTitle: 'Livro A', returnTo: '/app/novo' })
+    expect(restored.authorInput()?.value).toBe('Autor ainda não adicionado')
+    restored.unmount()
+
+    const otherContext = await mountForm({ initialTitle: 'Livro B', returnTo: '/app/novo' })
+    expect(otherContext.authorInput()?.value).toBe('')
+    otherContext.unmount()
+
+    setDraftTestUserId('user-2')
+    globalScope.__draftTestUserId = 'user-2'
+    const otherUser = await mountForm({ initialTitle: 'Livro A', returnTo: '/app/novo' })
+    expect(otherUser.authorInput()?.value).toBe('')
+    otherUser.unmount()
+  })
+
+  it('cancels pending draft writes when the authenticated user changes while mounted', async () => {
+    vi.useFakeTimers()
+    const form = await mountForm()
+    const input = form.authorInput()!
+    input.value = 'a'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    setDraftTestUserId('user-2')
+    globalScope.__draftTestUserId = 'user-2'
+    input.value = 'b'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(250)
+
+    expect(input.value).toBe('b')
+    form.unmount()
+    expect(localStorage.length).toBe(0)
+    expect(createFormDraftKey('add-book', 'user-2', 'create', '/app/novo|')).toBeTruthy()
+    vi.useRealTimers()
+  })
+
+  it('exposes author suggestions as a keyboard-operable combobox', async () => {
+    vi.useFakeTimers()
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    globalScope.$fetch = vi.fn(async (url: string) => url.startsWith('/api/search')
+      ? {
+          works: [{
+            id: '11111111-1111-4111-8111-111111111111',
+            slug: 'obra-amado',
+            title: 'Obra de Jorge Amado',
+            authors: [{ name: 'Jorge Amado', slug: 'jorge-amado' }],
+            first_published_year: 1931,
+            cover_url: null,
+            log_count: 0,
+          }],
+        }
+      : { id: 'work-new-1', slug: 'obra-nova' })
+
+    const form = await mountForm()
+    const input = form.authorInput()!
+    expect(input.getAttribute('role')).toBe('combobox')
+    expect(input.getAttribute('aria-autocomplete')).toBe('list')
+    expect(input.getAttribute('aria-required')).toBe('true')
+
+    input.value = 'Jorge'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(250)
+    await nextTick()
+    await nextTick()
+
+    const option = form.host.querySelector<HTMLElement>('[role="option"]')
+    expect(option?.textContent).toContain('Jorge Amado')
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+    input.dispatchEvent(new Event('blur'))
+    input.dispatchEvent(new Event('focus'))
+    await vi.advanceTimersByTimeAsync(180)
+    await nextTick()
+    expect(input.getAttribute('aria-expanded')).toBe('true')
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await nextTick()
+    expect(input.getAttribute('aria-activedescendant')).toBe(option?.id)
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    await nextTick()
+    await nextTick()
+    expect(form.text()).toContain('Jorge Amado')
+    expect(input.value).toBe('')
+    expect(input.getAttribute('aria-expanded')).toBe('false')
+    expect(input.getAttribute('aria-required')).toBe('false')
+    expect(form.host.querySelector('.author-sr-only')?.textContent).toContain('Jorge Amado adicionado')
+
+    form.unmount()
+    vi.useRealTimers()
+  })
+
+  it('aborts an obsolete author search and ignores its late response', async () => {
+    vi.useFakeTimers()
+    const pending: Array<{
+      signal: AbortSignal | undefined
+      resolve: (result: { works: Array<{ authors: Array<{ name: string }> }> }) => void
+    }> = []
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    globalScope.$fetch = vi.fn((_url: string, options?: { signal?: AbortSignal }) => new Promise((resolve) => {
+      pending.push({
+        signal: options?.signal,
+        resolve: resolve as (result: { works: Array<{ authors: Array<{ name: string }> }> }) => void,
+      })
+    }))
+
+    const form = await mountForm()
+    const input = form.authorInput()!
+    input.value = 'Jo'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(250)
+    expect(pending).toHaveLength(1)
+
+    input.value = 'A'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    expect(pending[0]?.signal?.aborted).toBe(true)
+    pending[0]?.resolve({ works: [{ authors: [{ name: 'Jorge Amado' }] }] })
+    await Promise.resolve()
+    await nextTick()
+
+    expect(form.host.querySelector('[role="option"]')).toBeNull()
+    form.unmount()
+    vi.useRealTimers()
+  })
+
+  it('aborts the active author request when the form unmounts', async () => {
+    vi.useFakeTimers()
+    let requestSignal: AbortSignal | undefined
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    globalScope.$fetch = vi.fn((_url: string, options?: { signal?: AbortSignal }) => {
+      requestSignal = options?.signal
+      return new Promise(() => {})
+    })
+
+    const form = await mountForm()
+    const input = form.authorInput()!
+    input.value = 'Ana'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(250)
+    expect(requestSignal?.aborted).toBe(false)
+
+    form.unmount()
+    expect(requestSignal?.aborted).toBe(true)
+    vi.useRealTimers()
+  })
+
+  it('keeps one create request in flight until navigation finishes', async () => {
+    let finishNavigation: (() => void) | null = null
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    const fetchMock = vi.fn(async () => ({ id: 'work-once', slug: 'obra-unica' }))
+    globalScope.$fetch = fetchMock
+    globalScope.navigateTo = vi.fn(() => new Promise<void>((resolve) => {
+      finishNavigation = resolve
+    }))
+
+    const form = await mountForm()
+    const title = form.titleInput()!
+    title.value = 'Uma obra'
+    title.dispatchEvent(new Event('input', { bubbles: true }))
+    const author = form.authorInput()!
+    author.value = 'Uma autora'
+    author.dispatchEvent(new Event('input', { bubbles: true }))
+    form.addAuthorBtn()!.click()
+    await nextTick()
+
+    const formElement = form.form()!
+    formElement.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await nextTick()
+    await nextTick()
+    formElement.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await nextTick()
+
+    const lateAuthor = form.authorInput()!
+    expect(lateAuthor.disabled).toBe(true)
+    lateAuthor.value = 'Autora adicionada tarde'
+    lateAuthor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    await nextTick()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(form.text()).not.toContain('Autora adicionada tarde')
+    expect(finishNavigation).toBeTruthy()
+    finishNavigation!()
+    await nextTick()
     form.unmount()
   })
 })

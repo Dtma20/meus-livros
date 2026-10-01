@@ -14,6 +14,7 @@
             :alt="`Capa de ${duplicateWork.title}`"
             :title="duplicateWork.title"
             :cover-url="duplicateWork.cover_url"
+            size="small"
           />
         </div>
         <div class="duplicate-info">
@@ -31,7 +32,7 @@
             <button
               type="button"
               class="btn btn-primary"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedWorkHref)"
               @click="useExistingDuplicate"
             >
               É este livro
@@ -39,7 +40,7 @@
             <button
               type="button"
               class="btn btn-secondary"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedWorkHref)"
               @click="forceCreateWork"
             >
               Não, criar assim mesmo
@@ -67,6 +68,9 @@
       <div v-if="serverError" class="server-error" role="alert">
         {{ serverError }}
       </div>
+      <NuxtLink v-if="savedWorkHref" :to="savedWorkHref" class="saved-work-link">
+        Continuar para o livro cadastrado
+      </NuxtLink>
 
       <div class="form-section">
         <div class="form-group">
@@ -82,7 +86,7 @@
             placeholder="ex: Dom Casmurro"
             maxlength="300"
             required
-            :disabled="submitting"
+            :disabled="submitting || Boolean(savedWorkHref)"
             :aria-invalid="Boolean(errors.title)"
             :aria-describedby="errors.title ? 'book-title-error' : undefined"
             @blur="validateField('title')"
@@ -100,81 +104,14 @@
             Pressione Enter ou clique em Adicionar para cada autor.
           </p>
 
-          <div v-if="authors.length > 0" class="author-tags" role="list" aria-label="Autores adicionados">
-            <span
-              v-for="(author, index) in authors"
-              :key="author.name"
-              class="author-tag"
-              role="listitem"
-            >
-              <span class="author-tag-name">{{ author.name }}</span>
-              <button
-                type="button"
-                class="author-tag-remove"
-                :aria-label="`Remover autor ${author.name}`"
-                :disabled="submitting"
-                @click="removeAuthor(index)"
-              >
-                ×
-              </button>
-            </span>
-          </div>
-
-          <div class="author-input-row">
-            <div class="author-input-wrap">
-              <input
-                id="author-input"
-                ref="authorInputRef"
-                v-model="authorInput"
-                type="text"
-                class="form-input"
-                :class="{ 'has-error': errors.authors }"
-                placeholder="Nome do autor..."
-                autocomplete="off"
-                :disabled="submitting || authors.length >= 5"
-                :aria-invalid="Boolean(errors.authors)"
-                :aria-describedby="errors.authors ? 'author-error' : 'author-hint'"
-                @keydown="onAuthorKeydown"
-                @focus="onAuthorFocus"
-                @blur="onAuthorBlur"
-              >
-
-              <ul
-                v-if="showAuthorSuggestions && authorSuggestions.length > 0"
-                class="author-suggestions"
-                role="listbox"
-                aria-label="Sugestões de autores"
-              >
-                <li
-                  v-for="(suggestion, sIndex) in authorSuggestions"
-                  :key="suggestion"
-                  class="author-suggestion-item"
-                  :class="{ 'is-active': sIndex === highlightedSuggestionIndex }"
-                  role="option"
-                  :aria-selected="sIndex === highlightedSuggestionIndex"
-                  @mousedown.prevent="selectAuthorSuggestion(suggestion)"
-                >
-                  {{ suggestion }}
-                </li>
-              </ul>
-            </div>
-
-            <button
-              type="button"
-              class="btn btn-secondary btn-add-author"
-              :disabled="submitting || !authorInput.trim() || authors.length >= 5"
-              @click="addAuthorFromInput"
-            >
-              Adicionar
-            </button>
-          </div>
-
-          <span v-if="errors.authors" id="author-error" class="field-error" role="alert">
-            {{ errors.authors }}
-          </span>
-          <span v-else-if="authors.length >= 5" class="field-hint">
-            Limite máximo de 5 autores atingido.
-          </span>
+          <AuthorInput
+            v-model:input-value="authorInput"
+            :authors="authors"
+            :disabled="submitting || Boolean(savedWorkHref)"
+            :error="errors.authors"
+            @add="addAuthor"
+            @remove="removeAuthor"
+          />
         </div>
       </div>
 
@@ -184,6 +121,7 @@
           class="disclosure-toggle"
           :aria-expanded="showMoreDetails"
           aria-controls="more-details-content"
+          :disabled="submitting || Boolean(savedWorkHref)"
           @click="showMoreDetails = !showMoreDetails"
         >
           <span class="disclosure-icon" aria-hidden="true">
@@ -203,7 +141,7 @@
                 class="form-input"
                 :class="{ 'has-error': errors.first_published_year }"
                 placeholder="ex: 1899 ou -500"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedWorkHref)"
                 :aria-invalid="errors.first_published_year ? 'true' : undefined"
                 :aria-describedby="errors.first_published_year ? 'work-year-hint work-year-error' : 'work-year-hint'"
                 @blur="validateField('first_published_year')"
@@ -220,7 +158,7 @@
                 id="work-language"
                 v-model="originalLanguage"
                 class="form-input form-select"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedWorkHref)"
               >
                 <option value="">Selecione o idioma...</option>
                 <option
@@ -244,7 +182,7 @@
                 class="form-input"
                 placeholder="ex: O Senhor dos Anéis"
                 maxlength="200"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedWorkHref)"
               >
             </div>
 
@@ -257,7 +195,7 @@
                 class="form-input"
                 placeholder="ex: 1, 1-2, 0.1"
                 maxlength="20"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedWorkHref)"
                 aria-describedby="series-number-hint"
               >
               <span id="series-number-hint" class="field-hint">Texto livre.</span>
@@ -274,7 +212,7 @@
               placeholder="ex: Brasil, EUA, Portugal, Roma Antiga"
               maxlength="100"
               :class="{ 'has-error': errors.author_country }"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedWorkHref)"
               :aria-invalid="errors.author_country ? 'true' : undefined"
               :aria-describedby="errors.author_country ? 'author-country-hint author-country-error' : 'author-country-hint'"
             >
@@ -288,7 +226,7 @@
             <span id="genre-picker-label" class="form-label">Gêneros (até 4)</span>
             <GenrePicker
               v-model="genreIds"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedWorkHref)"
             />
           </div>
         </div>
@@ -300,6 +238,7 @@
           class="disclosure-toggle"
           :aria-expanded="showEdition"
           aria-controls="edition-details-content"
+          :disabled="submitting || Boolean(savedWorkHref)"
           @click="showEdition = !showEdition"
         >
           <span class="disclosure-icon" aria-hidden="true">
@@ -319,7 +258,7 @@
                 class="form-input"
                 placeholder="ex: 9788535902778"
                 maxlength="40"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedWorkHref)"
                 aria-describedby="edition-isbn-hint"
               >
               <span id="edition-isbn-hint" class="field-hint">ISBN-13 ou ISBN-10 (normalizado automaticamente).</span>
@@ -334,7 +273,7 @@
                 class="form-input"
                 placeholder="ex: Companhia das Letras"
                 maxlength="200"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedWorkHref)"
               >
             </div>
           </div>
@@ -350,7 +289,7 @@
                 class="form-input"
                 :class="{ 'has-error': errors.page_count }"
                 placeholder="ex: 256"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedWorkHref)"
                 :aria-invalid="errors.page_count ? 'true' : undefined"
                 :aria-describedby="errors.page_count ? 'edition-pages-error' : undefined"
                 @blur="validateField('page_count')"
@@ -369,7 +308,7 @@
                 class="form-input"
                 :class="{ 'has-error': errors.published_year }"
                 placeholder="ex: 2019"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedWorkHref)"
                 :aria-invalid="errors.published_year ? 'true' : undefined"
                 :aria-describedby="errors.published_year ? 'edition-year-error' : undefined"
                 @blur="validateField('published_year')"
@@ -386,7 +325,7 @@
               id="edition-language"
               v-model="editionLanguage"
               class="form-input form-select"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedWorkHref)"
             >
               <option value="">Selecione o idioma...</option>
               <option
@@ -409,7 +348,7 @@
               :class="{ 'has-error': errors.cover_url }"
               placeholder="https://exemplo.com/capa.jpg"
               maxlength="2000"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedWorkHref)"
               :aria-invalid="errors.cover_url ? 'true' : undefined"
               :aria-describedby="errors.cover_url ? 'cover-url-hint cover-url-error' : 'cover-url-hint'"
               @blur="validateField('cover_url'); previewCoverUrl = editionCoverUrl.trim()"
@@ -424,6 +363,7 @@
                   :alt="title.trim() ? `Pré-visualização da capa de ${title.trim()}` : 'Pré-visualização da capa informada'"
                   :title="title.trim() || 'Capa'"
                   :cover-url="previewCoverUrl"
+                  size="small"
                 />
               </div>
               <p class="field-hint">Pré-visualização da URL informada. Se a imagem não carregar, exibimos as iniciais do título.</p>
@@ -450,7 +390,7 @@
         <button
           type="submit"
           class="btn btn-primary btn-submit"
-          :disabled="submitting"
+          :disabled="submitting || Boolean(savedWorkHref)"
         >
           <span v-if="submitting" class="spinner" aria-hidden="true" />
           <span>{{ submitting ? 'Adicionando...' : 'Adicionar livro' }}</span>
@@ -460,7 +400,7 @@
           v-if="returnTo"
           type="button"
           class="btn btn-secondary"
-          :disabled="submitting"
+          :disabled="submitting || Boolean(savedWorkHref)"
           @click="handleCancel"
         >
           Cancelar
@@ -473,11 +413,13 @@
 <script setup lang="ts">
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import type { AuthSessionState } from '~/middleware/auth'
+import { createFormDraftKey, useFormDraft } from '~/composables/useFormDraft'
 import BookCover from '../book/BookCover.vue'
 import GenrePicker from './GenrePicker.vue'
+import AuthorInput from './AuthorInput.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
 import { countryCodeFor, countryLabelFor } from '~~/shared/constants/countries'
-import type { SearchResult } from '~~/shared/schemas/search'
 import { coverUrlSchema, publicationYearSchema, type WorkInput } from '~~/shared/schemas/work'
 
 const props = withDefaults(
@@ -498,7 +440,34 @@ const emit = defineEmits<{
   (e: 'cancel'): void
 }>()
 
-const DRAFT_KEY = 'meus-livros:add-book-draft'
+const authSession = useState<AuthSessionState | null>('auth:session', () => null)
+
+function currentDraftKey(): string | null {
+  const context = `${props.returnTo || '/app/novo'}|${props.initialTitle || ''}`
+  return createFormDraftKey('add-book', authSession.value?.user?.id, 'create', context)
+}
+
+const initialDraftKey = currentDraftKey()
+
+interface AddBookDraft {
+  title: string
+  authors: Array<{ name: string }>
+  authorInput: string
+  authorCountry: string
+  firstPublishedYear: number | null
+  originalLanguage: string
+  genreIds: number[]
+  seriesName: string
+  seriesNumber: string
+  showMoreDetails: boolean
+  showEdition: boolean
+  editionIsbn: string
+  editionPublisher: string
+  editionPageCount: number | null
+  editionPublishedYear: number | null
+  editionLanguage: string
+  editionCoverUrl: string
+}
 
 const title = ref(props.initialTitle || '')
 const authors = ref<Array<{ name: string }>>([])
@@ -523,13 +492,33 @@ const previewCoverUrl = ref('')
 
 const submitting = ref(false)
 const serverError = ref('')
+const savedWorkHref = ref<string | null>(null)
 const errors = ref<Record<string, string>>({})
+let draftReady = false
+let draftPersistenceEnabled = initialDraftKey !== null
 
-const authorInputRef = ref<HTMLInputElement | null>(null)
-const authorSuggestions = ref<string[]>([])
-const showAuthorSuggestions = ref(false)
-const highlightedSuggestionIndex = ref(-1)
-let authorDebounceTimer: ReturnType<typeof setTimeout> | null = null
+const formDraft = useFormDraft<AddBookDraft>({
+  key: initialDraftKey,
+  snapshot: () => ({
+    title: title.value,
+    authors: authors.value,
+    authorInput: authorInput.value,
+    authorCountry: authorCountry.value,
+    firstPublishedYear: firstPublishedYear.value,
+    originalLanguage: originalLanguage.value,
+    genreIds: genreIds.value,
+    seriesName: seriesName.value,
+    seriesNumber: seriesNumber.value,
+    showMoreDetails: showMoreDetails.value,
+    showEdition: showEdition.value,
+    editionIsbn: editionIsbn.value,
+    editionPublisher: editionPublisher.value,
+    editionPageCount: editionPageCount.value,
+    editionPublishedYear: editionPublishedYear.value,
+    editionLanguage: editionLanguage.value,
+    editionCoverUrl: editionCoverUrl.value,
+  }),
+})
 
 interface DuplicateWorkState {
   id: string
@@ -594,29 +583,17 @@ function addAuthor(name: string): void {
   const trimmed = name.trim()
   if (!trimmed) return
 
-  const exists = authors.value.some(
-    (a) => a.name.toLowerCase() === trimmed.toLowerCase(),
-  )
-  if (!exists) {
-    if (authors.value.length >= 5) {
-      errors.value.authors = 'No máximo 5 autores são permitidos.'
-      return
-    }
-    authors.value.push({ name: trimmed })
-    delete errors.value.authors
-    saveDraft()
+  const exists = authors.value.some((author) => (
+    author.name.toLocaleLowerCase() === trimmed.toLocaleLowerCase()
+  ))
+  if (exists) return
+  if (authors.value.length >= 5) {
+    errors.value.authors = 'No máximo 5 autores são permitidos.'
+    return
   }
 
-  authorInput.value = ''
-  authorSuggestions.value = []
-  showAuthorSuggestions.value = false
-  highlightedSuggestionIndex.value = -1
-}
-
-function addAuthorFromInput(): void {
-  if (authorInput.value.trim()) {
-    addAuthor(authorInput.value)
-  }
+  authors.value.push({ name: trimmed })
+  delete errors.value.authors
 }
 
 function removeAuthor(index: number): void {
@@ -624,109 +601,7 @@ function removeAuthor(index: number): void {
   if (authors.value.length === 0) {
     errors.value.authors = 'Adicione pelo menos um autor.'
   }
-  saveDraft()
 }
-
-function onAuthorFocus(): void {
-  if (authorSuggestions.value.length > 0) {
-    showAuthorSuggestions.value = true
-  }
-}
-
-function onAuthorBlur(): void {
-  setTimeout(() => {
-    showAuthorSuggestions.value = false
-    highlightedSuggestionIndex.value = -1
-  }, 180)
-}
-
-function selectAuthorSuggestion(name: string): void {
-  addAuthor(name)
-  authorInputRef.value?.focus()
-}
-
-function onAuthorKeydown(e: KeyboardEvent): void {
-  if (showAuthorSuggestions.value && authorSuggestions.value.length > 0) {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      highlightedSuggestionIndex.value = Math.min(
-        highlightedSuggestionIndex.value + 1,
-        authorSuggestions.value.length - 1,
-      )
-      return
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      highlightedSuggestionIndex.value = Math.max(
-        highlightedSuggestionIndex.value - 1,
-        0,
-      )
-      return
-    } else if (e.key === 'Enter') {
-      e.preventDefault()
-      if (
-        highlightedSuggestionIndex.value >= 0 &&
-        authorSuggestions.value[highlightedSuggestionIndex.value]
-      ) {
-        selectAuthorSuggestion(
-          authorSuggestions.value[highlightedSuggestionIndex.value]!,
-        )
-        return
-      }
-    } else if (e.key === 'Escape') {
-      showAuthorSuggestions.value = false
-      return
-    }
-  }
-
-  if (e.key === 'Enter' || e.key === ',') {
-    e.preventDefault()
-    addAuthorFromInput()
-  }
-}
-
-watch(authorInput, (val) => {
-  const term = val.trim()
-  if (authorDebounceTimer) clearTimeout(authorDebounceTimer)
-
-  if (term.length < 2) {
-    authorSuggestions.value = []
-    showAuthorSuggestions.value = false
-    return
-  }
-
-  authorDebounceTimer = setTimeout(async () => {
-    try {
-      const data = await $fetch<{ works: SearchResult[] }>(
-        `/api/search?q=${encodeURIComponent(term)}`,
-        {
-          timeout: 15_000,
-          retry: 0,
-        },
-      )
-      const matchingAuthors: string[] = []
-      const termLower = term.toLowerCase()
-
-      for (const w of data.works ?? []) {
-        for (const a of w.authors ?? []) {
-          if (
-            a.name.toLowerCase().includes(termLower) &&
-            !matchingAuthors.includes(a.name) &&
-            !authors.value.some((existing) => existing.name.toLowerCase() === a.name.toLowerCase())
-          ) {
-            matchingAuthors.push(a.name)
-          }
-        }
-      }
-
-      authorSuggestions.value = matchingAuthors.slice(0, 5)
-      showAuthorSuggestions.value = authorSuggestions.value.length > 0
-      highlightedSuggestionIndex.value = -1
-    } catch {
-      authorSuggestions.value = []
-      showAuthorSuggestions.value = false
-    }
-  }, 250)
-})
 
 function validateField(field: string): void {
   if (field === 'title') {
@@ -833,108 +708,150 @@ function validateAll(): boolean {
   return Object.keys(errors.value).length === 0
 }
 
-function saveDraft(): void {
-  try {
-    const draft = {
-      title: title.value,
-      authors: authors.value,
-      authorCountry: authorCountry.value,
-      firstPublishedYear: firstPublishedYear.value,
-      originalLanguage: originalLanguage.value,
-      genreIds: genreIds.value,
-      seriesName: seriesName.value,
-      seriesNumber: seriesNumber.value,
-      showMoreDetails: showMoreDetails.value,
-      showEdition: showEdition.value,
-      editionIsbn: editionIsbn.value,
-      editionPublisher: editionPublisher.value,
-      editionPageCount: editionPageCount.value,
-      editionPublishedYear: editionPublishedYear.value,
-      editionLanguage: editionLanguage.value,
-      editionCoverUrl: editionCoverUrl.value,
-    }
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-  } catch {
+const draftRestored = ref(false)
+
+function recordOf(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
+function nullableNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function parseAddBookDraft(value: unknown): AddBookDraft | null {
+  const draft = recordOf(value)
+  if (!draft || !Array.isArray(draft.authors) || !Array.isArray(draft.genreIds)) return null
+
+  const parsedAuthors: AddBookDraft['authors'] = []
+  for (const valueAuthor of draft.authors as unknown[]) {
+    const author = recordOf(valueAuthor)
+    if (!author || typeof author.name !== 'string') return null
+    parsedAuthors.push({ name: author.name })
+  }
+
+  return {
+    title: typeof draft.title === 'string' ? draft.title : '',
+    authors: parsedAuthors,
+    authorInput: typeof draft.authorInput === 'string' ? draft.authorInput : '',
+    authorCountry: typeof draft.authorCountry === 'string' ? draft.authorCountry : '',
+    firstPublishedYear: nullableNumber(draft.firstPublishedYear),
+    originalLanguage: typeof draft.originalLanguage === 'string' ? draft.originalLanguage : '',
+    genreIds: (draft.genreIds as unknown[]).filter((id): id is number => (
+      typeof id === 'number' && Number.isInteger(id)
+    )),
+    seriesName: typeof draft.seriesName === 'string' ? draft.seriesName : '',
+    seriesNumber: typeof draft.seriesNumber === 'string' ? draft.seriesNumber : '',
+    showMoreDetails: draft.showMoreDetails === true,
+    showEdition: draft.showEdition === true,
+    editionIsbn: typeof draft.editionIsbn === 'string' ? draft.editionIsbn : '',
+    editionPublisher: typeof draft.editionPublisher === 'string' ? draft.editionPublisher : '',
+    editionPageCount: nullableNumber(draft.editionPageCount),
+    editionPublishedYear: nullableNumber(draft.editionPublishedYear),
+    editionLanguage: typeof draft.editionLanguage === 'string' ? draft.editionLanguage : '',
+    editionCoverUrl: typeof draft.editionCoverUrl === 'string' ? draft.editionCoverUrl : '',
   }
 }
 
-function isBlank(value: unknown): boolean {
-  if (value === null || value === undefined) return true
-  if (typeof value === 'string') return value.trim() === ''
-  if (Array.isArray(value)) return value.length === 0
-  return false
-}
-
-function draftHasContent(draft: Record<string, unknown>): boolean {
-  const ignored = new Set(['showMoreDetails', 'showEdition'])
-  if (props.initialTitle) ignored.add('title')
-  return Object.entries(draft).some(([key, value]) => !ignored.has(key) && !isBlank(value))
+function draftHasContent(draft: AddBookDraft): boolean {
+  return Boolean(
+    (!props.initialTitle && draft.title.trim())
+    || draft.authors.length
+    || draft.authorInput.trim()
+    || draft.authorCountry.trim()
+    || draft.firstPublishedYear !== null
+    || draft.originalLanguage
+    || draft.genreIds.length
+    || draft.seriesName.trim()
+    || draft.seriesNumber.trim()
+    || draft.editionIsbn.trim()
+    || draft.editionPublisher.trim()
+    || draft.editionPageCount !== null
+    || draft.editionPublishedYear !== null
+    || draft.editionLanguage
+    || draft.editionCoverUrl.trim(),
+  )
 }
 
 function restoreDraft(): boolean {
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY)
-    if (!raw) return false
-    const draft = JSON.parse(raw)
-    if (!draft || typeof draft !== 'object') return false
-    const hasContent = draftHasContent(draft as Record<string, unknown>)
-
-    if (!props.initialTitle && draft.title) title.value = draft.title
-    if (Array.isArray(draft.authors) && draft.authors.length > 0) {
-      authors.value = draft.authors
-    }
-    if (typeof draft.authorCountry === 'string') {
-      authorCountry.value = draft.authorCountry
-    }
-    if (draft.firstPublishedYear !== undefined) {
-      firstPublishedYear.value = draft.firstPublishedYear
-    }
-    if (draft.originalLanguage !== undefined) {
-      originalLanguage.value = draft.originalLanguage
-    }
-    if (Array.isArray(draft.genreIds)) {
-      genreIds.value = draft.genreIds
-    }
-    if (draft.seriesName !== undefined) {
-      seriesName.value = draft.seriesName
-    }
-    if (draft.seriesNumber !== undefined) {
-      seriesNumber.value = draft.seriesNumber
-    }
-    if (draft.showMoreDetails) {
-      showMoreDetails.value = true
-    }
-    if (draft.showEdition) {
-      showEdition.value = true
-    }
-    if (draft.editionIsbn !== undefined) {
-      editionIsbn.value = draft.editionIsbn
-    }
-    if (draft.editionPublisher !== undefined) {
-      editionPublisher.value = draft.editionPublisher
-    }
-    if (draft.editionPageCount !== undefined) {
-      editionPageCount.value = draft.editionPageCount
-    }
-    if (draft.editionPublishedYear !== undefined) {
-      editionPublishedYear.value = draft.editionPublishedYear
-    }
-    if (typeof draft.editionLanguage === 'string') {
-      editionLanguage.value = draft.editionLanguage
-    }
-    if (draft.editionCoverUrl !== undefined) {
-      editionCoverUrl.value = draft.editionCoverUrl
-      previewCoverUrl.value = typeof draft.editionCoverUrl === 'string' ? draft.editionCoverUrl.trim() : ''
-    }
-    return hasContent
-  } catch {
-    return false
-  }
+  const draft = formDraft.restore(parseAddBookDraft)
+  if (!draft) return false
+  if (!props.initialTitle) title.value = draft.title
+  authors.value = draft.authors
+  authorInput.value = draft.authorInput
+  authorCountry.value = draft.authorCountry
+  firstPublishedYear.value = draft.firstPublishedYear
+  originalLanguage.value = draft.originalLanguage
+  genreIds.value = draft.genreIds
+  seriesName.value = draft.seriesName
+  seriesNumber.value = draft.seriesNumber
+  showMoreDetails.value = draft.showMoreDetails
+  showEdition.value = draft.showEdition
+  editionIsbn.value = draft.editionIsbn
+  editionPublisher.value = draft.editionPublisher
+  editionPageCount.value = draft.editionPageCount
+  editionPublishedYear.value = draft.editionPublishedYear
+  editionLanguage.value = draft.editionLanguage
+  editionCoverUrl.value = draft.editionCoverUrl
+  previewCoverUrl.value = draft.editionCoverUrl.trim()
+  return draftHasContent(draft)
 }
 
-const draftRestored = ref(false)
+function clearDraft(): void {
+  draftReady = false
+  draftRestored.value = false
+  if (draftPersistenceEnabled) formDraft.clear()
+  else formDraft.cancel()
+}
+
+watch(
+  () => currentDraftKey(),
+  (key) => {
+    if (key !== initialDraftKey) {
+      draftPersistenceEnabled = false
+      draftReady = false
+      formDraft.cancel()
+    }
+  },
+  { flush: 'sync' },
+)
+
+watch(
+  [
+    title,
+    authors,
+    authorInput,
+    authorCountry,
+    firstPublishedYear,
+    originalLanguage,
+    genreIds,
+    seriesName,
+    seriesNumber,
+    showMoreDetails,
+    showEdition,
+    editionIsbn,
+    editionPublisher,
+    editionPageCount,
+    editionPublishedYear,
+    editionLanguage,
+    editionCoverUrl,
+  ],
+  () => {
+    if (draftReady && draftPersistenceEnabled && !savedWorkHref.value) formDraft.schedule()
+  },
+  { deep: true },
+)
+
+onMounted(() => {
+  draftRestored.value = restoreDraft()
+  if (props.initialTitle) title.value = props.initialTitle
+  void nextTick(() => {
+    draftReady = draftPersistenceEnabled
+  })
+})
 
 async function discardDraft(): Promise<void> {
+  draftReady = false
   title.value = props.initialTitle || ''
   authors.value = []
   authorInput.value = ''
@@ -956,53 +873,17 @@ async function discardDraft(): Promise<void> {
   errors.value = {}
   serverError.value = ''
   draftRestored.value = false
-  await nextTick()
   clearDraft()
+  await nextTick()
+  draftReady = draftPersistenceEnabled
   document.getElementById('book-title')?.focus()
 }
 
-function clearDraft(): void {
-  try {
-    localStorage.removeItem(DRAFT_KEY)
-  } catch {
-  }
-}
-
-watch(
-  [
-    title,
-    authors,
-    authorCountry,
-    firstPublishedYear,
-    originalLanguage,
-    genreIds,
-    seriesName,
-    seriesNumber,
-    showMoreDetails,
-    showEdition,
-    editionIsbn,
-    editionPublisher,
-    editionPageCount,
-    editionPublishedYear,
-    editionLanguage,
-    editionCoverUrl,
-  ],
-  () => {
-    saveDraft()
-  },
-  { deep: true },
-)
-
-onMounted(() => {
-  draftRestored.value = restoreDraft()
-  if (props.initialTitle) {
-    title.value = props.initialTitle
-  }
-})
-
 async function handleSubmit(force = false): Promise<void> {
+  if (submitting.value || savedWorkHref.value) return
   if (authorInput.value.trim() && authors.value.length < 5) {
     addAuthor(authorInput.value)
+    authorInput.value = ''
   }
 
   if (!validateAll()) {
@@ -1080,12 +961,19 @@ async function handleSubmit(force = false): Promise<void> {
       body: payload,
     })
 
-    clearDraft()
-    emit('success', res)
-
     const target = props.returnTo || '/app/novo'
     const sep = target.includes('?') ? '&' : '?'
-    await navigateTo(`${target}${sep}work_id=${res.id}`)
+    savedWorkHref.value = `${target}${sep}work_id=${res.id}`
+    clearDraft()
+    emit('success', res)
+    try {
+      const navigation = await navigateTo(savedWorkHref.value)
+      if (navigation) {
+        serverError.value = 'O livro foi cadastrado, mas não foi possível voltar à leitura. Use o link abaixo.'
+      }
+    } catch {
+      serverError.value = 'O livro foi cadastrado, mas não foi possível voltar à leitura. Use o link abaixo.'
+    }
   } catch (err: unknown) {
     if (isTimeoutOrAbort(err)) {
       serverError.value = TIMEOUT_MESSAGE
@@ -1111,21 +999,46 @@ async function handleSubmit(force = false): Promise<void> {
 }
 
 async function useExistingDuplicate(): Promise<void> {
-  if (!duplicateWork.value) return
-  clearDraft()
+  if (!duplicateWork.value || submitting.value || savedWorkHref.value) return
   const target = props.returnTo || '/app/novo'
   const sep = target.includes('?') ? '&' : '?'
-  await navigateTo(`${target}${sep}work_id=${duplicateWork.value.id}`)
+  savedWorkHref.value = `${target}${sep}work_id=${duplicateWork.value.id}`
+  submitting.value = true
+  serverError.value = ''
+  formDraft.flush()
+  try {
+    const navigation = await navigateTo(savedWorkHref.value)
+    if (navigation) {
+      savedWorkHref.value = null
+      serverError.value = 'Não foi possível abrir a leitura com esta obra. Seu rascunho foi mantido.'
+      return
+    }
+    clearDraft()
+  } catch {
+    savedWorkHref.value = null
+    serverError.value = 'Não foi possível abrir a leitura com esta obra. Seu rascunho foi mantido.'
+  } finally {
+    submitting.value = false
+  }
 }
 
 async function forceCreateWork(): Promise<void> {
   await handleSubmit(true)
 }
 
-function handleCancel(): void {
+async function handleCancel(): Promise<void> {
+  if (submitting.value || savedWorkHref.value) return
   emit('cancel')
   if (props.returnTo) {
-    void navigateTo(props.returnTo)
+    submitting.value = true
+    try {
+      const navigation = await navigateTo(props.returnTo)
+      if (navigation) serverError.value = 'Não foi possível voltar. Seu rascunho foi mantido.'
+    } catch {
+      serverError.value = 'Não foi possível voltar. Seu rascunho foi mantido.'
+    } finally {
+      submitting.value = false
+    }
   }
 }
 </script>
@@ -1178,7 +1091,7 @@ function handleCancel(): void {
 
 .duplicate-work-title {
   margin: 0;
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-base);
   line-height: var(--line-height-tight);
 }
@@ -1205,7 +1118,7 @@ function handleCancel(): void {
 }
 
 .form-title {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-2xl);
   margin: 0 0 var(--space-2) 0;
 }
@@ -1226,6 +1139,15 @@ function handleCancel(): void {
   margin-bottom: var(--space-4);
 }
 
+.saved-work-link {
+  display: inline-flex;
+  margin: 0 0 var(--space-4);
+  color: var(--highlight);
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 .form-section {
   display: flex;
   flex-direction: column;
@@ -1234,9 +1156,6 @@ function handleCancel(): void {
 }
 
 .form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
   position: relative;
 }
 
@@ -1260,42 +1179,9 @@ function handleCancel(): void {
   flex: 2;
 }
 
-.form-label {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: #fff;
-}
-
 .required-indicator {
   color: var(--highlight);
   margin-left: 2px;
-}
-
-.form-input {
-  background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-sm);
-  color: #fff;
-  padding: var(--space-3);
-  font-size: var(--font-size-base);
-  font-family: inherit;
-  transition: border-color 0.2s;
-  width: 100%;
-  box-sizing: border-box;
-  min-height: 44px;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--highlight);
-}
-
-.form-input:focus-visible {
-  border-color: var(--highlight);
-}
-
-.form-input.has-error {
-  border-color: var(--danger);
 }
 
 .form-select {
@@ -1335,98 +1221,6 @@ function handleCancel(): void {
   border: 1px solid var(--input-bg);
   background-color: #1e2328;
   flex-shrink: 0;
-}
-
-.author-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin-bottom: var(--space-2);
-}
-
-.author-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: var(--radius-sm);
-  padding: 4px var(--space-3);
-  color: #fff;
-  font-size: var(--font-size-sm);
-}
-
-.author-tag-remove {
-  background: none;
-  border: none;
-  color: var(--text-color);
-  font-size: 16px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  transition: all 0.15s;
-}
-
-.author-tag-remove:hover {
-  color: #fff;
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.author-tag-remove:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
-}
-
-.author-input-row {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.author-input-wrap {
-  position: relative;
-  flex: 1;
-}
-
-.author-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  z-index: 20;
-  margin: var(--space-1) 0 0 0;
-  padding: 0;
-  list-style: none;
-  background-color: var(--card-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.author-suggestion-item {
-  padding: var(--space-2) var(--space-3);
-  color: var(--text-color);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: background-color 0.15s, color 0.15s;
-}
-
-.author-suggestion-item:hover,
-.author-suggestion-item.is-active {
-  background-color: var(--input-bg);
-  color: #fff;
-}
-
-.btn-add-author {
-  min-height: 44px;
-  white-space: nowrap;
 }
 
 .disclosure-section {
@@ -1523,6 +1317,12 @@ function handleCancel(): void {
   outline-offset: 2px;
 }
 
+@media (pointer: coarse) {
+  .draft-discard-btn {
+    min-height: var(--target-min-size);
+  }
+}
+
 .form-actions {
   display: flex;
   gap: var(--space-3);
@@ -1539,7 +1339,7 @@ function handleCancel(): void {
   width: 14px;
   height: 14px;
   border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: #fff;
+  border-top-color: var(--text-strong);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1556,9 +1356,7 @@ function handleCancel(): void {
   }
   .btn,
   .form-input,
-  .disclosure-toggle,
-  .author-tag-remove,
-  .author-suggestion-item {
+  .disclosure-toggle {
     transition: none;
   }
 }

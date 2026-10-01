@@ -20,6 +20,7 @@
             :cover-url="selectedWork.cover_url"
             :ol-cover-id="selectedWork.ol_cover_id"
             :isbn13="selectedWork.isbn13"
+            size="small"
           />
         </div>
         <div class="selected-book-meta">
@@ -34,7 +35,7 @@
             v-if="mode === 'create' && !disableChangeBook"
             type="button"
             class="change-book-btn"
-            :disabled="submitting || creatingEdition"
+            :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
             @click="changeBook"
           >
             ← Trocar livro
@@ -60,7 +61,7 @@
               v-model="isCurrentlyReading"
               type="checkbox"
               class="status-checkbox"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedLogHref)"
             >
             <span class="status-checkbox-content">
               <span class="status-checkbox-title">Estou lendo este livro atualmente</span>
@@ -73,7 +74,8 @@
           <span id="log-rating-label" class="form-label">Sua avaliação</span>
           <RatingInput
             v-model="rating"
-            :disabled="submitting"
+            :disabled="submitting || Boolean(savedLogHref)"
+            labelled-by="log-rating-label"
           />
         </div>
 
@@ -85,7 +87,7 @@
               v-model="finishedOn"
               type="date"
               class="form-input"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedLogHref)"
               :aria-invalid="fieldErrors.finished_on ? 'true' : undefined"
               :aria-describedby="describedBy('finished_on', showFinishedHint ? 'log-finished-hint' : undefined)"
             >
@@ -99,7 +101,7 @@
               id="log-precision"
               v-model="finishedPrecision"
               class="form-input form-select"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedLogHref)"
               aria-describedby="log-precision-hint"
             >
               <option value="dia">Dia exato</option>
@@ -116,6 +118,7 @@
             class="toggle-link-btn"
             :aria-expanded="showStartDate"
             aria-controls="start-date-input-wrap"
+            :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
             @click="showStartDate = !showStartDate"
           >
             {{ showStartDate ? '− Ocultar data de início' : '+ Adicionar data de início' }}
@@ -127,7 +130,7 @@
               v-model="startedOn"
               type="date"
               class="form-input"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedLogHref)"
               :aria-invalid="fieldErrors.started_on ? 'true' : undefined"
               :aria-describedby="describedBy('started_on')"
             >
@@ -149,7 +152,7 @@
             rows="6"
             placeholder="O que você achou do livro? Escreva suas impressões..."
             class="form-input form-textarea"
-            :disabled="submitting"
+            :disabled="submitting || Boolean(savedLogHref)"
             :aria-invalid="fieldErrors.review ? 'true' : undefined"
             :aria-describedby="describedBy('review', 'log-review-hint')"
           />
@@ -165,7 +168,7 @@
               class="format-btn"
               :class="{ 'is-selected': format === 'fisico' }"
               :aria-pressed="format === 'fisico'"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedLogHref)"
               @click="toggleFormat('fisico')"
             >
               Físico
@@ -175,7 +178,7 @@
               class="format-btn"
               :class="{ 'is-selected': format === 'ebook' }"
               :aria-pressed="format === 'ebook'"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedLogHref)"
               @click="toggleFormat('ebook')"
             >
               E-book
@@ -185,7 +188,7 @@
               class="format-btn"
               :class="{ 'is-selected': format === 'audio' }"
               :aria-pressed="format === 'audio'"
-              :disabled="submitting"
+              :disabled="submitting || Boolean(savedLogHref)"
               @click="toggleFormat('audio')"
             >
               Audiolivro
@@ -201,6 +204,7 @@
               :aria-expanded="showEditionPicker"
               aria-controls="edition-picker-panel"
               :aria-describedby="showEditionPicker ? 'log-edition-hint' : 'log-edition-summary log-edition-hint'"
+              :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
               @click="toggleEditionPicker"
             >
               {{ showEditionPicker ? '− Fechar lista de edições' : 'Li outra edição' }}
@@ -216,43 +220,12 @@
 
           <div v-if="showEditionPicker" id="edition-picker-panel" class="edition-picker-panel">
             <p v-if="loadingEditions" class="field-hint">Carregando edições…</p>
-            <div v-else-if="editionsList.length > 0" class="edition-options">
-              <label class="edition-option" :class="{ 'is-selected': editionId === null }">
-                <input
-                  v-model="editionId"
-                  type="radio"
-                  name="edition"
-                  :value="null"
-                  :disabled="submitting"
-                >
-                <div class="edition-info">
-                  <span class="edition-title">Edição padrão do catálogo</span>
-                </div>
-              </label>
-
-              <label
-                v-for="ed in editionsList"
-                :key="ed.id"
-                class="edition-option"
-                :class="{ 'is-selected': editionId === ed.id }"
-              >
-                <input
-                  v-model="editionId"
-                  type="radio"
-                  name="edition"
-                  :value="ed.id"
-                  :disabled="submitting"
-                >
-                <div class="edition-info">
-                  <span class="edition-title">
-                    {{ ed.publisher ? ed.publisher : 'Editora não informada' }}
-                    <span v-if="ed.published_year">({{ ed.published_year }})</span>
-                  </span>
-                  <span v-if="ed.isbn13" class="edition-meta">ISBN: {{ ed.isbn13 }}</span>
-                  <span v-if="ed.page_count" class="edition-meta">{{ ed.page_count }} páginas</span>
-                </div>
-              </label>
-            </div>
+            <EditionPicker
+              v-else-if="editionsList.length > 0"
+              v-model="editionId"
+              :editions="editionsList"
+              :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
+            />
             <p v-else class="field-hint">
               Nenhuma outra edição cadastrada para esta obra.
             </p>
@@ -262,7 +235,7 @@
               class="new-edition-toggle"
               :aria-expanded="showNewEditionForm"
               aria-controls="new-edition-form"
-              :disabled="submitting || creatingEdition"
+              :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
               @click="showNewEditionForm = !showNewEditionForm"
             >
               {{ showNewEditionForm ? '− Fechar cadastro de edição' : 'Cadastrar nova edição' }}
@@ -278,7 +251,7 @@
                     type="text"
                     class="form-input"
                     maxlength="40"
-                    :disabled="submitting || creatingEdition"
+                    :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
                     :aria-invalid="Boolean(newEditionErrors.isbn)"
                     :aria-describedby="newEditionErrors.isbn ? 'log-new-edition-isbn-error' : undefined"
                   >
@@ -295,10 +268,11 @@
                     type="text"
                     class="form-input"
                     maxlength="200"
-                    :disabled="submitting || creatingEdition"
+                    :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
                     :aria-invalid="Boolean(newEditionErrors.publisher)"
+                    :aria-describedby="newEditionErrors.publisher ? 'log-new-edition-publisher-error' : undefined"
                   >
-                  <span v-if="newEditionErrors.publisher" class="field-error" role="alert">{{ newEditionErrors.publisher }}</span>
+                  <span v-if="newEditionErrors.publisher" id="log-new-edition-publisher-error" class="field-error" role="alert">{{ newEditionErrors.publisher }}</span>
                 </div>
               </div>
 
@@ -311,10 +285,11 @@
                     type="number"
                     min="1"
                     class="form-input"
-                    :disabled="submitting || creatingEdition"
+                    :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
                     :aria-invalid="Boolean(newEditionErrors.page_count)"
+                    :aria-describedby="newEditionErrors.page_count ? 'log-new-edition-pages-error' : undefined"
                   >
-                  <span v-if="newEditionErrors.page_count" class="field-error" role="alert">{{ newEditionErrors.page_count }}</span>
+                  <span v-if="newEditionErrors.page_count" id="log-new-edition-pages-error" class="field-error" role="alert">{{ newEditionErrors.page_count }}</span>
                 </div>
 
                 <div class="form-group flex-1">
@@ -324,10 +299,11 @@
                     v-model.number="newEditionPublishedYear"
                     type="number"
                     class="form-input"
-                    :disabled="submitting || creatingEdition"
+                    :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
                     :aria-invalid="Boolean(newEditionErrors.published_year)"
+                    :aria-describedby="newEditionErrors.published_year ? 'log-new-edition-year-error' : undefined"
                   >
-                  <span v-if="newEditionErrors.published_year" class="field-error" role="alert">{{ newEditionErrors.published_year }}</span>
+                  <span v-if="newEditionErrors.published_year" id="log-new-edition-year-error" class="field-error" role="alert">{{ newEditionErrors.published_year }}</span>
                 </div>
 
                 <div class="form-group flex-1">
@@ -336,7 +312,7 @@
                     id="log-new-edition-language"
                     v-model="newEditionLanguage"
                     class="form-input form-select"
-                    :disabled="submitting || creatingEdition"
+                    :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
                   >
                     <option value="">Selecione o idioma...</option>
                     <option v-for="language in LANGUAGES" :key="language.code" :value="language.code">
@@ -355,7 +331,7 @@
                   class="form-input"
                   maxlength="2000"
                   placeholder="https://exemplo.com/capa.jpg"
-                  :disabled="submitting || creatingEdition"
+                  :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
                   :aria-invalid="Boolean(newEditionErrors.cover_url)"
                   :aria-describedby="newEditionErrors.cover_url ? 'log-new-edition-cover-error' : 'log-new-edition-cover-hint'"
                 >
@@ -369,7 +345,7 @@
               <button
                 type="button"
                 class="edition-create-btn"
-                :disabled="submitting || creatingEdition"
+                :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
                 @click="handleCreateEdition"
               >
                 {{ creatingEdition ? 'Cadastrando...' : 'Salvar nova edição' }}
@@ -387,7 +363,7 @@
                 type="radio"
                 name="log-visibility"
                 value="publico"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedLogHref)"
                 class="radio-input"
               >
               <div class="radio-text">
@@ -402,7 +378,7 @@
                 type="radio"
                 name="log-visibility"
                 value="privado"
-                :disabled="submitting"
+                :disabled="submitting || Boolean(savedLogHref)"
                 class="radio-input"
               >
               <div class="radio-text">
@@ -430,12 +406,15 @@
         <p v-if="errorMessage" id="log-form-error" class="error-message" role="alert">
           {{ errorMessage }}
         </p>
+        <NuxtLink v-if="savedLogHref" :to="savedLogHref" class="saved-entry-link">
+          Abrir leitura salva
+        </NuxtLink>
 
         <div class="form-actions">
           <button
             type="submit"
             class="btn btn-primary submit-btn"
-            :disabled="submitting"
+            :disabled="submitting || creatingEdition || Boolean(savedLogHref)"
           >
             <span v-if="submitting" class="spinner" aria-hidden="true" />
             <span>{{ submitButtonLabel }}</span>
@@ -454,7 +433,7 @@
           <button
             type="button"
             class="btn btn-danger delete-btn"
-            :disabled="submitting"
+            :disabled="submitting || Boolean(savedLogHref)"
             @click="handleDelete"
           >
             Remover esta leitura
@@ -494,9 +473,12 @@
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
+import type { AuthSessionState } from '~/middleware/auth'
+import { createFormDraftKey, useFormDraft } from '~/composables/useFormDraft'
 import BookCover from '../book/BookCover.vue'
 import RatingInput from '../book/RatingInput.vue'
 import SearchBox from '../search/SearchBox.vue'
+import EditionPicker from './EditionPicker.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
 import type { LogEditionView as LogEdition, LogWithDetails } from '~~/shared/schemas/log'
 import type { SearchResult } from '~~/shared/schemas/search'
@@ -520,7 +502,7 @@ const props = withDefaults(
   },
 )
 
-const DRAFT_KEY = 'meus-livros:log-draft'
+const authSession = useState<AuthSessionState | null>('auth:session', () => null)
 
 function getBrowserLocalDate(): string {
   const now = new Date()
@@ -546,8 +528,8 @@ const editionId = ref<string | null>(null)
 const isCurrentlyReading = ref(false)
 const rating = ref<number | null>(null)
 const review = ref('')
-const defaultFinishedOn = getBrowserLocalDate()
-const finishedOn = ref(defaultFinishedOn)
+const defaultFinishedOn = ref('')
+const finishedOn = ref('')
 const startedOn = ref('')
 const finishedPrecision = ref<'dia' | 'mes' | 'ano'>('dia')
 const format = ref<'fisico' | 'ebook' | 'audio' | null>(null)
@@ -567,8 +549,64 @@ const newEditionLanguage = ref('')
 const newEditionCoverUrl = ref('')
 const newEditionErrors = ref<Record<string, string>>({})
 
+interface LogFormDraft {
+  work: SelectedWorkState | null
+  editionId: string | null
+  isCurrentlyReading: boolean
+  rating: number | null
+  review: string
+  finishedOn: string
+  startedOn: string
+  finishedPrecision: 'dia' | 'mes' | 'ano'
+  format: 'fisico' | 'ebook' | 'audio' | null
+  visibility: 'publico' | 'privado'
+  showStartDate: boolean
+  showEditionPicker: boolean
+  showNewEditionForm: boolean
+  newEditionIsbn: string
+  newEditionPublisher: string
+  newEditionPageCount: number | null
+  newEditionPublishedYear: number | null
+  newEditionLanguage: string
+  newEditionCoverUrl: string
+}
+
+function currentDraftKey(): string | null {
+  const context = props.mode === 'edit'
+    ? props.initialLog?.id ?? 'edit'
+    : props.initialWork?.id ?? 'catalog'
+  return createFormDraftKey('log', authSession.value?.user?.id, props.mode, context)
+}
+
+const initialDraftKey = currentDraftKey()
+const formDraft = useFormDraft<LogFormDraft>({
+  key: initialDraftKey,
+  snapshot: () => ({
+    work: selectedWork.value,
+    editionId: editionId.value,
+    isCurrentlyReading: isCurrentlyReading.value,
+    rating: rating.value,
+    review: review.value,
+    finishedOn: finishedOn.value,
+    startedOn: startedOn.value,
+    finishedPrecision: finishedPrecision.value,
+    format: format.value,
+    visibility: visibility.value,
+    showStartDate: showStartDate.value,
+    showEditionPicker: showEditionPicker.value,
+    showNewEditionForm: showNewEditionForm.value,
+    newEditionIsbn: newEditionIsbn.value,
+    newEditionPublisher: newEditionPublisher.value,
+    newEditionPageCount: newEditionPageCount.value,
+    newEditionPublishedYear: newEditionPublishedYear.value,
+    newEditionLanguage: newEditionLanguage.value,
+    newEditionCoverUrl: newEditionCoverUrl.value,
+  }),
+})
+
 const submitting = ref(false)
 const errorMessage = ref('')
+const savedLogHref = ref<string | null>(null)
 
 type FieldKey = 'finished_on' | 'started_on' | 'review'
 const FIELD_ORDER: FieldKey[] = ['finished_on', 'started_on', 'review']
@@ -670,7 +708,9 @@ function applyServerError(message: string | undefined): boolean {
 }
 
 const showFinishedHint = computed(
-  () => props.mode === 'create' && finishedOn.value === defaultFinishedOn,
+  () => Boolean(defaultFinishedOn.value)
+    && props.mode === 'create'
+    && finishedOn.value === defaultFinishedOn.value,
 )
 
 const submitButtonLabel = computed(() => {
@@ -701,7 +741,6 @@ function onWorkSelected(work: SearchResult): void {
   editionId.value = null
   editionsList.value = []
   showEditionPicker.value = false
-  saveDraft()
 }
 
 function changeBook(): void {
@@ -709,7 +748,6 @@ function changeBook(): void {
   editionId.value = null
   editionsList.value = []
   showEditionPicker.value = false
-  saveDraft()
 }
 
 const editionSummary = computed(() => {
@@ -790,6 +828,7 @@ function clearNewEditionForm(): void {
 }
 
 async function handleCreateEdition(): Promise<void> {
+  if (submitting.value || creatingEdition.value) return
   if (!selectedWork.value || !validateNewEdition()) return
   creatingEdition.value = true
 
@@ -828,68 +867,132 @@ async function handleCreateEdition(): Promise<void> {
   }
 }
 
-let isDraftRestored = false
+let draftReady = false
+let draftPersistenceEnabled = initialDraftKey !== null
+const draftRestored = ref(false)
 
-function saveDraft(): void {
-  if (props.mode !== 'create' || !isDraftRestored) return
-  try {
-    const draft = {
-      work: selectedWork.value,
-      editionId: editionId.value,
-      rating: rating.value,
-      review: review.value,
-      finishedOn: finishedOn.value,
-      startedOn: startedOn.value,
-      finishedPrecision: finishedPrecision.value,
-      format: format.value,
-      visibility: visibility.value,
-      showStartDate: showStartDate.value,
+watch(
+  () => currentDraftKey(),
+  (key) => {
+    if (key !== initialDraftKey) {
+      draftPersistenceEnabled = false
+      draftReady = false
+      formDraft.cancel()
     }
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
-  } catch {
+  },
+  { flush: 'sync' },
+)
+
+function recordOf(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  return value as Record<string, unknown>
+}
+
+function parseSelectedWork(value: unknown): SelectedWorkState | null {
+  const work = recordOf(value)
+  if (!work || typeof work.id !== 'string' || typeof work.title !== 'string' || typeof work.slug !== 'string') {
+    return null
+  }
+  if (!Array.isArray(work.authors)) return null
+  const authors: SelectedWorkState['authors'] = []
+  for (const valueAuthor of work.authors) {
+    const author = recordOf(valueAuthor)
+    if (!author || typeof author.name !== 'string') return null
+    authors.push({
+      name: author.name,
+      ...(typeof author.slug === 'string' ? { slug: author.slug } : {}),
+    })
+  }
+  return {
+    id: work.id,
+    title: work.title,
+    slug: work.slug,
+    authors,
+    first_published_year: typeof work.first_published_year === 'number' ? work.first_published_year : null,
+    cover_url: typeof work.cover_url === 'string' ? work.cover_url : null,
+    ol_cover_id: typeof work.ol_cover_id === 'number' ? work.ol_cover_id : null,
+    isbn13: typeof work.isbn13 === 'string' ? work.isbn13 : null,
   }
 }
 
-const draftRestored = ref(false)
-let skippedStaleDraft = false
-
-function restoreDraft(): void {
-  if (props.mode !== 'create') return
-  try {
-    const raw = localStorage.getItem(DRAFT_KEY)
-    if (!raw) return
-    const draft = JSON.parse(raw)
-    const chosenId = props.initialWork?.id
-    if (chosenId && draft.work?.id !== chosenId) {
-      skippedStaleDraft = true
-      return
-    }
-    if (draft.work) selectedWork.value = draft.work
-    if (draft.editionId !== undefined) editionId.value = draft.editionId
-    if (draft.rating !== undefined) rating.value = draft.rating
-    if (draft.review !== undefined) review.value = draft.review
-    if (draft.finishedOn !== undefined && draft.finishedOn) finishedOn.value = draft.finishedOn
-    if (draft.startedOn !== undefined) startedOn.value = draft.startedOn
-    if (draft.finishedPrecision !== undefined) finishedPrecision.value = draft.finishedPrecision
-    if (draft.format !== undefined) format.value = draft.format
-    if (draft.visibility !== undefined) visibility.value = draft.visibility
-    if (draft.showStartDate !== undefined) showStartDate.value = draft.showStartDate
-    else if (draft.startedOn) showStartDate.value = true
-    draftRestored.value = true
-  } catch {
-  } finally {
-    if (skippedStaleDraft) {
-      void nextTick(() => {
-        isDraftRestored = true
-      })
-    } else {
-      isDraftRestored = true
-    }
+function parseLogDraft(value: unknown): LogFormDraft | null {
+  const draft = recordOf(value)
+  if (!draft) return null
+  const precision = draft.finishedPrecision
+  const formatValue = draft.format
+  const visibilityValue = draft.visibility
+  return {
+    work: parseSelectedWork(draft.work),
+    editionId: typeof draft.editionId === 'string' ? draft.editionId : null,
+    isCurrentlyReading: draft.isCurrentlyReading === true,
+    rating: typeof draft.rating === 'number' && Number.isFinite(draft.rating) ? draft.rating : null,
+    review: typeof draft.review === 'string' ? draft.review : '',
+    finishedOn: typeof draft.finishedOn === 'string' ? draft.finishedOn : defaultFinishedOn.value,
+    startedOn: typeof draft.startedOn === 'string' ? draft.startedOn : '',
+    finishedPrecision: precision === 'mes' || precision === 'ano' ? precision : 'dia',
+    format: formatValue === 'fisico' || formatValue === 'ebook' || formatValue === 'audio' ? formatValue : null,
+    visibility: visibilityValue === 'privado' ? 'privado' : 'publico',
+    showStartDate: draft.showStartDate === true,
+    showEditionPicker: draft.showEditionPicker === true,
+    showNewEditionForm: draft.showNewEditionForm === true,
+    newEditionIsbn: typeof draft.newEditionIsbn === 'string' ? draft.newEditionIsbn : '',
+    newEditionPublisher: typeof draft.newEditionPublisher === 'string' ? draft.newEditionPublisher : '',
+    newEditionPageCount: typeof draft.newEditionPageCount === 'number' ? draft.newEditionPageCount : null,
+    newEditionPublishedYear: typeof draft.newEditionPublishedYear === 'number' ? draft.newEditionPublishedYear : null,
+    newEditionLanguage: typeof draft.newEditionLanguage === 'string' ? draft.newEditionLanguage : '',
+    newEditionCoverUrl: typeof draft.newEditionCoverUrl === 'string' ? draft.newEditionCoverUrl : '',
   }
+}
+
+function draftHasContent(draft: LogFormDraft): boolean {
+  return Boolean(
+    draft.work
+    || draft.isCurrentlyReading
+    || draft.editionId
+    || draft.rating !== null
+    || draft.review.trim()
+    || draft.startedOn
+    || draft.newEditionIsbn
+    || draft.newEditionPublisher
+    || draft.newEditionPageCount !== null
+    || draft.newEditionPublishedYear !== null
+    || draft.newEditionLanguage
+    || draft.newEditionCoverUrl,
+  )
+}
+
+function restoreDraft(): boolean {
+  if (props.mode !== 'create') return false
+  const draft = formDraft.restore(parseLogDraft)
+  const chosenId = props.initialWork?.id
+  const matchesContext = Boolean(draft && (!chosenId || draft.work?.id === chosenId))
+  if (draft && matchesContext) {
+    selectedWork.value = draft.work
+    editionId.value = draft.editionId
+    isCurrentlyReading.value = draft.isCurrentlyReading
+    rating.value = draft.rating
+    review.value = draft.review
+    finishedOn.value = draft.finishedOn
+    startedOn.value = draft.startedOn
+    finishedPrecision.value = draft.finishedPrecision
+    format.value = draft.format
+    visibility.value = draft.visibility
+    showStartDate.value = draft.showStartDate || Boolean(draft.startedOn)
+    showEditionPicker.value = draft.showEditionPicker
+    showNewEditionForm.value = draft.showNewEditionForm
+    newEditionIsbn.value = draft.newEditionIsbn
+    newEditionPublisher.value = draft.newEditionPublisher
+    newEditionPageCount.value = draft.newEditionPageCount
+    newEditionPublishedYear.value = draft.newEditionPublishedYear
+    newEditionLanguage.value = draft.newEditionLanguage
+    newEditionCoverUrl.value = draft.newEditionCoverUrl
+    draftRestored.value = draftHasContent(draft)
+  }
+  return matchesContext
 }
 
 async function discardDraft(): Promise<void> {
-  isDraftRestored = false
+  draftReady = false
   const work = props.initialWork
   selectedWork.value = work && work.id && work.slug
     ? {
@@ -906,29 +1009,38 @@ async function discardDraft(): Promise<void> {
   showEditionPicker.value = false
   rating.value = null
   review.value = ''
-  finishedOn.value = defaultFinishedOn
+  finishedOn.value = defaultFinishedOn.value
   startedOn.value = ''
   showStartDate.value = false
   finishedPrecision.value = 'dia'
   format.value = null
   visibility.value = 'publico'
+  showNewEditionForm.value = false
+  newEditionIsbn.value = ''
+  newEditionPublisher.value = ''
+  newEditionPageCount.value = null
+  newEditionPublishedYear.value = null
+  newEditionLanguage.value = ''
+  newEditionCoverUrl.value = ''
+  newEditionErrors.value = {}
   draftRestored.value = false
   clearDraft()
   await nextTick()
-  isDraftRestored = true
+  draftReady = true
 }
 
 function clearDraft(): void {
-  try {
-    localStorage.removeItem(DRAFT_KEY)
-  } catch {
-  }
+  draftReady = false
+  draftRestored.value = false
+  if (draftPersistenceEnabled) formDraft.clear()
+  else formDraft.cancel()
 }
 
 watch(
   [
     selectedWork,
     editionId,
+    isCurrentlyReading,
     rating,
     review,
     finishedOn,
@@ -937,9 +1049,17 @@ watch(
     format,
     visibility,
     showStartDate,
+    showEditionPicker,
+    showNewEditionForm,
+    newEditionIsbn,
+    newEditionPublisher,
+    newEditionPageCount,
+    newEditionPublishedYear,
+    newEditionLanguage,
+    newEditionCoverUrl,
   ],
   () => {
-    saveDraft()
+    if (props.mode === 'create' && draftReady && draftPersistenceEnabled) formDraft.schedule()
   },
   { deep: true },
 )
@@ -981,7 +1101,7 @@ if (props.mode === 'edit' && props.initialLog) {
   editionId.value = log.edition_id
   rating.value = log.rating
   review.value = log.review ?? ''
-  finishedOn.value = log.finished_on ?? defaultFinishedOn
+  finishedOn.value = log.finished_on ?? defaultFinishedOn.value
   startedOn.value = log.started_on ?? ''
   showStartDate.value = Boolean(log.started_on)
   finishedPrecision.value = log.finished_precision
@@ -1035,12 +1155,22 @@ function onLeaveDialogClose(): void {
   if (!allowLeave) pendingLeaveTo = null
 }
 
-function leaveWithoutSaving(): void {
+async function leaveWithoutSaving(): Promise<void> {
   const dest = pendingLeaveTo
   allowLeave = true
   leaveDialogRef.value?.close()
   pendingLeaveTo = null
-  if (dest) void navigateTo(dest)
+  if (!dest) return
+  try {
+    const navigation = await navigateTo(dest)
+    if (navigation) {
+      allowLeave = false
+      errorMessage.value = 'Não foi possível sair da página. Tente novamente.'
+    }
+  } catch {
+    allowLeave = false
+    errorMessage.value = 'Não foi possível sair da página. Tente novamente.'
+  }
 }
 
 function onBeforeUnload(event: BeforeUnloadEvent): void {
@@ -1054,31 +1184,28 @@ onBeforeUnmount(() => {
 })
 
 onMounted(() => {
+  defaultFinishedOn.value = getBrowserLocalDate()
   if (props.mode === 'edit' && props.initialLog) {
+    if (!props.initialLog.finished_on) finishedOn.value = defaultFinishedOn.value
     if (finishingMode) {
-      finishedOn.value = getBrowserLocalDate()
+      finishedOn.value = defaultFinishedOn.value
       void nextTick(() => {
-        document.querySelector<HTMLElement>('#log-rating-group [role="slider"]')?.focus()
+        document.querySelector<HTMLInputElement>('#log-rating-group input[type="range"]')?.focus()
       })
     }
     editBaseline.value = editSnapshot()
     window.addEventListener('beforeunload', onBeforeUnload)
   } else {
-    if (props.initialWork && props.initialWork.id && props.initialWork.slug) {
-      selectedWork.value = {
-        id: props.initialWork.id,
-        title: props.initialWork.title,
-        slug: props.initialWork.slug,
-        authors: props.initialWork.authors,
-        first_published_year: props.initialWork.first_published_year,
-        cover_url: props.initialWork.cover_url,
-      }
-    }
-    restoreDraft()
+    const restoredDraft = restoreDraft()
+    if (!restoredDraft) finishedOn.value = defaultFinishedOn.value
+    void nextTick(() => {
+      draftReady = draftPersistenceEnabled
+    })
   }
 })
 
 async function handleSubmit(): Promise<void> {
+  if (submitting.value || creatingEdition.value || savedLogHref.value) return
   if (!selectedWork.value) {
     errorMessage.value = 'Selecione uma obra para registrar.'
     return
@@ -1088,15 +1215,15 @@ async function handleSubmit(): Promise<void> {
 
   const payload = {
     work_id: selectedWork.value.id,
-    edition_id: editionId.value || undefined,
-    rating: isCurrentlyReading.value ? null : (rating.value != null ? rating.value : undefined),
-    review: review.value ? review.value : undefined,
+    edition_id: editionId.value,
+    rating: isCurrentlyReading.value ? null : rating.value,
+    review: review.value.length > 0 ? review.value : null,
     started_on: isCurrentlyReading.value
       ? (startedOn.value || getBrowserLocalDate())
-      : (showStartDate.value && startedOn.value ? startedOn.value : undefined),
-    finished_on: isCurrentlyReading.value ? null : (finishedOn.value || undefined),
+      : (showStartDate.value && startedOn.value ? startedOn.value : null),
+    finished_on: isCurrentlyReading.value ? null : (finishedOn.value || null),
     finished_precision: finishedPrecision.value,
-    format: format.value || undefined,
+    format: format.value,
     visibility: visibility.value,
   }
 
@@ -1115,7 +1242,15 @@ async function handleSubmit(): Promise<void> {
         body: payload,
       })
       allowLeave = true
-      void navigateTo(`/entrada/${props.initialLog.id}`)
+      savedLogHref.value = `/entrada/${props.initialLog.id}`
+      try {
+        const navigation = await navigateTo(savedLogHref.value)
+        if (navigation) {
+          errorMessage.value = 'A leitura foi salva, mas não foi possível abrir o registro. Use o link abaixo.'
+        }
+      } catch {
+        errorMessage.value = 'A leitura foi salva, mas não foi possível abrir o registro. Use o link abaixo.'
+      }
     } else {
       const res = await $fetch<{ id: string }>('/api/logs', {
         method: 'POST',
@@ -1124,7 +1259,15 @@ async function handleSubmit(): Promise<void> {
         body: payload,
       })
       clearDraft()
-      void navigateTo(`/entrada/${res.id}`)
+      savedLogHref.value = `/entrada/${res.id}`
+      try {
+        const navigation = await navigateTo(savedLogHref.value)
+        if (navigation) {
+          errorMessage.value = 'A leitura foi salva, mas não foi possível abrir o registro. Use o link abaixo.'
+        }
+      } catch {
+        errorMessage.value = 'A leitura foi salva, mas não foi possível abrir o registro. Use o link abaixo.'
+      }
     }
   } catch (err: unknown) {
     if (isTimeoutOrAbort(err)) {
@@ -1274,16 +1417,16 @@ function handleDelete(): void {
   outline-offset: 2px;
 }
 
+@media (pointer: coarse) {
+  .draft-discard-btn {
+    min-height: var(--target-min-size);
+  }
+}
+
 .log-form {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 .form-row {
@@ -1302,12 +1445,6 @@ function handleDelete(): void {
   align-items: center;
 }
 
-.form-label {
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  color: #fff;
-}
-
 .char-count {
   font-size: var(--font-size-xs);
   color: var(--text-color);
@@ -1324,34 +1461,12 @@ function handleDelete(): void {
   margin: 0;
 }
 
-.form-input {
-  background-color: var(--input-bg);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  padding: var(--space-3);
-  color: #fff;
-  font-size: var(--font-size-base);
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 44px;
-}
-
-.form-input:focus {
-  border-color: var(--highlight);
-  box-shadow: 0 0 0 2px var(--highlight-glow);
-}
-
 .form-select {
   cursor: pointer;
 }
 
 .form-textarea {
-  resize: vertical;
   min-height: 120px;
-  line-height: var(--line-height-normal);
 }
 
 .edition-toggle-row {
@@ -1496,43 +1611,6 @@ function handleDelete(): void {
   opacity: 0.6;
 }
 
-.edition-options {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.edition-option {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-sm);
-  background-color: var(--input-bg);
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.edition-option.is-selected {
-  border-color: var(--highlight);
-}
-
-.edition-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.edition-title {
-  font-size: var(--font-size-sm);
-  color: #fff;
-}
-
-.edition-meta {
-  font-size: var(--font-size-xs);
-  color: var(--text-color);
-}
-
 .visibility-fieldset {
   border: none;
   padding: 0;
@@ -1624,10 +1702,6 @@ function handleDelete(): void {
 .error-summary-link:focus-visible {
   outline: 2px solid var(--highlight);
   outline-offset: 2px;
-}
-
-.form-input[aria-invalid='true'] {
-  border-color: var(--danger);
 }
 
 .error-message {

@@ -22,11 +22,11 @@
         exemplo - é aceito e aparece no perfil, mas não no mapa.
       </p>
 
-      <div v-for="(author, index) in authorRows" :key="index" class="author-row">
+      <div v-for="author in authorRows" :key="author.id" class="author-row">
         <div class="form-group author-name-group">
-          <label class="form-hint" :for="`author-name-${index}`">Nome</label>
+          <label class="form-hint" :for="`author-name-${author.id}`">Nome</label>
           <input
-            :id="`author-name-${index}`"
+            :id="`author-name-${author.id}`"
             v-model="author.name"
             class="form-input"
             type="text"
@@ -35,9 +35,9 @@
         </div>
 
         <div class="form-group author-country-group">
-          <label class="form-hint" :for="`author-country-${index}`">País</label>
+          <label class="form-hint" :for="`author-country-${author.id}`">País</label>
           <input
-            :id="`author-country-${index}`"
+            :id="`author-country-${author.id}`"
             v-model="author.country"
             class="form-input"
             type="text"
@@ -52,7 +52,7 @@
           type="button"
           class="btn btn-danger author-remove"
           :aria-label="`Remover ${author.name || 'autor'}`"
-          @click="removeAuthor(index)"
+          @click="removeAuthor(author.id, $event)"
         >
           Remover
         </button>
@@ -146,7 +146,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { nextTick, reactive, ref, useId } from 'vue'
 import GenrePicker from '~/components/search/GenrePicker.vue'
 import { COUNTRIES, countryCodeFor, countryLabelFor } from '~~/shared/constants/countries'
 import { LANGUAGES } from '~~/shared/constants/languages'
@@ -157,8 +157,20 @@ const props = defineProps<{ work: WorkWithDetails }>()
 const emit = defineEmits<{ (e: 'saved'): void }>()
 
 interface AuthorRow {
+  id: string
   name: string
   country: string
+}
+
+const authorIdPrefix = useId()
+let nextAuthorId = 0
+
+function createAuthorRow(name: string, country: string): AuthorRow {
+  return {
+    id: `${authorIdPrefix}-author-${nextAuthorId++}`,
+    name,
+    country,
+  }
 }
 
 const title = ref(props.work.title)
@@ -172,11 +184,10 @@ const genreIds = ref<number[]>(props.work.genres.map((g) => g.id))
 
 const authorRows = reactive<AuthorRow[]>(
   props.work.authors.length > 0
-    ? props.work.authors.map((a) => ({
-        name: a.name,
-        country: a.country_label ?? countryLabelFor(a.country_code) ?? '',
-      }))
-    : [{ name: '', country: '' }],
+    ? props.work.authors.map((a) =>
+        createAuthorRow(a.name, a.country_label ?? countryLabelFor(a.country_code) ?? ''),
+      )
+    : [createAuthorRow('', '')],
 )
 
 const saving = ref(false)
@@ -186,12 +197,21 @@ const errors = ref<Record<string, string>>({})
 
 function addAuthor(): void {
   if (authorRows.length >= 5) return
-  authorRows.push({ name: '', country: '' })
+  authorRows.push(createAuthorRow('', ''))
 }
 
-function removeAuthor(index: number): void {
-  if (authorRows.length <= 1) return
+function removeAuthor(id: string, event: MouseEvent): void {
+  const index = authorRows.findIndex((author) => author.id === id)
+  if (authorRows.length <= 1 || index < 0) return
+
+  const row = (event.currentTarget as HTMLElement).closest('.author-row')
+  const restoreFocus = Boolean(row?.contains(document.activeElement))
+  const nextAuthor = authorRows[index + 1] ?? authorRows[index - 1]
   authorRows.splice(index, 1)
+
+  if (restoreFocus && nextAuthor) {
+    void nextTick(() => document.getElementById(`author-name-${nextAuthor.id}`)?.focus())
+  }
 }
 
 function textOrNull(value: string): string | null {
