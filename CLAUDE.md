@@ -18,66 +18,13 @@ The Nuxt app is the root: `app/`, `server/`, `shared/`, `package.json`. `npm run
 
 `docs/reports/` holds dated round reports (UX, visual audit, pre-deploy security review, the 2026-09-30 frontend code review) and the agent reports from the correction rounds of 012 and 018. `docs/agent-prompts/` holds the prompts handed to implementing agents.
 
-The pre-Nuxt site lives in `legacy/` and stays runnable until the new app reaches parity. It must be served over HTTP - it `fetch`es `livros.json`, so `file://` fails on CORS.
-
-```bash
-cd legacy
-python -m http.server 8000
-```
-
-| File (`legacy/`) | Role |
-|---|---|
-| `index.html` | The whole legacy app: markup + one inline `createApp({ setup() })` block. Vue 3 and Google Charts load from CDN `<script>` tags. All state, filtering, sorting, stats and the map |
-| `livros.json` | The legacy data source - 86 books, already imported into Postgres by TASK-019 (`scripts/migrate-livros.ts`) |
-| `styles.css` | CSS custom properties on `:root`. Dark only, one 600px breakpoint |
-| `generos.txt` | Genre vocabulary (drifted: 26 labels in the data vs ~15 here) |
-| `README.md` | How to run it, in Portuguese |
-
-`livros_lidos_atualizado.csv`, the stale 83-record export, was deleted in TASK-019.
-
-### Book record shape
-
-```json
-{
-  "title": "...", "author": "...", "country": "EUA", "original_language": "inglês",
-  "year": 2005, "publisher": "...", "pages": 400, "read_in": 2014, "rate": 4,
-  "review": null, "source": "Físico",
-  "series_name": "...", "series_number": "1",
-  "genre": ["Ficção", "Aventura", "Fantasia"],
-  "isbn": "9788598078397", "cover_url": null
-}
-```
-
-### Data landmines - verified, and they break naive code
-
-| Landmine | Consequence |
-|---|---|
-| `year` reaches **−500** | `first_published_year` must be a **signed** integer. No `> 0` check |
-| `series_number` contains `'1-2'` and `'0.1'` | The column is **text**, never numeric |
-| 64 ISBN-13, **19 ISBN-10**, **3 Amazon ASINs** | Normalise to ISBN-13 before any uniqueness constraint. An ASIN stores as `isbn13 = NULL` |
-| `original_language` has `'português'` and `'Português'` | Case-fold before mapping |
-| `read_in` is a **year**, not a date | Needs a precision flag alongside the date |
-| Reviews contain 178 `<br>` and nothing else | Convert to `\n`; store plain text |
-| `country` includes `'Roma Antiga'` | No ISO code exists |
-| Array order encodes reading order within a year | Preserve it - every sort uses it as a tiebreak |
+The pre-Nuxt site lives in `legacy/` and stays runnable until the new app reaches parity; it must be served over HTTP, see [legacy/README.md](legacy/README.md). Its `livros.json` (86 books) was imported by TASK-019. The data quirks that break naive code - a year of −500 (signed column), `series_number` values like `'1-2'` (text column), ISBN-10s and Amazon ASINs (normalise, ASIN stores as `isbn13 = NULL`), `read_in` as a year (precision flag), array order as the reading-order tiebreak - are listed in [docs/migration.md](docs/migration.md) §2. Read it before touching import, ISBNs, dates or sorting.
 
 ---
 
-## Target architecture
+## Architecture
 
-Full detail in [docs/architecture.md](docs/architecture.md). Summary:
-
-| Layer | Choice |
-|---|---|
-| Framework | Nuxt 4 (Vue 3, TypeScript, SSR) |
-| Backend | Nuxt server routes, same project |
-| Hosting | Vercel Hobby, region `gru1` |
-| Database | **Neon** Postgres (not Supabase - Supabase free pauses after 7 days and needs a manual restore) |
-| Query layer | Drizzle ORM + `postgres.js` |
-| Auth | better-auth, **`handle`-or-email + password**; email OTP (Gmail SMTP) kept only for first-access activation and password reset. Not Google OAuth - it 403s inside WhatsApp's WebView; not OTP-per-sign-in - it forces an app switch out of that same WebView on every session expiry |
-| Authorization | Server-side helper, **no RLS** |
-| Search | Local Postgres `ILIKE` (Open Library averages 8.4s and has 40% coverage of Brazilian editions) |
-| Analytics | One `search_misses` table |
+Nuxt 4 SSR with server routes in the same project, on Vercel Hobby (`gru1`); **Neon** Postgres through Drizzle + `postgres.js`; better-auth with **`handle`-or-email + password**, email OTP only for first-access activation and password reset; authorization in one server-side helper, **no RLS**; search is local Postgres `ILIKE`; analytics is one `search_misses` table. Each choice and the alternative it beat (Supabase, Google OAuth, OTP per sign-in, Open Library search) is argued in [docs/architecture.md](docs/architecture.md) - read it before proposing to swap any of them.
 
 ---
 
@@ -95,7 +42,7 @@ Full detail in [docs/architecture.md](docs/architecture.md). Summary:
 
 ---
 
-## Folder structure (post-TASK-001)
+## Folder structure
 
 ```
 app/          pages/ components/ composables/ assets/css/
@@ -197,8 +144,6 @@ Ask, in order:
 
 ## Deferred, deliberately
 
-Follows, activity feed, likes, lists, want-to-read, notifications, comments, statistics/year-in-review, author/genre/country pages, Goodreads import, SEO/sitemaps, moderation tooling, recommendations, PWA.
-
-Each is additive and changes no existing table - which is why deferring them is safe. Reasoning in [docs/mvp-definition.md](docs/mvp-definition.md) §4.
+The post-MVP list and the reason each item can wait are in [docs/mvp-definition.md](docs/mvp-definition.md) §4. Every deferred feature is additive and changes no existing table.
 
 **One hard gate:** if public registration is ever opened, moderation tooling ships first.
