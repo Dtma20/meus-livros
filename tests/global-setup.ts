@@ -35,8 +35,8 @@ export async function setup(): Promise<void> {
         ? 'O bundle em .vercel/output está mais antigo que os fontes.'
         : 'O bundle em .vercel/output não existe.',
       '',
-      'tests/integration/routes.test.ts sobe o servidor compilado, então ele precisa',
-      'estar atualizado. Construir de dentro da suíte corrompe a resolução de módulos',
+      'Os testes SSR (routes.test.ts e axe.test.ts) sobem o servidor compilado, então',
+      'ele precisa estar atualizado. Construir de dentro da suíte corrompe a resolução de módulos',
       'dos outros workers, que estão lendo .nuxt ao mesmo tempo.',
       '',
       'Rode antes:',

@@ -11,7 +11,7 @@ import {
 } from '../../server/services/rate-limit'
 import importHandler from '../../server/api/library/import.post'
 import { livroJsonSchema } from '../../shared/schemas/export-import'
-import { removeFixtures } from './fixtures'
+import { deleteRateLimits, removeFixtures, uniqueTestIp } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-ratelimit-${Date.now()}`
@@ -72,12 +72,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-067 - Rate limit hardening', () => {
 
     try {
       await removeFixtures(MARKER)
-      if (testRateLimitKeys.length > 0) {
-        await db.execute(sql`
-          DELETE FROM rate_limit
-          WHERE key IN (${sql.join(testRateLimitKeys.map((k) => sql`${k}`), sql`, `)})
-        `)
-      }
+      await deleteRateLimits(testRateLimitKeys)
     } finally {
       await client?.end()
     }
@@ -105,7 +100,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-067 - Rate limit hardening', () => {
   })
 
   it('inserts no identifier row when the IP bucket is already over in checkOtpRequestLimit', async () => {
-    const testIp = `198.51.100.${(testId % 200) + 1}`
+    const testIp = uniqueTestIp()
     const testEmail = `test-otp-${testId}@example.com`
     const ipKey = `otp:ip:${testIp}`
     const emailKey = `otp:email:${testEmail}`
@@ -163,8 +158,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-067 - Rate limit hardening', () => {
 
   it('10 failed sign-ins for identifier X from IP A: 11th from A is 429, first from IP B is not', async () => {
     const identifier = `user_target_${testId}`
-    const ipA = `192.0.2.${(testId % 200) + 1}`
-    const ipB = `192.0.2.${((testId + 50) % 200) + 1}`
+    const ipA = uniqueTestIp()
+    const ipB = uniqueTestIp()
 
     testRateLimitKeys.push(
       hashRateLimitKey(`signin:ip:${ipA}`),

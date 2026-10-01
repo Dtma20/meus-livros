@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick, ref, type Ref } from 'vue'
 import ShortcutsDialog from '../../app/components/ui/ShortcutsDialog.vue'

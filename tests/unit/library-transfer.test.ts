@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   formatSourceLabel,
   formatImportError,
@@ -10,6 +10,9 @@ import {
   parseImportVisibility,
 } from '../../server/services/library-transfer'
 import { livroJsonSchema } from '../../shared/schemas/export-import'
+
+// These parsing tests never query PostgreSQL; fail on accidental database use.
+vi.mock('../../server/db', () => ({ db: {} }))
 
 describe('library-transfer unit tests', () => {
   describe('livroJsonSchema validation', () => {

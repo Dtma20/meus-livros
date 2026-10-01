@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Component, createApp, createSSRApp, nextTick, ref } from 'vue'
 import { renderToString } from 'vue/server-renderer'

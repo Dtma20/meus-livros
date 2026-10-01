@@ -2,8 +2,10 @@ import { createHash } from 'node:crypto'
 import type { Transporter } from 'nodemailer'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { auth, getSessionUserByHeaders, handleAuthRequest } from '../../server/services/auth'
+import { auth, getSessionUserByHeaders, handleAuthRequest as dispatchAuthRequest } from '../../server/services/auth'
+import { getClientIp } from '../../server/utils/client-ip'
 import { setTransport } from '../../server/utils/email'
+import { deleteRateLimits, rateLimitHashes, uniqueTestIp } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
@@ -28,16 +30,19 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
 
   const activationEmail = `test-ativar-${testId}@example.com`
   const pendingEmail = `test-pendente-${testId}@example.com`
-  const testIp = `192.0.2.${(testId % 200) + 1}`
-  const activationIp = `192.0.2.${((testId + 3) % 200) + 1}`
-  const enumerationIp = `198.18.0.${(testId % 200) + 1}`
+  const activationFlowEmail = `test-ativar-flow-${testId}@example.com`
+  const activationFlowHandle = `taf${testId % 1000000000}`
+  const testIp = uniqueTestIp()
+  const activationIp = uniqueTestIp()
+  const enumerationIp = uniqueTestIp()
 
   const sentEmails: Array<{ to: string; subject: string; text: string }> = []
-  const createdEmails: string[] = [allowedEmail, nonAllowedEmail, activationEmail, pendingEmail]
-  const customIp = `198.51.100.${(testId % 200) + 1}`
-  const gateIp = `203.0.113.${(testId % 200) + 1}`
-  const signInIdIp = `192.0.2.${((testId + 1) % 200) + 1}`
-  const signInIpLimitIp = `192.0.2.${((testId + 2) % 200) + 1}`
+  const createdEmails: string[] = [allowedEmail, nonAllowedEmail, activationEmail, pendingEmail, activationFlowEmail]
+  const customIp = uniqueTestIp()
+  const gateIp = uniqueTestIp()
+  const signInIdIp = uniqueTestIp()
+  const signInIpLimitIp = uniqueTestIp()
+  const allTestIps = [testIp, activationIp, enumerationIp, customIp, gateIp, signInIdIp, signInIpLimitIp]
   const createdRateLimitKeys: string[] = [
     `otp:ip:${testIp}`,
     `otp:ip:${customIp}`,
@@ -51,12 +56,88 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
   ]
 
   const testHandle = `ta${testId % 1000000000}`
+  const createdHandles: string[] = [testHandle, activationFlowHandle]
   const initialPassword = 'InitialPassword123'
+  const controlKey = `auth-cleanup-control:${testId}`
+  let controlCreated = false
+
+  // Record the identifier/IP combinations from real requests; dispatch remains real.
+  async function handleAuthRequest(request: Request): Promise<Response> {
+    const pathname = new URL(request.url).pathname
+    if (request.method === 'POST') {
+      const body: unknown = await request.clone().json().catch(() => null)
+      if (body && typeof body === 'object' && !Array.isArray(body)) {
+        const ip = getClientIp(request.headers)
+        if (pathname === '/api/auth/entrar') {
+          const identifier = 'identificador' in body && typeof body.identificador === 'string'
+            ? body.identificador.trim().toLowerCase() : ''
+          createdRateLimitKeys.push(`signin:ip:${ip}`, `signin:id:${identifier}`, `signin:idip:${identifier}:${ip}`)
+        }
+        if (pathname.startsWith('/api/auth/email-otp/') && 'email' in body && typeof body.email === 'string') {
+          createdRateLimitKeys.push(`otp:ip:${ip}`, `otp:email:${body.email.trim().toLowerCase()}`)
+        }
+      }
+    }
+    return dispatchAuthRequest(request)
+  }
+
+  function ownedRateLimitKeys(): string[] {
+    return [
+      ...createdRateLimitKeys,
+      ...allTestIps.flatMap((ip) => [`otp:ip:${ip}`, `signin:ip:${ip}`]),
+      ...createdEmails.flatMap((e) => [
+        `otp:email:${e.toLowerCase().trim()}`,
+        `signin:id:${e.toLowerCase().trim()}`,
+        `setpw:email:${e.toLowerCase().trim()}`,
+      ]),
+      ...createdHandles.map((h) => `signin:id:${h.toLowerCase().trim()}`),
+    ]
+  }
+
+  async function createActiveMember(opts: {
+    email: string
+    handle: string
+    password?: string
+    name?: string
+  }): Promise<{ email: string; handle: string; password: string }> {
+    const password = opts.password ?? initialPassword
+    createdEmails.push(opts.email)
+    createdHandles.push(opts.handle)
+
+    await db.insert(schema.allowed_emails).values({
+      email: opts.email,
+      note: 'TASK-027 active member fixture',
+    })
+
+    await db.insert(schema.users).values({
+      email: opts.email,
+      handle: opts.handle,
+      display_name: opts.name ?? 'Test Member',
+      profile_visibility: 'publico',
+    })
+
+    const signUpRes = await auth.api.signUpEmail({
+      body: {
+        name: opts.name ?? 'Test Member',
+        email: opts.email,
+        password,
+      },
+      asResponse: true,
+    })
+    if (signUpRes.status !== 200) {
+      throw new Error(`Falha ao registrar usuário activeMember: status ${signUpRes.status}`)
+    }
+
+    return { email: opts.email, handle: opts.handle, password }
+  }
 
   beforeAll(async () => {
     const dbModule = await import('../../server/db')
     db = dbModule.db
     schema = await import('../../server/db/schema')
+    const [controlHash] = await rateLimitHashes([controlKey])
+    await db.execute(sql`INSERT INTO rate_limit (key, count, window_start) VALUES (${controlHash}, 1, date_trunc('hour', now()))`)
+    controlCreated = true
 
     process.env.EMAIL_FROM = 'test-remetente@gmail.com'
     process.env.GMAIL_APP_PASSWORD = 'test-app-password'
@@ -72,17 +153,35 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
 
     await db.insert(schema.allowed_emails).values([
       { email: allowedEmail, note: 'TASK-027 integration test' },
-
       { email: activationEmail, note: 'TASK-027 first-access test' },
-
       { email: pendingEmail, note: 'A-1 invited, never activated' },
+      { email: activationFlowEmail, note: 'TASK-027 activation flow' },
     ])
 
-    await db.insert(schema.users).values({
-      email: allowedEmail,
-      handle: testHandle,
-      display_name: 'Test Auth User',
+    await db.insert(schema.users).values([
+      {
+        email: allowedEmail,
+        handle: testHandle,
+        display_name: 'Test Auth User',
+      },
+      {
+        email: activationFlowEmail,
+        handle: activationFlowHandle,
+        display_name: 'Activation Flow User',
+      },
+    ])
+
+    const initSignUp = await auth.api.signUpEmail({
+      body: {
+        name: 'Test Auth User',
+        email: allowedEmail,
+        password: initialPassword,
+      },
+      asResponse: true,
     })
+    if (initSignUp.status !== 200) {
+      throw new Error(`Falha ao inicializar allowedEmail com senha: status ${initSignUp.status}`)
+    }
 
     await purgeTestRateLimits()
   }, 30000)
@@ -112,18 +211,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
   })
 
   async function purgeTestRateLimits() {
-    const exact = [...createdRateLimitKeys, `signin:id:${testHandle}`]
-    const hashedExact = exact.map((k) => createHash('sha256').update(k).digest('hex'))
-    const allKeys = [...exact, ...hashedExact]
-    const patterns = [
-      ...createdEmails.map((e) => `%${e}%`),
-      `signin:id:spray_${testId % 100000}_%`,
-    ]
-    await db.execute(sql`
-      DELETE FROM rate_limit
-      WHERE key IN (${sql.join(allKeys.map((k) => sql`${k}`), sql`, `)})
-         OR ${sql.join(patterns.map((pat) => sql`key LIKE ${pat}`), sql` OR `)}
-    `)
+    await deleteRateLimits(ownedRateLimitKeys())
   }
 
   afterAll(async () => {
@@ -149,6 +237,18 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     await db.delete(schema.users).where(inArray(schema.users.email, createdEmails))
 
     await purgeTestRateLimits()
+    const hashes = await rateLimitHashes(ownedRateLimitKeys())
+    try {
+      const remaining = await db.execute(sql`SELECT key FROM rate_limit WHERE key IN (${sql.join(hashes.map((key) => sql`${key}`), sql`, `)})`)
+      expect(Array.from(remaining), 'Auth fixtures must leave no rate-limit buckets').toEqual([])
+      if (controlCreated) {
+        const [controlHash] = await rateLimitHashes([controlKey])
+        const control = await db.execute(sql`SELECT count FROM rate_limit WHERE key = ${controlHash}`)
+        expect(Array.from(control), 'Cleanup must preserve an unrelated bucket').toEqual([{ count: 1 }])
+      }
+    } finally {
+      await deleteRateLimits([controlKey])
+    }
   }, 30000)
 
   it('first access works for an invitee who has no profile row yet', async () => {
@@ -215,14 +315,13 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
   }, 30000)
 
   it('first access activation: allowlisted address receives code, sets password, and signs in', async () => {
-
     const req = new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         'x-forwarded-for': testIp,
       },
-      body: JSON.stringify({ email: allowedEmail, type: 'sign-in' }),
+      body: JSON.stringify({ email: activationFlowEmail, type: 'sign-in' }),
     })
 
     const res = await handleAuthRequest(req)
@@ -231,7 +330,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     expect(body.success).toBe(true)
 
     const emailData = await waitForEmail()
-    expect(emailData.to).toBe(allowedEmail)
+    expect(emailData.to).toBe(activationFlowEmail)
 
     const match = emailData.text.match(/\b\d{6}\b/)
     expect(match).not.toBeNull()
@@ -243,7 +342,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
         'content-type': 'application/json',
         'x-forwarded-for': testIp,
       },
-      body: JSON.stringify({ email: allowedEmail, otp }),
+      body: JSON.stringify({ email: activationFlowEmail, otp }),
     })
 
     const verifyRes = await handleAuthRequest(verifyReq)
@@ -520,7 +619,13 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     `)
 
     const unknownHandleId = `spray_${testId % 100000}_30`
-    createdRateLimitKeys.push(`signin:id:${unknownHandleId}`)
+    const unknownHandleId31 = `spray_${testId % 100000}_31`
+    createdRateLimitKeys.push(
+      `signin:id:${unknownHandleId}`,
+      `signin:idip:${unknownHandleId}:${signInIpLimitIp}`,
+      `signin:id:${unknownHandleId31}`,
+      `signin:idip:${unknownHandleId31}:${signInIpLimitIp}`,
+    )
     const thirtieth = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
@@ -542,7 +647,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': signInIpLimitIp },
-        body: JSON.stringify({ identificador: `spray_${testId % 100000}_31`, senha: 'wrongPassword' }),
+        body: JSON.stringify({ identificador: unknownHandleId31, senha: 'wrongPassword' }),
       }),
     )
     expect(thirtyFirstRes.status).toBe(429)
@@ -551,12 +656,22 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
   }, 20000)
 
   it('password reset flow: sends code, resets password, invalidates old sessions, single-use code', async () => {
+    const resetEmail = `test-reset-${Date.now()}@example.com`
+    const resetHandle = `tr_${Date.now() % 10000000}`
+    const resetUser = await createActiveMember({
+      email: resetEmail,
+      handle: resetHandle,
+      password: initialPassword,
+      name: 'Reset Flow User',
+    })
+    createdRateLimitKeys.push(`signin:id:${resetUser.handle}`)
+    createdRateLimitKeys.push(`signin:id:${resetUser.email}`)
 
     const loginRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ identificador: testHandle, senha: initialPassword }),
+        body: JSON.stringify({ identificador: resetUser.handle, senha: initialPassword }),
       }),
     )
     const oldSessionCookie = cookieHeaderFrom(loginRes)
@@ -566,13 +681,13 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     const resetReq = new Request('http://localhost:3000/api/auth/forget-password/email-otp', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-      body: JSON.stringify({ email: allowedEmail }),
+      body: JSON.stringify({ email: resetUser.email }),
     })
     const resetRes = await handleAuthRequest(resetReq)
     expect(resetRes.status).toBe(200)
 
     const emailData = await waitForEmail()
-    expect(emailData.to).toBe(allowedEmail)
+    expect(emailData.to).toBe(resetUser.email)
     const match = emailData.text.match(/\b\d{6}\b/)
     expect(match).not.toBeNull()
     const resetCode = match![0]
@@ -581,18 +696,18 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     const completeResetReq = new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-      body: JSON.stringify({ email: allowedEmail, otp: resetCode, password: newPassword }),
+      body: JSON.stringify({ email: resetUser.email, otp: resetCode, password: newPassword }),
     })
     const completeResetRes = await handleAuthRequest(completeResetReq)
     expect(completeResetRes.status).toBe(200)
 
-    expect(await countSessionsFor(allowedEmail)).toBe(0)
+    expect(await countSessionsFor(resetUser.email)).toBe(0)
 
     const oldPwLogin = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ identificador: testHandle, senha: initialPassword }),
+        body: JSON.stringify({ identificador: resetUser.handle, senha: initialPassword }),
       }),
     )
     expect(oldPwLogin.status).toBe(400)
@@ -601,7 +716,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ identificador: testHandle, senha: newPassword }),
+        body: JSON.stringify({ identificador: resetUser.handle, senha: newPassword }),
       }),
     )
     expect(newPwLogin.status).toBe(200)
@@ -610,7 +725,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
       new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ email: allowedEmail, otp: resetCode, password: 'AnotherPassword999' }),
+        body: JSON.stringify({ email: resetUser.email, otp: resetCode, password: 'AnotherPassword999' }),
       }),
     )
     expect(replayRes.status).toBe(400)
@@ -619,15 +734,24 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
   }, 20000)
 
   it('change-password without currentPassword is rejected, and with valid currentPassword revokes other sessions', async () => {
-
-    const currentPassword = 'ResetPassword456'
+    const currentPassword = 'CurrentPassword123'
     const newPassword = 'ChangedPassword789'
+    const changeEmail = `test-change-${Date.now()}@example.com`
+    const changeHandle = `tc_${Date.now() % 10000000}`
+    const changeUser = await createActiveMember({
+      email: changeEmail,
+      handle: changeHandle,
+      password: currentPassword,
+      name: 'Change Password User',
+    })
+    createdRateLimitKeys.push(`signin:id:${changeUser.handle}`)
+    createdRateLimitKeys.push(`signin:id:${changeUser.email}`)
 
     const loginResA = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ identificador: testHandle, senha: currentPassword }),
+        body: JSON.stringify({ identificador: changeUser.handle, senha: currentPassword }),
       }),
     )
 
@@ -639,7 +763,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
-        body: JSON.stringify({ identificador: testHandle, senha: currentPassword }),
+        body: JSON.stringify({ identificador: changeUser.handle, senha: currentPassword }),
       }),
     )
 
@@ -686,7 +810,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     const userAfter = await getSessionUserByHeaders(survivingHeaders)
     expect(userAfter).not.toBeNull()
 
-    expect(await countSessionsFor(allowedEmail)).toBe(1)
+    expect(await countSessionsFor(changeUser.email)).toBe(1)
   }, 20000)
 
   it('passwords under 8 characters and senha123 are rejected server-side', async () => {

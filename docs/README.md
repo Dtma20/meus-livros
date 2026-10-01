@@ -16,6 +16,7 @@
 | Add a server route | [api.md](api.md) |
 | Add a page or component | [frontend.md](frontend.md) |
 | Touch user input or auth | [security.md](security.md) |
+| Run tests, configure a test database or verify SSR | [../tests/README.md](../tests/README.md) |
 | Work on book search or covers | [book-catalog.md](book-catalog.md) |
 | Move the 86 existing books | [migration.md](migration.md) |
 | Deploy, back up, or set env vars | [infrastructure.md](infrastructure.md) |

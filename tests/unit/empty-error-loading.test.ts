@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, type Component, nextTick } from 'vue'
 import EmptyState from '../../app/components/ui/EmptyState.vue'

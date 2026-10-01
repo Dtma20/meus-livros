@@ -292,8 +292,11 @@ describe('accessible rendered interface states', () => {
     authorInput.focus()
     authorInput.value = 'Ma'
     authorInput.dispatchEvent(new Event('input', { bubbles: true }))
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    await flushVue()
+    const deadline = Date.now() + 2000
+    while (Date.now() < deadline && !wrapper.host.querySelector('[role="listbox"] [role="option"]')) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      await flushVue()
+    }
 
     expect(wrapper.host.querySelector('[role="combobox"]')).not.toBeNull()
     expect(wrapper.host.querySelector('[role="listbox"] [role="option"]')?.textContent)

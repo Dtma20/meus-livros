@@ -1,7 +1,9 @@
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { sql } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { uniqueIsbn13 } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 
@@ -82,39 +84,38 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
     `)
     expect(colInfo[0]?.is_generated).toBe('ALWAYS')
 
-    const testWorkId = '00000000-0000-0000-0000-000000000001'
+    const testWorkId = randomUUID()
+    const manualWorkId = randomUUID()
     try {
       await db.execute(sql`
         INSERT INTO works (id, slug, title)
-        VALUES (${testWorkId}, 'o-hobbit-test', 'O Hóbbït: Teste');
+        VALUES (${testWorkId}, ${`o-hobbit-${testWorkId.slice(0, 8)}`}, 'O Hóbbït: Teste');
       `)
       const workRow = await db.execute(sql`
         SELECT search_text FROM works WHERE id = ${testWorkId};
       `)
       expect(workRow[0]?.search_text).toBe('o hobbit: teste')
 
-      await expect(
-        db.execute(sql`
+      await expect(db.execute(sql`
           INSERT INTO works (id, slug, title, search_text)
-          VALUES ('00000000-0000-0000-0000-000000000002', 'manual-search-text', 'Manual', 'manual');
-        `),
-      ).rejects.toThrow()
+          VALUES (${manualWorkId}, ${`manual-${manualWorkId.slice(0, 8)}`}, 'Manual', 'manual');
+        `)).rejects.toMatchObject({ cause: { code: '428C9' } })
     } finally {
-      await db.execute(sql`DELETE FROM works WHERE id IN (${testWorkId}, '00000000-0000-0000-0000-000000000002');`)
+      await db.execute(sql`DELETE FROM works WHERE id IN (${testWorkId}, ${manualWorkId});`)
     }
   })
 
   it('asserts partial unique index editions_isbn13_key allows multiple NULLs but rejects duplicate ISBNs', async () => {
-    const workId = '00000000-0000-0000-0000-000000000010'
-    const ed1 = '00000000-0000-0000-0000-000000000011'
-    const ed2 = '00000000-0000-0000-0000-000000000012'
-    const ed3 = '00000000-0000-0000-0000-000000000013'
-    const ed4 = '00000000-0000-0000-0000-000000000014'
-    const testIsbn = '9788535914849'
+    const workId = randomUUID()
+    const ed1 = randomUUID()
+    const ed2 = randomUUID()
+    const ed3 = randomUUID()
+    const ed4 = randomUUID()
+    const testIsbn = uniqueIsbn13()
 
     try {
       await db.execute(sql`
-        INSERT INTO works (id, slug, title) VALUES (${workId}, 'test-editions-work', 'Test Editions');
+        INSERT INTO works (id, slug, title) VALUES (${workId}, ${`test-editions-${workId.slice(0, 8)}`}, 'Test Editions');
       `)
 
       await db.execute(sql`INSERT INTO editions (id, work_id, isbn13) VALUES (${ed1}, ${workId}, NULL);`)
@@ -124,7 +125,12 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
 
       await expect(
         db.execute(sql`INSERT INTO editions (id, work_id, isbn13) VALUES (${ed4}, ${workId}, ${testIsbn});`),
-      ).rejects.toThrow()
+      ).rejects.toMatchObject({
+        cause: {
+          code: '23505',
+          constraint_name: 'editions_isbn13_key',
+        },
+      })
     } finally {
       await db.execute(sql`DELETE FROM editions WHERE work_id = ${workId};`)
       await db.execute(sql`DELETE FROM works WHERE id = ${workId};`)
@@ -132,18 +138,19 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
   })
 
   it('asserts rating check constraint: 3.7 is rejected and 4.5 succeeds', async () => {
-    const userId = '00000000-0000-0000-0000-000000000020'
-    const workId = '00000000-0000-0000-0000-000000000021'
-    const log1 = '00000000-0000-0000-0000-000000000022'
-    const log2 = '00000000-0000-0000-0000-000000000023'
+    const userId = randomUUID()
+    const workId = randomUUID()
+    const log1 = randomUUID()
+    const log2 = randomUUID()
+    const userHandle = `tr_${userId.slice(0, 8)}`
 
     try {
       await db.execute(sql`
         INSERT INTO users (id, email, handle, display_name)
-        VALUES (${userId}, 'test-rating@example.com', 'test_rating_user', 'Rating User');
+        VALUES (${userId}, ${`test-rating-${userId}@example.com`}, ${userHandle}, 'Rating User');
       `)
       await db.execute(sql`
-        INSERT INTO works (id, slug, title) VALUES (${workId}, 'test-rating-work', 'Rating Work');
+        INSERT INTO works (id, slug, title) VALUES (${workId}, ${`test-rating-${workId.slice(0, 8)}`}, 'Rating Work');
       `)
 
       await expect(
@@ -151,7 +158,12 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
           INSERT INTO reading_logs (id, user_id, work_id, rating)
           VALUES (${log1}, ${userId}, ${workId}, 3.7);
         `),
-      ).rejects.toThrow()
+      ).rejects.toMatchObject({
+        cause: {
+          code: '23514',
+          constraint_name: 'rating_half_star',
+        },
+      })
 
       await db.execute(sql`
         INSERT INTO reading_logs (id, user_id, work_id, rating)
@@ -169,18 +181,19 @@ describe.skipIf(!hasDatabaseUrl)('Database connection and schema verification (N
   })
 
   it('asserts two reading_logs with the same (user_id, work_id) both insert successfully (re-reads supported)', async () => {
-    const userId = '00000000-0000-0000-0000-000000000030'
-    const workId = '00000000-0000-0000-0000-000000000031'
-    const log1 = '00000000-0000-0000-0000-000000000032'
-    const log2 = '00000000-0000-0000-0000-000000000033'
+    const userId = randomUUID()
+    const workId = randomUUID()
+    const log1 = randomUUID()
+    const log2 = randomUUID()
+    const userHandle = `trr_${userId.slice(0, 8)}`
 
     try {
       await db.execute(sql`
         INSERT INTO users (id, email, handle, display_name)
-        VALUES (${userId}, 'test-reread@example.com', 'test_reread_user', 'Reread User');
+        VALUES (${userId}, ${`test-reread-${userId}@example.com`}, ${userHandle}, 'Reread User');
       `)
       await db.execute(sql`
-        INSERT INTO works (id, slug, title) VALUES (${workId}, 'test-reread-work', 'Reread Work');
+        INSERT INTO works (id, slug, title) VALUES (${workId}, ${`test-reread-${workId.slice(0, 8)}`}, 'Reread Work');
       `)
 
       await db.execute(sql`

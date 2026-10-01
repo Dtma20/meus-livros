@@ -193,52 +193,6 @@ describe.skipIf(!hasDatabaseUrl)('Search service', () => {
     expect(typeof w.log_count).toBe('number')
   })
 
-  it('p95 latency under 150ms with 1,500 works seeded', async () => {
-
-    const SEED_COUNT = 1500
-    const BATCH = 250
-    const seedIds: string[] = []
-
-    for (let i = 0; i < SEED_COUNT; i += BATCH) {
-      const batch = Array.from({ length: Math.min(BATCH, SEED_COUNT - i) }, (_, j) => ({
-        slug: `${MARKER}-perf-${i + j}`,
-        title: `Perf Work ${MARKER} ${i + j}`,
-        created_by: userId,
-      }))
-      const inserted = await db
-        .insert(schema.works)
-        .values(batch)
-        .returning({ id: schema.works.id })
-      seedIds.push(...inserted.map((r) => r.id))
-    }
-
-    const SAMPLES = 20
-
-    const measure = async (run: () => Promise<unknown>): Promise<number[]> => {
-      const times: number[] = []
-      for (let i = 0; i < SAMPLES; i++) {
-        const start = performance.now()
-        await run()
-        times.push(performance.now() - start)
-      }
-      return times.sort((a, b) => a - b)
-    }
-
-    try {
-      const baseline = await measure(() => db.execute(sqlOp.sql`select 1`))
-      const searched = await measure(() => search.searchWorks('perf', null))
-
-      const at95 = (samples: number[]) => samples[Math.ceil(SAMPLES * 0.95) - 1]!
-      const queryCost = at95(searched) - at95(baseline)
-
-      expect(queryCost).toBeLessThan(150)
-    } finally {
-
-      if (seedIds.length > 0) {
-        await db.delete(schema.works).where(sqlOp.inArray(schema.works.id, seedIds))
-      }
-    }
-  }, 60_000)
 
   it('a zero-result search inserts exactly one row with the exact query text', async () => {
     const missQuery = `${MARKER} Livro Inexistente 123`

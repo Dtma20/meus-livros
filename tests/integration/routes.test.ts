@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { removeFixtures } from './fixtures'
+import { stopServer, waitForServerPort } from './server-process'
+import { removeFixtures, uniqueIsbn13 } from './fixtures'
 
 describe('Route integration HTTP tests', () => {
   let child: ChildProcess
@@ -11,6 +12,9 @@ describe('Route integration HTTP tests', () => {
   const workMarker = `zz-teste-rota-${Date.now()}`
   let realWork: { id: string; slug: string; title: string } | null = null
   let publicLogId: string | null = null
+  let profileFixture: { id: string; handle: string; display_name: string } | null = null
+  let editionId: string | undefined
+  const fixtureIsbn = uniqueIsbn13()
 
   beforeAll(async () => {
 
@@ -21,20 +25,10 @@ describe('Route integration HTTP tests', () => {
 
     child = spawn('node', [path.resolve('tests/integration/server-runner.mjs')], {
       env,
-      stdio: ['ignore', 'pipe', 'inherit']
+      stdio: ['ignore', 'pipe', 'inherit'],
     })
 
-    await new Promise<void>((resolve, reject) => {
-      child.stdout?.on('data', (data) => {
-        const str = data.toString()
-        const match = str.match(/PORT:(\d+)/)
-        if (match && match[1]) {
-          baseUrl = `http://127.0.0.1:${match[1]}`
-          resolve()
-        }
-      })
-      child.on('error', reject)
-    })
+    baseUrl = await waitForServerPort(child)
 
     const dbModule = await import('../../server/db')
     const schemaModule = await import('../../server/db/schema')
@@ -47,6 +41,16 @@ describe('Route integration HTTP tests', () => {
         title: schemaModule.works.title,
       })
     realWork = row ?? null
+    if (!realWork) throw new Error('Obra fixture não criada.')
+    const [edition] = await dbModule.db.insert(schemaModule.editions).values({
+      work_id: realWork.id, isbn13: fixtureIsbn, publisher: 'Editora Fixture', page_count: 214, published_year: 2024,
+    }).returning({ id: schemaModule.editions.id })
+    editionId = edition?.id
+    const [controlWork] = await dbModule.db.insert(schemaModule.works).values({
+      slug: `${workMarker}-control`, title: `${workMarker} Controle`,
+    }).returning({ id: schemaModule.works.id })
+    if (!controlWork || !editionId) throw new Error('Edição/obra de controle não criadas.')
+    await dbModule.db.insert(schemaModule.editions).values({ work_id: controlWork.id, publisher: 'Outra obra' })
 
     const [owner] = await dbModule.db
       .insert(schemaModule.users)
@@ -56,7 +60,12 @@ describe('Route integration HTTP tests', () => {
         display_name: 'Usuário Cache',
         profile_visibility: 'publico',
       })
-      .returning({ id: schemaModule.users.id })
+      .returning({
+        id: schemaModule.users.id,
+        handle: schemaModule.users.handle,
+        display_name: schemaModule.users.display_name,
+      })
+    profileFixture = owner ?? null
     const [log] = await dbModule.db
       .insert(schemaModule.reading_logs)
       .values({
@@ -76,9 +85,7 @@ describe('Route integration HTTP tests', () => {
 
       await removeFixtures(workMarker)
     } finally {
-      if (child) {
-        child.kill()
-      }
+      await stopServer(child)
     }
   })
 
@@ -90,10 +97,21 @@ describe('Route integration HTTP tests', () => {
     expect(html).toContain('Meus Livros')
   })
 
-  it('GET /api/works/:id/editions reaches its handler (not shadowed by the work GET route)', async () => {
-    const res = await fetch(`${baseUrl}/api/works/00000000-0000-4000-8000-000000000000/editions`)
-    const body = await res.text()
-    expect(body).not.toContain('Page not found')
+  it('GET /api/works/:id/editions returns 200 and JSON editions array (not shadowed by the work GET route)', async () => {
+    expect(realWork).not.toBeNull()
+    const res = await fetch(`${baseUrl}/api/works/${realWork!.id}/editions`)
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toContain('application/json')
+    const data = await res.json()
+    expect(data).toEqual({ editions: [{
+      id: editionId, isbn13: fixtureIsbn, publisher: 'Editora Fixture',
+      cover_url: null, ol_cover_id: null, page_count: 214, published_year: 2024,
+    }] })
+
+    const nonExistentRes = await fetch(`${baseUrl}/api/works/00000000-0000-4000-8000-000000000000/editions`)
+    expect(nonExistentRes.status).toBe(200)
+    const nonExistentData = await nonExistentRes.json()
+    expect(nonExistentData.editions).toEqual([])
   })
 
   it('GET /@<handle desconhecido> returns 404', async () => {
@@ -102,13 +120,14 @@ describe('Route integration HTTP tests', () => {
     expect(res.status).toBe(404)
   })
 
-  it('GET /@dtma23 returns 200 and server-renders the profile', async () => {
-    const res = await fetch(`${baseUrl}/@dtma23`, { redirect: 'manual' })
+  it('GET /@<handle fixture> returns 200 and server-renders the profile', async () => {
+    expect(profileFixture).not.toBeNull()
+    const res = await fetch(`${baseUrl}/@${encodeURIComponent(profileFixture!.handle)}`, { redirect: 'manual' })
     expect(res.status).toBe(200)
     const html = await res.text()
 
-    expect(html).toContain('Leitor de teste')
-    expect(html).toContain('@dtma23')
+    expect(html).toContain(profileFixture!.display_name)
+    expect(html).toContain(`@${profileFixture!.handle}`)
   })
 
   it('GET /livro/<slug desconhecido> returns 404, not a 200 with an error box', async () => {

@@ -1,4 +1,5 @@
 import { and, eq, inArray, like, notExists, or, sql } from 'drizzle-orm'
+import { randomInt } from 'node:crypto'
 
 export async function removeFixtures(
   marker: string,
@@ -95,4 +96,54 @@ export function trackSetup() {
       )
     },
   }
+}
+
+export function uniqueIsbn13(): string {
+  const random9 = String(randomInt(1000000000)).padStart(9, '0')
+  const first12 = `978${random9}`
+  let sum = 0
+  for (let i = 0; i < 12; i++) {
+    sum += Number(first12[i]) * (i % 2 === 0 ? 1 : 3)
+  }
+  const check = String((10 - (sum % 10)) % 10)
+  return first12 + check
+}
+
+const allocatedIps = new Set<string>()
+export function uniqueTestIp(): string {
+  // RFC 2544 range; prevent reuse in this worker and reduce collisions between workers.
+  if (allocatedIps.size >= 2 * 254 * 254) throw new Error('Faixa de IPs de teste esgotada neste worker.')
+  let ip: string
+  do { ip = `198.${randomInt(18, 20)}.${randomInt(1, 255)}.${randomInt(1, 255)}` }
+  while (allocatedIps.has(ip))
+  allocatedIps.add(ip)
+  return ip
+}
+
+export function uniqueHandle(prefix = 'usr'): string {
+  const rand = Math.random().toString(36).slice(2, 8)
+  const time = (Date.now() % 1000000).toString(36)
+  return `${prefix}_${time}${rand}`.slice(0, 20)
+}
+
+export async function rateLimitHashes(keys: ReadonlyArray<string>): Promise<string[]> {
+  const { createHash } = await import('node:crypto')
+  return [
+    ...new Set(
+      keys.map((k) =>
+        k.length === 64 && /^[0-9a-f]{64}$/.test(k) ? k : createHash('sha256').update(k).digest('hex'),
+      ),
+    ),
+  ]
+}
+
+export async function deleteRateLimits(keys: ReadonlyArray<string>): Promise<void> {
+  if (keys.length === 0) return
+  const { db } = await import('../../server/db')
+  const hashedKeys = await rateLimitHashes(keys)
+
+  await db.execute(sql`
+    DELETE FROM rate_limit
+    WHERE key IN (${sql.join(hashedKeys.map((k) => sql`${k}`), sql`, `)})
+  `)
 }

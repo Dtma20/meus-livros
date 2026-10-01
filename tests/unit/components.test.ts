@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import { createApp, type Component, nextTick } from 'vue'
 import StarRating from '../../app/components/book/StarRating.vue'
@@ -299,14 +300,19 @@ describe('EmptyState.vue', () => {
   })
 
   it('renders action button and emits action event on click', async () => {
+    let actionEmitted = false
     const wrapper = mount(EmptyState, {
       title: 'Vazio',
-      actionLabel: 'Limpar Filtros'
+      actionLabel: 'Limpar Filtros',
+      onAction: () => {
+        actionEmitted = true
+      },
     })
     const button = wrapper.find('button.empty-btn')
     expect(button).not.toBeNull()
     button?.dispatchEvent(new MouseEvent('click'))
     await nextTick()
+    expect(actionEmitted).toBe(true)
     wrapper.unmount()
   })
 })

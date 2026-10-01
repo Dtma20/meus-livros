@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest'
 import { createApp, nextTick, type Component } from 'vue'
 import ReadingMap from '../../app/components/profile/ReadingMap.vue'

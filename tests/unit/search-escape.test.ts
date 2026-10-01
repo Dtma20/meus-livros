@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { escapeLikeWildcards } from '../../server/services/search'
+
+vi.mock('../../server/db', () => ({ db: {} }))
 
 describe('escapeLikeWildcards', () => {
   it('leaves plain text untouched', () => {

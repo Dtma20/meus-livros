@@ -4,7 +4,9 @@ import path from 'node:path'
 import { spawn, type ChildProcess } from 'node:child_process'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import axe from 'axe-core'
-import { removeFixtures } from './fixtures'
+import type { Window as HappyDOMWindow } from 'happy-dom'
+import { stopServer, waitForServerPort } from './server-process'
+import { removeFixtures, uniqueTestIp } from './fixtures'
 
 function httpGet(url: string, cookie?: string): Promise<{ status: number, body: string }> {
   return new Promise((resolve, reject) => {
@@ -45,41 +47,6 @@ function httpPostJson(
   })
 }
 
-function waitForServerPort(child: ChildProcess): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let output = ''
-    const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
-      cleanup()
-      reject(new Error('O servidor de integração não anunciou a porta em 30 segundos.'))
-    }, 30_000)
-    const cleanup = () => {
-      clearTimeout(timer)
-      child.stdout?.off('data', onData)
-      child.off('error', onError)
-      child.off('exit', onExit)
-    }
-    const onData = (data: Buffer) => {
-      output += data.toString()
-      const match = output.match(/PORT:(\d+)/)
-      if (match?.[1]) {
-        cleanup()
-        resolve(`http://127.0.0.1:${match[1]}`)
-      }
-    }
-    const onError = (error: Error) => {
-      cleanup()
-      reject(error)
-    }
-    const onExit = (code: number | null) => {
-      cleanup()
-      reject(new Error(`Servidor de integração encerrou antes de anunciar a porta (código ${code ?? 'desconhecido'}).`))
-    }
-    child.stdout?.on('data', onData)
-    child.on('error', onError)
-    child.on('exit', onExit)
-  })
-}
-
 const WCAG_21_A_AA_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']
 
 describe('Automated accessibility (axe-core) tests on rendered routes', () => {
@@ -92,10 +59,20 @@ describe('Automated accessibility (axe-core) tests on rendered routes', () => {
   const workMarker = `zz-teste-axe-${Date.now()}`
   const fixtureEmail = `${workMarker}@example.invalid`
   const fixtureHandle = `axe_${Date.now() % 10000000}`
-  const signInIp = `203.0.113.${(Date.now() % 200) + 1}`
+  const signInIp = uniqueTestIp()
+  const browserSettings = (window as unknown as HappyDOMWindow).happyDOM.settings
+  const originalLoading = {
+    disableCSSFileLoading: browserSettings.disableCSSFileLoading,
+    disableJavaScriptFileLoading: browserSettings.disableJavaScriptFileLoading,
+    handleDisabledFileLoadingAsSuccess: browserSettings.handleDisabledFileLoadingAsSuccess,
+  }
   let workPath: string | null = null
 
   beforeAll(async () => {
+    // axe checks SSR semantics here; remote CSS/JS and rendered contrast need a real browser.
+    browserSettings.disableCSSFileLoading = true
+    browserSettings.disableJavaScriptFileLoading = true
+    browserSettings.handleDisabledFileLoadingAsSuccess = true
     const env = { ...process.env }
     delete env.NODE_OPTIONS
     delete env.VITEST
@@ -199,7 +176,7 @@ describe('Automated accessibility (axe-core) tests on rendered routes', () => {
       `)
       await removeFixtures(workMarker, [fixtureUserId])
     } finally {
-      child?.kill()
+      try { await stopServer(child) } finally { Object.assign(browserSettings, originalLoading) }
     }
   })
 

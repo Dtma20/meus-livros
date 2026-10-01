@@ -2,7 +2,7 @@ import { createServer, type Server } from 'node:http'
 import { eq, sql } from 'drizzle-orm'
 import { createApp, createRouter, defineEventHandler, getHeader, toNodeListener } from 'h3'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { removeFixtures, trackSetup } from './fixtures'
+import { deleteRateLimits, rateLimitHashes, removeFixtures, trackSetup, uniqueTestIp } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `zz-test-invites-${Date.now()}`
@@ -27,6 +27,8 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
   const regularHandle = `reg${Date.now()}`.slice(0, 20)
 
   const setup = trackSetup()
+  const signInIp = uniqueTestIp()
+  const rateLimitKeys: string[] = []
 
   beforeAll(() => setup.run(async () => {
     const dbModule = await import('../../server/db')
@@ -118,6 +120,15 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
         `)
       }
       await removeFixtures(MARKER)
+      await deleteRateLimits(rateLimitKeys)
+      if (rateLimitKeys.length > 0) {
+        const hashes = await rateLimitHashes(rateLimitKeys)
+        const remaining = await db.execute(sql`
+          SELECT key FROM rate_limit
+          WHERE key IN (${sql.join(hashes.map((key) => sql`${key}`), sql`, `)})
+        `)
+        expect(remaining).toEqual([])
+      }
     } finally {
       await client?.end()
     }
@@ -514,10 +525,11 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
     `)
     expect(otherSessionsAfter).toHaveLength(1)
 
+    rateLimitKeys.push(`signin:ip:${signInIp}`, `signin:id:${activatedHandle}`, `signin:idip:${activatedHandle}:${signInIp}`)
     const signInRes = await handleAuthRequest(
       new Request('http://localhost:3000/api/auth/entrar', {
         method: 'POST',
-        headers: { 'content-type': 'application/json' },
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': signInIp },
         body: JSON.stringify({ identificador: activatedHandle, senha: 'QualquerSenha123' }),
       }),
     )

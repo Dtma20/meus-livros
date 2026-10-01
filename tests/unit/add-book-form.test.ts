@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Component, createApp, nextTick, ref } from 'vue'
 import { createFormDraftKey } from '../../app/composables/useFormDraft'
@@ -28,6 +29,7 @@ function setDraftTestUserId(id: string): void {
 }
 
 let AddBookForm: Component | undefined
+const activeWrappers: Array<{ unmount: () => void }> = []
 
 async function mountForm(props: Record<string, unknown> = {}) {
   if (!AddBookForm) {
@@ -41,7 +43,7 @@ async function mountForm(props: Record<string, unknown> = {}) {
   await nextTick()
   await nextTick()
 
-  return {
+  const wrapper = {
     host,
     titleInput: () => host.querySelector<HTMLInputElement>('#book-title'),
     authorInput: () => host.querySelector<HTMLInputElement>('#author-input'),
@@ -54,6 +56,8 @@ async function mountForm(props: Record<string, unknown> = {}) {
       host.remove()
     },
   }
+  activeWrappers.push(wrapper)
+  return wrapper
 }
 
 describe('AddBookForm component', () => {
@@ -63,6 +67,9 @@ describe('AddBookForm component', () => {
     localStorage.clear()
     navigatedTo = null
     vi.restoreAllMocks()
+    globalScope.navigateTo = (dest: string) => {
+      navigatedTo = dest
+    }
     setDraftTestUserId('user-1')
     globalScope.__draftTestUserId = 'user-1'
 
@@ -71,9 +78,17 @@ describe('AddBookForm component', () => {
   })
 
   afterEach(() => {
+    while (activeWrappers.length > 0) {
+      try {
+        activeWrappers.pop()?.unmount()
+      } catch {}
+    }
     localStorage.clear()
     document.body.innerHTML = ''
     vi.useRealTimers()
+    globalScope.navigateTo = (dest: string) => {
+      navigatedTo = dest
+    }
   })
 
   it('pre-fills title from initialTitle prop (e.g. from search zero-state)', async () => {
@@ -683,35 +698,44 @@ describe('AddBookForm component', () => {
       finishNavigation = resolve
     }))
 
-    const form = await mountForm()
-    const title = form.titleInput()!
-    title.value = 'Uma obra'
-    title.dispatchEvent(new Event('input', { bubbles: true }))
-    const author = form.authorInput()!
-    author.value = 'Uma autora'
-    author.dispatchEvent(new Event('input', { bubbles: true }))
-    form.addAuthorBtn()!.click()
-    await nextTick()
+    try {
+      const form = await mountForm()
+      const title = form.titleInput()!
+      title.value = 'Uma obra'
+      title.dispatchEvent(new Event('input', { bubbles: true }))
+      const author = form.authorInput()!
+      author.value = 'Uma autora'
+      author.dispatchEvent(new Event('input', { bubbles: true }))
+      form.addAuthorBtn()!.click()
+      await nextTick()
 
-    const formElement = form.form()!
-    formElement.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    await nextTick()
-    await nextTick()
-    formElement.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
-    await nextTick()
+      const formElement = form.form()!
+      formElement.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await nextTick()
+      await nextTick()
+      formElement.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+      await nextTick()
 
-    const lateAuthor = form.authorInput()!
-    expect(lateAuthor.disabled).toBe(true)
-    lateAuthor.value = 'Autora adicionada tarde'
-    lateAuthor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
-    await nextTick()
+      const lateAuthor = form.authorInput()!
+      expect(lateAuthor.disabled).toBe(true)
+      lateAuthor.value = 'Autora adicionada tarde'
+      lateAuthor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+      await nextTick()
 
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(form.text()).not.toContain('Autora adicionada tarde')
-    expect(finishNavigation).toBeTruthy()
-    finishNavigation!()
-    await nextTick()
-    form.unmount()
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      expect(form.text()).not.toContain('Autora adicionada tarde')
+      expect(finishNavigation).toBeTruthy()
+      finishNavigation!()
+      await nextTick()
+      form.unmount()
+    } finally {
+      if (typeof finishNavigation === 'function') {
+        (finishNavigation as () => void)()
+      }
+      globalScope.navigateTo = (dest: string) => {
+        navigatedTo = dest
+      }
+    }
   })
 })
 

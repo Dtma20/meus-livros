@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { removeFixtures, trackSetup } from './fixtures'
+import { removeFixtures, trackSetup, uniqueHandle } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
 const MARKER = `t018-feed-${Date.now()}`
@@ -171,6 +171,39 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
     }
   })
 
+  it.each(['log', 'profile'] as const)('removes a cached public entry when its %s becomes private through the real service', async (target) => {
+    const marker = `${MARKER}-cache-${target}`
+    try {
+      const [owner] = await db.insert(schema.users).values({
+        email: `${marker}@test.invalid`, handle: uniqueHandle('cache'), display_name: 'Cache Owner', profile_visibility: 'publico',
+      }).returning({ id: schema.users.id })
+      if (!owner) throw new Error('Usuário fixture não criado.')
+      const work = await catalogService.createWork({
+        title: `${marker} Work`, authors: [{ name: `${marker} Author` }], genre_ids: [],
+      }, owner.id, { skipRateLimit: true })
+      const log = await logsService.createLog({
+        work_id: work.id, finished_precision: 'dia', rating: 4, visibility: 'publico',
+      }, owner.id, { skipRateLimit: true })
+      await db.update(schema.reading_logs).set({ created_at: new Date('2099-01-01T00:00:00Z') })
+        .where(sqlOp.eq(schema.reading_logs.id, log.id))
+      const before = await feedService.getFeedPage(null, { limit: 30 })
+      expect(before.entries.map((entry) => entry.id)).toContain(log.id)
+      // This second read exercises the warm cache before the real mutation.
+      expect((await feedService.getFeedPage(null, { limit: 30 })).entries.map((entry) => entry.id)).toContain(log.id)
+      if (target === 'log') {
+        await logsService.updateLog(log.id, { visibility: 'privado' }, owner.id)
+      } else {
+        const { updateUserProfile } = await import('../../server/services/users')
+        await updateUserProfile(owner.id, { profile_visibility: 'privado' })
+      }
+      expect((await feedService.getFeedPage(null, { limit: 30 })).entries.map((entry) => entry.id)).not.toContain(log.id)
+      expect((await feedService.getFeedPage({ id: owner.id }, { limit: 30 })).entries.map((entry) => entry.id)).toContain(log.id)
+    } finally {
+      await removeFixtures(marker)
+      feedService.invalidateFeedCache()
+    }
+  })
+
   it('1. Authenticated: returns at most 10 entries, newest first', async () => {
     const feed = await feedService.getRecentFeed({ id: userBId })
     expect(feed.entries).toBeDefined()
@@ -234,11 +267,19 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
     expect(entry.review_excerpt).toBeDefined()
   })
 
-  it('6. Empty state: when no visible logs exist, returns empty entries array', async () => {
+  it('6a. ?limit=0 clamps to minimum limit of 1 entry', async () => {
+    const feed = await feedService.getRecentFeed({ id: userBId }, 0)
+    expect(feed.entries).toHaveLength(1)
+  })
 
-    const feed = await feedService.getRecentFeed({ id: '00000000-0000-0000-0000-000000000000' }, 0)
-
-    expect(feed.entries).toBeDefined()
+  it('6b. Empty state: when no logs match the query/cursor, returns empty entries array', async () => {
+    const pastCursor = feedService.encodeCursor({
+      id: '00000000-0000-4000-8000-000000000000',
+      created_at: '1970-01-01T00:00:00.000Z',
+    })
+    const page = await feedService.getFeedPage({ id: userBId }, { cursor: pastCursor })
+    expect(page.entries).toEqual([])
+    expect(page.nextCursor).toBeNull()
   })
 
   describe('TASK-036 - Keyset pagination (getFeedPage)', () => {

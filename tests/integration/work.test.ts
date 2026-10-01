@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { formatPublicationYear } from '../../shared/schemas/work'
 import { removeFixtures } from './fixtures'
 
@@ -196,6 +197,90 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
     let caught: unknown
     try {
       await worksService.getWorkBySlug('obra-inexistente-slug-xyz', null)
+    } catch (err) {
+      caught = err
+    }
+
+    const err = asError(caught)
+    expect(err.statusCode).toBe(404)
+    expect(err.data?.error).toBe('nao_encontrado')
+  }, 20000)
+
+  it('deleteWork: user B cannot delete user A work, returning 404 and leaving work intact', async () => {
+    let caught: unknown
+    try {
+      await catalogService.deleteWork(workAId, userBId)
+    } catch (err) {
+      caught = err
+    }
+
+    const err = asError(caught)
+    expect(err.statusCode).toBe(404)
+    expect(err.data?.error).toBe('nao_encontrado')
+
+    const [existing] = await db
+      .select({ id: schema.works.id })
+      .from(schema.works)
+      .where(eq(schema.works.id, workAId))
+    expect(existing).toBeDefined()
+    expect(existing?.id).toBe(workAId)
+  }, 20000)
+
+  it('deleteWork: user A cannot delete a work that has reading logs, returning 400', async () => {
+    let caught: unknown
+    try {
+      await catalogService.deleteWork(workAId, userAId)
+    } catch (err) {
+      caught = err
+    }
+
+    const err = asError(caught)
+    expect(err.statusCode).toBe(400)
+    expect(err.data?.error).toBe('requisicao_invalida')
+
+    const [existing] = await db
+      .select({ id: schema.works.id })
+      .from(schema.works)
+      .where(eq(schema.works.id, workAId))
+    expect(existing).toBeDefined()
+  }, 20000)
+
+  it('deleteWork: user A can delete their own work with no reading logs, removing it from database', async () => {
+    const removableWork = await catalogService.createWork(
+      {
+        title: `${MARKER} Obra Deletavel`,
+        authors: [{ name: `${MARKER} Autor Efemero` }],
+        genre_ids: [],
+      },
+      userAId,
+      { skipRateLimit: true },
+    )
+
+    const [beforeDelete] = await db
+      .select({ id: schema.works.id })
+      .from(schema.works)
+      .where(eq(schema.works.id, removableWork.id))
+    expect(beforeDelete).toBeDefined()
+
+    await catalogService.deleteWork(removableWork.id, userAId)
+
+    const [afterDelete] = await db
+      .select({ id: schema.works.id })
+      .from(schema.works)
+      .where(eq(schema.works.id, removableWork.id))
+    expect(afterDelete).toBeUndefined()
+
+    const [controlWork] = await db
+      .select({ id: schema.works.id })
+      .from(schema.works)
+      .where(eq(schema.works.id, workAId))
+    expect(controlWork).toBeDefined()
+  }, 20000)
+
+  it('deleteWork: attempting to delete a non-existent work returns 404', async () => {
+    let caught: unknown
+    try {
+      await catalogService.deleteWork('00000000-0000-0000-0000-000000000000', userAId)
     } catch (err) {
       caught = err
     }

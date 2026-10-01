@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getFeedPage,
   getRecentFeed,
@@ -27,6 +27,31 @@ describe('Feed in-memory TTL cache', () => {
   beforeEach(() => {
     invalidateFeedCache()
     mockSelect.mockReset()
+  })
+
+  afterEach(() => vi.useRealTimers())
+
+  it('refreshes an expired first page exactly at the 30-second TTL boundary', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-01T12:00:00Z'))
+    mockSelect.mockImplementationOnce(() => createQueryChain([]))
+    expect((await getFeedPage(null, { limit: 20 })).entries).toEqual([])
+    vi.setSystemTime(new Date('2026-10-01T12:00:29.999Z'))
+    expect((await getFeedPage(null, { limit: 20 })).entries).toEqual([])
+    expect(mockSelect).toHaveBeenCalledTimes(1)
+    const freshLog = {
+      id: '77777777-7777-4777-a777-777777777777', rating: '4.0', review: null,
+      started_on: null, finished_on: null, created_at: new Date('2026-10-01T12:00:30Z'),
+      cursor_created_at: '2026-10-01T12:00:30.000000Z',
+      user: { handle: 'fresh', display_name: 'Fresh Reader' },
+      work: { id: 'fresh-work', title: 'Newly visible book', slug: 'fresh-book', first_published_year: 2026, cover_url: null, isbn13: null },
+      edition: null,
+    }
+    mockSelect.mockImplementationOnce(() => createQueryChain([freshLog]))
+      .mockImplementationOnce(() => createQueryChain([]))
+    vi.setSystemTime(new Date('2026-10-01T12:00:30Z'))
+    expect((await getFeedPage(null, { limit: 20 })).entries.map((entry) => entry.id)).toEqual([freshLog.id])
+    expect(mockSelect).toHaveBeenCalledTimes(3)
   })
 
   it('caches the first page of public feed and avoids repeated database queries', async () => {
