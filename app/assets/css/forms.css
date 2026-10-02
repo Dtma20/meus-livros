@@ -27,7 +27,7 @@
   font-size: var(--font-size-base);
   font-family: inherit;
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
   box-sizing: border-box;
   width: 100%;
   min-height: var(--target-min-size);
@@ -48,7 +48,6 @@
 .form-select:focus,
 .form-textarea:focus {
   border-color: var(--highlight);
-  box-shadow: 0 0 0 2px var(--highlight-glow);
 }
 
 .form-input[aria-invalid='true'],
@@ -217,10 +216,7 @@
 .empty-btn:focus-visible,
 .error-btn:focus-visible,
 .btn-edit-profile:focus-visible,
-.export-link:focus-visible,
-.form-input:focus-visible,
-.form-select:focus-visible,
-.form-textarea:focus-visible {
+.export-link:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset);
 }

@@ -852,7 +852,7 @@ function formatBlockDate(dateStr: string): string {
 
 .field-input:focus {
   border-color: var(--highlight);
-  box-shadow: 0 0 0 2px var(--highlight-glow);
+  box-shadow: none;
 }
 
 .field-input[aria-invalid='true'] {

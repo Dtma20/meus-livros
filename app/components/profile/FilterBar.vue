@@ -177,9 +177,9 @@ function decadeLabel(decade: number): string {
   font-family: inherit;
 }
 
-.filter-select:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
-  outline-offset: var(--focus-ring-offset, 2px);
+.filter-select:focus {
+  outline: none;
+  border-color: var(--highlight, #f59e0b);
 }
 
 .filter-status {

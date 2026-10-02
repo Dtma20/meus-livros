@@ -432,12 +432,6 @@ function retrySearch(): void {
 
 .search-input:focus {
   border-color: var(--highlight);
-  box-shadow: 0 0 0 2px var(--highlight-glow);
-}
-
-.search-input:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
 }
 
 .search-input::-webkit-search-cancel-button {

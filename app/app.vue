@@ -49,9 +49,15 @@ h1, h2, h3 {
   letter-spacing: -0.015em;
 }
 
-:focus-visible {
+:focus-visible:not(:where(input, select, textarea)),
+input:is([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='reset'], [type='image']):focus-visible {
   outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, var(--highlight));
   outline-offset: var(--focus-ring-offset, 2px);
+}
+
+:where(input, select, textarea):not(:where([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='reset'], [type='image'])):focus {
+  outline: none;
+  border-color: var(--highlight);
 }
 
 .page-enter-active,
