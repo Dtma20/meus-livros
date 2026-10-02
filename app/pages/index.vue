@@ -641,7 +641,7 @@ useHead({
   max-height: 520px;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior: contain auto;
   padding-right: var(--space-2);
   margin-right: calc(-1 * var(--space-2));
   border-top: 1px solid var(--input-bg);
