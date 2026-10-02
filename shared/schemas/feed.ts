@@ -44,6 +44,15 @@ export const feedUserSchema = z.object({
 
 export const feedEntrySchema = z.object({
   id: z.string().uuid(),
+  kind: z.enum(['reading_log', 'reading_block']).optional(),
+  log_id: z.string().uuid().optional(),
+  block: z.object({
+    id: z.string().uuid(),
+    start_page: z.number().int().positive(),
+    end_page: z.number().int().positive(),
+    comment: z.string().nullable(),
+    read_at: z.string(),
+  }).nullable().optional(),
   rating: z.number().nullable(),
   review_excerpt: z.string().nullable(),
   started_on: z.string().nullable().optional(),

@@ -186,8 +186,13 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
       }, owner.id, { skipRateLimit: true })
       await db.update(schema.reading_logs).set({ created_at: new Date('2099-01-01T00:00:00Z') })
         .where(sqlOp.eq(schema.reading_logs.id, log.id))
+      const { createBlock } = await import('../../server/services/reading-blocks')
+      const block = await createBlock(log.id, owner.id, { start_page: 1, end_page: 10, read_at: '2099-01-01' })
+      await db.update(schema.reading_blocks).set({ created_at: new Date('2099-01-01T00:00:01Z') })
+        .where(sqlOp.eq(schema.reading_blocks.id, block.id))
       const before = await feedService.getFeedPage(null, { limit: 30 })
       expect(before.entries.map((entry) => entry.id)).toContain(log.id)
+      expect(before.entries.map((entry) => entry.id)).toContain(block.id)
       // This second read exercises the warm cache before the real mutation.
       expect((await feedService.getFeedPage(null, { limit: 30 })).entries.map((entry) => entry.id)).toContain(log.id)
       if (target === 'log') {
@@ -197,7 +202,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
         await updateUserProfile(owner.id, { profile_visibility: 'privado' })
       }
       expect((await feedService.getFeedPage(null, { limit: 30 })).entries.map((entry) => entry.id)).not.toContain(log.id)
+      expect((await feedService.getFeedPage(null, { limit: 30 })).entries.map((entry) => entry.id)).not.toContain(block.id)
       expect((await feedService.getFeedPage({ id: owner.id }, { limit: 30 })).entries.map((entry) => entry.id)).toContain(log.id)
+      expect((await feedService.getFeedPage({ id: owner.id }, { limit: 30 })).entries.map((entry) => entry.id)).toContain(block.id)
     } finally {
       await removeFixtures(marker)
       feedService.invalidateFeedCache()

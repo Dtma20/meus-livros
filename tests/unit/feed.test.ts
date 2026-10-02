@@ -1,8 +1,22 @@
 import { describe, expect, it } from 'vitest'
 import { formatRelativeDate } from '../../app/utils/date'
-import { buildReviewExcerpt, feedQuerySchema } from '../../shared/schemas/feed'
+import { buildReviewExcerpt, feedEntrySchema, feedQuerySchema } from '../../shared/schemas/feed'
 
 describe('Feed Unit Tests', () => {
+  it('preserves block event identity and its parent link in the response contract', () => {
+    const id = '11111111-1111-4111-8111-111111111111'
+    const logId = '22222222-2222-4222-8222-222222222222'
+    const entry = feedEntrySchema.parse({
+      id, kind: 'reading_block', log_id: logId,
+      block: { id, start_page: 10, end_page: 20, comment: null, read_at: '2026-10-01' },
+      rating: null, review_excerpt: null, created_at: '2026-10-01T12:00:00Z',
+      user: { handle: 'leitor', display_name: 'Leitor' },
+      work: { id: logId, title: 'Livro', slug: 'livro', first_published_year: null, cover_url: null, authors: [] },
+      edition: null,
+    })
+    expect(entry).toMatchObject({ kind: 'reading_block', log_id: logId, block: { id, start_page: 10, end_page: 20 } })
+  })
+
   describe('formatRelativeDate', () => {
     const fixedNow = new Date('2026-09-20T12:00:00.000Z')
 

@@ -31,6 +31,25 @@ describe('Feed in-memory TTL cache', () => {
 
   afterEach(() => vi.useRealTimers())
 
+  it('maps an unannotated reading block without inheriting the parent rating or review', async () => {
+    const row = {
+      id: '55555555-5555-4555-8555-555555555555', kind: 'reading_block',
+      log_id: '66666666-6666-4666-8666-666666666666',
+      start_page: 1, end_page: 12, comment: null, read_at: '2026-10-01',
+      rating: null, review: null, started_on: null, finished_on: null,
+      created_at: new Date('2026-10-01T12:00:00Z'), cursor_created_at: '2026-10-01T12:00:00.000000Z',
+      user: { handle: 'reader', display_name: 'Reader' },
+      work: { id: 'work-1', title: 'Livro', slug: 'livro', first_published_year: null, cover_url: null, isbn13: null },
+      edition: null,
+    }
+    mockSelect.mockImplementationOnce(() => createQueryChain([row])).mockImplementationOnce(() => createQueryChain([]))
+    const page = await getFeedPage(null)
+    expect(page.entries[0]).toMatchObject({
+      id: row.id, kind: 'reading_block', log_id: row.log_id, rating: null, review_excerpt: null,
+      block: { id: row.id, start_page: 1, end_page: 12, comment: null, read_at: '2026-10-01' },
+    })
+  })
+
   it('refreshes an expired first page exactly at the 30-second TTL boundary', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-01T12:00:00Z'))
@@ -41,6 +60,8 @@ describe('Feed in-memory TTL cache', () => {
     expect(mockSelect).toHaveBeenCalledTimes(1)
     const freshLog = {
       id: '77777777-7777-4777-a777-777777777777', rating: '4.0', review: null,
+      kind: 'reading_log', log_id: '77777777-7777-4777-a777-777777777777',
+      start_page: null, end_page: null, comment: null, read_at: null,
       started_on: null, finished_on: null, created_at: new Date('2026-10-01T12:00:30Z'),
       cursor_created_at: '2026-10-01T12:00:30.000000Z',
       user: { handle: 'fresh', display_name: 'Fresh Reader' },
@@ -57,6 +78,8 @@ describe('Feed in-memory TTL cache', () => {
   it('caches the first page of public feed and avoids repeated database queries', async () => {
     const dummyLog = {
       id: 'd9b01234-5678-4abc-def0-123456789abc',
+      kind: 'reading_log', log_id: 'd9b01234-5678-4abc-def0-123456789abc',
+      start_page: null, end_page: null, comment: null, read_at: null,
       rating: '4.5',
       review: 'Ótima leitura',
       started_on: '2026-03-01',
@@ -101,6 +124,8 @@ describe('Feed in-memory TTL cache', () => {
   it('clears the cache when invalidateFeedCache() is invoked', async () => {
     const dummyLog1 = {
       id: '11111111-1111-4111-a111-111111111111',
+      kind: 'reading_log', log_id: '11111111-1111-4111-a111-111111111111',
+      start_page: null, end_page: null, comment: null, read_at: null,
       rating: '5.0',
       review: 'Primeiro livro',
       started_on: null,
@@ -114,6 +139,8 @@ describe('Feed in-memory TTL cache', () => {
 
     const dummyLog2 = {
       id: '22222222-2222-4222-a222-222222222222',
+      kind: 'reading_log', log_id: '22222222-2222-4222-a222-222222222222',
+      start_page: null, end_page: null, comment: null, read_at: null,
       rating: '4.0',
       review: 'Segundo livro',
       started_on: null,
@@ -149,6 +176,8 @@ describe('Feed in-memory TTL cache', () => {
   it('bypasses cache when a pagination cursor is specified', async () => {
     const dummyLog = {
       id: '33333333-3333-4333-a333-333333333333',
+      kind: 'reading_log', log_id: '33333333-3333-4333-a333-333333333333',
+      start_page: null, end_page: null, comment: null, read_at: null,
       rating: '3.0',
       review: 'Página 2',
       started_on: null,
@@ -181,6 +210,8 @@ describe('Feed in-memory TTL cache', () => {
   it('caches getRecentFeed calls for public feed', async () => {
     const dummyLog = {
       id: '44444444-4444-4444-a444-444444444444',
+      kind: 'reading_log', log_id: '44444444-4444-4444-a444-444444444444',
+      start_page: null, end_page: null, comment: null, read_at: null,
       rating: '5.0',
       review: 'Recente',
       started_on: null,

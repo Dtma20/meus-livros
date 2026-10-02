@@ -5,7 +5,7 @@
   >
     <div class="feed-cover-col">
       <NuxtLink
-        :to="`/entrada/${entry.id}`"
+        :to="entryLink"
         class="feed-cover-link"
         tabindex="-1"
         aria-hidden="true"
@@ -33,7 +33,7 @@
         </span>
       </p>
 
-      <NuxtLink :to="`/entrada/${entry.id}`" class="feed-work-title">
+      <NuxtLink :to="entryLink" class="feed-work-title">
         {{ entry.work.title }}
       </NuxtLink>
       <p v-if="authorsText" class="feed-authors">{{ authorsText }}</p>
@@ -42,12 +42,18 @@
         <StarRating :rating="entry.rating" />
       </div>
 
+      <p v-if="entry.block" class="feed-pages">
+        Páginas {{ entry.block.start_page }} a {{ entry.block.end_page }}
+        <span> · {{ formatBlockDate(entry.block.read_at) }}</span>
+      </p>
+
       <blockquote v-if="entry.review_excerpt" class="feed-review-excerpt">
         {{ entry.review_excerpt }}
       </blockquote>
       <DiscussionThread
-        v-if="entry.review_excerpt"
-        :log-id="entry.id"
+        v-if="entry.kind === 'reading_block' || entry.review_excerpt"
+        :log-id="entry.log_id || entry.id"
+        :block-id="entry.block?.id"
       />
     </div>
   </article>
@@ -73,10 +79,20 @@ const props = withDefaults(
 )
 
 const actionText = computed(() => {
+  if (props.entry.kind === 'reading_block') return 'leu um trecho de'
   if (props.entry.finished_on) return props.entry.review_excerpt ? 'terminou e comentou' : 'terminou'
   if (props.entry.started_on) return 'começou a ler'
   return 'registrou'
 })
+
+const entryLink = computed(() => {
+  const path = `/entrada/${props.entry.log_id || props.entry.id}`
+  return props.entry.block ? `${path}#trecho-${props.entry.block.id}` : path
+})
+
+function formatBlockDate(date: string): string {
+  return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short' }).format(new Date(`${date}T12:00:00`))
+}
 
 const authorsText = computed(() => {
   if (!props.entry.work.authors || props.entry.work.authors.length === 0) return ''
@@ -85,6 +101,12 @@ const authorsText = computed(() => {
 </script>
 
 <style scoped>
+.feed-pages {
+  font-size: var(--font-size-sm);
+  color: var(--text-bright);
+  margin: var(--space-2) 0;
+}
+.feed-pages span { color: var(--text-color); }
 .feed-row {
   position: relative;
   display: flex;

@@ -196,6 +196,7 @@
 
       <article
         v-for="block in blocks"
+        :id="`trecho-${block.id}`"
         :key="block.id"
         class="block-card"
         :data-block-id="block.id"

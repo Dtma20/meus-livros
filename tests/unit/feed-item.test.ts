@@ -37,6 +37,16 @@ describe('Feed item discussions and block navigation', () => {
     for (let i = 0; i < 5; i++) await nextTick()
     expect(fetchMock).toHaveBeenCalledWith('/api/logs/log-1/comments', expect.objectContaining({ query: expect.objectContaining({ block_id: undefined }) }))
   })
+  it('shows unannotated blocks with page range and a separate conversation', async () => {
+    const container = mount({ ...entry, id: 'block-1', log_id: 'log-1', kind: 'reading_block', rating: null, review_excerpt: null,
+      block: { id: 'block-1', start_page: 12, end_page: 25, comment: null, read_at: '2026-09-30' } })
+    expect(container.textContent).toContain('leu um trecho de')
+    expect(container.textContent).toContain('Páginas 12 a 25')
+    expect(container.querySelector('a.feed-work-title')?.getAttribute('href')).toBe('/entrada/log-1#trecho-block-1')
+    container.querySelector<HTMLButtonElement>('.discussion-toggle')!.click()
+    for (let i = 0; i < 5; i++) await nextTick()
+    expect(fetchMock).toHaveBeenCalledWith('/api/logs/log-1/comments', expect.objectContaining({ query: expect.objectContaining({ block_id: 'block-1' }) }))
+  })
   it('does not offer a review conversation on a log without a review', () => {
     const container = mount({ ...entry, review_excerpt: null })
     expect(container.querySelector('.discussion-thread')).toBeNull()

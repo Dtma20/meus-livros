@@ -9,7 +9,7 @@ import {
   type FeedResponse,
 } from '../../shared/schemas/feed'
 import { db } from '../db'
-import { authors, editions, reading_logs, users, work_authors, works } from '../db/schema'
+import { authors, editions, reading_blocks, reading_logs, users, work_authors, works } from '../db/schema'
 import { visibleLogs, type Viewer } from './visibility'
 
 const cursorPayloadSchema = z.object({
@@ -93,22 +93,44 @@ export async function getFeedPage(
   let cursorCond: SQL | undefined
   if (options?.cursor) {
     const cursor = decodeCursor(options.cursor)
-    cursorCond = sql`(${reading_logs.created_at}, ${reading_logs.id}) < (${cursor.t}::timestamptz, ${cursor.id}::uuid)`
+    cursorCond = sql`(feed_events.created_at, feed_events.id) < (${cursor.t}::timestamptz, ${cursor.id}::uuid)`
   }
 
   const whereClause = cursorCond
     ? and(visibleLogs(viewer), cursorCond)
     : visibleLogs(viewer)
 
+  // Limit the combined event stream, not its two sources. The parent join below
+  // applies the same visibility rule to log events and every block event.
+  const events = sql`(
+    SELECT ${reading_logs.id} AS id, ${reading_logs.id} AS log_id,
+      'reading_log'::text AS kind, ${reading_logs.created_at} AS created_at,
+      NULL::integer AS start_page, NULL::integer AS end_page,
+      NULL::text AS comment, NULL::date AS read_at
+    FROM ${reading_logs}
+    UNION ALL
+    SELECT ${reading_blocks.id}, ${reading_blocks.log_id},
+      'reading_block'::text, ${reading_blocks.created_at},
+      ${reading_blocks.start_page}, ${reading_blocks.end_page},
+      ${reading_blocks.comment}, ${reading_blocks.read_at}
+    FROM ${reading_blocks}
+  ) AS feed_events`
+
   const rows = await db
     .select({
-      id: reading_logs.id,
-      rating: reading_logs.rating,
-      review: reading_logs.review,
+      id: sql<string>`feed_events.id`,
+      log_id: sql<string>`feed_events.log_id`,
+      kind: sql<'reading_log' | 'reading_block'>`feed_events.kind`,
+      start_page: sql<number | null>`feed_events.start_page`,
+      end_page: sql<number | null>`feed_events.end_page`,
+      comment: sql<string | null>`feed_events.comment`,
+      read_at: sql<string | null>`feed_events.read_at`.mapWith(reading_blocks.read_at),
+      rating: sql<string | null>`CASE WHEN feed_events.kind = 'reading_log' THEN ${reading_logs.rating} ELSE NULL END`,
+      review: sql<string | null>`CASE WHEN feed_events.kind = 'reading_log' THEN ${reading_logs.review} ELSE feed_events.comment END`,
       started_on: reading_logs.started_on,
       finished_on: reading_logs.finished_on,
-      created_at: reading_logs.created_at,
-      cursor_created_at: sql<string>`to_char(reading_logs.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
+      created_at: sql<Date>`feed_events.created_at`.mapWith(reading_logs.created_at),
+      cursor_created_at: sql<string>`to_char(feed_events.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
       user: {
         handle: users.handle,
         display_name: users.display_name,
@@ -133,12 +155,13 @@ export async function getFeedPage(
         ol_cover_id: editions.ol_cover_id,
       },
     })
-    .from(reading_logs)
+    .from(events)
+    .innerJoin(reading_logs, sql`${reading_logs.id} = feed_events.log_id`)
     .innerJoin(users, eq(users.id, reading_logs.user_id))
     .innerJoin(works, eq(works.id, reading_logs.work_id))
     .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
     .where(whereClause)
-    .orderBy(desc(reading_logs.created_at), desc(reading_logs.id))
+    .orderBy(desc(sql`feed_events.created_at`), desc(sql`feed_events.id`))
     .limit(effectiveLimit + 1)
 
   if (rows.length === 0) {
@@ -181,6 +204,17 @@ export async function getFeedPage(
 
   const entries: FeedEntry[] = pageRows.map((row) => ({
     id: row.id,
+    kind: row.kind,
+    log_id: row.log_id,
+    block: row.kind === 'reading_block'
+      ? {
+          id: row.id,
+          start_page: row.start_page!,
+          end_page: row.end_page!,
+          comment: row.comment,
+          read_at: row.read_at!,
+        }
+      : null,
     rating: row.rating !== null ? Number(row.rating) : null,
     review_excerpt: buildReviewExcerpt(row.review),
     started_on: row.started_on,
