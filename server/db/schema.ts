@@ -221,6 +221,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   authored_authors: many(authors),
   authored_editions: many(editions),
   search_misses: many(search_misses),
+  comments: many(comments),
 }))
 
 export const allowedEmailsRelations = relations(allowed_emails, ({ one }) => ({
@@ -301,9 +302,34 @@ export const readingLogsRelations = relations(reading_logs, ({ one, many }) => (
     references: [editions.id],
   }),
   blocks: many(reading_blocks),
+  comments: many(comments),
 }))
 
-export const readingBlocksRelations = relations(reading_blocks, ({ one }) => ({
+export const comments = pgTable(
+  'comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    log_id: uuid('log_id').notNull().references(() => reading_logs.id, { onDelete: 'cascade' }),
+    block_id: uuid('block_id').references(() => reading_blocks.id, { onDelete: 'cascade' }),
+    user_id: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    created_at: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('comment_body_length', sql`char_length(btrim(${table.body})) BETWEEN 1 AND 2000 AND ${table.body} ~ '[^[:space:]]'`),
+    index('comments_conversation_idx').on(table.log_id, table.block_id, table.created_at, table.id),
+    index('comments_user_idx').on(table.user_id),
+    index('comments_block_idx').on(table.block_id),
+  ],
+)
+
+export const commentsRelations = relations(comments, ({ one }) => ({
+  log: one(reading_logs, { fields: [comments.log_id], references: [reading_logs.id] }),
+  block: one(reading_blocks, { fields: [comments.block_id], references: [reading_blocks.id] }),
+  user: one(users, { fields: [comments.user_id], references: [users.id] }),
+}))
+
+export const readingBlocksRelations = relations(reading_blocks, ({ one, many }) => ({
   log: one(reading_logs, {
     fields: [reading_blocks.log_id],
     references: [reading_logs.id],
@@ -312,6 +338,7 @@ export const readingBlocksRelations = relations(reading_blocks, ({ one }) => ({
     fields: [reading_blocks.user_id],
     references: [users.id],
   }),
+  comments: many(comments),
 }))
 
 export const searchMissesRelations = relations(search_misses, ({ one }) => ({

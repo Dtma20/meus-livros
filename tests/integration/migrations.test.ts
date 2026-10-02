@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import fs from 'node:fs'
 import { createDisposableDatabase, type DisposableDatabase } from './disposable-database'
 
 describe('Committed migrations on an empty disposable PostgreSQL database', () => {
@@ -13,12 +14,13 @@ describe('Committed migrations on an empty disposable PostgreSQL database', () =
     await database.migrate()
     await database.seedGenres()
     const firstJournal = await client`SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY id`
-    expect(firstJournal).toHaveLength(7)
-    expect(new Set(firstJournal.map((entry) => entry.hash)).size).toBe(7)
+    const journal = JSON.parse(fs.readFileSync('server/db/migrations/meta/_journal.json', 'utf8')) as { entries: unknown[] }
+    expect(firstJournal).toHaveLength(journal.entries.length)
+    expect(new Set(firstJournal.map((entry) => entry.hash)).size).toBe(journal.entries.length)
     const tables = await client`SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'`
     expect(tables.map((table) => table.table_name)).toEqual(expect.arrayContaining([
       'users', 'works', 'authors', 'editions', 'work_authors', 'work_genres',
-      'reading_logs', 'reading_blocks', 'genres', 'search_misses', 'allowed_emails',
+      'reading_logs', 'reading_blocks', 'comments', 'genres', 'search_misses', 'allowed_emails',
       'ba_user', 'account', 'session', 'verification', 'rate_limit',
     ]))
     const extensions = await client`SELECT extname FROM pg_extension`

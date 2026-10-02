@@ -236,6 +236,7 @@
           <h2 class="review-heading">Resenha</h2>
           <div v-if="logData.review" class="review-body">
             <ReviewText :text="logData.review" />
+            <DiscussionThread :log-id="logData.id" :initially-open="true" />
           </div>
           <div v-else class="review-empty">
             <p class="review-empty-text">
@@ -277,6 +278,7 @@ import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
 import ReadingBlocksSection from '~/components/log/ReadingBlocksSection.vue'
+import DiscussionThread from '~/components/comments/DiscussionThread.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'

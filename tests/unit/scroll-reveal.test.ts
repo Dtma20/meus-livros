@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createSSRApp, defineComponent, h, type Component } from 'vue'
+import { createSSRApp, defineComponent, h, ref, type Component } from 'vue'
 import { renderToString } from '@vue/server-renderer'
 import FeedItem from '../../app/components/feed/FeedItem.vue'
 import DiaryList from '../../app/components/profile/DiaryList.vue'
@@ -66,6 +66,7 @@ describe('scroll reveal progressive enhancement', () => {
   })
 
   it('includes feed and diary text in the server-rendered markup without reveal classes', async () => {
+    vi.stubGlobal('useState', () => ref({ user: null }))
     const feedEntry: FeedEntry = {
       id: '11111111-1111-1111-1111-111111111111',
       rating: 4,

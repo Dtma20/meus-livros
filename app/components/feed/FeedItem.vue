@@ -45,6 +45,10 @@
       <blockquote v-if="entry.review_excerpt" class="feed-review-excerpt">
         {{ entry.review_excerpt }}
       </blockquote>
+      <DiscussionThread
+        v-if="entry.review_excerpt"
+        :log-id="entry.id"
+      />
     </div>
   </article>
 </template>
@@ -53,6 +57,7 @@
 import { computed } from 'vue'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
+import DiscussionThread from '~/components/comments/DiscussionThread.vue'
 import { vReveal } from '~/composables/useScrollReveal'
 import { formatFullDate, formatRelativeDate } from '~/utils/date'
 import type { FeedEntry } from '~~/shared/schemas/feed'

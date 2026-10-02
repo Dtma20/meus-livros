@@ -2,6 +2,7 @@ import type {
   allowed_emails,
   authors,
   bookFormatEnum,
+  comments,
   datePrecisionEnum,
   editions,
   genreKindEnum,
@@ -50,6 +51,9 @@ export type NewReadingLog = typeof reading_logs.$inferInsert
 
 export type ReadingBlock = typeof reading_blocks.$inferSelect
 export type NewReadingBlock = typeof reading_blocks.$inferInsert
+
+export type Comment = typeof comments.$inferSelect
+export type NewComment = typeof comments.$inferInsert
 
 export type SearchMiss = typeof search_misses.$inferSelect
 export type NewSearchMiss = typeof search_misses.$inferInsert

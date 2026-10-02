@@ -238,6 +238,7 @@
         <p v-if="block.comment" class="block-comment">
           {{ block.comment }}
         </p>
+        <DiscussionThread :log-id="logId" :block-id="block.id" />
       </article>
     </div>
   </section>
@@ -249,6 +250,7 @@ import { useFlash } from '~/composables/useFlash'
 import { useDelayedDelete, type DelayedDeleteContext, type PageHideDeleteResult } from '~/composables/useDelayedDelete'
 import type { ReadingBlockView, ReadingProgressView } from '~~/shared/schemas/reading-block'
 import { calculateReadingProgress } from '~~/shared/utils/reading-progress'
+import DiscussionThread from '~/components/comments/DiscussionThread.vue'
 
 const props = withDefaults(
   defineProps<{
