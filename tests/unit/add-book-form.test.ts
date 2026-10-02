@@ -91,6 +91,214 @@ describe('AddBookForm component', () => {
     }
   })
 
+  async function inputIsbn(form: Awaited<ReturnType<typeof mountForm>>, value = '978-85-359-0277-8') {
+    const input = form.host.querySelector<HTMLInputElement>('#edition-isbn')!
+    expect(input).toBeTruthy()
+    input.value = value
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    return input
+  }
+
+  const lookupData = { title: 'Livro importado', authors: ['Autora', 'autora'], publisher: 'Editora', page_count: 256, year: 2019, cover_url: 'https://example.com/cover.jpg' }
+  const lookupButton = (form: Awaited<ReturnType<typeof mountForm>>) => form.host.querySelector<HTMLButtonElement>('.isbn-lookup-button')!
+  async function settleLookup() { await Promise.resolve(); await nextTick(); await nextTick() }
+
+  it('places one optional ISBN first, validates locally and supports Enter without saving', async () => {
+    const form = await mountForm()
+    expect(form.host.querySelectorAll('#edition-isbn')).toHaveLength(1)
+    expect(form.host.querySelector('input')?.id).toBe('edition-isbn')
+    expect(lookupButton(form).disabled).toBe(true)
+    await inputIsbn(form, '9788535902779')
+    lookupButton(form).click()
+    await nextTick()
+    expect(form.text()).toContain('Informe um ISBN-10 ou ISBN-13 válido.')
+    expect(mockFetch).not.toHaveBeenCalled()
+    mockFetch.mockResolvedValue({ status: 'found', data: lookupData })
+    const input = await inputIsbn(form, '85-325-1166-X')
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+    await settleLookup()
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(mockFetch).toHaveBeenCalledWith('/api/isbn', expect.objectContaining({ query: { isbn: '9788532511669' }, retry: 0 }))
+    expect(form.titleInput()?.value).toBe('Livro importado')
+    expect(form.host.querySelectorAll('.author-tag')).toHaveLength(1)
+    expect(form.host.querySelector<HTMLInputElement>('#edition-year')?.value).toBe('2019')
+    expect(form.text()).toContain('Dados encontrados. Confira as informações antes de salvar.')
+    form.submitBtn()!.click()
+    await settleLookup()
+    expect(mockFetch).toHaveBeenLastCalledWith('/api/works', expect.objectContaining({ body: expect.objectContaining({ authors: [{ name: 'Autora', country_code: null, country_label: null }], edition: expect.objectContaining({ isbn: '85-325-1166-X', published_year: 2019 }) }) }))
+  })
+
+  it('preserves fields typed then erased during a lookup, including pending author text', async () => {
+    let resolve!: (value: unknown) => void
+    mockFetch.mockImplementation(() => new Promise(r => { resolve = r }))
+    const form = await mountForm()
+    await inputIsbn(form)
+    lookupButton(form).click()
+    await nextTick()
+    expect(lookupButton(form).textContent).toContain('Buscando…')
+    expect(form.text()).toContain('Preenchendo informações…')
+    expect(form.titleInput()?.disabled).toBe(false)
+    for (const input of [form.titleInput()!, form.authorInput()!]) {
+      input.value = 'Manual'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.value = ''
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    resolve({ status: 'found', data: lookupData })
+    await settleLookup()
+    expect(form.titleInput()?.value).toBe('')
+    expect(form.host.querySelectorAll('.author-tag')).toHaveLength(0)
+    expect(form.host.querySelector<HTMLInputElement>('#edition-publisher')?.value).toBe('Editora')
+  })
+
+  it.each(['isbn', 'cancel', 'unmount', 'submit'])('ignores late responses after %s', async (action) => {
+    let resolve!: (value: unknown) => void
+    let signal: AbortSignal | undefined
+    mockFetch.mockImplementation((_url, options) => new Promise(r => { resolve = r; signal = options.signal }))
+    const form = await mountForm()
+    await inputIsbn(form)
+    lookupButton(form).click()
+    await nextTick()
+    if (action === 'isbn') {
+      await inputIsbn(form, '853251166X')
+      await inputIsbn(form)
+    } else if (action === 'cancel') {
+      Array.from(form.host.querySelectorAll<HTMLButtonElement>('button')).find(button => button.textContent?.trim() === 'Cancelar')!.click()
+    } else if (action === 'unmount') form.unmount()
+    else form.form()!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    expect(signal?.aborted).toBe(true)
+    resolve({ status: 'found', data: lookupData })
+    await settleLookup()
+    expect(form.text()).not.toContain('Dados encontrados.')
+    expect(form.text()).not.toContain('Preenchendo informações…')
+    if (action !== 'unmount') expect(form.titleInput()?.value).toBe('')
+  })
+
+  it('preserves edition fields edited then erased and an author list changed during lookup', async () => {
+    let resolve!: (value: unknown) => void
+    mockFetch.mockImplementation(() => new Promise(r => { resolve = r }))
+    const form = await mountForm()
+    form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle').forEach(button => button.click())
+    await nextTick()
+    await inputIsbn(form)
+    lookupButton(form).click()
+    await nextTick()
+    for (const id of ['edition-publisher', 'edition-pages', 'edition-year', 'edition-cover-url']) {
+      const input = form.host.querySelector<HTMLInputElement>(`#${id}`)!
+      input.value = input.type === 'number' ? '2020' : 'Manual'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      input.value = ''
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    const author = form.authorInput()!
+    author.value = 'Autor temporário'
+    author.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    form.addAuthorBtn()!.click()
+    await nextTick()
+    form.host.querySelector<HTMLButtonElement>('.author-tag-remove')!.click()
+    resolve({ status: 'found', data: lookupData })
+    await settleLookup()
+    expect(form.titleInput()?.value).toBe('Livro importado')
+    expect(form.host.querySelectorAll('.author-tag')).toHaveLength(0)
+    for (const id of ['edition-publisher', 'edition-pages', 'edition-year', 'edition-cover-url']) {
+      expect(form.host.querySelector<HTMLInputElement>(`#${id}`)?.value).toBe('')
+    }
+  })
+
+  it('reports no changes when every destination already contains manual data', async () => {
+    mockFetch.mockResolvedValue({ status: 'found', data: lookupData })
+    const form = await mountForm({ initialTitle: 'Manual' })
+    form.host.querySelectorAll<HTMLButtonElement>('.disclosure-toggle').forEach(button => button.click())
+    await nextTick()
+    for (const [id, value] of [['edition-publisher', 'Minha editora'], ['edition-pages', '123'], ['edition-year', '2021'], ['edition-cover-url', 'https://example.com/manual.jpg'], ['work-year', '1900']]) {
+      const input = form.host.querySelector<HTMLInputElement>(`#${id}`)!
+      input.value = value!
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    const author = form.authorInput()!
+    author.value = 'Meu autor'
+    author.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    form.addAuthorBtn()!.click()
+    await inputIsbn(form)
+    lookupButton(form).click()
+    await settleLookup()
+    expect(form.text()).toContain('Dados encontrados. Os campos já preenchidos foram mantidos.')
+    expect(form.titleInput()?.value).toBe('Manual')
+    expect(form.host.querySelector<HTMLInputElement>('#work-year')?.value).toBe('1900')
+    expect(form.host.querySelector<HTMLInputElement>('#edition-year')?.value).toBe('2021')
+    expect(form.host.querySelector<HTMLInputElement>('#edition-publisher')?.value).toBe('Minha editora')
+    expect(form.text()).toContain('Meu autor')
+  })
+
+  it('keeps the newest lookup active when an older request resolves first', async () => {
+    const pending: Array<(value: unknown) => void> = []
+    mockFetch.mockImplementation(() => new Promise(resolve => pending.push(resolve)))
+    const form = await mountForm()
+    await inputIsbn(form)
+    lookupButton(form).click()
+    await inputIsbn(form, '853251166X')
+    lookupButton(form).click()
+    pending[0]!({ status: 'found', data: { title: 'Obsoleto' } })
+    await settleLookup()
+    expect(form.titleInput()?.value).toBe('')
+    expect(lookupButton(form).disabled).toBe(true)
+    pending[1]!({ status: 'found', data: { title: 'Atual' } })
+    await settleLookup()
+    expect(form.titleInput()?.value).toBe('Atual')
+  })
+
+  it('persists an imported year zero accepted by the existing year schema', async () => {
+    mockFetch.mockResolvedValueOnce({ status: 'found', data: { title: 'Livro', authors: ['Autor'], year: 0 } })
+    const form = await mountForm()
+    await inputIsbn(form)
+    lookupButton(form).click()
+    await settleLookup()
+    form.submitBtn()!.click()
+    await settleLookup()
+    expect(mockFetch).toHaveBeenLastCalledWith('/api/works', expect.objectContaining({ body: expect.objectContaining({ edition: expect.objectContaining({ published_year: 0 }) }) }))
+  })
+
+  it.each([
+    [{ status: 'not_found' }, 'Não encontramos esse ISBN. Você pode preencher os dados manualmente.'],
+    [{ status: 'found', data: {} }, 'Dados encontrados. Os campos já preenchidos foram mantidos.'],
+  ])('shows recoverable lookup outcomes without losing ISBN', async (response, message) => {
+    mockFetch.mockResolvedValue(response)
+    const form = await mountForm()
+    await inputIsbn(form)
+    lookupButton(form).click()
+    await settleLookup()
+    expect(form.text()).toContain(message)
+    expect(form.host.querySelector<HTMLInputElement>('#edition-isbn')?.value).toBe('978-85-359-0277-8')
+    expect(lookupButton(form).disabled).toBe(false)
+  })
+
+  it('allows retry after operational errors and preserves manual and excluded fields', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('timeout')).mockResolvedValue({ status: 'found', data: lookupData })
+    const form = await mountForm({ initialTitle: 'Título manual' })
+    await inputIsbn(form)
+    lookupButton(form).click()
+    await settleLookup()
+    expect(form.text()).toContain('Não foi possível consultar agora.')
+    const author = form.authorInput()!
+    author.value = 'Autora manual'
+    author.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    form.addAuthorBtn()!.click()
+    await nextTick()
+    lookupButton(form).click()
+    await settleLookup()
+    expect(form.titleInput()?.value).toBe('Título manual')
+    expect(form.text()).toContain('Autora manual')
+    expect(form.host.querySelectorAll('.author-tag')).toHaveLength(1)
+    form.host.querySelector<HTMLButtonElement>('.disclosure-toggle')!.click()
+    await nextTick()
+    expect(form.host.querySelector<HTMLInputElement>('#work-year')?.value).toBe('')
+    expect(form.host.querySelector<HTMLSelectElement>('#edition-language')?.value).toBe('')
+  })
+
   it('pre-fills title from initialTitle prop (e.g. from search zero-state)', async () => {
     const form = await mountForm({ initialTitle: 'Grande Sertão: Veredas' })
     expect(form.titleInput()?.value).toBe('Grande Sertão: Veredas')

@@ -323,6 +323,14 @@ useSeoMeta({
   max-width: 40rem;
 }
 
+.log-page-card.wide-card {
+  max-width: none;
+}
+
+.tabs-nav {
+  max-width: 40rem;
+}
+
 .shelf-back-nav {
   margin-bottom: var(--space-4);
 }

@@ -50,6 +50,7 @@
       </div>
     </div>
 
+    <div class="add-book-layout" :class="{ 'has-cover-preview': previewCoverUrl || title.trim() }">
     <form class="add-book-form" novalidate @submit.prevent="handleSubmit(false)">
       <div v-if="!hideHeader" class="form-header">
         <h1 class="form-title">Adicionar livro novo</h1>
@@ -73,6 +74,35 @@
       </NuxtLink>
 
       <div class="form-section">
+        <div class="form-group">
+          <label for="edition-isbn" class="form-label">ISBN (opcional)</label>
+          <div class="isbn-lookup-row">
+            <input
+              id="edition-isbn"
+              v-model="editionIsbn"
+              type="text"
+              class="form-input"
+              :class="{ 'has-error': isbnLookupError }"
+              placeholder="ex: 9788535902778"
+              maxlength="40"
+              :disabled="submitting || Boolean(savedWorkHref)"
+              :aria-invalid="Boolean(isbnLookupError)"
+              :aria-describedby="isbnLookupError ? 'edition-isbn-hint isbn-lookup-status' : 'edition-isbn-hint'"
+              @keydown.enter.prevent="lookupIsbn"
+            >
+            <button
+              type="button"
+              class="btn btn-secondary isbn-lookup-button"
+              :disabled="!editionIsbn.trim() || isbnLookingUp || submitting || Boolean(savedWorkHref)"
+              @click="lookupIsbn"
+            >{{ isbnLookingUp ? 'Buscando…' : 'Preencher pelo ISBN' }}</button>
+          </div>
+          <span id="edition-isbn-hint" class="field-hint">Informe o ISBN para buscar os dados ou preencha abaixo.</span>
+          <p id="isbn-lookup-status" role="status" aria-live="polite" aria-atomic="true" :class="isbnLookupError ? 'field-error' : 'field-hint'">
+            <span v-if="isbnLookingUp" class="spinner isbn-lookup-spinner" aria-hidden="true" />
+            {{ isbnLookupMessage }}
+          </p>
+        </div>
         <div class="form-group">
           <label for="book-title" class="form-label">
             Título <span class="required-indicator" aria-hidden="true">*</span>
@@ -244,26 +274,11 @@
           <span class="disclosure-icon" aria-hidden="true">
             {{ showEdition ? '−' : '+' }}
           </span>
-          <span>{{ showEdition ? 'Ocultar detalhes da edição' : 'Adicionar detalhes desta edição (ISBN, editora, páginas, idioma, capa)' }}</span>
+          <span>{{ showEdition ? 'Ocultar detalhes da edição' : 'Adicionar detalhes desta edição (editora, páginas, idioma, capa)' }}</span>
         </button>
 
         <div v-if="showEdition" id="edition-details-content" class="disclosure-content">
           <div class="form-row">
-            <div class="form-group flex-1">
-              <label for="edition-isbn" class="form-label">ISBN</label>
-              <input
-                id="edition-isbn"
-                v-model="editionIsbn"
-                type="text"
-                class="form-input"
-                placeholder="ex: 9788535902778"
-                maxlength="40"
-                :disabled="submitting || Boolean(savedWorkHref)"
-                aria-describedby="edition-isbn-hint"
-              >
-              <span id="edition-isbn-hint" class="field-hint">ISBN-13 ou ISBN-10 (normalizado automaticamente).</span>
-            </div>
-
             <div class="form-group flex-1">
               <label for="edition-publisher" class="form-label">Editora</label>
               <input
@@ -357,17 +372,6 @@
             <span v-if="errors.cover_url" id="cover-url-error" class="field-error" role="alert">
               {{ errors.cover_url }}
             </span>
-            <div v-if="previewCoverUrl" class="cover-preview">
-              <div class="cover-preview-thumb">
-                <BookCover
-                  :alt="title.trim() ? `Pré-visualização da capa de ${title.trim()}` : 'Pré-visualização da capa informada'"
-                  :title="title.trim() || 'Capa'"
-                  :cover-url="previewCoverUrl"
-                  size="small"
-                />
-              </div>
-              <p class="field-hint">Pré-visualização da URL informada. Se a imagem não carregar, exibimos as iniciais do título.</p>
-            </div>
           </div>
         </div>
       </div>
@@ -407,12 +411,24 @@
         </button>
       </div>
     </form>
+    <aside v-if="previewCoverUrl || title.trim()" class="cover-preview" aria-label="Prévia da capa">
+      <div class="cover-preview-thumb">
+        <BookCover
+          :alt="title.trim() ? `Pré-visualização da capa de ${title.trim()}` : 'Pré-visualização da capa informada'"
+          :title="title.trim() || 'Capa'"
+          :cover-url="previewCoverUrl"
+          size="large"
+        />
+      </div>
+      <p class="field-hint">{{ previewCoverUrl ? 'Pré-visualização da capa. Se a imagem não carregar, exibimos as iniciais do título.' : 'Ainda não há uma imagem de capa. Informe a URL nos detalhes da edição.' }}</p>
+    </aside>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { AuthSessionState } from '~/middleware/auth'
 import { createFormDraftKey, useFormDraft } from '~/composables/useFormDraft'
 import BookCover from '../book/BookCover.vue'
@@ -421,6 +437,7 @@ import AuthorInput from './AuthorInput.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
 import { countryCodeFor, countryLabelFor } from '~~/shared/constants/countries'
 import { coverUrlSchema, publicationYearSchema, type WorkInput } from '~~/shared/schemas/work'
+import { isbnLookupDataSchema, normalizeLookupIsbn, type IsbnLookupResult } from '~~/shared/schemas/isbn-lookup'
 
 const props = withDefaults(
   defineProps<{
@@ -494,6 +511,93 @@ const submitting = ref(false)
 const serverError = ref('')
 const savedWorkHref = ref<string | null>(null)
 const errors = ref<Record<string, string>>({})
+const isbnLookingUp = ref(false)
+const isbnLookupMessage = ref('')
+const isbnLookupError = ref(false)
+let lookupVersion = 0
+let lookupController: AbortController | null = null
+
+// Synchronous revisions also catch a value typed and erased in the same tick.
+const lookupFields = { title, authors, authorInput, publisher: editionPublisher, page_count: editionPageCount, year: editionPublishedYear, cover_url: editionCoverUrl }
+type LookupField = keyof typeof lookupFields
+const fieldVersions: Record<LookupField, number> = { title: 0, authors: 0, authorInput: 0, publisher: 0, page_count: 0, year: 0, cover_url: 0 }
+for (const key of Object.keys(lookupFields) as LookupField[]) {
+  watch(lookupFields[key], () => { fieldVersions[key]++ }, { deep: true, flush: 'sync' })
+}
+
+function cancelIsbnLookup(): void {
+  if (isbnLookingUp.value) isbnLookupMessage.value = ''
+  lookupVersion++
+  lookupController?.abort()
+  lookupController = null
+  isbnLookingUp.value = false
+}
+
+watch(editionIsbn, () => {
+  cancelIsbnLookup()
+  isbnLookupMessage.value = ''
+  isbnLookupError.value = false
+}, { flush: 'sync' })
+onBeforeUnmount(cancelIsbnLookup)
+
+function isLookupFieldEmpty(key: LookupField): boolean {
+  const value = lookupFields[key].value
+  return Array.isArray(value) ? value.length === 0 : value === null || value === undefined || String(value).trim() === ''
+}
+
+async function lookupIsbn(): Promise<void> {
+  if (isbnLookingUp.value || submitting.value || savedWorkHref.value || !editionIsbn.value.trim()) return
+  const isbn = normalizeLookupIsbn(editionIsbn.value)
+  isbnLookupError.value = false
+  if (!isbn) {
+    isbnLookupError.value = true
+    isbnLookupMessage.value = 'Informe um ISBN-10 ou ISBN-13 válido.'
+    return
+  }
+  cancelIsbnLookup()
+  const version = lookupVersion
+  const revisions = { ...fieldVersions }
+  const emptyAtStart = new Set((Object.keys(lookupFields) as LookupField[]).filter(isLookupFieldEmpty))
+  const canFill = (key: LookupField) => emptyAtStart.has(key) && isLookupFieldEmpty(key) && revisions[key] === fieldVersions[key]
+  lookupController = new AbortController()
+  isbnLookingUp.value = true
+  isbnLookupMessage.value = 'Preenchendo informações…'
+  try {
+    const result = await $fetch<IsbnLookupResult>('/api/isbn', { query: { isbn }, signal: lookupController.signal, retry: 0, timeout: 10_000 })
+    if (version !== lookupVersion) return
+    if (result.status === 'not_found') {
+      isbnLookupMessage.value = 'Não encontramos esse ISBN. Você pode preencher os dados manualmente.'
+      return
+    }
+    if (result.status !== 'found') throw new Error('Invalid lookup status')
+    const data = isbnLookupDataSchema.parse(result.data)
+    let changed = false
+    let editionChanged = false
+    if (data.title && canFill('title')) { title.value = data.title; changed = true }
+    if (data.authors?.length && canFill('authors') && canFill('authorInput')) {
+      data.authors.forEach(addAuthor)
+      changed = authors.value.length > 0 || changed
+    }
+    if (data.publisher && canFill('publisher')) { editionPublisher.value = data.publisher; editionChanged = true }
+    if (data.page_count !== undefined && canFill('page_count')) { editionPageCount.value = data.page_count; editionChanged = true }
+    if (data.year !== undefined && canFill('year')) { editionPublishedYear.value = data.year; editionChanged = true }
+    if (data.cover_url && canFill('cover_url')) {
+      editionCoverUrl.value = data.cover_url
+      previewCoverUrl.value = data.cover_url
+      editionChanged = true
+    }
+    if (editionChanged) showEdition.value = true
+    isbnLookupMessage.value = changed || editionChanged
+      ? 'Dados encontrados. Confira as informações antes de salvar.'
+      : 'Dados encontrados. Os campos já preenchidos foram mantidos.'
+  } catch {
+    if (version !== lookupVersion) return
+    isbnLookupError.value = true
+    isbnLookupMessage.value = 'Não foi possível consultar agora. Tente novamente ou preencha manualmente.'
+  } finally {
+    if (version === lookupVersion) { isbnLookingUp.value = false; lookupController = null }
+  }
+}
 let draftReady = false
 let draftPersistenceEnabled = initialDraftKey !== null
 
@@ -808,6 +912,7 @@ watch(
   () => currentDraftKey(),
   (key) => {
     if (key !== initialDraftKey) {
+      cancelIsbnLookup()
       draftPersistenceEnabled = false
       draftReady = false
       formDraft.cancel()
@@ -851,6 +956,7 @@ onMounted(() => {
 })
 
 async function discardDraft(): Promise<void> {
+  cancelIsbnLookup()
   draftReady = false
   title.value = props.initialTitle || ''
   authors.value = []
@@ -881,6 +987,7 @@ async function discardDraft(): Promise<void> {
 
 async function handleSubmit(force = false): Promise<void> {
   if (submitting.value || savedWorkHref.value) return
+  cancelIsbnLookup()
   if (authorInput.value.trim() && authors.value.length < 5) {
     addAuthor(authorInput.value)
     authorInput.value = ''
@@ -935,7 +1042,7 @@ async function handleSubmit(force = false): Promise<void> {
     editionIsbn.value.trim() ||
       editionPublisher.value.trim() ||
       editionPageCount.value ||
-      editionPublishedYear.value ||
+      !isLookupFieldEmpty('year') ||
       editionLanguage.value ||
       editionCoverUrl.value.trim(),
   )
@@ -945,7 +1052,7 @@ async function handleSubmit(force = false): Promise<void> {
       isbn: editionIsbn.value.trim() || null,
       publisher: editionPublisher.value.trim() || null,
       page_count: editionPageCount.value ? Number(editionPageCount.value) : null,
-      published_year: editionPublishedYear.value
+      published_year: !isLookupFieldEmpty('year')
         ? Number(editionPublishedYear.value)
         : null,
       language: editionLanguage.value || null,
@@ -1000,6 +1107,7 @@ async function handleSubmit(force = false): Promise<void> {
 
 async function useExistingDuplicate(): Promise<void> {
   if (!duplicateWork.value || submitting.value || savedWorkHref.value) return
+  cancelIsbnLookup()
   const target = props.returnTo || '/app/novo'
   const sep = target.includes('?') ? '&' : '?'
   savedWorkHref.value = `${target}${sep}work_id=${duplicateWork.value.id}`
@@ -1028,6 +1136,7 @@ async function forceCreateWork(): Promise<void> {
 
 async function handleCancel(): Promise<void> {
   if (submitting.value || savedWorkHref.value) return
+  cancelIsbnLookup()
   emit('cancel')
   if (props.returnTo) {
     submitting.value = true
@@ -1044,8 +1153,48 @@ async function handleCancel(): Promise<void> {
 </script>
 
 <style scoped>
+.isbn-lookup-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.isbn-lookup-row .form-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.isbn-lookup-button {
+  flex: 0 1 auto;
+}
+
+.isbn-lookup-spinner {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: var(--space-2);
+}
+
 .add-book-form-wrap {
   width: 100%;
+  container-type: inline-size;
+}
+
+.add-book-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 40rem);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.add-book-form {
+  min-width: 0;
+}
+
+@container (min-width: 56rem) {
+  .add-book-layout.has-cover-preview {
+    grid-template-columns: minmax(0, 40rem) minmax(0, 1fr);
+    gap: var(--space-8);
+  }
 }
 
 .duplicate-prompt {
@@ -1203,18 +1352,14 @@ async function handleCancel(): Promise<void> {
 
 .cover-preview {
   display: flex;
+  flex-direction: column;
   gap: var(--space-3);
-  align-items: flex-start;
-  margin-top: var(--space-2);
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2);
+  width: min(100%, 15rem);
+  justify-self: center;
 }
 
 .cover-preview-thumb {
-  width: 60px;
-  min-width: 60px;
+  width: 100%;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm);
   overflow: hidden;
