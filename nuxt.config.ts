@@ -11,8 +11,9 @@ export default defineNuxtConfig({
         { name: 'theme-color', content: '#14181c' },
       ],
       link: [
-        { rel: 'icon', href: '/favicon.ico?v=3', sizes: 'any' },
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=3' },
+        { rel: 'icon', href: '/favicon.ico?v=4', sizes: '16x16 32x32 48x48' },
+        { rel: 'icon', type: 'image/png', sizes: '512x512', href: '/brand/logo-512.png?v=4' },
+        { rel: 'apple-touch-icon', href: '/brand/apple-touch-icon.png?v=4' },
         { rel: 'preconnect', href: 'https://covers.openlibrary.org' },
         { rel: 'preconnect', href: 'https://m.media-amazon.com' },
       ]

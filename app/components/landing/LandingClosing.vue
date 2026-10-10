@@ -1,6 +1,6 @@
 <template>
-  <section class="landing-closing" aria-labelledby="closing-heading">
-    <h2 id="closing-heading" class="closing-heading">
+  <div class="landing-closing">
+    <h2 id="closing-heading" class="closing-heading paper-text">
       Qual foi o último livro que você terminou?
     </h2>
     <p class="closing-text">
@@ -15,13 +15,12 @@
         Primeiro acesso
       </NuxtLink>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
 .landing-closing {
   width: 100%;
-  max-width: 40rem;
   padding-bottom: var(--space-4);
 }
 
@@ -38,7 +37,6 @@
 }
 
 .closing-text {
-  max-width: 34rem;
   margin: 0 0 var(--space-6);
   font-size: var(--font-size-base);
   line-height: var(--line-height-relaxed);

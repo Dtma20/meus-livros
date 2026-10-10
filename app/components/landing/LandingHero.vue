@@ -1,7 +1,7 @@
 <template>
-  <section class="landing-hero" aria-labelledby="hero-title">
+  <div class="landing-hero">
     <div class="hero-text">
-      <h1 id="hero-title" class="hero-title">
+      <h1 id="hero-title" class="hero-title paper-text">
         Terminou o livro? Conte pro grupo.
       </h1>
 
@@ -21,48 +21,8 @@
         </p>
       </div>
     </div>
-
-    <figure class="hero-shelf">
-      <ul class="shelf" aria-hidden="true">
-        <li
-          v-for="spine in spines"
-          :key="spine.title"
-          class="spine"
-          :class="`spine-tone-${spine.tone}`"
-          :style="spine.style"
-        >
-          <span class="spine-title">{{ spine.title }}</span>
-        </li>
-      </ul>
-      <figcaption class="shelf-caption">
-        Da estante de quem começou este site. A altura e a espessura de cada lombada seguem o número de páginas.
-      </figcaption>
-    </figure>
-  </section>
+  </div>
 </template>
-
-<script setup lang="ts">
-const books = [
-  { title: 'O meu pé de laranja lima', pages: 192, tone: 2 },
-  { title: '1984', pages: 440, tone: 3 },
-  { title: 'Dom Casmurro', pages: 276, tone: 4 },
-  { title: 'A metamorfose', pages: 98, tone: 1 },
-  { title: 'O alienista', pages: 48, tone: 3 },
-  { title: 'Ensaio sobre a cegueira', pages: 423, tone: 2 },
-  { title: 'O processo', pages: 224, tone: 1 },
-  { title: 'A hora da estrela', pages: 88, tone: 3 },
-  { title: 'A morte de Ivan Ilitch', pages: 312, tone: 1 },
-  { title: 'Frankenstein', pages: 230, tone: 2 },
-  { title: 'Cem anos de solidão', pages: 448, tone: 3 },
-  { title: 'O estrangeiro', pages: 122, tone: 1 },
-]
-
-const spines = books.map((book) => ({
-  title: book.title,
-  tone: book.tone,
-  style: `--h: ${Math.round(112 + book.pages * 0.4)}; --w: ${Math.round(18 + book.pages / 28)}`,
-}))
-</script>
 
 <style scoped>
 .landing-hero {
@@ -90,7 +50,6 @@ const spines = books.map((book) => ({
 }
 
 .hero-lede {
-  max-width: 34rem;
   margin: 0 0 var(--space-8);
   font-size: var(--font-size-lg);
   line-height: var(--line-height-relaxed);
@@ -161,100 +120,11 @@ const spines = books.map((book) => ({
   color: var(--highlight);
 }
 
-.hero-shelf {
-  --k: 1;
-  margin: 0;
-  min-width: 0;
-}
-
-.shelf {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-1);
-  margin: 0;
-  padding: 0 var(--space-2);
-  list-style: none;
-  border-bottom: var(--space-1) solid var(--input-bg);
-}
-
-.spine {
-  position: relative;
-  display: flex;
-  flex: 0 1 auto;
-  align-items: center;
-  justify-content: flex-start;
-  box-sizing: border-box;
-  min-width: 0;
-  width: calc(var(--w) * var(--k) * 1px);
-  height: calc(var(--h) * 1px);
-  padding: var(--space-4) 0 var(--space-3);
-  overflow: hidden;
-  writing-mode: vertical-rl;
-  border-radius: 2px 2px 0 0;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--poster-border) 8%, transparent);
-}
-
-.spine::before {
-  content: '';
-  position: absolute;
-  top: var(--space-2);
-  left: 20%;
-  right: 20%;
-  height: 2px;
-  background-color: currentColor;
-  opacity: 0.35;
-}
-
-.spine-title {
-  overflow: hidden;
-  font-family: var(--font-serif);
-  font-size: var(--font-size-xs);
-  font-weight: 600;
-  line-height: 1;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.spine-tone-1 {
-  background-color: var(--card-bg);
-  color: var(--text-bright);
-}
-
-.spine-tone-2 {
-  background-color: var(--input-bg);
-  color: var(--text-bright);
-}
-
-.spine-tone-3 {
-  background-color: var(--text-color);
-  color: var(--bg-color);
-}
-
-.spine-tone-4 {
-  background-color: var(--highlight);
-  color: var(--bg-color);
-}
-
-.shelf-caption {
-  max-width: 28rem;
-  margin-top: var(--space-3);
-  font-size: var(--font-size-xs);
-  line-height: var(--line-height-normal);
-  color: var(--text-color);
-}
-
 @media (min-width: 900px) {
   .landing-hero {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     gap: var(--space-12);
-    align-items: end;
     padding: var(--space-8) 0 var(--space-12);
   }
-
-  .hero-shelf {
-    --k: 1.2;
-  }
-
 }
 
 @media (prefers-reduced-motion: reduce) {

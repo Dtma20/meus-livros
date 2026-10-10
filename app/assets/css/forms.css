@@ -320,3 +320,28 @@
   }
 }
 
+/* Landing headings: folded-paper texture painted into the glyphs. The element keeps its
+   own color (read by assistive tech and fallbacks); only the fill is made transparent. */
+.paper-text {
+  background-image: url('/landing/paper-512.webp');
+  background-size: 256px 256px;
+  background-position: center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (forced-colors: active) {
+  .paper-text {
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .paper-text {
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
+}
+

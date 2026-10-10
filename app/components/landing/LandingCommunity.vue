@@ -1,6 +1,6 @@
 <template>
-  <section class="landing-entry" aria-labelledby="entry-heading">
-    <h2 id="entry-heading" class="entry-heading">
+  <div class="landing-entry">
+    <h2 id="entry-heading" class="entry-heading paper-text">
       Um livro, uma página.
     </h2>
     <p class="entry-intro">
@@ -54,7 +54,7 @@
         </li>
       </ul>
     </div>
-  </section>
+  </div>
 </template>
 
 <style scoped>
@@ -75,7 +75,6 @@
 }
 
 .entry-intro {
-  max-width: 34rem;
   margin: 0 0 var(--space-8);
   font-size: var(--font-size-base);
   line-height: var(--line-height-relaxed);
@@ -132,10 +131,6 @@
   letter-spacing: 1px;
 }
 
-.entry-review {
-  max-width: 62ch;
-}
-
 .entry-review p {
   margin: 0 0 var(--space-4);
   font-size: var(--font-size-base);
@@ -176,17 +171,6 @@
 @media (min-width: 900px) {
   .entry-heading {
     font-size: var(--font-size-3xl);
-  }
-
-  .entry-layout {
-    grid-template-columns: minmax(0, 44rem) minmax(0, 17rem);
-    gap: var(--space-12);
-    align-items: start;
-  }
-
-  .entry-notes li:first-child {
-    padding-top: 0;
-    border-top: 0;
   }
 }
 </style>

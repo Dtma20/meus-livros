@@ -1,12 +1,12 @@
 <template>
-  <section class="landing-more" aria-labelledby="more-heading">
-    <h2 id="more-heading" class="more-heading">
+  <div class="landing-more">
+    <h2 v-if="withHeading" id="more-heading" class="more-heading paper-text">
       Depois do registro, a estante.
     </h2>
 
     <dl class="more-list">
-      <div class="more-row">
-        <dt class="more-term">
+      <div v-if="row === 1" class="more-row">
+        <dt class="more-term paper-text">
           Leitura em andamento
         </dt>
         <dd class="more-desc">
@@ -14,8 +14,8 @@
         </dd>
       </div>
 
-      <div class="more-row">
-        <dt class="more-term">
+      <div v-else-if="row === 2" class="more-row">
+        <dt class="more-term paper-text">
           Estante e diário
         </dt>
         <dd class="more-desc">
@@ -23,8 +23,8 @@
         </dd>
       </div>
 
-      <div class="more-row">
-        <dt class="more-term">
+      <div v-else-if="row === 3" class="more-row">
+        <dt class="more-term paper-text">
           Mapa e estatísticas
         </dt>
         <dd class="more-desc">
@@ -32,8 +32,8 @@
         </dd>
       </div>
 
-      <div class="more-row">
-        <dt class="more-term">
+      <div v-else-if="row === 4" class="more-row">
+        <dt class="more-term paper-text">
           Atividade do grupo
         </dt>
         <dd class="more-desc">
@@ -41,8 +41,8 @@
         </dd>
       </div>
 
-      <div class="more-row">
-        <dt class="more-term">
+      <div v-else-if="row === 5" class="more-row">
+        <dt class="more-term paper-text">
           Seus dados
         </dt>
         <dd class="more-desc">
@@ -50,8 +50,15 @@
         </dd>
       </div>
     </dl>
-  </section>
+  </div>
 </template>
+
+<script setup lang="ts">
+defineProps<{
+  row: 1 | 2 | 3 | 4 | 5
+  withHeading?: boolean
+}>()
+</script>
 
 <style scoped>
 .landing-more {
@@ -92,7 +99,6 @@
 }
 
 .more-desc {
-  max-width: 36rem;
   margin: 0;
   font-size: var(--font-size-base);
   line-height: var(--line-height-relaxed);
@@ -106,8 +112,6 @@
   }
 
   .more-row {
-    grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
-    gap: var(--space-8);
     padding: var(--space-5) 0;
   }
 }

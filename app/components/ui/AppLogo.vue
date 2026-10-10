@@ -4,18 +4,15 @@
     :class="{ 'with-text': showText, 'with-badge': badge }"
     :style="{ '--logo-size': `${resolvedSize}px` }"
   >
-    <svg
+    <img
       class="app-logo-icon"
+      :src="logoImage.src"
+      :srcset="logoImage.srcset"
       :width="resolvedSize"
       :height="resolvedSize"
-      viewBox="0 0 48 48"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
+      alt=""
+      decoding="async"
     >
-      <path d="M23 14C18 11.5 12 11.5 7 13.5V37C12 35 18 35 23 37.5V14Z" fill="currentColor" />
-      <path d="M25 14C30 11.5 36 11.5 41 13.5V37C36 35 30 35 25 37.5V14Z" fill="currentColor" fill-opacity="0.72" />
-    </svg>
 
     <span v-if="showText" class="logo-text">
       Meus Livros
@@ -44,6 +41,17 @@ const resolvedSize = computed(() => {
   const parsed = parseInt(props.size, 10)
   return Number.isNaN(parsed) ? 28 : parsed
 })
+
+const logoImage = computed(() => {
+  const size = resolvedSize.value
+  if (size <= 32) {
+    return { src: '/brand/logo-48.png', srcset: '/brand/logo-48.png 1x, /brand/logo-96.png 2x' }
+  }
+  if (size <= 44) {
+    return { src: '/brand/logo-48.png', srcset: '/brand/logo-48.png 1x, /brand/logo-88.png 2x' }
+  }
+  return { src: '/brand/logo-96.png', srcset: '/brand/logo-96.png 1x, /brand/logo-512.png 2x' }
+})
 </script>
 
 <style scoped>
@@ -58,7 +66,6 @@ const resolvedSize = computed(() => {
 .app-logo-icon {
   display: block;
   flex-shrink: 0;
-  color: var(--highlight);
 }
 
 .logo-text {
