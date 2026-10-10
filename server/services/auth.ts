@@ -144,14 +144,19 @@ export const auth = betterAuth({
       expiresIn: 60 * 10,
       allowedAttempts: 5,
       sendVerificationOTP: async ({ email, otp, type }) => {
-        const transport = await getTransport()
         const subject =
           type === 'sign-in' ? 'Seu código de acesso - Meus Livros' : 'Seu código - Meus Livros'
         const emailRedacted = redactEmail(email)
 
         const startTime = performance.now()
-        withRetry(
+        // Awaited on purpose: decided by the owner on 2026-10-10 (docs/agent-workflow.md,
+        // item 7). On Vercel, work left running after the response may never finish, so a
+        // fire-and-forget send could silently drop the code. The .catch below logs send
+        // failures and never rethrows, so the response stays the generic { success: true }.
+        // The cost is a timing signal, accepted for an invite-only instance.
+        await withRetry(
           async () => {
+            const transport = await getTransport()
             return await transport.sendMail({
               from: getEmailFrom(),
               to: email,

@@ -144,6 +144,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
 
     const mockTransport = {
       sendMail: async (mailOptions: { to: string; subject: string; text: string }) => {
+        // Slower than the handler's work after the callback, so a send that is not awaited
+        // is still pending when the response resolves (see the first-access activation test).
+        await new Promise((resolve) => setTimeout(resolve, 100))
         sentEmails.push(mailOptions)
         return { messageId: 'mock-msg-id' }
       },
@@ -328,6 +331,9 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.success).toBe(true)
+
+    // The send is awaited (auth.ts), so the mail is recorded before the response resolves.
+    expect(sentEmails.length).toBe(1)
 
     const emailData = await waitForEmail()
     expect(emailData.to).toBe(activationFlowEmail)

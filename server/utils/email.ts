@@ -22,12 +22,16 @@ export async function getTransport(): Promise<Transporter> {
     if (!gmailAppPassword) {
       throw new Error('A variável de ambiente GMAIL_APP_PASSWORD não foi informada.')
     }
+    // The OTP request awaits the send on Vercel, so a stalled Gmail connection must fail fast into the logged-failure path.
     _transport = createTransport({
       service: 'gmail',
       auth: {
         user: emailFrom,
         pass: gmailAppPassword,
       },
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 15_000,
     })
   }
   return _transport
