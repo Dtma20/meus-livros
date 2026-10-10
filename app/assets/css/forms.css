@@ -323,6 +323,7 @@
 /* Landing headings: folded-paper texture painted into the glyphs. The element keeps its
    own color (read by assistive tech and fallbacks); only the fill is made transparent. */
 .paper-text {
+  background-color: currentColor;
   background-image: url('/landing/paper-512.webp');
   background-size: 256px 256px;
   background-position: center;

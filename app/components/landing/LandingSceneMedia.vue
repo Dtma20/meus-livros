@@ -82,8 +82,18 @@ function onPlaying() {
   ready.value = true
 }
 
+// Reduced motion can be switched off at runtime, so the observer is created on demand.
+function watchProximity() {
+  if (observer) return
+  observer = new IntersectionObserver(onNear, { rootMargin: '150% 0px' })
+  if (root.value) observer.observe(root.value)
+}
+
 function onReducedMotionChange(event: MediaQueryListEvent) {
-  if (!event.matches) return
+  if (!event.matches) {
+    watchProximity()
+    return
+  }
   observer?.disconnect()
   observer = null
   playObserver?.disconnect()
@@ -95,10 +105,7 @@ function onReducedMotionChange(event: MediaQueryListEvent) {
 onMounted(() => {
   reducedMotion = window.matchMedia(REDUCED_MOTION_QUERY)
   reducedMotion.addEventListener('change', onReducedMotionChange)
-  if (reducedMotion.matches) return
-
-  observer = new IntersectionObserver(onNear, { rootMargin: '150% 0px' })
-  if (root.value) observer.observe(root.value)
+  if (!reducedMotion.matches) watchProximity()
 })
 
 onBeforeUnmount(() => {
