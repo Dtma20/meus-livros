@@ -1,0 +1,11 @@
+# Never upload local secrets or tooling state with `vercel deploy`.
+.env
+.env.*
+.vercel
+.claude
+.agents
+.nuxt
+.output
+node_modules
+legacy
+graphify-out
