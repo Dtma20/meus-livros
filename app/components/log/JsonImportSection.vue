@@ -10,6 +10,13 @@
         </span>
       </p>
 
+      <div v-if="importIssues.length > 0" class="import-issues">
+        <h3 class="import-issues-title">Avisos e erros por item</h3>
+        <ul class="issue-list" aria-label="Avisos e erros por item">
+          <li v-for="(issue, idx) in importIssues" :key="idx">{{ issue }}</li>
+        </ul>
+      </div>
+
       <div class="success-actions">
         <NuxtLink to="/" class="btn btn-primary">
           Ir para a Minha Biblioteca
@@ -78,6 +85,9 @@
         <div v-if="apiError" class="error-banner mt-3" role="alert">
           {{ apiError }}
         </div>
+        <ul v-if="apiErrorDetails.length > 0" class="issue-list issue-list-error" aria-label="Detalhes do erro">
+          <li v-for="(detail, idx) in apiErrorDetails" :key="idx">{{ detail }}</li>
+        </ul>
 
         <div class="import-submit-bar actions-row">
           <button
@@ -271,6 +281,8 @@ const isDragging = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const parseError = ref('')
 const apiError = ref('')
+const apiErrorDetails = ref<string[]>([])
+const importIssues = ref<string[]>([])
 const isSubmitting = ref(false)
 
 const allParsedBooks = ref<LivroJson[]>([])
@@ -369,6 +381,7 @@ function readFile(file: File) {
   const version = readVersion
   parseError.value = ''
   apiError.value = ''
+  apiErrorDetails.value = []
   allParsedBooks.value = []
   previewBooks.value = []
   totalParsedBooks.value = 0
@@ -423,11 +436,51 @@ function readFile(file: File) {
   reader.readAsText(file)
 }
 
+const IMPORT_FALLBACK_MESSAGE = 'Ocorreu um erro ao importar os livros. Tente novamente.'
+const IMPORT_TIMEOUT_MS = 60_000
+
+// Error body from the server: { error, message, details?, fields? }. Read as data, never as markup.
+function readErrorBody(err: unknown): Record<string, unknown> | null {
+  const data = (err as { data?: unknown } | null)?.data
+  return typeof data === 'object' && data !== null ? (data as Record<string, unknown>) : null
+}
+
+function describeIssue(issue: unknown): string | null {
+  if (typeof issue === 'string') return issue
+  if (typeof issue !== 'object' || issue === null) return null
+  const { message, path } = issue as { message?: unknown; path?: unknown }
+  if (typeof message !== 'string') return null
+  if (Array.isArray(path) && path.length > 0) return `${path.join('.')}: ${message}`
+  return message
+}
+
+function describeErrorDetails(body: Record<string, unknown> | null): string[] {
+  if (!body) return []
+  const lines: string[] = []
+
+  for (const source of [body.details, body.fields]) {
+    if (Array.isArray(source)) {
+      for (const issue of source) {
+        const line = describeIssue(issue)
+        if (line) lines.push(line)
+      }
+    } else if (typeof source === 'object' && source !== null) {
+      for (const [key, value] of Object.entries(source)) {
+        if (typeof value === 'string') lines.push(`${key}: ${value}`)
+      }
+    }
+  }
+
+  return lines
+}
+
 async function submitImport() {
   if (allParsedBooks.value.length === 0 || isSubmitting.value) return
 
   isSubmitting.value = true
   apiError.value = ''
+  apiErrorDetails.value = []
+  importIssues.value = []
 
   try {
     const res = await $fetch<{ success: boolean; imported: number; skipped: number; errors: string[] }>('/api/library/import', {
@@ -435,16 +488,19 @@ async function submitImport() {
       body: {
         books: allParsedBooks.value,
       },
+      timeout: IMPORT_TIMEOUT_MS,
     })
 
     successSummary.value = {
       imported: res.imported,
       skipped: res.skipped,
     }
+    importIssues.value = res.errors
   } catch (err: unknown) {
-    const msg = (err as { data?: { message?: string } })?.data?.message
-      || 'Ocorreu um erro ao importar os livros. Tente novamente.'
-    apiError.value = msg
+    const body = readErrorBody(err)
+    const message = typeof body?.message === 'string' && body.message !== '' ? body.message : IMPORT_FALLBACK_MESSAGE
+    apiError.value = message
+    apiErrorDetails.value = describeErrorDetails(body)
   } finally {
     isSubmitting.value = false
   }
@@ -454,6 +510,8 @@ function reset() {
   cancelRead()
   parseError.value = ''
   apiError.value = ''
+  apiErrorDetails.value = []
+  importIssues.value = []
   isSubmitting.value = false
   allParsedBooks.value = []
   previewBooks.value = []
@@ -599,6 +657,30 @@ function reset() {
   margin-left: auto;
   color: #e3b341;
   font-weight: 600;
+}
+
+.issue-list {
+  list-style: disc;
+  padding-left: 20px;
+  margin: 8px 0 0 0;
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--text-color, #9ab);
+  text-align: left;
+}
+
+.issue-list-error {
+  color: #fca5a5;
+}
+
+.import-issues {
+  text-align: left;
+  margin: 0 0 24px 0;
+}
+
+.import-issues-title {
+  color: var(--text-strong, #fff);
+  font-size: var(--font-size-base, 1rem);
+  margin: 0 0 4px 0;
 }
 
 .more-hint {

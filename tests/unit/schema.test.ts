@@ -25,6 +25,8 @@ import type {
   WorkAuthor,
   WorkGenre,
 } from '../../server/db/types'
+import { logDateSchema, logInputSchema } from '../../shared/schemas/log'
+import { readingBlockInputSchema, updateReadingBlockInputSchema } from '../../shared/schemas/reading-block'
 
 describe('Schema types compilation and usability', () => {
   it('constructs an object of every inferred select and insert type', () => {
@@ -225,5 +227,50 @@ describe('Schema types compilation and usability', () => {
     expect(newReadingLog.rating).toBe('5.0')
     expect(searchMiss.query).toBe('livro inexistente')
     expect(newSearchMiss.query).toBe('livro inexistente')
+  })
+})
+
+describe('Log and reading block dates and page numbers', () => {
+  it.each(['2026-02-31', '2025-13-45', '0000-00-00', '2025-02-29', '2026-00-10'])(
+    'rejects %s as a log date because it is not a calendar date',
+    (date) => {
+      const result = logDateSchema.safeParse(date)
+      expect(result.success).toBe(false)
+      expect(result.error?.issues[0]?.message).toBe('Data inválida.')
+    },
+  )
+
+  it('accepts real calendar dates, including a leap day', () => {
+    expect(logDateSchema.safeParse('2024-02-29').success).toBe(true)
+    expect(logDateSchema.safeParse('2026-02-28').success).toBe(true)
+  })
+
+  it('rejects an impossible finished_on in the log input', () => {
+    const result = logInputSchema.safeParse({
+      work_id: '11111111-1111-4111-8111-111111111111',
+      finished_on: '2026-02-31',
+    })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues.find((issue) => issue.path[0] === 'finished_on')?.message).toBe('Data inválida.')
+  })
+
+  it('rejects impossible read_at dates on reading blocks, create and update', () => {
+    const created = readingBlockInputSchema.safeParse({ start_page: 1, end_page: 10, read_at: '2026-02-31' })
+    expect(created.success).toBe(false)
+    expect(created.error?.issues.find((issue) => issue.path[0] === 'read_at')?.message).toBe('Data inválida.')
+
+    const updated = updateReadingBlockInputSchema.safeParse({ read_at: '0000-00-00' })
+    expect(updated.success).toBe(false)
+  })
+
+  it('caps reading block page numbers at 100000 on create and update', () => {
+    const tooLarge = readingBlockInputSchema.safeParse({ start_page: 1, end_page: 100001 })
+    expect(tooLarge.success).toBe(false)
+    expect(tooLarge.error?.issues.map((issue) => issue.message)).toContain('Número de páginas grande demais.')
+
+    expect(readingBlockInputSchema.safeParse({ start_page: 1, end_page: 100000 }).success).toBe(true)
+    expect(readingBlockInputSchema.safeParse({ start_page: 100001, end_page: 100001 }).success).toBe(false)
+    expect(updateReadingBlockInputSchema.safeParse({ end_page: 100001 }).success).toBe(false)
+    expect(updateReadingBlockInputSchema.safeParse({ start_page: 100001 }).success).toBe(false)
   })
 })

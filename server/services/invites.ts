@@ -106,7 +106,7 @@ export async function addInvite(
     throw createError({
       statusCode: 500,
       data: {
-        error: 'erro_inesperado',
+        error: 'erro_interno',
         message: 'Não foi possível recuperar o convite criado.',
       },
     })

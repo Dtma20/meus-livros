@@ -27,9 +27,25 @@ export const reviewSchema = z
   .string()
   .max(10000, { message: 'A resenha pode ter no máximo 10.000 caracteres.' })
 
+// The regex only checks the shape: 2026-02-31 and 0000-00-00 match it. This checks the calendar.
+// setUTCFullYear is used instead of Date.UTC because Date.UTC maps years 0-99 to 1900-1999.
+export function isCalendarDate(dateStr: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr)
+  if (!match) return false
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(0)
+  date.setUTCFullYear(year, month - 1, day)
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day
+}
+
 export const logDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Data deve estar no formato AAAA-MM-DD.' })
+  .refine(isCalendarDate, { message: 'Data inválida.' })
   .refine((d) => !isFutureDateSaoPaulo(d), {
     message: 'A data não pode ser no futuro.',
   })

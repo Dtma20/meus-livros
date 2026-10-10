@@ -29,7 +29,8 @@ export const commentViewSchema = z.object({
   block_id: z.string().uuid().nullable(),
   body: z.string(),
   created_at: z.union([z.date(), z.string()]),
-  user: z.object({ handle: z.string(), display_name: z.string() }),
+  // handle is null when an anonymous reader views a comment by a member with a private profile.
+  user: z.object({ handle: z.string().nullable(), display_name: z.string() }),
   can_delete: z.boolean(),
 })
 

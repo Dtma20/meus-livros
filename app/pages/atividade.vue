@@ -71,8 +71,8 @@
       <aside v-if="readingNow.length > 0" class="reading-now" aria-labelledby="reading-now-title">
         <h2 id="reading-now-title" class="reading-now-title">Lendo agora no grupo</h2>
         <ul class="reading-now-list">
-          <li v-for="entry in readingNow" :key="entry.id" class="reading-now-item">
-            <NuxtLink :to="`/entrada/${entry.id}`" class="reading-now-work">{{ entry.work.title }}</NuxtLink>
+          <li v-for="entry in readingNow" :key="entryLogId(entry)" class="reading-now-item">
+            <NuxtLink :to="`/entrada/${entryLogId(entry)}`" class="reading-now-work">{{ entry.work.title }}</NuxtLink>
             <NuxtLink :to="`/@${entry.user.handle}`" class="reading-now-user">
               {{ entry.user.display_name || `@${entry.user.handle}` }}
             </NuxtLink>
@@ -111,14 +111,22 @@ const { data, pending, error, refresh } = await useAsyncData<FeedPageResponse>(
 const entries = ref<FeedEntry[]>(data.value?.entries ? [...data.value.entries] : [])
 const nextCursor = ref<string | null>(data.value?.nextCursor ?? null)
 
+// A reading block event carries its own id; the review page is keyed by the log.
+function entryLogId(entry: FeedEntry): string {
+  return entry.log_id || entry.id
+}
+
 const readingNow = computed(() => {
-  const seen = new Set<string>()
+  const seenLogs = new Set<string>()
+  const seenBooks = new Set<string>()
   return entries.value
     .filter((entry) => entry.started_on && !entry.finished_on)
     .filter((entry) => {
-      const key = `${entry.user.handle}:${entry.work.id}`
-      if (seen.has(key)) return false
-      seen.add(key)
+      const logKey = entryLogId(entry)
+      const bookKey = `${entry.user.handle}:${entry.work.id}`
+      if (seenLogs.has(logKey) || seenBooks.has(bookKey)) return false
+      seenLogs.add(logKey)
+      seenBooks.add(bookKey)
       return true
     })
     .slice(0, 8)
@@ -145,7 +153,8 @@ async function loadMore() {
       timeout: 10000,
     })
     if (res?.entries) {
-      entries.value.push(...res.entries)
+      const known = new Set(entries.value.map((e) => e.id))
+      entries.value.push(...res.entries.filter((e) => !known.has(e.id)))
       nextCursor.value = res.nextCursor ?? null
     }
   } catch {
@@ -160,7 +169,7 @@ const {
   newPostsCount,
   applyNewPosts,
 } = useFeedNewPosts({
-  getTopId: () => entries.value[0]?.id,
+  getTop: () => entries.value[0],
   getExistingIds: () => new Set(entries.value.map((e) => e.id)),
   fetchLatest: async () => {
     const res = await $fetch<FeedPageResponse>('/api/feed', {
@@ -174,8 +183,10 @@ const {
 
 function loadNewPosts() {
   const fresh = applyNewPosts()
-  if (fresh.length > 0) {
-    entries.value = [...fresh, ...entries.value]
+  const known = new Set(entries.value.map((e) => e.id))
+  const unseen = fresh.filter((e) => !known.has(e.id))
+  if (unseen.length > 0) {
+    entries.value = [...unseen, ...entries.value]
   }
   if (import.meta.client) {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches

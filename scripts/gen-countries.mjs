@@ -29,9 +29,7 @@ const entries = CODES.split(' ')
 
 const body = entries.map(([code, label]) => `  { code: '${code}', label: '${label.replace(/'/g, "\\'")}' },`).join('\n')
 
-const file = `/**
-
-export interface CountryOption {
+const file = `export interface CountryOption {
   code: string
   label: string
 }

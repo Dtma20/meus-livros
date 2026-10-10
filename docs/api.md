@@ -23,6 +23,7 @@ Public pages fetch nothing from these endpoints - they are server-rendered direc
 | 403 | `sem_permissao` | Authenticated but not the owner |
 | 404 | `nao_encontrado` | Missing, **or** present but not visible to this viewer |
 | 409 | `conflito` | Handle taken, duplicate ISBN |
+| 413 | `corpo_muito_grande` | Body over 64 KB (4 MB for `POST /api/library/import`) - [security.md](security.md) §7 |
 | 429 | `muitas_tentativas` | Rate limit |
 | 500 | `erro_interno` | Everything else |
 

@@ -108,12 +108,29 @@ describe('Comment conversations and authorization', () => {
     await service.deleteComment(logId, moderated.id, ownerId)
   })
 
-  it('rechecks visibility before deleting even a comment owned by the viewer', async () => {
+  it('masks a private-profile author from anonymous readers only', async () => {
+    const [block] = await db.insert(schema.reading_blocks).values({ log_id: logId, user_id: ownerId, start_page: 31, end_page: 40 }).returning()
+    if (!block) throw new Error('Missing masking block')
+    const [privateMember] = await db.select({ handle: schema.users.handle }).from(schema.users).where(eq(schema.users.id, privateOwnerId))
+    if (!privateMember) throw new Error('Missing private member')
+    const comment = await service.createComment(logId, privateOwnerId, { body: 'Perfil privado', block_id: block.id })
+    const anonymous = await service.getCommentsForLog(logId, null, { block_id: block.id, limit: 50 })
+    expect(anonymous.comments).toEqual([expect.objectContaining({ id: comment.id, can_delete: false, user: { handle: null, display_name: 'Membro' } })])
+    expect(JSON.stringify(anonymous)).not.toContain(privateMember.handle)
+    const member = await service.getCommentsForLog(logId, { id: strangerId }, { block_id: block.id, limit: 50 })
+    expect(member.comments[0]?.user).toEqual({ handle: privateMember.handle, display_name: 'private' })
+  })
+
+  it('lets the comment author and reading owner delete after the reading turns private; others get 404', async () => {
     const comment = await service.createComment(logId, authorId, { body: 'Ficou privado', block_id: blockId })
+    const owned = await service.createComment(logId, authorId, { body: 'Dono remove', block_id: blockId })
     await db.update(schema.reading_logs).set({ visibility: 'privado' }).where(eq(schema.reading_logs.id, logId))
     try {
-      await expectNotFound(() => service.deleteComment(logId, comment.id, authorId))
-      await service.deleteComment(logId, comment.id, ownerId)
+      await expectNotFound(() => service.deleteComment(logId, comment.id, strangerId))
+      await service.deleteComment(logId, comment.id, authorId)
+      expect(await db.select().from(schema.comments).where(eq(schema.comments.id, comment.id))).toHaveLength(0)
+      await service.deleteComment(logId, owned.id, ownerId)
+      expect(await db.select().from(schema.comments).where(eq(schema.comments.id, owned.id))).toHaveLength(0)
     } finally {
       await db.update(schema.reading_logs).set({ visibility: 'publico' }).where(eq(schema.reading_logs.id, logId))
     }

@@ -19,7 +19,8 @@
       <ol v-if="comments.length" class="discussion-list">
         <li v-for="comment in comments" :key="comment.id" class="discussion-comment">
           <div class="discussion-meta">
-            <NuxtLink :to="`/@${comment.user.handle}`">{{ comment.user.display_name || `@${comment.user.handle}` }}</NuxtLink>
+            <NuxtLink v-if="comment.user.handle" :to="`/@${comment.user.handle}`">{{ comment.user.display_name || `@${comment.user.handle}` }}</NuxtLink>
+            <span v-else class="discussion-author">{{ comment.user.display_name || 'Membro' }}</span>
             <time :datetime="String(comment.created_at)" :title="formatFullDate(comment.created_at)">{{ formatRelativeDate(comment.created_at) }}</time>
             <button v-if="comment.can_delete" type="button" class="discussion-delete" :disabled="deleting" @click="pendingDeleteId = comment.id">Excluir</button>
           </div>
@@ -197,7 +198,7 @@ onBeforeUnmount(() => { generation++ })
 .discussion-list { list-style: none; padding: 0; margin: 0; }
 .discussion-comment { padding: var(--space-3) 0; border-bottom: 1px solid var(--input-bg); }
 .discussion-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); color: var(--text-color); }
-.discussion-meta a { color: var(--text-bright); }
+.discussion-meta a, .discussion-author { color: var(--text-bright); }
 .discussion-meta time { font-size: var(--font-size-xs); }
 .discussion-body { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--space-2) 0 0; line-height: 1.6; }
 .discussion-delete { margin-left: auto; background: none; border: 0; color: var(--text-color); cursor: pointer; min-height: 36px; }

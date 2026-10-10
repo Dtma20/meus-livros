@@ -1,9 +1,12 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h } from 'vue'
-import { useFeedNewPosts } from '../../app/composables/useFeedNewPosts'
+import { useFeedNewPosts, type UseFeedNewPostsOptions } from '../../app/composables/useFeedNewPosts'
 import type { FeedEntry } from '../../shared/schemas/feed'
 
+const BASE_TIME = Date.parse('2026-10-01T12:00:00.000Z')
+
+// Lower numbers are newer, as in the feed: entry '1' was created one minute after entry '2'.
 function createMockEntry(id: string, title = 'Livro Teste'): FeedEntry {
   return {
     id,
@@ -11,7 +14,7 @@ function createMockEntry(id: string, title = 'Livro Teste'): FeedEntry {
     review_excerpt: 'Ótima leitura',
     started_on: '2026-01-01',
     finished_on: '2026-01-10',
-    created_at: new Date().toISOString(),
+    created_at: new Date(BASE_TIME - Number(id) * 60_000).toISOString(),
     user: {
       handle: 'leitor',
       display_name: 'Leitor',
@@ -28,6 +31,26 @@ function createMockEntry(id: string, title = 'Livro Teste'): FeedEntry {
   }
 }
 
+function mountComposable(options: UseFeedNewPostsOptions) {
+  let composable!: ReturnType<typeof useFeedNewPosts>
+  const TestComponent = defineComponent({
+    setup() {
+      composable = useFeedNewPosts(options)
+      return () => h('div')
+    },
+  })
+
+  const app = createApp(TestComponent)
+  app.mount(document.createElement('div'))
+
+  return {
+    get composable() {
+      return composable
+    },
+    unmount: () => app.unmount(),
+  }
+}
+
 describe('useFeedNewPosts', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -39,166 +62,136 @@ describe('useFeedNewPosts', () => {
   })
 
   it('starts with empty pending entries and hasNewPosts false', () => {
-    let composable!: ReturnType<typeof useFeedNewPosts>
-    const TestComponent = defineComponent({
-      setup() {
-        composable = useFeedNewPosts({
-          getTopId: () => 'e-1',
-          fetchLatest: async () => [],
-        })
-        return () => h('div')
-      },
+    const mounted = mountComposable({
+      getTop: () => undefined,
+      fetchLatest: async () => [],
     })
 
-    const mountApp = createApp(TestComponent)
-    const el = document.createElement('div')
-    mountApp.mount(el)
+    expect(mounted.composable.hasNewPosts.value).toBe(false)
+    expect(mounted.composable.newPostsCount.value).toBe(0)
+    expect(mounted.composable.pendingNewEntries.value).toEqual([])
 
-    expect(composable.hasNewPosts.value).toBe(false)
-    expect(composable.newPostsCount.value).toBe(0)
-    expect(composable.pendingNewEntries.value).toEqual([])
-
-    mountApp.unmount()
+    mounted.unmount()
   })
 
-  it('detects new posts when newer entries exist before current topId', async () => {
-    const entry1 = createMockEntry('1')
-    const entry2 = createMockEntry('2')
-    const entry3 = createMockEntry('3')
-
-    let composable!: ReturnType<typeof useFeedNewPosts>
-    const TestComponent = defineComponent({
-      setup() {
-        composable = useFeedNewPosts({
-          getTopId: () => '1',
-          fetchLatest: async () => [entry3, entry2, entry1],
-        })
-        return () => h('div')
-      },
+  it('detects new posts when newer entries exist before current top', async () => {
+    const mounted = mountComposable({
+      getTop: () => createMockEntry('3'),
+      fetchLatest: async () => [createMockEntry('1'), createMockEntry('2'), createMockEntry('3')],
     })
 
-    const mountApp = createApp(TestComponent)
-    const el = document.createElement('div')
-    mountApp.mount(el)
+    await mounted.composable.check()
 
-    await composable.check()
+    expect(mounted.composable.hasNewPosts.value).toBe(true)
+    expect(mounted.composable.newPostsCount.value).toBe(2)
+    expect(mounted.composable.pendingNewEntries.value.map((e) => e.id)).toEqual(['1', '2'])
 
-    expect(composable.hasNewPosts.value).toBe(true)
-    expect(composable.newPostsCount.value).toBe(2)
-    expect(composable.pendingNewEntries.value.map((e) => e.id)).toEqual(['3', '2'])
+    const applied = mounted.composable.applyNewPosts()
+    expect(applied.map((e) => e.id)).toEqual(['1', '2'])
+    expect(mounted.composable.hasNewPosts.value).toBe(false)
+    expect(mounted.composable.newPostsCount.value).toBe(0)
+    expect(mounted.composable.pendingNewEntries.value).toEqual([])
 
-    const applied = composable.applyNewPosts()
-    expect(applied.map((e) => e.id)).toEqual(['3', '2'])
-    expect(composable.hasNewPosts.value).toBe(false)
-    expect(composable.newPostsCount.value).toBe(0)
-    expect(composable.pendingNewEntries.value).toEqual([])
-
-    mountApp.unmount()
+    mounted.unmount()
   })
 
   it('does not flag new posts if the top entry matches', async () => {
-    const entry1 = createMockEntry('1')
-    const entry0 = createMockEntry('0')
-
-    let composable!: ReturnType<typeof useFeedNewPosts>
-    const TestComponent = defineComponent({
-      setup() {
-        composable = useFeedNewPosts({
-          getTopId: () => '1',
-          fetchLatest: async () => [entry1, entry0],
-        })
-        return () => h('div')
-      },
+    const mounted = mountComposable({
+      getTop: () => createMockEntry('1'),
+      fetchLatest: async () => [createMockEntry('1'), createMockEntry('2')],
     })
 
-    const mountApp = createApp(TestComponent)
-    const el = document.createElement('div')
-    mountApp.mount(el)
+    await mounted.composable.check()
 
-    await composable.check()
+    expect(mounted.composable.hasNewPosts.value).toBe(false)
+    expect(mounted.composable.newPostsCount.value).toBe(0)
 
-    expect(composable.hasNewPosts.value).toBe(false)
-    expect(composable.newPostsCount.value).toBe(0)
-
-    mountApp.unmount()
+    mounted.unmount()
   })
 
   it('handles empty feed initially by treating all fetched entries as new', async () => {
-    const entry1 = createMockEntry('1')
-
-    let composable!: ReturnType<typeof useFeedNewPosts>
-    const TestComponent = defineComponent({
-      setup() {
-        composable = useFeedNewPosts({
-          getTopId: () => undefined,
-          fetchLatest: async () => [entry1],
-        })
-        return () => h('div')
-      },
+    const mounted = mountComposable({
+      getTop: () => undefined,
+      fetchLatest: async () => [createMockEntry('1')],
     })
 
-    const mountApp = createApp(TestComponent)
-    const el = document.createElement('div')
-    mountApp.mount(el)
+    await mounted.composable.check()
 
-    await composable.check()
+    expect(mounted.composable.hasNewPosts.value).toBe(true)
+    expect(mounted.composable.newPostsCount.value).toBe(1)
+    expect(mounted.composable.pendingNewEntries.value[0]?.id).toBe('1')
 
-    expect(composable.hasNewPosts.value).toBe(true)
-    expect(composable.newPostsCount.value).toBe(1)
-    expect(composable.pendingNewEntries.value[0]?.id).toBe('1')
+    mounted.unmount()
+  })
 
-    mountApp.unmount()
+  it('does not count an older entry as new when the top entry was deleted', async () => {
+    // The client shows entries 1..20. Entry 1 is deleted on the server, so the next
+    // query returns 2..21. Entry 21 is older than everything on screen: it is not new.
+    const shown = Array.from({ length: 20 }, (_, i) => createMockEntry(String(i + 1)))
+    const latest = Array.from({ length: 20 }, (_, i) => createMockEntry(String(i + 2)))
+    const mounted = mountComposable({
+      getTop: () => shown[0],
+      getExistingIds: () => new Set(shown.map((e) => e.id)),
+      fetchLatest: async () => latest,
+    })
+
+    await mounted.composable.check()
+
+    expect(mounted.composable.hasNewPosts.value).toBe(false)
+    expect(mounted.composable.newPostsCount.value).toBe(0)
+    expect(mounted.composable.pendingNewEntries.value).toEqual([])
+
+    const merged = [...mounted.composable.applyNewPosts(), ...shown]
+    expect(new Set(merged.map((e) => e.id)).size).toBe(merged.length)
+
+    mounted.unmount()
+  })
+
+  it('uses id as the tiebreak when created_at is equal, as the feed cursor does', async () => {
+    const sameTime = new Date(BASE_TIME).toISOString()
+    const top = { ...createMockEntry('1'), id: 'm', created_at: sameTime }
+    const newerById = { ...createMockEntry('1'), id: 'z', created_at: sameTime }
+    const olderById = { ...createMockEntry('1'), id: 'a', created_at: sameTime }
+
+    const mounted = mountComposable({
+      getTop: () => top,
+      fetchLatest: async () => [newerById, top, olderById],
+    })
+
+    await mounted.composable.check()
+
+    expect(mounted.composable.pendingNewEntries.value.map((e) => e.id)).toEqual(['z'])
+
+    mounted.unmount()
   })
 
   it('dismiss() clears pending posts without applying', async () => {
-    const entry2 = createMockEntry('2')
-    const entry1 = createMockEntry('1')
-
-    let composable!: ReturnType<typeof useFeedNewPosts>
-    const TestComponent = defineComponent({
-      setup() {
-        composable = useFeedNewPosts({
-          getTopId: () => '1',
-          fetchLatest: async () => [entry2, entry1],
-        })
-        return () => h('div')
-      },
+    const mounted = mountComposable({
+      getTop: () => createMockEntry('3'),
+      fetchLatest: async () => [createMockEntry('1'), createMockEntry('2'), createMockEntry('3')],
     })
 
-    const mountApp = createApp(TestComponent)
-    const el = document.createElement('div')
-    mountApp.mount(el)
+    await mounted.composable.check()
+    expect(mounted.composable.hasNewPosts.value).toBe(true)
 
-    await composable.check()
-    expect(composable.hasNewPosts.value).toBe(true)
+    mounted.composable.dismiss()
+    expect(mounted.composable.hasNewPosts.value).toBe(false)
+    expect(mounted.composable.pendingNewEntries.value).toEqual([])
 
-    composable.dismiss()
-    expect(composable.hasNewPosts.value).toBe(false)
-    expect(composable.pendingNewEntries.value).toEqual([])
-
-    mountApp.unmount()
+    mounted.unmount()
   })
 
   it('runs periodic check according to intervalMs', async () => {
     let callCount = 0
 
-    const TestComponent = defineComponent({
-      setup() {
-        useFeedNewPosts({
-          getTopId: () => '1',
-          intervalMs: 1000,
-          fetchLatest: async () => {
-            callCount++
-            return []
-          },
-        })
-        return () => h('div')
+    const mounted = mountComposable({
+      getTop: () => createMockEntry('1'),
+      intervalMs: 1000,
+      fetchLatest: async () => {
+        callCount++
+        return []
       },
     })
-
-    const mountApp = createApp(TestComponent)
-    const el = document.createElement('div')
-    mountApp.mount(el)
 
     expect(callCount).toBe(0)
 
@@ -208,7 +201,7 @@ describe('useFeedNewPosts', () => {
     await vi.advanceTimersByTimeAsync(1000)
     expect(callCount).toBe(2)
 
-    mountApp.unmount()
+    mounted.unmount()
 
     await vi.advanceTimersByTimeAsync(2000)
     expect(callCount).toBe(2)

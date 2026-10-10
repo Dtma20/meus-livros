@@ -4,7 +4,7 @@ import { emailOTP } from 'better-auth/plugins/email-otp'
 import { and, eq, isNotNull } from 'drizzle-orm'
 import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
-import { isForbiddenPassword, requestOtpSchema } from '../../shared/schemas/auth'
+import { isForbiddenPassword, requestOtpSchema, verifyOtpSchema } from '../../shared/schemas/auth'
 import { db } from '../db'
 import { getClientIp } from '../utils/client-ip'
 import { allowed_emails, users } from '../db/schema'
@@ -15,7 +15,8 @@ import {
   checkOtpRequestLimit,
   checkPasswordChangeLimit,
   checkRateLimit,
-  checkSignInLimit,
+  checkSignInAccountLimit,
+  checkSignInIpLimit,
 } from './rate-limit'
 
 const betterAuthSecret = process.env.BETTER_AUTH_SECRET
@@ -103,6 +104,10 @@ export const auth = betterAuth({
   logger: {
     log: logBetterAuth,
   },
+
+  // Non-APIErrors are rethrown to handleAuthRequest's caller instead of being printed by better-call,
+  // which would print the raw failed query with its bound values. defineApiHandler logs them through logger.
+  onAPIError: { throw: true },
 
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -334,9 +339,52 @@ async function readJsonBody(request: Request): Promise<Record<string, unknown> |
 
 function invalidOtpRequestResponse(): Response {
   return Response.json(
-    { error: 'requisicao_invalida', message: 'Corpo da requisição inválido.' },
+    { error: 'validacao', message: 'Corpo da requisição inválido.' },
     { status: 400, headers: { 'content-type': 'application/json' } },
   )
+}
+
+// The one answer for a wrong, expired or used code, and for an address no longer on the allowlist.
+// Same status and body in every case, so the caller cannot tell them apart.
+function invalidOtpResponse(): Response {
+  return Response.json(
+    { error: 'validacao', message: 'Código inválido ou expirado.' },
+    { status: 400, headers: { 'content-type': 'application/json' } },
+  )
+}
+
+// Only the refusal TOO_MANY_ATTEMPTS (email-otp error-codes) gets a 429; any other failure stays invalidOtpResponse.
+function tooManyOtpAttemptsResponse(): Response {
+  return Response.json(
+    { error: 'muitas_tentativas', message: 'Muitas tentativas. Peça um novo código.' },
+    { status: 429, headers: { 'content-type': 'application/json' } },
+  )
+}
+
+async function isTooManyOtpAttempts(response: Response): Promise<boolean> {
+  const body: unknown = await response.json().catch(() => null)
+  return typeof body === 'object' && body !== null && 'code' in body && body.code === 'TOO_MANY_ATTEMPTS'
+}
+
+// Headers for every request this module builds for better-auth. Nothing else from the client's headers
+// is forwarded, so fields it adds (name, image) cannot reach the OTP endpoints.
+function buildForwardedHeaders(request: Request): Headers {
+  const headers = new Headers({ 'content-type': 'application/json' })
+  for (const name of FORWARDED_HEADERS) {
+    const value = request.headers.get(name)
+    if (value !== null) {
+      headers.set(name, value)
+    }
+  }
+  return headers
+}
+
+function warnRefusedOtp(email: string, operation: 'sign_in_otp' | 'reset_password'): void {
+  logger.warn(`[auth] Código recusado para ${redactEmail(email)}: o e-mail não está na lista de convidados`, {
+    module: 'auth',
+    source: 'service',
+    operation,
+  })
 }
 
 function genericOtpResponse(): Response {
@@ -351,18 +399,10 @@ async function forwardOtpRequest(
   body: { email: string; type?: 'sign-in' },
   operation: string,
 ): Promise<Response> {
-  const headers = new Headers({ 'content-type': 'application/json' })
-  for (const name of FORWARDED_HEADERS) {
-    const value = request.headers.get(name)
-    if (value !== null) {
-      headers.set(name, value)
-    }
-  }
-
   const response = await auth.handler(
     new Request(request.url, {
       method: 'POST',
-      headers,
+      headers: buildForwardedHeaders(request),
       body: JSON.stringify(body),
     }),
   )
@@ -482,21 +522,34 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
   }
 
   if (request.method === 'POST' && authPath === '/sign-in/email-otp') {
-    const response = await auth.handler(request)
+    const parsed = verifyOtpSchema.safeParse(await readJsonBody(request))
+    if (!parsed.success) {
+      return invalidOtpResponse()
+    }
+
+    const { email, otp } = parsed.data
+    // Checked when the code is consumed, so a code issued before the invite was removed signs nobody in (TASK-069).
+    if (!(await isEmailAllowed(email))) {
+      warnRefusedOtp(email, 'sign_in_otp')
+      return invalidOtpResponse()
+    }
+
+    // Only email and otp go to better-auth: its sign-in also reads name and image when it creates a user.
+    const response = await auth.handler(
+      new Request(request.url, {
+        method: 'POST',
+        headers: buildForwardedHeaders(request),
+        body: JSON.stringify({ email, otp }),
+      }),
+    )
     if (response.ok) {
       return stripSessionToken(response)
     }
 
-    return Response.json(
-      {
-        error: 'validacao',
-        message: 'Código inválido ou expirado.',
-      },
-      {
-        status: 400,
-        headers: { 'content-type': 'application/json' },
-      },
-    )
+    if (await isTooManyOtpAttempts(response)) {
+      return tooManyOtpAttemptsResponse()
+    }
+    return invalidOtpResponse()
   }
 
   if (request.method === 'POST' && authPath === '/set-password') {
@@ -580,9 +633,21 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
 
     const ip = getClientIp(request.headers)
 
-    const rateLimitExceeded = await checkSignInLimit(rawIdentifier, ip)
-    if (rateLimitExceeded) {
-      return Response.json(rateLimitExceeded, {
+    // IP first, before any lookup. The account buckets are keyed by the resolved e-mail, so a handle and
+    // the e-mail of the same account share them (TASK-067: 50 per account).
+    const ipLimitExceeded = await checkSignInIpLimit(ip)
+    if (ipLimitExceeded) {
+      return Response.json(ipLimitExceeded, {
+        status: 429,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+
+    const resolved = await resolveIdentifier(rawIdentifier)
+
+    const accountLimitExceeded = await checkSignInAccountLimit(resolved.email, ip)
+    if (accountLimitExceeded) {
+      return Response.json(accountLimitExceeded, {
         status: 429,
         headers: { 'content-type': 'application/json' },
       })
@@ -594,8 +659,6 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
         { status: 400, headers: { 'content-type': 'application/json' } },
       )
     }
-
-    const resolved = await resolveIdentifier(rawIdentifier)
 
     const signInRequest = new Request(`${betterAuthUrl}/api/auth/sign-in/email`, {
       method: 'POST',
@@ -646,8 +709,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
   }
 
   if (request.method === 'POST' && authPath === '/email-otp/reset-password') {
-    const bodyText = await request.text()
-    const body = parseJsonObject(bodyText)
+    const body = parseJsonObject(await request.text())
     if (!body) {
       return Response.json(
         { error: 'validacao', message: 'Corpo da requisição inválido.' },
@@ -655,22 +717,48 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       )
     }
 
-    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+    const parsed = verifyOtpSchema.safeParse({ email: body.email, otp: body.otp })
+    if (!parsed.success) {
+      return invalidOtpResponse()
+    }
+
+    const { email, otp } = parsed.data
     const newPassword = typeof body.password === 'string' ? body.password : ''
 
-    const [appUser] = email
-      ? await db
-          .select({ handle: users.handle })
-          .from(users)
-          .where(eq(users.email, email))
-          .limit(1)
-      : []
-
+    // Does not depend on the address or the user, so every caller gets the same answer (TASK-069, item 2).
     if (
       newPassword.length < 8 ||
       newPassword.length > 128 ||
-      isForbiddenPassword(newPassword, { email, handle: appUser?.handle })
+      isForbiddenPassword(newPassword, { email })
     ) {
+      return Response.json(
+        { error: 'validacao', message: 'Senha inválida ou muito fraca.' },
+        { status: 400, headers: { 'content-type': 'application/json' } },
+      )
+    }
+
+    if (!(await isEmailAllowed(email))) {
+      warnRefusedOtp(email, 'reset_password')
+      return invalidOtpResponse()
+    }
+
+    // Checked without consuming the code: better-auth consumes it when the password is set.
+    const check = await auth.api.checkVerificationOTP({
+      body: { email, type: 'forget-password', otp },
+      asResponse: true,
+    })
+    if (!check.ok) {
+      return (await isTooManyOtpAttempts(check)) ? tooManyOtpAttemptsResponse() : invalidOtpResponse()
+    }
+
+    // Read only after the code has been proven, so the handle check answers only the owner of the mailbox.
+    const [appUser] = await db
+      .select({ handle: users.handle })
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1)
+
+    if (isForbiddenPassword(newPassword, { email, handle: appUser?.handle })) {
       return Response.json(
         { error: 'validacao', message: 'Senha inválida ou muito fraca.' },
         { status: 400, headers: { 'content-type': 'application/json' } },
@@ -679,9 +767,9 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
 
     const response = await auth.handler(
       new Request(request.url, {
-        method: request.method,
-        headers: request.headers,
-        body: bodyText,
+        method: 'POST',
+        headers: buildForwardedHeaders(request),
+        body: JSON.stringify({ email, otp, password: newPassword }),
       }),
     )
 
@@ -689,10 +777,10 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       return response
     }
 
-    return Response.json(
-      { error: 'validacao', message: 'Código inválido ou expirado.' },
-      { status: 400, headers: { 'content-type': 'application/json' } },
-    )
+    if (await isTooManyOtpAttempts(response)) {
+      return tooManyOtpAttemptsResponse()
+    }
+    return invalidOtpResponse()
   }
 
   if (request.method === 'POST' && authPath === '/change-password') {

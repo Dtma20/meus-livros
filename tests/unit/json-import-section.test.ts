@@ -115,3 +115,55 @@ describe('JSON import preview lifecycle', () => {
     expect(reader.aborted).toBe(true)
   })
 })
+
+async function loadPreviewAndSubmit(): Promise<void> {
+  await selectFile('ok.json')
+  ControlledReader.instances[0]!.finish('Livro de teste')
+  await nextTick()
+  container.querySelector<HTMLButtonElement>('.btn-import')!.click()
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  await nextTick()
+}
+
+describe('JSON import request and feedback', () => {
+  it('sends the import with a 60 second timeout', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ success: true, imported: 1, skipped: 0, errors: [] })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await loadPreviewAndSubmit()
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/library/import', expect.objectContaining({ timeout: 60_000 }))
+  })
+
+  it('shows the server message and the field details of a rejected import', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(Object.assign(new Error('Bad Request'), {
+      data: {
+        error: 'validacao',
+        message: 'Formato do arquivo JSON inválido.',
+        details: [{ path: ['books', 0, 'title'], message: 'O título é obrigatório.' }],
+      },
+    })))
+
+    await loadPreviewAndSubmit()
+
+    expect(container.querySelector('.error-banner')?.textContent).toContain('Formato do arquivo JSON inválido.')
+    expect(container.querySelector('.issue-list-error')?.textContent).toContain('books.0.title: O título é obrigatório.')
+  })
+
+  it('lists the per-item errors and warnings of a successful import', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockResolvedValue({
+      success: true,
+      imported: 1,
+      skipped: 1,
+      errors: ['Livro #2 ("Outro"): não foi possível importar. Motivo: data de leitura "15/03/2024" fora do padrão.'],
+    }))
+
+    await loadPreviewAndSubmit()
+
+    expect(container.querySelector('.success-card')).not.toBeNull()
+    const items = container.querySelectorAll('.import-issues .issue-list li')
+    expect(items).toHaveLength(1)
+    expect(items[0]?.textContent).toContain('Livro #2')
+    expect(items[0]?.textContent).toContain('15/03/2024')
+  })
+})

@@ -3,8 +3,12 @@ import { createError } from 'h3'
 import { getSessionUserByHeaders } from '../services/auth'
 import type { SessionUser } from '../services/auth'
 import { getAdminUser } from '../services/invites'
+import { checkRateLimit } from '../services/rate-limit'
 
 export type { SessionUser }
+
+// security.md §8: any authenticated write, per user per hour.
+const WRITES_PER_HOUR = 200
 
 export async function getSessionUser(event: H3Event): Promise<SessionUser | null> {
   const contextUser = event.context.user as SessionUser | undefined
@@ -27,6 +31,21 @@ export async function requireSessionUser(event: H3Event): Promise<SessionUser> {
       data: { error: 'nao_autenticado', message: 'É necessário entrar para continuar.' },
     })
   }
+
+  const method = (event.method || 'UNKNOWN').toUpperCase()
+  if (method !== 'GET' && method !== 'HEAD') {
+    const allowed = await checkRateLimit(`write:user:${user.id}`, WRITES_PER_HOUR)
+    if (!allowed) {
+      throw createError({
+        statusCode: 429,
+        data: {
+          error: 'muitas_tentativas',
+          message: 'Muitas ações em pouco tempo. Aguarde e tente novamente.',
+        },
+      })
+    }
+  }
+
   return user
 }
 

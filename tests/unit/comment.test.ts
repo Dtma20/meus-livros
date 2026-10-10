@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { commentInputSchema, commentQuerySchema } from '../../shared/schemas/comment'
+import { commentInputSchema, commentQuerySchema, commentViewSchema } from '../../shared/schemas/comment'
 
 const blockId = '123e4567-e89b-42d3-a456-426614174000'
 
@@ -28,5 +28,12 @@ describe('Comment input and query schemas', () => {
     for (const invalid of ['oops', '{}', JSON.stringify({ created_at: 'yesterday', id: blockId })]) {
       expect(commentQuerySchema.safeParse({ cursor: invalid }).success).toBe(false)
     }
+  })
+
+  it('accepts a masked author with a null handle and still rejects a missing one', () => {
+    const view = { id: blockId, log_id: blockId, block_id: null, body: 'Oi', created_at: '2026-10-01T12:00:00.000000Z', can_delete: false }
+    expect(commentViewSchema.parse({ ...view, user: { handle: null, display_name: 'Membro' } }).user.handle).toBeNull()
+    expect(commentViewSchema.parse({ ...view, user: { handle: 'leitor', display_name: 'Leitor' } }).user.handle).toBe('leitor')
+    expect(commentViewSchema.safeParse({ ...view, user: { display_name: 'Membro' } }).success).toBe(false)
   })
 })

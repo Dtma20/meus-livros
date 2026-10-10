@@ -1,7 +1,8 @@
-import { and, eq, gt, inArray, ne, sql } from 'drizzle-orm'
+import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { createError } from 'h3'
 import { db } from '../db'
 import { authors, editions, genres, reading_logs, users, work_authors, work_genres, works } from '../db/schema'
+import { checkRateLimit } from './rate-limit'
 import { normalizeIsbn } from '../utils/isbn'
 import { logger } from '../utils/logger'
 import { slugify, uniqueSlug } from '../utils/slug'
@@ -25,7 +26,7 @@ function conflict(message: string, extra: Record<string, unknown> = {}) {
 function badRequest(message: string) {
   return createError({
     statusCode: 400,
-    data: { error: 'requisicao_invalida', message },
+    data: { error: 'validacao', message },
   })
 }
 
@@ -37,17 +38,15 @@ function isUniqueViolation(error: unknown): boolean {
 
 export type DbOrTx = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
 
-async function assertUnderRateLimit(userId: string, conn: DbOrTx = db): Promise<void> {
-  const [row] = await conn
-    .select({ n: sql<number>`count(*)::int` })
-    .from(works)
-    .where(and(eq(works.created_by, userId), gt(works.created_at, sql`now() - interval '1 hour'`)))
-
-  if ((row?.n ?? 0) >= WORKS_PER_HOUR) {
+// Counts attempts, not rows: creating and deleting a work does not give the quota back,
+// and concurrent requests cannot all read the same count. Runs outside any transaction.
+async function assertUnderRateLimit(userId: string): Promise<void> {
+  const allowed = await checkRateLimit(`works:user:${userId}`, WORKS_PER_HOUR)
+  if (!allowed) {
     throw createError({
       statusCode: 429,
       data: {
-        error: 'limite_excedido',
+        error: 'muitas_tentativas',
         message: `Você pode cadastrar até ${WORKS_PER_HOUR} obras por hora. Tente novamente mais tarde.`,
       },
     })
@@ -177,7 +176,7 @@ export async function createWork(
   const conn = options.tx ?? db
 
   if (!options.skipRateLimit) {
-    await assertUnderRateLimit(userId, conn)
+    await assertUnderRateLimit(userId)
   }
 
   const authorSlugs = input.authors.map((a) => slugify(a.name)).filter(Boolean)
@@ -311,7 +310,7 @@ export async function deleteWork(workId: string, userId: string): Promise<void> 
     throw createError({
       statusCode: 400,
       data: {
-        error: 'requisicao_invalida',
+        error: 'validacao',
         message: 'Não é possível excluir um livro que já possui registros de leitura.',
       },
     })
@@ -517,67 +516,73 @@ export async function updateEdition(
 }
 
 export async function deleteEdition(editionId: string, userId: string): Promise<void> {
-  const [edition] = await db
-    .select({
-      id: editions.id,
-      work_id: editions.work_id,
-      created_by: editions.created_by,
-    })
-    .from(editions)
-    .where(eq(editions.id, editionId))
-    .limit(1)
+  const { edition, isAdmin, readingsDetached } = await db.transaction(async (tx) => {
+    // Lock the edition before counting other readers. A reading_logs insert that
+    // references it takes FOR KEY SHARE, which waits here until this transaction ends,
+    // so a reader created between the count and the DELETE cannot lose its edition_id.
+    const [edition] = await tx
+      .select({
+        id: editions.id,
+        work_id: editions.work_id,
+        created_by: editions.created_by,
+      })
+      .from(editions)
+      .where(eq(editions.id, editionId))
+      .limit(1)
+      .for('update')
 
-  if (!edition) {
-    throw createError({
-      statusCode: 404,
-      data: { error: 'nao_encontrado', message: 'Edição não encontrada.' },
-    })
-  }
-
-  const [user] = await db
-    .select({ is_admin: users.is_admin })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1)
-
-  const isAdmin = user?.is_admin ?? false
-  const isCreator = edition.created_by === userId
-
-  if (!isAdmin) {
-    if (!isCreator) {
+    if (!edition) {
       throw createError({
-        statusCode: 403,
-        data: {
-          error: 'sem_permissao',
-          message: 'Só quem cadastrou esta edição pode excluí-la, e só enquanto ninguém mais a usa em uma leitura.',
-        },
+        statusCode: 404,
+        data: { error: 'nao_encontrado', message: 'Edição não encontrada.' },
       })
     }
 
-    const [otherLogs] = await db
+    const [user] = await tx
+      .select({ is_admin: users.is_admin })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+
+    const isAdmin = user?.is_admin ?? false
+    const isCreator = edition.created_by === userId
+
+    if (!isAdmin) {
+      if (!isCreator) {
+        throw createError({
+          statusCode: 403,
+          data: {
+            error: 'sem_permissao',
+            message: 'Só quem cadastrou esta edição pode excluí-la, e só enquanto ninguém mais a usa em uma leitura.',
+          },
+        })
+      }
+
+      const [otherLogs] = await tx
+        .select({ n: sql<number>`count(*)::int` })
+        .from(reading_logs)
+        .where(and(eq(reading_logs.edition_id, editionId), ne(reading_logs.user_id, userId)))
+
+      if ((otherLogs?.n ?? 0) > 0) {
+        throw createError({
+          statusCode: 403,
+          data: {
+            error: 'sem_permissao',
+            message: 'Só quem cadastrou esta edição pode excluí-la, e só enquanto ninguém mais a usa em uma leitura.',
+          },
+        })
+      }
+    }
+
+    const [ownLogs] = await tx
       .select({ n: sql<number>`count(*)::int` })
       .from(reading_logs)
-      .where(and(eq(reading_logs.edition_id, editionId), ne(reading_logs.user_id, userId)))
+      .where(and(eq(reading_logs.edition_id, editionId), eq(reading_logs.user_id, userId)))
 
-    if ((otherLogs?.n ?? 0) > 0) {
-      throw createError({
-        statusCode: 403,
-        data: {
-          error: 'sem_permissao',
-          message: 'Só quem cadastrou esta edição pode excluí-la, e só enquanto ninguém mais a usa em uma leitura.',
-        },
-      })
-    }
-  }
+    await tx.delete(editions).where(eq(editions.id, editionId))
 
-  const [ownLogs] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(reading_logs)
-    .where(and(eq(reading_logs.edition_id, editionId), eq(reading_logs.user_id, userId)))
-
-  const readingsDetached = ownLogs?.n ?? 0
-
-  await db.delete(editions).where(eq(editions.id, editionId))
+    return { edition, isAdmin, readingsDetached: ownLogs?.n ?? 0 }
+  })
 
   logger.info(`[catalog] Edição excluída: ${editionId}`, {
     module: 'catalog',

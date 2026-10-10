@@ -171,11 +171,11 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
     }
   })
 
-  it.each(['log', 'profile'] as const)('removes a cached public entry when its %s becomes private through the real service', async (target) => {
-    const marker = `${MARKER}-cache-${target}`
+  it.each(['log', 'profile'] as const)('removes a public entry from the next feed read when its %s becomes private through the real service', async (target) => {
+    const marker = `${MARKER}-visibility-${target}`
     try {
       const [owner] = await db.insert(schema.users).values({
-        email: `${marker}@test.invalid`, handle: uniqueHandle('cache'), display_name: 'Cache Owner', profile_visibility: 'publico',
+        email: `${marker}@test.invalid`, handle: uniqueHandle('vis'), display_name: 'Visibility Owner', profile_visibility: 'publico',
       }).returning({ id: schema.users.id })
       if (!owner) throw new Error('Usuário fixture não criado.')
       const work = await catalogService.createWork({
@@ -193,8 +193,6 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
       const before = await feedService.getFeedPage(null, { limit: 30 })
       expect(before.entries.map((entry) => entry.id)).toContain(log.id)
       expect(before.entries.map((entry) => entry.id)).toContain(block.id)
-      // This second read exercises the warm cache before the real mutation.
-      expect((await feedService.getFeedPage(null, { limit: 30 })).entries.map((entry) => entry.id)).toContain(log.id)
       if (target === 'log') {
         await logsService.updateLog(log.id, { visibility: 'privado' }, owner.id)
       } else {
@@ -207,7 +205,63 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
       expect((await feedService.getFeedPage({ id: owner.id }, { limit: 30 })).entries.map((entry) => entry.id)).toContain(block.id)
     } finally {
       await removeFixtures(marker)
-      feedService.invalidateFeedCache()
+    }
+  })
+
+  it('shows a public review to another member and hides it on the very next read after it becomes private', async () => {
+    const marker = `${MARKER}-next-read`
+    try {
+      const [owner] = await db.insert(schema.users).values({
+        email: `${marker}@test.invalid`, handle: uniqueHandle('next'), display_name: 'Next Read Owner', profile_visibility: 'publico',
+      }).returning({ id: schema.users.id })
+      if (!owner) throw new Error('Usuário fixture não criado.')
+      const work = await catalogService.createWork({
+        title: `${marker} Work`, authors: [{ name: `${marker} Author` }], genre_ids: [],
+      }, owner.id, { skipRateLimit: true })
+      const log = await logsService.createLog({
+        work_id: work.id, finished_precision: 'dia', rating: 4, review: `${marker} resenha pública`, visibility: 'publico',
+      }, owner.id, { skipRateLimit: true })
+      await db.update(schema.reading_logs).set({ created_at: new Date('2099-01-01T00:00:00Z') })
+        .where(sqlOp.eq(schema.reading_logs.id, log.id))
+
+      const feedIdsFor = async (viewer: { id: string }) =>
+        (await feedService.getFeedPage(viewer, { limit: 30 })).entries.map((entry) => entry.id)
+
+      expect(await feedIdsFor({ id: userBId })).toContain(log.id)
+      await logsService.updateLog(log.id, { visibility: 'privado' }, owner.id)
+      expect(await feedIdsFor({ id: userBId })).not.toContain(log.id)
+      expect(await feedIdsFor({ id: owner.id })).toContain(log.id)
+    } finally {
+      await removeFixtures(marker)
+    }
+  })
+
+  it('shows a visibility change written outside this service on the next feed read', async () => {
+    // Stands in for a write made by another server instance: the row changes, but this process's services never run,
+    // so nothing in this process can invalidate what it has read.
+    const marker = `${MARKER}-outside`
+    try {
+      const [owner] = await db.insert(schema.users).values({
+        email: `${marker}@test.invalid`, handle: uniqueHandle('outside'), display_name: 'Outside Owner', profile_visibility: 'publico',
+      }).returning({ id: schema.users.id })
+      if (!owner) throw new Error('Usuário fixture não criado.')
+      const work = await catalogService.createWork({
+        title: `${marker} Work`, authors: [{ name: `${marker} Author` }], genre_ids: [],
+      }, owner.id, { skipRateLimit: true })
+      const log = await logsService.createLog({
+        work_id: work.id, finished_precision: 'dia', rating: 4, review: `${marker} resenha pública`, visibility: 'publico',
+      }, owner.id, { skipRateLimit: true })
+      await db.update(schema.reading_logs).set({ created_at: new Date('2099-01-01T00:00:00Z') })
+        .where(sqlOp.eq(schema.reading_logs.id, log.id))
+
+      const feedIdsFor = async (viewer: { id: string }) =>
+        (await feedService.getFeedPage(viewer, { limit: 30 })).entries.map((entry) => entry.id)
+
+      expect(await feedIdsFor({ id: userBId })).toContain(log.id)
+      await db.update(schema.reading_logs).set({ visibility: 'privado' }).where(sqlOp.eq(schema.reading_logs.id, log.id))
+      expect(await feedIdsFor({ id: userBId })).not.toContain(log.id)
+    } finally {
+      await removeFixtures(marker)
     }
   })
 

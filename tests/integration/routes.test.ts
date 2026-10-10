@@ -148,10 +148,10 @@ describe('Route integration HTTP tests', () => {
     expect(await res.text()).toContain(realWork!.title)
   })
 
-  it('GET /entrada/<id> returns 200 and renders the entry page (not the stub)', async () => {
+  it('GET /entrada/<id> returns 404 and renders the not-found state for a missing entry', async () => {
 
     const res = await fetch(`${baseUrl}/entrada/nao-existe`, { redirect: 'manual' })
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(404)
     const html = await res.text()
     expect(html).toContain('Entrada não encontrada')
 

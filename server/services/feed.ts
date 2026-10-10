@@ -55,40 +55,12 @@ export function encodeCursor(entry: { cursor_created_at?: string; created_at: Da
   return Buffer.from(JSON.stringify({ t, id: entry.id }), 'utf8').toString('base64url')
 }
 
-interface FeedCacheEntry {
-  data: FeedPageResponse
-  expiresAt: number
-}
-
-const feedCache = new Map<string, FeedCacheEntry>()
-export const FEED_CACHE_TTL_MS = 30_000
-
-export function invalidateFeedCache(): void {
-  feedCache.clear()
-}
-
 export async function getFeedPage(
   viewer: Viewer,
   options?: FeedPageOptions,
 ): Promise<FeedPageResponse> {
   const limit = options?.limit ?? 20
   const effectiveLimit = Math.min(Math.max(1, limit), 30)
-
-  const isFirstPage = !options?.cursor
-  const cacheKey = isFirstPage ? `${viewer?.id ?? 'public'}:${effectiveLimit}` : null
-
-  if (cacheKey) {
-    const cached = feedCache.get(cacheKey)
-    if (cached) {
-      if (cached.expiresAt > Date.now()) {
-        return {
-          entries: [...cached.data.entries],
-          nextCursor: cached.data.nextCursor,
-        }
-      }
-      feedCache.delete(cacheKey)
-    }
-  }
 
   let cursorCond: SQL | undefined
   if (options?.cursor) {
@@ -165,14 +137,7 @@ export async function getFeedPage(
     .limit(effectiveLimit + 1)
 
   if (rows.length === 0) {
-    const emptyResult: FeedPageResponse = { entries: [], nextCursor: null }
-    if (cacheKey) {
-      feedCache.set(cacheKey, {
-        data: emptyResult,
-        expiresAt: Date.now() + FEED_CACHE_TTL_MS,
-      })
-    }
-    return emptyResult
+    return { entries: [], nextCursor: null }
   }
 
   const hasMore = rows.length > effectiveLimit
@@ -242,24 +207,7 @@ export async function getFeedPage(
     nextCursor = encodeCursor(lastRow)
   }
 
-  const result: FeedPageResponse = { entries, nextCursor }
-
-  if (cacheKey) {
-    if (feedCache.size > 100) {
-      const now = Date.now()
-      for (const [key, item] of feedCache) {
-        if (item.expiresAt <= now) {
-          feedCache.delete(key)
-        }
-      }
-    }
-    feedCache.set(cacheKey, {
-      data: result,
-      expiresAt: Date.now() + FEED_CACHE_TTL_MS,
-    })
-  }
-
-  return result
+  return { entries, nextCursor }
 }
 
 export async function getRecentFeed(

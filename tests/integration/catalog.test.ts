@@ -386,6 +386,77 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     expect(edition).toBeDefined()
   })
 
+  it('keeps the edition when another reader is inserted while its deletion is running', async () => {
+    const work = await catalog.createWork(
+      {
+        title: `${MARKER} Edição com leitura concorrente`,
+        authors: [{ name: `${MARKER} Autor Concorrente` }],
+        genre_ids: [],
+        edition: { publisher: 'Editora Concorrente' },
+      },
+      userId,
+    )
+    if (!work.edition) throw new Error('A edição de teste não foi criada.')
+    const editionId = work.edition.id
+
+    // The app's pool has one connection, so B's transaction gets its own: sharing that
+    // connection would hold A's queries back until B commits and the race would never happen.
+    if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL é necessária para este teste.')
+    const { default: postgres } = await import('postgres')
+    const { drizzle } = await import('drizzle-orm/postgres-js')
+    const readerClient = postgres(process.env.DATABASE_URL, { max: 1 })
+    const readerDb = drizzle(readerClient)
+
+    // B's reading is inserted in a transaction that stays open until the test releases it.
+    let readerInserted!: () => void
+    const insertedSignal = new Promise<void>((resolve) => {
+      readerInserted = resolve
+    })
+    let releaseReader!: () => void
+    const releaseSignal = new Promise<void>((resolve) => {
+      releaseReader = resolve
+    })
+    const readerTx = readerDb.transaction(async (tx) => {
+      await tx.insert(schema.reading_logs).values({
+        user_id: otherUserId,
+        work_id: work.id,
+        edition_id: editionId,
+        rating: '4.0',
+      })
+      readerInserted()
+      await releaseSignal
+    })
+    await insertedSignal
+
+    // A deletes the edition while B's insert is still uncommitted.
+    const deletion = catalog.deleteEdition(editionId, userId).then(
+      () => null,
+      (error: unknown) => error,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    releaseReader()
+    await readerTx
+    await readerClient.end()
+
+    const outcome = await deletion
+    expect(outcome).not.toBeNull()
+    const err = asError(outcome)
+    expect(err.statusCode).toBe(403)
+    expect(err.data?.error).toBe('sem_permissao')
+
+    const [edition] = await db
+      .select({ id: schema.editions.id })
+      .from(schema.editions)
+      .where(sqlOp.eq(schema.editions.id, editionId))
+    expect(edition).toBeDefined()
+
+    const [readerLog] = await db
+      .select({ edition_id: schema.reading_logs.edition_id })
+      .from(schema.reading_logs)
+      .where(sqlOp.and(sqlOp.eq(schema.reading_logs.work_id, work.id), sqlOp.eq(schema.reading_logs.user_id, otherUserId)))
+    expect(readerLog?.edition_id).toBe(editionId)
+  })
+
   it('allows an admin to delete an edition created by B and used by A', async () => {
     const work = await catalog.createWork(
       {
@@ -468,7 +539,7 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     expect(asError(caught).statusCode).toBe(400)
   })
 
-  it('returns 429 for the 31st work in an hour', async () => {
+  it('returns 429 muitas_tentativas for the 31st work in an hour, even after deleting the first 30', async () => {
     const [limited] = await db
       .insert(schema.users)
       .values({
@@ -481,13 +552,18 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     if (!limited) throw new Error('Não foi possível criar o usuário de teste do limite.')
 
     try {
-      await db.insert(schema.works).values(
-        Array.from({ length: 30 }, (_, i) => ({
-          slug: `${MARKER}-limite-${i}`,
-          title: `${MARKER} Limite ${i}`,
-          created_by: limited.id,
-        })),
-      )
+      // Creating and deleting must not give the quota back.
+      for (let i = 0; i < 30; i++) {
+        const created = await catalog.createWork(
+          {
+            title: `${MARKER} Limite ${i}`,
+            authors: [{ name: `${MARKER} Autor Limite` }],
+            genre_ids: [],
+          },
+          limited.id,
+        )
+        await catalog.deleteWork(created.id, limited.id)
+      }
 
       let caught: unknown
       try {
@@ -505,7 +581,8 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
 
       const err = asError(caught)
       expect(err.statusCode).toBe(429)
-      expect(err.data?.error).toBe('limite_excedido')
+      expect(err.data?.error).toBe('muitas_tentativas')
+      expect(err.data?.message).toBe('Você pode cadastrar até 30 obras por hora. Tente novamente mais tarde.')
     } finally {
       await db.delete(schema.works).where(sqlOp.eq(schema.works.created_by, limited.id))
       await db.delete(schema.authors).where(sqlOp.eq(schema.authors.created_by, limited.id))

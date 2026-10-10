@@ -197,7 +197,7 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
 
     const err = asError(caught)
     expect(err.statusCode).toBe(400)
-    expect(err.data?.error).toBe('requisicao_invalida')
+    expect(err.data?.error).toBe('validacao')
   })
 
   it('user B GETting user A privado log receives 404 (never 403)', async () => {

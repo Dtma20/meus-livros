@@ -10,7 +10,6 @@ import { calculateReadingProgress } from '../../shared/utils/reading-progress'
 import { db } from '../db'
 import { authors, editions, reading_blocks, reading_logs, users, work_authors, works } from '../db/schema'
 import { logger } from '../utils/logger'
-import { invalidateFeedCache } from './feed'
 import { checkRateLimit } from './rate-limit'
 import { visibleLogs, type Viewer } from './visibility'
 
@@ -71,7 +70,7 @@ export async function createLog(
       throw createError({
         statusCode: 400,
         data: {
-          error: 'requisicao_invalida',
+          error: 'validacao',
           message: 'A edição informada não pertence a esta obra.',
         },
       })
@@ -111,8 +110,6 @@ export async function createLog(
     userId,
     context: { logId: created.id, workId: input.work_id, visibility: input.visibility ?? 'publico' },
   })
-
-  invalidateFeedCache()
 
   return { id: created.id }
 }
@@ -297,7 +294,7 @@ export async function updateLog(
       throw createError({
         statusCode: 400,
         data: {
-          error: 'requisicao_invalida',
+          error: 'validacao',
           message: 'A edição informada não pertence a esta obra.',
         },
       })
@@ -310,7 +307,7 @@ export async function updateLog(
     throw createError({
       statusCode: 400,
       data: {
-        error: 'requisicao_invalida',
+        error: 'validacao',
         message: 'A data de início deve ser anterior ou igual à data de término.',
       },
     })
@@ -369,8 +366,6 @@ export async function updateLog(
     context: { logId: id },
   })
 
-  invalidateFeedCache()
-
   return { id: updated.id }
 }
 
@@ -397,8 +392,6 @@ export async function deleteLog(id: string, userId: string): Promise<void> {
     userId,
     context: { logId: id },
   })
-
-  invalidateFeedCache()
 }
 
 export async function getEditionsForWork(workId: string): Promise<LogEditionView[]> {

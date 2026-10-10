@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { eq, sql } from 'drizzle-orm'
 import { removeFixtures, trackSetup, uniqueHandle } from './fixtures'
 
@@ -61,7 +61,6 @@ describe('Feed reading block events', () => {
     await db.update(schema.reading_blocks).set({ created_at: sql`'2188-01-01T12:00:00.123457Z'::timestamptz` }).where(eq(schema.reading_blocks.id, bareBlockId))
   }))
 
-  beforeEach(() => feed.invalidateFeedCache())
   afterAll(async () => {
     await setup.settled()
     try { await removeFixtures(marker) } finally { await client?.end() }
@@ -104,7 +103,7 @@ describe('Feed reading block events', () => {
     expect((await feed.getFeedPage({ id: privateOwnerId }, { limit: 10 })).entries.map(entry => entry.id)).toContain(privateProfileBlockId)
   })
 
-  it('refreshes a warm block cache on edit without changing identity or publication time, then on delete', async () => {
+  it('shows a block edit on the next feed read without changing identity or publication time, then removes it on delete', async () => {
     const before = (await feed.getFeedPage({ id: ownerId }, { limit: 3 })).entries.find(entry => entry.id === bareBlockId)!
     expect(before).toBeDefined()
     await blocks.updateBlock(bareBlockId, ownerId, { comment: 'Updated annotation', end_page: 45 })

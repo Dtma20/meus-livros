@@ -21,6 +21,7 @@
         ref="headerAddBtnRef"
         type="button"
         class="btn btn-secondary btn-sm btn-add-block"
+        :disabled="saving"
         @click="openAddForm('header')"
       >
         + Registrar trecho lido
@@ -220,6 +221,7 @@
               class="btn-icon"
               title="Editar trecho"
               aria-label="Editar trecho"
+              :disabled="saving"
               @click="startEdit(block)"
             >
               Editar
@@ -249,6 +251,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useFlash } from '~/composables/useFlash'
 import { useDelayedDelete, type DelayedDeleteContext, type PageHideDeleteResult } from '~/composables/useDelayedDelete'
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import type { ReadingBlockView, ReadingProgressView } from '~~/shared/schemas/reading-block'
 import { calculateReadingProgress } from '~~/shared/utils/reading-progress'
 import DiscussionThread from '~/components/comments/DiscussionThread.vue'
@@ -337,6 +340,8 @@ const saveNotice = ref('')
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 
 const COMMENT_MAX = 5000
+// Every block request gets a deadline, so a stalled connection cannot leave "Salvando..." forever.
+const REQUEST_TIMEOUT_MS = 15_000
 type BlockFieldKey = 'start_page' | 'end_page' | 'comment'
 const BLOCK_FIELD_ORDER: BlockFieldKey[] = ['start_page', 'end_page', 'comment']
 const BLOCK_FIELD_LABELS: Record<BlockFieldKey, string> = {
@@ -490,6 +495,7 @@ async function saveBlock(): Promise<void> {
       const res = await fetch(`/api/logs/${props.logId}/blocks/${editingBlock.value.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         body: JSON.stringify({
           start_page: formStartPage.value,
           end_page: formEndPage.value,
@@ -510,6 +516,7 @@ async function saveBlock(): Promise<void> {
       const res = await fetch(`/api/logs/${props.logId}/blocks`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         body: JSON.stringify({
           start_page: formStartPage.value,
           end_page: formEndPage.value,
@@ -533,7 +540,9 @@ async function saveBlock(): Promise<void> {
     if (noticeTimer) clearTimeout(noticeTimer)
     noticeTimer = setTimeout(() => { saveNotice.value = '' }, 4000)
   } catch (err: unknown) {
-    formError.value = err instanceof Error ? err.message : 'Ocorreu um erro ao salvar.'
+    formError.value = isTimeoutOrAbort(err)
+      ? TIMEOUT_MESSAGE
+      : err instanceof Error ? err.message : 'Ocorreu um erro ao salvar.'
   } finally {
     saving.value = false
   }
@@ -570,6 +579,7 @@ function sendDelete(blockId: string, keepalive: boolean): Promise<Response> {
     method: 'DELETE',
     credentials: 'same-origin',
     keepalive,
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
 }
 
@@ -580,7 +590,14 @@ const {
   cancel: cancelDelayedRemoval,
 } = useDelayedDelete<PendingRemoval>({
   remove: async (removal: PendingRemoval, context: DelayedDeleteContext) => {
-    const res = await sendDelete(removal.block.id, context.keepalive)
+    let res: Response
+    try {
+      res = await sendDelete(removal.block.id, context.keepalive)
+    } catch (err: unknown) {
+      // The browser's own timeout text is English; the failure message must be pt-BR.
+      if (isTimeoutOrAbort(err)) throw new Error(TIMEOUT_MESSAGE, { cause: err })
+      throw err
+    }
     if (!res.ok) {
       const body = await res.json().catch(() => null) as { message?: string } | null
       throw new Error(body?.message || 'Não foi possível excluir o trecho.')

@@ -12,9 +12,14 @@ import {
 import { normalizeIsbn } from '../utils/isbn'
 import { slugify } from '../utils/slug'
 import { logger } from '../utils/logger'
-import { invalidateFeedCache } from './feed'
 import type { LivroJson, ImportResult } from '../../shared/schemas/export-import'
-import { logVisibilitySchema, type LogVisibility } from '../../shared/schemas/log'
+import {
+  getTodaySaoPaulo,
+  isFutureDateSaoPaulo,
+  logVisibilitySchema,
+  type DatePrecision,
+  type LogVisibility,
+} from '../../shared/schemas/log'
 
 export const ISO_IDIOMA: Record<string, string> = {
   'inglês': 'en',
@@ -44,6 +49,9 @@ export const IDIOMA_ISO_REVERSE: Record<string, string> = {
   'ja': 'japonês',
 }
 
+// Every value must be a slug from the seed in scripts/seed-genres.ts (checked by the integration suite).
+// Labels with no seed equivalent (Sociologia, Psicologia, Religião) are left out on purpose: the import
+// then reports them in errors[] instead of dropping them silently.
 export const GENRE_SLUG_MAP: Record<string, string> = {
   'Ficção': 'ficcao',
   'Não-Ficção': 'nao-ficcao',
@@ -61,16 +69,13 @@ export const GENRE_SLUG_MAP: Record<string, string> = {
   'Autobiografia': 'biografia',
   'Política': 'politica',
   'Filosofia': 'filosofia',
-  'Sociologia': 'sociologia',
-  'Psicologia': 'psicologia',
-  'Divulgação Científica': 'divulgacao-cientifica',
+  'Divulgação Científica': 'ciencia',
   'Ensaio': 'ensaio',
-  'Crônica': 'cronica',
+  'Crônica': 'ensaio',
   'Poesia': 'poesia',
-  'Teatro': 'teatro',
-  'Religião': 'religiao',
-  'HQ': 'hq',
-  'Mangá': 'manga',
+  'Teatro': 'dramaturgia',
+  'HQ': 'graphic-novel',
+  'Mangá': 'graphic-novel',
 }
 
 export function parseAuthors(raw: string): string[] {
@@ -110,6 +115,138 @@ export function parseImportVisibility(value: string | null | undefined): LogVisi
   return parsed.data
 }
 
+type ReadInResult =
+  | { ok: true; finishedOn: string | null; finishedPrecision: DatePrecision }
+  | { ok: false; reason: string }
+
+export type ReadingDates =
+  | { ok: true; startedOn: string | null; finishedOn: string | null; finishedPrecision: DatePrecision }
+  | { ok: false; reason: string }
+
+const NO_READ_DATE: ReadInResult = { ok: true, finishedOn: null, finishedPrecision: 'ano' }
+
+function isLeapYear(year: number): boolean {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+}
+
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) return isLeapYear(year) ? 29 : 28
+  return [4, 6, 9, 11].includes(month) ? 30 : 31
+}
+
+function isCalendarDate(year: number, month: number, day: number): boolean {
+  if (year < 1 || month < 1 || month > 12 || day < 1) return false
+  return day <= daysInMonth(year, month)
+}
+
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
+
+function isValidDateOnly(value: string): boolean {
+  const match = DATE_ONLY.exec(value)
+  return match !== null && isCalendarDate(Number(match[1]), Number(match[2]), Number(match[3]))
+}
+
+// Year-only input: a 4-digit year that is not in the future (America/Sao_Paulo).
+function parseReadInYear(yearText: string, raw: string, todaySp: string): ReadInResult {
+  const year = Number(yearText)
+  if (year < 1) return { ok: false, reason: `ano de leitura "${raw}" inválido.` }
+  if (year > Number(todaySp.slice(0, 4))) return { ok: false, reason: `data de leitura "${raw}" está no futuro.` }
+  return { ok: true, finishedOn: `${yearText}-01-01`, finishedPrecision: 'ano' }
+}
+
+// read_in accepts a 4-digit year (number or YYYY), YYYY-MM, or YYYY-MM-DD. It never invents a date:
+// anything else is reported and the item is refused. Negative years (legacy, e.g. -500) keep the old behaviour.
+export function parseReadIn(readIn: LivroJson['read_in'], now: Date = new Date()): ReadInResult {
+  if (readIn === null || readIn === undefined) return NO_READ_DATE
+  const todaySp = getTodaySaoPaulo(now)
+
+  if (typeof readIn === 'number') {
+    if (readIn < 0) return { ok: true, finishedOn: `${readIn}-01-01`, finishedPrecision: 'ano' }
+    if (!Number.isInteger(readIn) || readIn < 1000 || readIn > 9999) {
+      return { ok: false, reason: `ano de leitura "${readIn}" fora do padrão: use 4 dígitos.` }
+    }
+    return parseReadInYear(String(readIn), String(readIn), todaySp)
+  }
+
+  const trimmed = readIn.trim()
+  if (trimmed === '') return NO_READ_DATE
+
+  if (/^\d{4}$/.test(trimmed)) return parseReadInYear(trimmed, trimmed, todaySp)
+
+  const monthMatch = /^(\d{4})-(\d{2})$/.exec(trimmed)
+  if (monthMatch) {
+    const year = Number(monthMatch[1])
+    const month = Number(monthMatch[2])
+    if (!isCalendarDate(year, month, 1)) {
+      return { ok: false, reason: `data de leitura "${trimmed}" não existe no calendário.` }
+    }
+    if (`${monthMatch[1]}-${monthMatch[2]}` > todaySp.slice(0, 7)) {
+      return { ok: false, reason: `data de leitura "${trimmed}" está no futuro.` }
+    }
+    return { ok: true, finishedOn: `${monthMatch[1]}-${monthMatch[2]}-01`, finishedPrecision: 'mes' }
+  }
+
+  if (DATE_ONLY.test(trimmed)) {
+    if (!isValidDateOnly(trimmed)) {
+      return { ok: false, reason: `data de leitura "${trimmed}" não existe no calendário.` }
+    }
+    if (isFutureDateSaoPaulo(trimmed, now)) {
+      return { ok: false, reason: `data de leitura "${trimmed}" está no futuro.` }
+    }
+    return { ok: true, finishedOn: trimmed, finishedPrecision: 'dia' }
+  }
+
+  return { ok: false, reason: `data de leitura "${trimmed}" fora do padrão: use AAAA, AAAA-MM ou AAAA-MM-DD.` }
+}
+
+// Last day of the period that a stored month or year date stands for.
+function periodEnd(finishedOn: string, precision: DatePrecision): string {
+  if (precision === 'mes') {
+    const year = Number(finishedOn.slice(0, 4))
+    const month = Number(finishedOn.slice(5, 7))
+    return `${finishedOn.slice(0, 7)}-${String(daysInMonth(year, month)).padStart(2, '0')}`
+  }
+  return `${finishedOn.slice(0, 4)}-12-31`
+}
+
+// Validates started_on and finished_on together for one item. Month and year precision store the first day
+// of the period, so a start inside that same period cannot sit before the stored date. The stored finish
+// then moves to the start day: the earliest date compatible with the file. Anything else is refused.
+export function parseReadingDates(book: LivroJson, now: Date = new Date()): ReadingDates {
+  const readIn = parseReadIn(book.read_in, now)
+  if (!readIn.ok) return { ok: false, reason: readIn.reason }
+
+  let finishedOn = readIn.finishedOn
+  const finishedPrecision = readIn.finishedPrecision
+
+  if (finishedOn !== null && book.finished_precision && book.finished_precision !== finishedPrecision) {
+    return {
+      ok: false,
+      reason: `precisão de término "${book.finished_precision}" não confere com a data de leitura.`,
+    }
+  }
+
+  const startedOn = book.started_on?.trim() || null
+  if (startedOn !== null) {
+    if (!isValidDateOnly(startedOn)) {
+      return { ok: false, reason: `data de início "${startedOn}" inválida: use AAAA-MM-DD.` }
+    }
+    if (isFutureDateSaoPaulo(startedOn, now)) {
+      return { ok: false, reason: `data de início "${startedOn}" está no futuro.` }
+    }
+  }
+
+  if (startedOn !== null && finishedOn !== null && startedOn > finishedOn) {
+    if (finishedPrecision !== 'dia' && startedOn <= periodEnd(finishedOn, finishedPrecision)) {
+      finishedOn = startedOn
+    } else {
+      return { ok: false, reason: 'data de início posterior à data de término.' }
+    }
+  }
+
+  return { ok: true, startedOn, finishedOn, finishedPrecision }
+}
+
 export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
   logger.info(`Exportando biblioteca do usuário ${userId}`, { module: 'export', userId })
 
@@ -118,6 +255,7 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
       id: reading_logs.id,
       rating: reading_logs.rating,
       review: reading_logs.review,
+      started_on: reading_logs.started_on,
       finished_on: reading_logs.finished_on,
       finished_precision: reading_logs.finished_precision,
       format: reading_logs.format,
@@ -196,6 +334,8 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
     if (log.finished_on) {
       if (log.finished_precision === 'ano') {
         readIn = parseInt(log.finished_on.split('-')[0] ?? '', 10) || null
+      } else if (log.finished_precision === 'mes') {
+        readIn = log.finished_on.slice(0, 7)
       } else {
         readIn = log.finished_on
       }
@@ -210,6 +350,8 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
       publisher: log.publisher ?? null,
       pages: log.page_count ?? null,
       read_in: readIn,
+      started_on: log.started_on ?? null,
+      finished_precision: log.finished_precision,
       rate: log.rating ? Number(log.rating) : null,
       review: log.review,
       source: formatSourceLabel(log.format),
@@ -248,6 +390,17 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
 
     try {
       const visibility = parseImportVisibility(book.visibility)
+
+      // Refuses this item only, before any row is written for it.
+      const dates = parseReadingDates(book)
+      if (!dates.ok) {
+        errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${dates.reason}`)
+        skippedCount++
+        continue
+      }
+
+      // Warnings for an item are reported only once that item commits.
+      const itemWarnings: string[] = []
 
       await db.transaction(async (tx) => {
         const authorNames = parseAuthors(book.author)
@@ -364,6 +517,8 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
                     genre_id: gId,
                   })
                   .onConflictDoNothing()
+              } else {
+                itemWarnings.push(`Livro #${bookIndex} ("${book.title}"): gênero "${gName}" não existe no catálogo; ignorado.`)
               }
             }
           }
@@ -371,19 +526,25 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
 
         const normalizedIsbn = normalizeIsbn(book.isbn)
         let editionId: string | null = null
+        // An ISBN is unique across editions, so one owned by another work cannot be reused or re-inserted.
+        let isbnOwnedByOtherWork = false
 
         if (normalizedIsbn) {
           const [foundEdition] = await tx
-            .select({ id: editions.id })
+            .select({ id: editions.id, work_id: editions.work_id })
             .from(editions)
             .where(eq(editions.isbn13, normalizedIsbn))
 
           if (foundEdition) {
-            editionId = foundEdition.id
+            if (foundEdition.work_id === workId) {
+              editionId = foundEdition.id
+            } else {
+              isbnOwnedByOtherWork = true
+            }
           }
         }
 
-        if (!editionId) {
+        if (!editionId && !isbnOwnedByOtherWork) {
           const [existingForWork] = await tx
             .select({ id: editions.id })
             .from(editions)
@@ -408,35 +569,25 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
 
             editionId = createdEdition ? createdEdition.id : null
             if (!editionId && normalizedIsbn) {
+              // Second resolution: a concurrent insert may have taken this ISBN for another work.
               const [raced] = await tx
-                .select({ id: editions.id })
+                .select({ id: editions.id, work_id: editions.work_id })
                 .from(editions)
                 .where(eq(editions.isbn13, normalizedIsbn))
-              if (raced) editionId = raced.id
+              if (raced) {
+                if (raced.work_id === workId) {
+                  editionId = raced.id
+                } else {
+                  isbnOwnedByOtherWork = true
+                }
+              }
             }
           }
         }
 
-        let finishedOn: string | null = null
-        let finishedPrecision: 'dia' | 'mes' | 'ano' = 'ano'
-
-        if (book.read_in) {
-          if (typeof book.read_in === 'number') {
-            finishedOn = `${book.read_in}-01-01`
-            finishedPrecision = 'ano'
-          } else {
-            const trimmed = book.read_in.trim()
-            if (/^\d{4}$/.test(trimmed)) {
-              finishedOn = `${trimmed}-01-01`
-              finishedPrecision = 'ano'
-            } else if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-              finishedOn = trimmed
-              finishedPrecision = 'dia'
-            } else {
-              finishedOn = `${new Date().getFullYear()}-01-01`
-              finishedPrecision = 'ano'
-            }
-          }
+        if (isbnOwnedByOtherWork) {
+          editionId = null
+          itemWarnings.push(`Livro #${bookIndex} ("${book.title}"): ISBN já pertence a outra obra; leitura importada sem edição.`)
         }
 
         const validRate = book.rate !== null && book.rate !== undefined ? String(book.rate) : null
@@ -447,14 +598,17 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           edition_id: editionId,
           rating: validRate,
           review: book.review ?? null,
-          finished_on: finishedOn,
-          finished_precision: finishedPrecision,
+          started_on: dates.startedOn,
+          finished_on: dates.finishedOn,
+          finished_precision: dates.finishedPrecision,
           format: parseFormat(book.source),
           visibility,
         })
 
         importedCount++
       })
+
+      errors.push(...itemWarnings)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
       logger.warn(`Falha ao importar livro #${bookIndex} (${book.title}): ${msg}`, {
@@ -476,10 +630,6 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
     importedCount,
     skippedCount,
   })
-
-  if (importedCount > 0) {
-    invalidateFeedCache()
-  }
 
   return {
     importedCount,

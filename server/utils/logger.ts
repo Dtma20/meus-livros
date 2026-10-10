@@ -32,6 +32,15 @@ function redactEmails(value: string): string {
   return value.replace(EMAIL_REGEX, (email) => redactEmail(email))
 }
 
+// A failed query carries its bound values after "params:" (drizzle's DrizzleQueryError:
+// "Failed query: <sql>\nparams: <values>"), and the values can be e-mails. The text from
+// "params:" up to the next stack frame is cut, not redacted: the SQL stays useful.
+const QUERY_PARAMS_PATTERN = /\bparams:[\s\S]*?(?=\n\s+at\s|$)/g
+
+function cutQueryParams(text: string): string {
+  return text.replace(QUERY_PARAMS_PATTERN, '[parâmetros omitidos]')
+}
+
 export type LogOutputHandler = (entry: LogEntry, formatted: string) => void
 
 export function sanitizeLogData(data: unknown, depth = 0, seen = new WeakSet()): unknown {
@@ -55,11 +64,15 @@ export function sanitizeLogData(data: unknown, depth = 0, seen = new WeakSet()):
   }
 
   if (data instanceof Error) {
-    return {
+    const sanitizedError: Record<string, unknown> = {
       name: data.name,
-      message: redactEmails(data.message),
-      stack: data.stack ? redactEmails(data.stack) : undefined,
+      message: redactEmails(cutQueryParams(data.message)),
+      stack: data.stack ? redactEmails(cutQueryParams(data.stack)) : undefined,
     }
+    if (data.cause !== undefined) {
+      sanitizedError.cause = sanitizeLogData(data.cause, depth + 1, seen)
+    }
+    return sanitizedError
   }
 
   if (Array.isArray(data)) {
@@ -90,9 +103,9 @@ export function parseError(err: unknown): LogErrorInfo {
     const errorObj = err as Error & { code?: string | number; statusCode?: number; details?: unknown }
     return {
       name: err.name,
-      message: redactEmails(err.message),
+      message: redactEmails(cutQueryParams(err.message)),
       code: errorObj.code ?? errorObj.statusCode,
-      stack: err.stack ? redactEmails(err.stack) : undefined,
+      stack: err.stack ? redactEmails(cutQueryParams(err.stack)) : undefined,
       details: errorObj.details ? (sanitizeLogData(errorObj.details) as Record<string, unknown>) : undefined,
     }
   }
@@ -104,16 +117,16 @@ export function parseError(err: unknown): LogErrorInfo {
       : JSON.stringify(sanitizeLogData(err)) ?? 'ObjectError'
     return {
       name: String(record.name ?? 'ObjectError'),
-      message: redactEmails(rawMessage),
+      message: redactEmails(cutQueryParams(rawMessage)),
       code: typeof record.code === 'string' || typeof record.code === 'number' ? record.code : undefined,
-      stack: typeof record.stack === 'string' ? redactEmails(record.stack) : undefined,
+      stack: typeof record.stack === 'string' ? redactEmails(cutQueryParams(record.stack)) : undefined,
       details: 'details' in record ? sanitizeLogData(record.details) : undefined,
     }
   }
 
   return {
     name: 'UnknownError',
-    message: String(err),
+    message: redactEmails(cutQueryParams(String(err))),
   }
 }
 

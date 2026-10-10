@@ -5,6 +5,7 @@ Pedido: membros comentam resenhas e trechos lidos, trechos entram no feed, e cam
 - Comentários são texto simples, de 1 a 2.000 caracteres após trim, em ordem cronológica. Sem respostas encadeadas, edição, reações ou notificações nesta entrega.
 - Uma conversa pertence à resenha de um registro ou a um trecho específico. Resenha e cada trecho mantêm conversas separadas. Excluir o registro/trecho exclui os respectivos comentários por FK.
 - Leitura e escrita respeitam visibleLogs(viewer); registros privados e perfis privados permanecem protegidos com 404. O feed existente permanece protegido pelo mesmo predicado.
+- Decisão do dono, 2026-10-10: para visitante anônimo, o autor de um comentário cujo perfil é privado aparece como "Membro", sem handle nem link. Membros logados continuam vendo o handle. O autor de um comentário sempre pode apagá-lo, mesmo depois que a leitura virou privada; o dono da leitura também pode.
 - Trechos aparecem como eventos separados no feed geral e recente, inclusive sem anotação. Mostrar páginas, anotação quando existir, autor, livro e data de publicação; link aponta ao trecho na página do registro.
 - Paginação continua estável por timestamp de criação e UUID; intervalos editados não criam eventos novos; cache invalida nas mutações de trechos existentes.
 - Conversas ficam acessíveis no feed e no detalhe, com carregamento sob demanda no feed; ações têm estados de envio, erro e vazio, e impedem envio duplicado.

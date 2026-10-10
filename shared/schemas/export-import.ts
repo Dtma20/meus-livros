@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { coverUrlSchema } from './work'
-import { ratingSchema, reviewSchema } from './log'
+import { datePrecisionSchema, ratingSchema, reviewSchema } from './log'
 
 export const livroJsonSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório.').max(300),
@@ -10,7 +10,11 @@ export const livroJsonSchema = z.object({
   year: z.number().int().optional().nullable(),
   publisher: z.string().max(255).optional().nullable(),
   pages: z.number().int().positive().optional().nullable(),
+  // Format is checked per item by parseReadIn in library-transfer.ts, so one bad date skips only that book.
   read_in: z.union([z.number().int(), z.string()]).optional().nullable(),
+  // Optional, so exports from before these fields existed still import. Checked per item in library-transfer.ts.
+  started_on: z.string().max(10).optional().nullable(),
+  finished_precision: datePrecisionSchema.optional().nullable(),
   rate: ratingSchema.optional().nullable(),
   review: reviewSchema.optional().nullable(),
   source: z.string().max(50).optional().nullable(),

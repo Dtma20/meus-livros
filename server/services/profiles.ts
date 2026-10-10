@@ -104,7 +104,6 @@ export async function getProfileByHandle(
     .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
     .where(and(eq(reading_logs.user_id, userRow.id), visibleLogs(viewer)))
     .orderBy(sql`${reading_logs.finished_on} DESC NULLS LAST, ${reading_logs.created_at} DESC, ${reading_logs.id} DESC`)
-    .limit(100)
 
   const userView: ProfileUserView = {
     id: userRow.id,

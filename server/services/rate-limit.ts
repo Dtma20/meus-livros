@@ -67,10 +67,7 @@ export async function checkOtpRequestLimit(
   return null
 }
 
-export async function checkSignInLimit(
-  identifier: string,
-  ip: string,
-): Promise<RateLimitExceeded | null> {
+export async function checkSignInIpLimit(ip: string): Promise<RateLimitExceeded | null> {
   const ipOk = await checkRateLimit(`signin:ip:${ip}`, 30)
   if (!ipOk) {
     return {
@@ -79,7 +76,16 @@ export async function checkSignInLimit(
     }
   }
 
-  const cleanId = identifier.toLowerCase().trim()
+  return null
+}
+
+// Takes the e-mail that resolveIdentifier returned, never the raw handle or e-mail: a handle and
+// the e-mail of the same account must share these buckets (TASK-067 fixed 50 per account).
+export async function checkSignInAccountLimit(
+  email: string,
+  ip: string,
+): Promise<RateLimitExceeded | null> {
+  const cleanId = email.toLowerCase().trim()
   const idIpOk = await checkRateLimit(`signin:idip:${cleanId}:${ip}`, 10)
   if (!idIpOk) {
     return {

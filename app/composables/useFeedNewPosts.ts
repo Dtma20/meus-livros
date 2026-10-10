@@ -2,7 +2,8 @@ import { computed, onBeforeUnmount, onMounted, ref, type Ref } from 'vue'
 import type { FeedEntry } from '~~/shared/schemas/feed'
 
 export interface UseFeedNewPostsOptions {
-  getTopId: () => string | undefined
+  // Newest entry on screen. Its (created_at, id) is the cursor new posts are compared against.
+  getTop: () => Pick<FeedEntry, 'id' | 'created_at'> | undefined
 
   fetchLatest: () => Promise<FeedEntry[]>
 
@@ -15,9 +16,22 @@ export interface UseFeedNewPostsOptions {
   enabled?: boolean | Ref<boolean> | (() => boolean)
 }
 
+// Same order as the feed cursor in server/services/feed.ts: (created_at, id) descending.
+// An entry is new only if it sorts above the top, so an older entry the client never saw
+// (for example, one that slid into the window after the top was deleted) is not new.
+function sortsAboveTop(
+  entry: Pick<FeedEntry, 'id' | 'created_at'>,
+  top: Pick<FeedEntry, 'id' | 'created_at'>,
+): boolean {
+  const entryTime = new Date(entry.created_at).getTime()
+  const topTime = new Date(top.created_at).getTime()
+  if (entryTime !== topTime) return entryTime > topTime
+  return entry.id > top.id
+}
+
 export function useFeedNewPosts(options: UseFeedNewPostsOptions) {
   const {
-    getTopId,
+    getTop,
     fetchLatest,
     getExistingIds,
     intervalMs = 60_000,
@@ -57,31 +71,15 @@ export function useFeedNewPosts(options: UseFeedNewPostsOptions) {
         return
       }
 
-      const topId = getTopId()
+      const top = getTop()
 
-      if (!topId) {
+      if (!top) {
         pendingNewEntries.value = latest
         return
       }
 
-      const matchIndex = latest.findIndex((e) => e.id === topId)
-
-      if (matchIndex > 0) {
-        const fresh = latest.slice(0, matchIndex)
-        pendingNewEntries.value = fresh
-      } else if (matchIndex === 0) {
-        if (pendingNewEntries.value.length > 0) {
-          pendingNewEntries.value = []
-        }
-      } else {
-        const existingRaw = getExistingIds ? getExistingIds() : [topId]
-        const existingSet = existingRaw instanceof Set ? existingRaw : new Set(existingRaw)
-
-        const fresh = latest.filter((e) => !existingSet.has(e.id))
-        if (fresh.length > 0) {
-          pendingNewEntries.value = fresh
-        }
-      }
+      const known = new Set<string>(getExistingIds ? getExistingIds() : [])
+      pendingNewEntries.value = latest.filter((e) => sortsAboveTop(e, top) && !known.has(e.id))
     } catch {
     } finally {
       isChecking.value = false

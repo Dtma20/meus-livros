@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   checkOtpRequestLimit,
   checkRateLimit,
-  checkSignInLimit,
+  checkSignInAccountLimit,
   hashRateLimitKey,
   pruneRateLimits,
 } from '../../server/services/rate-limit'
@@ -170,15 +170,15 @@ describe.skipIf(!hasDatabaseUrl)('TASK-067 - Rate limit hardening', () => {
     )
 
     for (let i = 0; i < 10; i++) {
-      const res = await checkSignInLimit(identifier, ipA)
+      const res = await checkSignInAccountLimit(identifier, ipA)
       expect(res).toBeNull()
     }
 
-    const eleventhA = await checkSignInLimit(identifier, ipA)
+    const eleventhA = await checkSignInAccountLimit(identifier, ipA)
     expect(eleventhA).not.toBeNull()
     expect(eleventhA?.error).toBe('muitas_tentativas')
 
-    const firstB = await checkSignInLimit(identifier, ipB)
+    const firstB = await checkSignInAccountLimit(identifier, ipB)
     expect(firstB).toBeNull()
   })
 
@@ -255,4 +255,97 @@ describe.skipIf(!hasDatabaseUrl)('TASK-067 - Rate limit hardening', () => {
     })
     expect(invalidResult.success).toBe(false)
   })
+})
+
+describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: 200 por usuário por hora (security.md §8)', () => {
+  let db: typeof import('../../server/db')['db']
+  let client: typeof import('../../server/db')['client']
+  let schema: typeof import('../../server/db/schema')
+  let server: Server
+  let serverUrl: string
+  let writerId: string
+  const writerMarker = `zz-ratelimit-write-${Date.now()}`
+  const writerRateLimitKeys: string[] = []
+
+  beforeAll(async () => {
+    // The describe above ends the shared postgres client in its afterAll, so this block
+    // loads fresh modules instead of reusing the closed connection.
+    const { vi } = await import('vitest')
+    vi.resetModules()
+    const dbModule = await import('../../server/db')
+    db = dbModule.db
+    client = dbModule.client
+    schema = await import('../../server/db/schema')
+    const { default: profilePatch } = await import('../../server/api/users/me.patch')
+
+    const [writer] = await db
+      .insert(schema.users)
+      .values({
+        email: `${writerMarker}@example.com`,
+        handle: `rw_${Date.now()}`.slice(0, 20),
+        display_name: 'Usuário de escrita',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+
+    if (!writer) throw new Error('Falha ao criar usuário de teste de escrita.')
+    writerId = writer.id
+
+    const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        const userId = event.headers.get('x-test-user-id')
+        if (userId) {
+          event.context.user = { id: userId, email: `${userId}@test.invalid` }
+        }
+      }),
+    )
+    app.use('/api/users/me', profilePatch)
+
+    server = createServer(toNodeListener(app))
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve())
+    })
+    const address = server.address()
+    const port = typeof address === 'object' && address ? address.port : 0
+    serverUrl = `http://127.0.0.1:${port}`
+  })
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve())
+    })
+
+    try {
+      await removeFixtures(writerMarker)
+      await deleteRateLimits(writerRateLimitKeys)
+    } finally {
+      await client?.end()
+    }
+  })
+
+  it('200 authenticated PATCH /api/users/me pass and the 201st in the hour returns 429', async () => {
+    writerRateLimitKeys.push(hashRateLimitKey(`write:user:${writerId}`))
+
+    const patch = (bio: string) =>
+      fetch(`${serverUrl}/api/users/me`, {
+        method: 'PATCH',
+        headers: {
+          'content-type': 'application/json',
+          'x-test-user-id': writerId,
+        },
+        body: JSON.stringify({ bio }),
+      })
+
+    for (let i = 1; i <= 200; i++) {
+      const res = await patch(`Biografia ${i}`)
+      expect(res.status, `PATCH número ${i}`).toBe(200)
+    }
+
+    const limited = await patch('Biografia 201')
+    expect(limited.status).toBe(429)
+    const body = (await limited.json()) as { error?: string; message?: string }
+    expect(body.error).toBe('muitas_tentativas')
+    expect(body.message).toBe('Muitas ações em pouco tempo. Aguarde e tente novamente.')
+  }, 120_000)
 })

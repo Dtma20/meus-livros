@@ -89,7 +89,7 @@ describe('CSRF Origin Middleware (server/middleware/origin.ts)', () => {
     })
     expect(res.status).toBe(403)
     const body = await res.json()
-    expect(body).toMatchObject({ statusCode: 403, data: { error: 'origem_invalida' } })
+    expect(body).toEqual({ error: 'origem_invalida', message: 'Origem da requisição inválida.' })
   })
 
   it('rejects mutating request (DELETE) from an untrusted foreign origin with 403', async () => {
@@ -101,7 +101,8 @@ describe('CSRF Origin Middleware (server/middleware/origin.ts)', () => {
     })
     expect(res.status).toBe(403)
     const body = await res.json()
-    expect(body.data?.error || body.error).toBe('origem_invalida')
+    expect(body.error).toBe('origem_invalida')
+    expect(body.statusCode).toBeUndefined()
   })
 
   it('rejects mutating request (PATCH) with malformed origin header with 403', async () => {
@@ -113,6 +114,6 @@ describe('CSRF Origin Middleware (server/middleware/origin.ts)', () => {
     })
     expect(res.status).toBe(403)
     const body = await res.json()
-    expect(body.data?.error || body.error).toBe('origem_invalida')
+    expect(body).toEqual({ error: 'origem_invalida', message: 'Origem da requisição inválida.' })
   })
 })

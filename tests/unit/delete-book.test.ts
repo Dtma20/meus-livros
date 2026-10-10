@@ -55,7 +55,7 @@ describe('deleteWork (unit)', () => {
 
     await expect(deleteWork('11111111-1111-4111-8111-111111111111', 'user-123')).rejects.toMatchObject({
       statusCode: 400,
-      data: { error: 'requisicao_invalida' },
+      data: { error: 'validacao' },
     })
   })
 

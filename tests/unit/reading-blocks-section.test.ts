@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, type App } from 'vue'
 import ReadingBlocksSection from '../../app/components/log/ReadingBlocksSection.vue'
+import { TIMEOUT_MESSAGE } from '../../app/utils/fetch-error'
 
 vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
@@ -369,5 +370,109 @@ describe('ReadingBlocksSection - delete with undo', () => {
 
     expect(comment.value).toBe('Meu rascunho local.')
     expect(container.textContent).toContain('Começo lento.')
+  })
+})
+
+describe('ReadingBlocksSection - save in flight and timeouts', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllGlobals()
+  })
+
+  const SECOND_BLOCK = { id: 'b2', start_page: 21, end_page: 40, comment: 'Continuação.', read_at: '2026-09-02' }
+
+  function editButton(container: HTMLElement, blockId: string): HTMLButtonElement {
+    const button = container.querySelector<HTMLButtonElement>(`[data-block-id="${blockId}"] [aria-label="Editar trecho"]`)
+    if (!button) throw new Error(`Botão Editar do trecho ${blockId} não encontrado.`)
+    return button
+  }
+
+  function submitForm(container: HTMLElement): void {
+    container.querySelector('form')?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  }
+
+  function timeoutError(): DOMException {
+    return new DOMException('The operation timed out.', 'TimeoutError')
+  }
+
+  it('disables Editar and Registrar while a save is pending, so its response cannot close another form', async () => {
+    let resolveSave: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { resolveSave = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK, SECOND_BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    editButton(container, 'b1').click()
+    await flush()
+    submitForm(container)
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(editButton(container, 'b2').disabled).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('.btn-add-block')?.disabled).toBe(true)
+
+    resolveSave?.(new Response(JSON.stringify({ ...BLOCK, comment: 'Editado.' }), { status: 200 }))
+    await vi.waitFor(() => {
+      expect(container.querySelector('.block-form-card')).toBeNull()
+    })
+    expect(container.textContent).toContain('Editado.')
+    expect(editButton(container, 'b2').disabled).toBe(false)
+  })
+
+  it('leaves the saving state and shows the timeout message when a new block save times out', async () => {
+    const fetchMock = vi.fn(async () => {
+      throw timeoutError()
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [],
+      initialProgress: { ...inProgress, pages_read: 0, current_page: 0, percentage: 0 },
+      isOwner: true,
+      editionPageCount: 336,
+    })
+    buttonsMatching(container, 'Registrar trecho lido')[0]?.click()
+    await flush()
+    submitForm(container)
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('.block-form-card [role="alert"]')?.textContent).toBe(TIMEOUT_MESSAGE)
+    })
+    const save = container.querySelector<HTMLButtonElement>('.btn-save')
+    expect(save?.disabled).toBe(false)
+    expect(save?.textContent?.trim()).toBe('Salvar trecho')
+    const init = (fetchMock.mock.calls[0] as unknown as [string, RequestInit] | undefined)?.[1]
+    expect(init?.signal).toBeDefined()
+  })
+
+  it('restores the block and shows the timeout message when a DELETE times out', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn(async () => {
+      throw timeoutError()
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    buttonsMatching(container, 'Excluir')[0]?.click()
+    await flush()
+    vi.advanceTimersByTime(6000)
+    await vi.runAllTimersAsync()
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect((fetchMock.mock.calls[0] as unknown as [string, RequestInit] | undefined)?.[1]?.signal).toBeDefined()
+    expect(container.textContent).toContain('Começo lento.')
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(`${TIMEOUT_MESSAGE} O trecho voltou para a lista.`)
   })
 })

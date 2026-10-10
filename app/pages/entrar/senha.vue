@@ -162,6 +162,7 @@
 <script setup lang="ts">
 import { nextTick, onUnmounted, ref } from 'vue'
 import { authClient } from '~/utils/auth-client'
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import AppLogo from '~/components/ui/AppLogo.vue'
 import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/shared/schemas/auth'
 
@@ -225,7 +226,11 @@ async function handleRequestOtp() {
     startCountdown()
     await nextTick()
     otpInputRef.value?.focus()
-  } catch {
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
+      return
+    }
     step.value = 'otp'
     startCountdown()
     await nextTick()
@@ -250,7 +255,11 @@ async function handleResendOtp() {
     } else {
       startCountdown()
     }
-  } catch {
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
+      return
+    }
     startCountdown()
   } finally {
     loading.value = false
@@ -300,8 +309,10 @@ async function handleResetPassword() {
     }
 
     successReset.value = true
-  } catch {
-    errorMessage.value = 'Código inválido ou expirado.'
+  } catch (err: unknown) {
+    errorMessage.value = isTimeoutOrAbort(err)
+      ? TIMEOUT_MESSAGE
+      : 'Código inválido ou expirado.'
   } finally {
     loading.value = false
   }

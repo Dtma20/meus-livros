@@ -48,7 +48,7 @@ describe('isTimeoutOrAbort', () => {
   it('does not fire on an ordinary server error', () => {
     const err = Object.assign(new Error('[POST] "/api/logs": 500'), {
       name: 'FetchError',
-      data: { error: 'erro_inesperado', message: 'Não foi possível completar a operação.' },
+      data: { error: 'erro_interno', message: 'Não foi possível completar a operação.' },
     })
     expect(isTimeoutOrAbort(err)).toBe(false)
   })

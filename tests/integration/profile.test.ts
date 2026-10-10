@@ -204,4 +204,55 @@ describe.skipIf(!hasDatabaseUrl)('TASK-016 - Profile page and visibility integra
     expect(err.statusCode).toBe(404)
     expect(err.data?.error).toBe('nao_encontrado')
   }, 20000)
+
+  it('returns every visible entry past 100, and the counters cover all of them', async () => {
+    const bulkHandle = `ubulk_${Date.now() % 10000000}`
+    const [bulkUser] = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}-bulk@example.com`,
+        handle: bulkHandle,
+        display_name: 'Usuário Lote',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+    const bulkUserId = bulkUser!.id
+
+    // One work read 101 times: re-reads are allowed (no unique (user_id, work_id)).
+    const work = await catalogService.createWork(
+      {
+        title: `${MARKER} Obra Lote`,
+        authors: [{ name: `${MARKER} Autor Lote` }],
+        genre_ids: [],
+        edition: {
+          publisher: 'Editora Lote',
+          page_count: 10,
+        },
+      },
+      bulkUserId,
+      { skipRateLimit: true },
+    )
+
+    const now = Date.now()
+    await db.insert(schema.reading_logs).values(
+      Array.from({ length: 101 }, (_, i) => ({
+        user_id: bulkUserId,
+        work_id: work.id,
+        edition_id: work.edition?.id ?? null,
+        rating: '3.0',
+        review: `Resenha em lote ${i}`,
+        finished_on: '2024-03-01',
+        finished_precision: 'dia' as const,
+        format: 'fisico' as const,
+        visibility: 'publico' as const,
+        created_at: new Date(now - i * 60000),
+        updated_at: new Date(now - i * 60000),
+      })),
+    )
+
+    const view = await profilesService.getProfileByHandle(bulkHandle, null)
+    expect(view.logs).toHaveLength(101)
+    expect(view.stats.totalBooks).toBe(101)
+    expect(view.stats.totalPages).toBe(1010)
+  }, 60000)
 })

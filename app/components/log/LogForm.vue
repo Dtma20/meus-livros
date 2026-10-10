@@ -789,12 +789,20 @@ async function loadEditions(): Promise<void> {
   }
 }
 
+// v-model.number leaves '' in the ref when the field is cleared, and Number('') is 0.
+// Same rule as AddBookForm and EditionEditor: an empty or non-finite value is "not given".
+function optionalNumber(value: number | string | null): number | null {
+  if (value === null || value === '') return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 function validateNewEdition(): boolean {
   const payload: EditionInput = {
     isbn: newEditionIsbn.value.trim() || null,
     publisher: newEditionPublisher.value.trim() || null,
-    page_count: newEditionPageCount.value === null ? null : Number(newEditionPageCount.value),
-    published_year: newEditionPublishedYear.value === null ? null : Number(newEditionPublishedYear.value),
+    page_count: optionalNumber(newEditionPageCount.value),
+    published_year: optionalNumber(newEditionPublishedYear.value),
     language: newEditionLanguage.value || null,
     cover_url: newEditionCoverUrl.value.trim() || null,
     ol_cover_id: null,
@@ -835,8 +843,8 @@ async function handleCreateEdition(): Promise<void> {
   const payload: EditionInput = {
     isbn: newEditionIsbn.value.trim() || null,
     publisher: newEditionPublisher.value.trim() || null,
-    page_count: newEditionPageCount.value === null ? null : Number(newEditionPageCount.value),
-    published_year: newEditionPublishedYear.value === null ? null : Number(newEditionPublishedYear.value),
+    page_count: optionalNumber(newEditionPageCount.value),
+    published_year: optionalNumber(newEditionPublishedYear.value),
     language: newEditionLanguage.value || null,
     cover_url: newEditionCoverUrl.value.trim() || null,
     ol_cover_id: null,

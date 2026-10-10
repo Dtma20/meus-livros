@@ -236,7 +236,7 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
 
     const err = asError(caught)
     expect(err.statusCode).toBe(400)
-    expect(err.data?.error).toBe('requisicao_invalida')
+    expect(err.data?.error).toBe('validacao')
 
     const [existing] = await db
       .select({ id: schema.works.id })

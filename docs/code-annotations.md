@@ -230,8 +230,7 @@ Ele serve como referência de manutenção para desenvolvedores e agentes autôn
 ## 5. Serviços de Backend
 
 ### `server/services/feed.ts`
-- **Cache da página principal do feed**: A primeira página do feed de atividades públicas é armazenada em cache em memória por 30 segundos (`FEED_CACHE_TTL_MS = 30_000`).
-- **Invalidação imediata**: A função `invalidateFeedCache()` limpa integralmente o cache em memória sempre que uma nova leitura pública é criada, editada ou removida.
+- **Sem cache**: O feed é sempre consultado ao vivo. Até 2026-10-10 a primeira página ficava 30 segundos num cache em memória, removido por decisão do dono: uma consulta iniciada antes da invalidação podia recolocar no cache uma resenha que acabara de virar privada, e a invalidação só valia para a instância da Vercel que recebeu a alteração.
 
 ---
 
@@ -246,9 +245,6 @@ Ele serve como referência de manutenção para desenvolvedores e agentes autôn
 
 ### `tests/integration/routes.test.ts`
 - **Prevenção de conflitos de parâmetros no roteador Nitro**: Arquivos irmãos com parâmetros com nomes distintos no mesmo diretório (como `[slug].get.ts` e `[id]/`) faziam o roteador interno do Nitro descartar sub-rotas como `/:id/editions`. A estrutura de rotas mantém coerência de parâmetros para evitar que rotas de edições fiquem vazias.
-
-### `tests/unit/feed-cache.test.ts`
-- **Mocks com interface Thenable**: Nos testes do cache do feed, o encadeamento de chamadas do Drizzle ORM é simulado como um objeto *thenable*, garantindo que a resolução com `await` retorne os resultados corretos sem disparar novas consultas ao banco de dados durante os testes de acerto de cache.
 
 ### `tests/unit/use-book-filters.test.ts`
 - **Cálculo de décadas para anos negativos (a.C.)**: Para anos antes de Cristo, o arredondamento matemático para baixo agrupa corretamente séculos e décadas. Exemplo: o ano `-49` pertence à década de `-50` (`Math.floor(-49 / 10) * 10 = -50`).

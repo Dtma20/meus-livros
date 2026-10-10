@@ -38,7 +38,7 @@ server/utils/rate-limit.ts   (applied)
 
 ## Implementation requirements
 
-1. **CSP** per [security.md](../security.md) §2, set as a response header. `img-src` allows `'self'`, `https://covers.openlibrary.org` and `data:` - deliberately narrow.
+1. **CSP** per [security.md](../security.md) §2, set as a response header. `img-src` is `'self' https: data:`, as §2 records: the narrow Open Library-only policy this item first asked for would blank 47 of the 86 imported covers, and §2 explains the trade and the way back (proxying covers).
 2. Additional headers: `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Frame-Options: DENY`.
 3. **Origin check** on every mutating request - compare `Origin` against the expected host. Cheap insurance if a cookie setting is ever loosened.
 4. Apply every rate limit from [security.md](../security.md) §8 and verify each fires.
@@ -66,11 +66,11 @@ This task is the security requirement. Every checklist item is blocking.
 
 Work through [security.md](../security.md) §13 item by item, recording evidence for each:
 
-- [ ] `grep -r "v-html" app/ server/` returns nothing
+- [ ] `grep -r "v-html" app/ server/ --include=*.vue --include=*.ts` returns nothing (without `--include` it matches the prose of `app/assets/world-map.LICENSE.txt`, which is third-party text)
 - [ ] The four visibility tests pass against production
 - [ ] A privado entry returns 404, not 403, to a second account
 - [ ] `rating: 3.7` and `rating: 6` are rejected server-side
-- [ ] An activation or reset code request for a non-allowlisted address is indistinguishable in status, body and timing
+- [ ] An activation or reset code request for a non-allowlisted address is indistinguishable in status and body. Timing is not: the response awaits the SMTP send, an exception the owner accepted on 2026-10-10 ([security.md](../security.md) §4.3)
 - [ ] A sign-in with an unknown identifier is indistinguishable in status, body and timing from one with a wrong password
 - [ ] No secret appears in the built client bundle
 - [ ] CSP present on every response

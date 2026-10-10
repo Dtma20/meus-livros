@@ -118,7 +118,7 @@ Three flows, one identity. The daily path is `handle` or email + **password**; t
 | OTP strength | 6 digits, single use, 10-minute expiry, invalidated on use |
 | OTP brute force | 5 verification attempts per code, then the code dies. 5 code requests per email per hour |
 | Registration | `allowed_emails` checked **twice**: at activation-code request and at profile creation. Unchanged by the password decision |
-| Enumeration | Requesting an activation or reset code for an address that is not allowlisted - or simply not known - returns the **same** status, body and approximate timing. Never "este email não foi convidado", and never "não existe conta com este e-mail" |
+| Enumeration | Requesting an activation or reset code for an address that is not allowlisted - or simply not known - returns the **same** status and body. Never "este email não foi convidado", and never "não existe conta com este e-mail". **Timing is the accepted exception:** since 2026-10-10 the response waits on the SMTP send, because on Vercel a send started after the response is not guaranteed to run, so an address that gets a code answers measurably slower (owner's decision, `agent-workflow.md` item 7). Accepted for an invite-only instance; revisit it if public registration opens |
 | Already-activated address | An *activation* request for an address that already has a password sends nothing and returns the same generic response. Otherwise the endpoint reports which invitees have signed up |
 | Reset-code consumption | The code is consumed by the password change, not by its verification. Verifying and then abandoning the flow must not leave a usable code behind |
 | Reset without an account | Same generic response, no email. A reset request is not a membership test |
@@ -157,6 +157,7 @@ One helper, used everywhere: [api.md](api.md) §3.
 - All mutations are POST/PATCH/DELETE. No GET mutates.
 - better-auth carries its own CSRF protection for its routes.
 - `Origin` is checked against the expected host on every mutating request. Ten lines of middleware; cheap insurance if a cookie setting is ever loosened.
+- **A mutation with no `Origin` header passes.** Decided by the owner on 2026-10-10. Browsers send `Origin` on every cross-site POST, PATCH and DELETE, so the forged request this check exists for always carries one. A client that omits it (curl, a script) is not carrying a victim's cookie, and refusing it would add nothing but would break every server-to-server and test call.
 
 ---
 
@@ -176,7 +177,7 @@ Zod at every boundary, with the bounds that actually matter:
 | `cover_url` | parses as URL, scheme `https:` | Blocks `javascript:` / `data:` injection |
 | `q` (search) | 2–100 chars | |
 
-Bodies are capped at 64 KB. Nuxt's default is larger than anything this API needs.
+Bodies are capped at 64 KB. Nuxt's default is larger than anything this API needs. Enforced since 2026-10-10 by `server/middleware/body-limit.ts`, which answers 413 `corpo_muito_grande` on the declared `content-length` (and on a chunked body with no length). The one exception is `POST /api/library/import`, capped at 4 MB: a 1,000-book export is well over 64 KB.
 
 ---
 
@@ -186,23 +187,24 @@ A Postgres table, not Redis. At this scale a counter row is correct and adding R
 
 | Action | Limit |
 |---|---|
-| **Password sign-in** | **10 / identifier / hour and 30 / IP / hour.** Both are required. Per-identifier alone lets one host spray one likely password across every handle; per-IP alone lets a distributed attacker grind a single account |
+| **Password sign-in** | **30 / IP / hour, 10 / (account, IP) / hour and 50 / account / hour** (TASK-067). The account buckets key on the email the identifier resolves to, so a handle and an email for the same person share them; an unknown identifier keys on the dummy address it resolves to. Per-account alone lets one host spray one likely password across every handle; per-IP alone lets a distributed attacker grind a single account. 50 rather than 10 per account is the TASK-067 trade against a stranger locking a member out |
 | **Password change** | 10 / user / hour |
 | Activation or reset code request | 5 / email / hour, 20 / IP / hour |
-| OTP verify | 5 attempts / code |
+| OTP verify | 5 attempts / code, then the code dies; the next attempt answers 429 `muitas_tentativas` |
 | `POST /api/logs` | 60 / user / hour |
-| `POST /api/works` | 30 / user / hour |
-| `GET /api/search/externo` | 20 / user / hour |
-| Any authenticated write | 200 / user / hour |
+| `POST /api/works` | 30 / user / hour, counted in the rate-limit table - deleting a work does not give the slot back |
+| `GET /api/isbn` | 60 / user / hour. Replaced `GET /api/search/externo`, removed with the Open Library search on 2026-09-24 |
+| Any authenticated write | 200 / user / hour, applied in `requireSessionUser` to every non-GET request |
+| `POST /api/library/import` | 3 / user / hour |
 
-The external-lookup limit protects **Open Library**, not us - hammering a free public service is both rude and a good way to get blocked.
+The external-lookup limit protects **BrasilAPI and Open Library**, not us - hammering a free public service is both rude and a good way to get blocked. 60 rather than the 20 this table once gave Open Library search: a lookup now fires only on an explicit ISBN (button or Enter), never as-you-type, and one book takes one lookup.
 
 ---
 
 ## 9. External API abuse and third parties
 
-- `/api/search/externo` requires a session, so anonymous traffic cannot use us as an open proxy.
-- Hard 2-second timeout via `AbortController`. Open Library averages 8.4 s; without a timeout a slow upstream becomes our outage.
+- `GET /api/isbn` (the ISBN autofill, `983c2a2`) requires a session, so anonymous traffic cannot use us as an open proxy. It is the only read-time call to a third party left, and it runs only when a member asks for it on the add-book form.
+- Hard timeouts: **8 s** on BrasilAPI's metadata call and **2.5 s** on each cover lookup, which run alongside it rather than after it. The 2-second figure this section once gave applied to Open Library search; BrasilAPI aggregates several upstreams and answers slower, and the lookup is an explicit click the member waits on, not a keystroke. Without a timeout a slow upstream becomes our outage.
 - A descriptive `User-Agent` identifying the project, per Open Library's guidance.
 - Covers are **hotlinked, never proxied**. Proxying would put us in the path of every image request for no benefit - Open Library already fronts a CDN.
 - Open Library responses are untrusted input: parsed with Zod and validated (especially `cover_url`) before anything is persisted.
@@ -256,7 +258,7 @@ Registration is invite-only and the cohort knows each other offline, so the ordi
 - [ ] The four visibility integration tests pass
 - [ ] A `privado` entry returns 404, not 403, for a second user
 - [ ] Rating validation rejects `3.7` and `6` server-side
-- [ ] Requesting an activation or reset code for a non-allowlisted address is indistinguishable from an allowlisted one - malformed requests (`text/plain`, missing `type`) leaked the state until `9ba2aab` and are covered by `tests/integration/auth.test.ts` now; tick after checking production
+- [ ] Requesting an activation or reset code for a non-allowlisted address is indistinguishable in status and body from an allowlisted one (timing is the accepted exception in §4.3) - malformed requests (`text/plain`, missing `type`) leaked the state until `9ba2aab` and are covered by `tests/integration/auth.test.ts` now; tick after checking production
 - [ ] A sign-in with an unknown handle and one with a wrong password return the same body and comparable timing
 - [ ] Changing a password without supplying the current one is rejected
 - [ ] A password change deletes the user's other sessions and keeps the current one

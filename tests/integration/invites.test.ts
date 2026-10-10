@@ -282,7 +282,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-038 - Admin invites integration tests', (
     })
     expect(res.status).toBe(400)
     const body = (await res.json()) as { error?: string }
-    expect(body.error).toBe('requisicao_invalida')
+    expect(body.error).toBe('validacao')
   }, 30_000)
 
   it('admin removes another invite successfully, but removing own returns 400', async () => {

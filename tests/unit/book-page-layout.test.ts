@@ -8,6 +8,7 @@ import type { WorkLogView, WorkWithDetails } from '../../shared/schemas/work'
 const mockWorkData = ref<WorkWithDetails | null>(null)
 const mockPending = ref(false)
 const mockError = ref<unknown>(null)
+const seoMeta = vi.hoisted(() => ({ current: null as Record<string, () => unknown> | null }))
 
 vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
@@ -21,7 +22,9 @@ vi.hoisted(() => {
   })
   globalScope.useRequestFetch = () => vi.fn()
   globalScope.useRequestURL = () => new URL('http://localhost:3000/livro/teste')
-  globalScope.useSeoMeta = () => {}
+  globalScope.useSeoMeta = (meta: Record<string, () => unknown>) => {
+    seoMeta.current = meta
+  }
   globalScope.useHead = () => {}
   globalScope.createError = (err: unknown) => err
 })
@@ -148,6 +151,36 @@ describe('BookPage two-column structure', () => {
     expect(main?.querySelector('.logs-section')).not.toBeNull()
     expect(container.querySelector('.work-header .genre-chip')).not.toBeNull()
     expect(container.querySelector('.work-header .work-primary-action')).not.toBeNull()
+  })
+})
+
+describe('BookPage og:image', () => {
+  const FALLBACK = 'http://localhost:3000/og-fallback.png'
+
+  async function ogImageFor(cover: string | null): Promise<unknown> {
+    seoMeta.current = null
+    mockWorkData.value = { ...buildWork([4]), cover_url: cover }
+    mountPage()
+    await flushAsync()
+    // mountPage() fills seoMeta.current; TypeScript still narrows it to null from the assignment above.
+    const meta = seoMeta.current as Record<string, () => unknown> | null
+    return meta?.ogImage?.()
+  }
+
+  it('never emits the default=false ISBN cover, which 404s for books without a cover', async () => {
+    const cover = 'https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg?default=false'
+
+    expect(await ogImageFor(cover)).toBe(FALLBACK)
+  })
+
+  it('uses the static fallback when the work has no confirmed cover', async () => {
+    expect(await ogImageFor(null)).toBe(FALLBACK)
+  })
+
+  it('keeps a confirmed https cover as the absolute og:image', async () => {
+    const cover = 'https://covers.openlibrary.org/b/id/1234567-L.jpg'
+
+    expect(await ogImageFor(cover)).toBe(cover)
   })
 })
 

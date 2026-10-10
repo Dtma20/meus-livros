@@ -42,9 +42,18 @@
             class="form-input"
             type="text"
             maxlength="100"
-            list="country-options"
+            :list="author.countryLocked ? undefined : 'country-options'"
+            :readonly="author.countryLocked"
+            :aria-describedby="author.countryLocked ? `author-country-locked-${author.id}` : undefined"
             autocomplete="off"
           >
+          <p
+            v-if="author.countryLocked"
+            :id="`author-country-locked-${author.id}`"
+            class="form-hint"
+          >
+            O país deste autor já está definido e não pode ser alterado aqui.
+          </p>
         </div>
 
         <button
@@ -160,16 +169,20 @@ interface AuthorRow {
   id: string
   name: string
   country: string
+  // True when the server already has a country for this author. The server
+  // only fills an empty country (backfillAuthorCountry), so the field is read-only.
+  countryLocked: boolean
 }
 
 const authorIdPrefix = useId()
 let nextAuthorId = 0
 
-function createAuthorRow(name: string, country: string): AuthorRow {
+function createAuthorRow(name: string, country: string, countryLocked = false): AuthorRow {
   return {
     id: `${authorIdPrefix}-author-${nextAuthorId++}`,
     name,
     country,
+    countryLocked,
   }
 }
 
@@ -185,7 +198,11 @@ const genreIds = ref<number[]>(props.work.genres.map((g) => g.id))
 const authorRows = reactive<AuthorRow[]>(
   props.work.authors.length > 0
     ? props.work.authors.map((a) =>
-        createAuthorRow(a.name, a.country_label ?? countryLabelFor(a.country_code) ?? ''),
+        createAuthorRow(
+          a.name,
+          a.country_label ?? countryLabelFor(a.country_code) ?? '',
+          Boolean(a.country_code || a.country_label),
+        ),
       )
     : [createAuthorRow('', '')],
 )

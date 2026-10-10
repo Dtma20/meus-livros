@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import { createInterface } from 'node:readline/promises'
 import postgres from 'postgres'
+import { redactEmail } from '../server/utils/email'
 
 const REAL_EMAILS = ['diogo.tallys16@gmail.com', 'dtma@ic.ufal.br']
 
@@ -120,11 +121,12 @@ async function wipe() {
 
     const remainingUsers = await sql`SELECT id, email, handle, display_name FROM users`
     console.log('\nUsuários restantes na tabela users:')
-    console.table(remainingUsers)
+    // Emails are redacted before printing (security.md §11): the table is for a glance, not for copying addresses.
+    console.table(remainingUsers.map((u) => ({ ...u, email: redactEmail(u.email) })))
 
     const remainingBaUsers = await sql`SELECT id, email FROM ba_user`
     console.log('Usuários restantes na tabela ba_user:')
-    console.table(remainingBaUsers)
+    console.table(remainingBaUsers.map((u) => ({ ...u, email: redactEmail(u.email) })))
 
     const counts = await sql`
       SELECT 

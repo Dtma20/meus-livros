@@ -273,7 +273,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getCookie, setResponseHeader } from 'h3'
+import { getCookie, setResponseHeader, setResponseStatus } from 'h3'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
@@ -332,6 +332,11 @@ const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
       return result
     } catch (err: unknown) {
       if (event) {
+        // 404 for a missing or private entry (the API answers 404 for both); the real status otherwise.
+        const status = (err as { statusCode?: number; status?: number })?.statusCode
+          || (err as { statusCode?: number; status?: number })?.status
+          || 500
+        setResponseStatus(event, status)
         setResponseHeader(event, 'Cache-Control', 'private, no-store')
       }
       throw err

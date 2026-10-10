@@ -158,7 +158,7 @@ describe('TASK-008 - Route middleware logic (unit)', () => {
 
     const result = await runMiddleware({ path: '/app/novo', fullPath: '/app/novo' })
     expect(result).toEqual({
-      path: '/entrar?next=/app/novo',
+      path: '/entrar?next=%2Fapp%2Fnovo',
       redirectCode: 302,
     })
   })
@@ -236,7 +236,7 @@ describe('TASK-008 - Route middleware logic (unit)', () => {
     const resultPromise = await runMiddleware({ path: '/app/novo', fullPath: '/app/novo' })
     const result = await resultPromise
     expect(result).toEqual({
-      path: '/entrar?next=/app/novo',
+      path: '/entrar?next=%2Fapp%2Fnovo',
       redirectCode: 302,
     })
 

@@ -1,5 +1,5 @@
 import type { EventHandler, EventHandlerRequest, H3Event } from 'h3'
-import { createError, defineEventHandler, getRequestHeader, isError, setResponseHeader, setResponseStatus } from 'h3'
+import { createError, defineEventHandler, getRequestHeader, getResponseStatus, isError, setResponseHeader, setResponseStatus } from 'h3'
 import type { ZodType } from 'zod'
 import { logger } from './logger'
 
@@ -51,6 +51,9 @@ function findPostgresError(err: unknown): PostgresErrorLike | null {
   return null
 }
 
+// 22007/22008: invalid datetime format; 22003: numeric out of range; 22P02: invalid text representation.
+const INVALID_INPUT_PG_CODES = new Set(['22007', '22008', '22003', '22P02'])
+
 export function defineApiHandler<T extends EventHandlerRequest, D>(
   handler: (event: H3Event<T>) => Promise<D>,
 ): EventHandler<T, Promise<D | ApiError>> {
@@ -78,24 +81,26 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
     try {
       const result = await handler(event)
       const durationMs = Math.round(performance.now() - startTime)
+      // The auth catch-all returns a Response whose status (a rejected sign-in is 400) is not on the event.
+      const statusCode = result instanceof Response ? result.status : getResponseStatus(event)
 
       if (durationMs >= 1000) {
         logger.warn(`Requisição lenta à API: ${method} ${path} demorou ${durationMs}ms`, {
           ...reqContext,
           durationMs,
-          http: { method, path, statusCode: 200, durationMs },
+          http: { method, path, statusCode, durationMs },
         })
       } else if (method !== 'GET') {
-        logger.info(`API ${method} ${path} concluída com sucesso`, {
+        logger.info(`API ${method} ${path} concluída (${statusCode})`, {
           ...reqContext,
           durationMs,
-          http: { method, path, statusCode: 200, durationMs },
+          http: { method, path, statusCode, durationMs },
         })
       } else {
         logger.debug(`API ${method} ${path} concluída`, {
           ...reqContext,
           durationMs,
-          http: { method, path, statusCode: 200, durationMs },
+          http: { method, path, statusCode, durationMs },
         })
       }
 
@@ -108,7 +113,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         setResponseStatus(event, statusCode)
 
         const data = (caught.data as ApiError | undefined) ?? {
-          error: statusCode >= 500 ? 'erro_inesperado' : 'erro_requisicao',
+          error: statusCode >= 500 ? 'erro_interno' : 'erro_requisicao',
           message: caught.statusMessage || 'Não foi possível completar a operação.',
         }
 
@@ -181,9 +186,20 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
           }
         }
 
+        // Input the database rejects (bad date, number out of range, malformed text)
+        // is the client's fault: 400, never the raw Postgres message.
+        if (INVALID_INPUT_PG_CODES.has(pgError.code)) {
+          setResponseStatus(event, 400)
+          return {
+            error: 'validacao',
+            message: 'Dados inválidos.',
+            requestId,
+          }
+        }
+
         setResponseStatus(event, 500)
         return {
-          error: 'erro_banco',
+          error: 'erro_interno',
           message: 'Erro interno ao consultar dados.',
           requestId,
         }
@@ -198,7 +214,7 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
 
       setResponseStatus(event, 500)
       return {
-        error: 'erro_inesperado',
+        error: 'erro_interno',
         message: 'Não foi possível completar a operação.',
         requestId,
       }
@@ -211,13 +227,24 @@ export function parseOrThrow<S extends ZodType>(schema: S, value: unknown): Retu
   if (!result.success) {
     const first = result.error.issues[0]
     const path = first?.path.join('.')
+
+    // One entry per field path, first message wins, so the client can show each error next to its input.
+    const fields: Record<string, string> = {}
+    for (const issue of result.error.issues) {
+      const key = issue.path.join('.')
+      if (!Object.hasOwn(fields, key)) {
+        fields[key] = issue.message
+      }
+    }
+
     throw createError({
       statusCode: 400,
       data: {
-        error: 'requisicao_invalida',
+        error: 'validacao',
         message: path
           ? `Campo inválido: ${path}. ${first?.message ?? ''}`.trim()
           : (first?.message ?? 'Dados inválidos.'),
+        fields,
       },
     })
   }

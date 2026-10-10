@@ -1,0 +1,117 @@
+// @vitest-environment happy-dom
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createApp, defineComponent, h, nextTick } from 'vue'
+import SenhaPage from '../../app/pages/entrar/senha.vue'
+import { TIMEOUT_MESSAGE } from '../../app/utils/fetch-error'
+
+const mocks = vi.hoisted(() => ({
+  forgetPasswordEmailOtp: vi.fn(),
+  resetPassword: vi.fn(),
+}))
+
+vi.mock('~/utils/auth-client', () => ({
+  authClient: {
+    forgetPassword: { emailOtp: mocks.forgetPasswordEmailOtp },
+    emailOtp: { resetPassword: mocks.resetPassword },
+  },
+}))
+
+vi.mock('~/components/ui/AppLogo.vue', () => ({
+  default: { render: () => null },
+}))
+
+vi.hoisted(() => {
+  const scope = globalThis as unknown as Record<string, unknown>
+  scope.useSeoMeta = () => {}
+})
+
+const PASSWORD = 'Cafeteira-Azul-2026'
+
+const NuxtLink = defineComponent({
+  name: 'NuxtLink',
+  props: { to: { type: String, required: true } },
+  setup(props, { slots }) {
+    return () => h('a', { href: props.to }, slots.default?.())
+  },
+})
+
+async function flush() {
+  for (let i = 0; i < 5; i++) {
+    await Promise.resolve()
+    await nextTick()
+  }
+}
+
+function mountPage() {
+  const host = document.createElement('div')
+  document.body.appendChild(host)
+  const app = createApp(SenhaPage)
+  app.component('NuxtLink', NuxtLink)
+  app.mount(host)
+  return {
+    host,
+    submitButton: () => host.querySelector<HTMLButtonElement>('button[type="submit"]'),
+    error: () => host.querySelector('[role="alert"]')?.textContent?.trim() ?? null,
+    unmount: () => {
+      app.unmount()
+      host.remove()
+    },
+  }
+}
+
+async function fill(host: HTMLElement, id: string, value: string) {
+  const input = host.querySelector<HTMLInputElement>(`#${id}`)
+  if (!input) throw new Error(`Campo #${id} não encontrado.`)
+  input.value = value
+  input.dispatchEvent(new Event('input', { bubbles: true }))
+  await nextTick()
+}
+
+async function submit(host: HTMLElement) {
+  const form = host.querySelector('form')
+  if (!form) throw new Error('Formulário não encontrado.')
+  form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  await flush()
+}
+
+function timeoutError() {
+  return Object.assign(new Error('The operation timed out.'), { name: 'TimeoutError' })
+}
+
+describe('/entrar/senha - timeouts', () => {
+  beforeEach(() => {
+    mocks.forgetPasswordEmailOtp.mockReset().mockResolvedValue({ error: null })
+    mocks.resetPassword.mockReset().mockResolvedValue({ error: null })
+  })
+
+  it('stays on the email step with a timeout message when the code request times out', async () => {
+    mocks.forgetPasswordEmailOtp.mockRejectedValueOnce(timeoutError())
+
+    const page = mountPage()
+    await fill(page.host, 'email', 'ana@exemplo.com')
+    await submit(page.host)
+
+    expect(page.error()).toBe(TIMEOUT_MESSAGE)
+    expect(page.host.querySelector('#otp-code')).toBeNull()
+    expect(page.submitButton()?.disabled).toBe(false)
+
+    page.unmount()
+  })
+
+  it('shows the timeout message and frees the button when the password reset times out', async () => {
+    mocks.resetPassword.mockRejectedValueOnce(timeoutError())
+
+    const page = mountPage()
+    await fill(page.host, 'email', 'ana@exemplo.com')
+    await submit(page.host)
+    await fill(page.host, 'otp-code', '123456')
+    await fill(page.host, 'new-password', PASSWORD)
+    await fill(page.host, 'confirm-password', PASSWORD)
+    await submit(page.host)
+
+    expect(page.error()).toBe(TIMEOUT_MESSAGE)
+    expect(page.submitButton()?.disabled).toBe(false)
+
+    page.unmount()
+  })
+})

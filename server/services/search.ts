@@ -1,8 +1,8 @@
 import { logger } from '../utils/logger'
 import { sql } from 'drizzle-orm'
 import { db } from '../db'
-import type { Viewer } from './visibility'
-import { search_misses } from '../db/schema'
+import { visibleLogs, type Viewer } from './visibility'
+import { reading_logs, search_misses, users } from '../db/schema'
 
 const LIMIT = 20
 
@@ -102,21 +102,18 @@ export async function searchWorks(query: string, viewer: Viewer): Promise<Search
         m.title_prefix_match,
         m.title_similarity,
         -- DISTINCT is not needed: matched produces exactly one row per work,
-        -- so each rl.id appears at most once per group.
-        COUNT(rl.id)::int AS log_count
+        -- so each reading_logs.id appears at most once per group.
+        COUNT(${reading_logs.id})::int AS log_count
       FROM matched m
-      LEFT JOIN (reading_logs rl JOIN users ru ON ru.id = rl.user_id)
-        ON rl.work_id = m.id
-       AND (
-             (${viewer?.id ?? null}::uuid IS NOT NULL AND rl.user_id = ${viewer?.id ?? null}::uuid)
-             OR (rl.visibility = 'publico' AND ru.profile_visibility = 'publico')
-           )
+      LEFT JOIN (${reading_logs} JOIN ${users} ON ${users.id} = ${reading_logs.user_id})
+        ON ${reading_logs.work_id} = m.id
+       AND ${visibleLogs(viewer)}
       GROUP BY m.id, m.slug, m.title, m.first_published_year, m.exact_title_match, m.title_prefix_match, m.title_similarity
       ORDER BY
         m.exact_title_match DESC,
         m.title_prefix_match DESC,
         m.title_similarity DESC,
-        COUNT(rl.id) DESC,
+        COUNT(${reading_logs.id}) DESC,
         m.title ASC
       LIMIT ${LIMIT}
     )

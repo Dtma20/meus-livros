@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { LogEntry } from '../../shared/types/logger'
-import { Logger, sanitizeLogData } from '../../server/utils/logger'
+import { Logger, parseError, sanitizeLogData } from '../../server/utils/logger'
 
 describe('Logger unit tests', () => {
   afterEach(() => vi.unstubAllEnvs())
@@ -252,6 +252,33 @@ describe('Logger unit tests', () => {
       expect(consoleErrorSpy.mock.calls[1]![0]).toEqual(expect.any(String))
 
       consoleErrorSpy.mockRestore()
+    })
+  })
+
+  describe('Failed-query errors (security.md §11)', () => {
+    // The shape drizzle gives a failed query: the SQL, then the bound values after "params:".
+    const boundValues = 'zz-autor@example.com,Usuário de escrita,rw_123'
+    function failedQuery(cause: Error): Error {
+      return new Error(`Failed query: select "id" from "users" where "email" = $1\nparams: ${boundValues}`, { cause })
+    }
+
+    it('parseError cuts everything from "params:" in the message and the stack', () => {
+      const info = parseError(failedQuery(new Error('connection reset')))
+
+      expect(info.message).toContain('Failed query: select "id" from "users"')
+      expect(info.message).not.toContain('Usuário de escrita')
+      expect(info.message).not.toMatch(/params:/)
+      expect(info.stack ?? '').not.toContain('Usuário de escrita')
+      expect(JSON.stringify(info)).not.toContain('rw_123')
+    })
+
+    it('sanitizeLogData cuts the same text from the message, the stack and the cause', () => {
+      const cause = new Error(`duplicate key value; params: ${boundValues}`)
+      const result = sanitizeLogData(failedQuery(cause)) as { message: string; cause: { message: string } }
+
+      expect(result.message).not.toContain('Usuário de escrita')
+      expect(result.cause.message).toBe('duplicate key value; [parâmetros omitidos]')
+      expect(JSON.stringify(result)).not.toContain('rw_123')
     })
   })
 })

@@ -185,9 +185,9 @@ describe('Automated accessibility (axe-core) tests on rendered routes', () => {
     return `${baseUrl}${pathname}`
   }
 
-  async function testRouteA11y(routePath: string, cookie?: string) {
+  async function testRouteA11y(routePath: string, cookie?: string, expectedStatus = 200) {
     const res = await httpGet(serverUrl(routePath), cookie)
-    expect(res.status, `${routePath}\n${res.body.slice(0, 1000)}`).toBe(200)
+    expect(res.status, `${routePath}\n${res.body.slice(0, 1000)}`).toBe(expectedStatus)
     const html = res.body
 
     expect(html).toMatch(/<html[^>]*\blang="pt-BR"/i)
@@ -235,7 +235,7 @@ describe('Automated accessibility (axe-core) tests on rendered routes', () => {
   })
 
   it('reports zero WCAG 2.1 A/AA violations on GET /entrada/nao-existe (empty state)', async () => {
-    await testRouteA11y('/entrada/nao-existe')
+    await testRouteA11y('/entrada/nao-existe', undefined, 404)
   })
 
   it('reports zero WCAG 2.1 A/AA violations on GET /entrar (sign-in)', async () => {

@@ -196,11 +196,86 @@ describe('API Handler (defineApiHandler)', () => {
     const result = (await handler(event)) as { error: string; message: string; requestId?: string }
 
     expect(event.node.res.statusCode).toBe(500)
-    expect(result.error).toBe('erro_inesperado')
+    expect(result.error).toBe('erro_interno')
     expect(result.message).toBe('Não foi possível completar a operação.')
     expect(JSON.stringify(result)).not.toContain('secret_table')
     expect(JSON.stringify(result)).not.toContain('root_password')
     expect(result.requestId).toBeDefined()
+  })
+
+  it.each([
+    ['22007', 'data em formato inválido'],
+    ['22008', 'data fora do intervalo'],
+    ['22003', 'número fora do intervalo'],
+    ['22P02', 'texto em formato inválido'],
+  ])('maps Postgres %s (%s) to 400 validacao with no database message', async (code) => {
+    const event = createMockEvent()
+    const pgError = Object.assign(new Error('invalid input syntax for type date: "2026-13-45" in column "started_on"'), {
+      name: 'PostgresError',
+      code,
+      routine: 'date_in',
+    })
+    const wrapped = new DrizzleQueryError(
+      'insert into "reading_logs" ("started_on") values ($1)',
+      ['2026-13-45'],
+      pgError,
+    )
+
+    const handler = defineApiHandler(async () => {
+      throw wrapped
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(400)
+    expect(result.error).toBe('validacao')
+    expect(result.message).toBe('Dados inválidos.')
+    expect(result.requestId).toBeDefined()
+    const body = JSON.stringify(result)
+    expect(body).not.toContain('invalid input syntax')
+    expect(body).not.toContain('started_on')
+    expect(body).not.toContain('2026-13-45')
+  })
+
+  it('parseOrThrow puts every Zod issue in fields, keyed by path, first message per path', () => {
+    const schema = z.object({
+      title: z.string().min(3),
+      pages: z.number().int().positive(),
+    })
+
+    let caught: unknown
+    try {
+      parseOrThrow(schema, { title: 'ab', pages: -5 })
+    } catch (error) {
+      caught = error
+    }
+
+    const data = (caught as { data?: { error: string; message: string; fields: Record<string, string> } }).data
+    expect((caught as { statusCode?: number }).statusCode).toBe(400)
+    expect(data?.error).toBe('validacao')
+    expect(data?.message).toMatch(/^Campo inválido: title\./)
+    expect(Object.keys(data?.fields ?? {}).sort()).toEqual(['pages', 'title'])
+    expect(data?.fields.title).toEqual(expect.any(String))
+    expect(data?.fields.pages).toEqual(expect.any(String))
+  })
+
+  it('parseOrThrow keeps only the first message when one path has several issues', () => {
+    // 'abc' breaks both bounds at once: two issues on the same path.
+    const schema = z.object({ title: z.string().min(7).max(2) })
+    const input = { title: 'abc' }
+    const issues = schema.safeParse(input).error?.issues ?? []
+    expect(issues).toHaveLength(2)
+
+    let caught: unknown
+    try {
+      parseOrThrow(schema, input)
+    } catch (error) {
+      caught = error
+    }
+
+    const fields = (caught as { data?: { fields: Record<string, string> } }).data?.fields ?? {}
+    expect(Object.keys(fields)).toEqual(['title'])
+    expect(fields.title).toBe(issues[0]?.message)
   })
 
   it('parseOrThrow returns parsed data or throws formatted 400 error', () => {

@@ -152,6 +152,7 @@
 
 <script setup lang="ts">
 import { getSafeRedirectUrl } from '~/utils/redirect'
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { nextTick, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AuthSessionState } from '~/middleware/auth'
@@ -181,6 +182,9 @@ const errorMessage = ref('')
 const loading = ref(false)
 const resendCountdown = ref(0)
 const otpInputRef = ref<HTMLInputElement | null>(null)
+// Set once signIn.emailOtp has consumed the code. A retry after a failed
+// set-password must not send the (now spent) code again.
+const signedIn = ref(false)
 
 let timer: ReturnType<typeof setInterval> | null = null
 
@@ -227,7 +231,11 @@ async function handleRequestOtp() {
     startCountdown()
     await nextTick()
     otpInputRef.value?.focus()
-  } catch {
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
+      return
+    }
     step.value = 'otp'
     startCountdown()
     await nextTick()
@@ -253,7 +261,11 @@ async function handleResendOtp() {
     } else {
       startCountdown()
     }
-  } catch {
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
+      return
+    }
     startCountdown()
   } finally {
     loading.value = false
@@ -289,25 +301,32 @@ async function handleActivate() {
 
   loading.value = true
   try {
-    const { error: signInError } = await authClient.signIn.emailOtp({
-      email: email.value.trim().toLowerCase(),
-      otp: parsedOtp.data,
-    })
+    if (!signedIn.value) {
+      const { error: signInError } = await authClient.signIn.emailOtp({
+        email: email.value.trim().toLowerCase(),
+        otp: parsedOtp.data,
+      })
 
-    if (signInError) {
-      errorMessage.value = 'Código inválido ou expirado.'
-      await nextTick()
-      otpInputRef.value?.focus()
-      return
+      if (signInError) {
+        errorMessage.value = 'Código inválido ou expirado.'
+        await nextTick()
+        otpInputRef.value?.focus()
+        return
+      }
+
+      signedIn.value = true
     }
 
     try {
       await $fetch('/api/auth/set-password', {
         method: 'POST',
+        timeout: 15_000,
         body: { newPassword: parsedPassword.data },
       })
-    } catch {
-      errorMessage.value = 'Não foi possível definir a senha. Tente novamente.'
+    } catch (err: unknown) {
+      errorMessage.value = isTimeoutOrAbort(err)
+        ? TIMEOUT_MESSAGE
+        : 'Não foi possível definir a senha. Tente novamente.'
       return
     }
 
@@ -315,8 +334,10 @@ async function handleActivate() {
 
     const redirectPath = getSafeRedirectUrl(route.query.next)
     await router.push(redirectPath)
-  } catch {
-    errorMessage.value = 'Não foi possível ativar sua conta. Tente novamente.'
+  } catch (err: unknown) {
+    errorMessage.value = isTimeoutOrAbort(err)
+      ? TIMEOUT_MESSAGE
+      : 'Não foi possível ativar sua conta. Tente novamente.'
   } finally {
     loading.value = false
   }
@@ -324,6 +345,7 @@ async function handleActivate() {
 
 function changeEmail() {
   step.value = 'email'
+  signedIn.value = false
   otp.value = ''
   newPassword.value = ''
   confirmPassword.value = ''

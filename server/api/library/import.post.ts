@@ -34,7 +34,7 @@ export default defineApiHandler(async (event) => {
     throw createError({
       statusCode: 400,
       data: {
-        error: 'requisicao_invalida',
+        error: 'validacao',
         message: 'Formato do arquivo JSON inválido. Certifique-se de enviar uma lista de livros no formato esperado.',
         details: parsed.error.issues.slice(0, 5),
       },

@@ -299,7 +299,7 @@ const {
   applyNewPosts,
 } = useFeedNewPosts({
   enabled: isAuthenticated,
-  getTopId: () => entries.value[0]?.id,
+  getTop: () => entries.value[0],
   getExistingIds: () => new Set(entries.value.map((e) => e.id)),
   fetchLatest: async () => {
     const res = await $fetch<FeedResponse>('/api/feed/recentes', {
@@ -312,8 +312,10 @@ const {
 
 function loadNewPosts() {
   const fresh = applyNewPosts()
-  if (fresh.length > 0) {
-    entries.value = [...fresh, ...entries.value]
+  const known = new Set(entries.value.map((e) => e.id))
+  const unseen = fresh.filter((e) => !known.has(e.id))
+  if (unseen.length > 0) {
+    entries.value = [...unseen, ...entries.value]
   }
   if (import.meta.client) {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches

@@ -25,10 +25,10 @@ const work: WorkWithDetails = {
   average_rating: null,
 }
 
-function mountForm() {
+function mountForm(formWork: WorkWithDetails = work) {
   const container = document.createElement('div')
   document.body.appendChild(container)
-  const app = createApp(WorkEditForm, { work, onSaved: vi.fn() })
+  const app = createApp(WorkEditForm, { work: formWork, onSaved: vi.fn() })
   app.mount(container)
 
   return {
@@ -79,6 +79,64 @@ describe('WorkEditForm author row identity', () => {
     const nextAuthorName = wrapper.container.querySelector<HTMLInputElement>('.author-name-group input')
     expect(nextAuthorName?.value).toBe('Beto')
     expect(document.activeElement).toBe(nextAuthorName)
+
+    wrapper.unmount()
+  })
+})
+
+describe('WorkEditForm author country', () => {
+  const lockedHint = 'O país deste autor já está definido e não pode ser alterado aqui.'
+
+  it('shows the country of an author that already has one as read-only, explained by aria-describedby', () => {
+    const wrapper = mountForm()
+    const countryInput = wrapper.container.querySelector<HTMLInputElement>('.author-row .author-country-group input')
+
+    expect(countryInput).not.toBeNull()
+    if (!countryInput) throw new Error('Expected the country field to be rendered')
+
+    expect(countryInput.readOnly).toBe(true)
+    expect(countryInput.value).toBe('Brasil')
+    expect(countryInput.hasAttribute('list')).toBe(false)
+
+    const describedBy = countryInput.getAttribute('aria-describedby')
+    expect(describedBy).toBeTruthy()
+    expect(document.getElementById(describedBy ?? '')?.textContent?.trim()).toBe(lockedHint)
+
+    wrapper.unmount()
+  })
+
+  it('keeps the country of an author without one editable', () => {
+    const wrapper = mountForm({
+      ...work,
+      authors: [{ id: 'author-9', name: 'Dora', slug: 'dora', country_code: null, country_label: null }],
+    })
+    const countryInput = wrapper.container.querySelector<HTMLInputElement>('.author-row .author-country-group input')
+
+    expect(countryInput).not.toBeNull()
+    if (!countryInput) throw new Error('Expected the country field to be rendered')
+
+    expect(countryInput.readOnly).toBe(false)
+    expect(countryInput.getAttribute('list')).toBe('country-options')
+    expect(countryInput.hasAttribute('aria-describedby')).toBe(false)
+    expect(wrapper.container.textContent).not.toContain(lockedHint)
+
+    wrapper.unmount()
+  })
+
+  it('keeps the country of a newly added author editable', async () => {
+    const wrapper = mountForm()
+    const addAuthor = wrapper.container.querySelector<HTMLButtonElement>('.add-author-btn')
+    expect(addAuthor).not.toBeNull()
+    if (!addAuthor) throw new Error('Expected the add author button to be rendered')
+
+    addAuthor.click()
+    await nextTick()
+
+    const rows = wrapper.container.querySelectorAll<HTMLElement>('.author-row')
+    const newCountry = rows[rows.length - 1]?.querySelector<HTMLInputElement>('.author-country-group input')
+
+    expect(newCountry?.readOnly).toBe(false)
+    expect(newCountry?.hasAttribute('aria-describedby')).toBe(false)
 
     wrapper.unmount()
   })

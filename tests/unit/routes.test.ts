@@ -290,7 +290,7 @@ describe('Auth middleware: auth.ts', () => {
       fullPath: '/app/novo'
     })
     expect(result).toEqual({
-      path: '/entrar?next=/app/novo',
+      path: '/entrar?next=%2Fapp%2Fnovo',
       redirectCode: 302
     })
   })
@@ -301,7 +301,7 @@ describe('Auth middleware: auth.ts', () => {
       fullPath: '/app/bem-vindo'
     })
     expect(result).toEqual({
-      path: '/entrar?next=/app/bem-vindo',
+      path: '/entrar?next=%2Fapp%2Fbem-vindo',
       redirectCode: 302
     })
   })

@@ -17,7 +17,7 @@ export interface AuthSessionState {
 
 function evaluateAuth(to: { path: string, fullPath: string }, session: AuthSessionState | null) {
   if (!session?.user) {
-    return navigateTo(`/entrar?next=${to.fullPath}`, { redirectCode: 302 })
+    return navigateTo(`/entrar?next=${encodeURIComponent(to.fullPath)}`, { redirectCode: 302 })
   }
 
   const hasProfile = Boolean(session.hasProfile || session.user.hasProfile || session.user.handle)

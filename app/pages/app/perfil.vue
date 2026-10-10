@@ -41,6 +41,7 @@
             class="form-input"
             :disabled="loading"
             aria-describedby="profile-name-hint"
+            @input="userEdited.displayName = true"
           >
           <span id="profile-name-hint" class="field-hint">Como seu nome aparecerá nas leituras e no perfil.</span>
         </div>
@@ -61,6 +62,7 @@
             class="form-input form-textarea"
             :disabled="loading"
             aria-describedby="profile-bio-hint"
+            @input="userEdited.bio = true"
           />
           <span id="profile-bio-hint" class="field-hint">Apresentação curta no seu perfil público. Máximo 500 caracteres.</span>
         </div>
@@ -79,6 +81,7 @@
                 value="publico"
                 :disabled="loading"
                 class="radio-input"
+                @change="userEdited.visibility = true"
               >
               <div class="radio-text">
                 <span class="radio-title">Público</span>
@@ -94,6 +97,7 @@
                 value="privado"
                 :disabled="loading"
                 class="radio-input"
+                @change="userEdited.visibility = true"
               >
               <div class="radio-text">
                 <span class="radio-title">Privado</span>
@@ -262,11 +266,26 @@ const loadingPassword = ref(false)
 const passwordSuccessMessage = ref('')
 const passwordErrorMessage = ref('')
 
-function syncProfile(user: AuthSessionUser) {
+// Set on the first input of each field. A slow GET /api/users/me must not
+// overwrite what the user has already typed.
+const userEdited = {
+  displayName: false,
+  bio: false,
+  visibility: false,
+}
+
+function syncProfile(user: AuthSessionUser, keepUserEdits = false) {
   if (user.handle) handle.value = user.handle
-  if (user.display_name !== undefined) displayName.value = user.display_name ?? ''
-  if (user.bio !== undefined) bio.value = user.bio ?? ''
-  if (user.profile_visibility === 'publico' || user.profile_visibility === 'privado') {
+  if (user.display_name !== undefined && !(keepUserEdits && userEdited.displayName)) {
+    displayName.value = user.display_name ?? ''
+  }
+  if (user.bio !== undefined && !(keepUserEdits && userEdited.bio)) {
+    bio.value = user.bio ?? ''
+  }
+  if (
+    (user.profile_visibility === 'publico' || user.profile_visibility === 'privado')
+    && !(keepUserEdits && userEdited.visibility)
+  ) {
     visibility.value = user.profile_visibility
   }
 }
@@ -287,7 +306,7 @@ onMounted(async () => {
         hasProfile: true,
         fetched: true,
       }
-      syncProfile(me)
+      syncProfile(me, true)
     }
   } catch (err: unknown) {
     if (isTimeoutOrAbort(err)) {

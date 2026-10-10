@@ -185,10 +185,13 @@ function onTabKeydown(event: KeyboardEvent): void {
   nextTick(() => document.getElementById(`tab-${tab}`)?.focus())
 }
 
+// On the server $fetch does not forward the request cookies; requestFetch does, so the owner's private read works in SSR.
+const requestFetch = useRequestFetch()
+
 const { data: log, pending, error, refresh: refreshLog } = useAsyncData<LogWithDetails>(
   `log-${id.value}`,
   () =>
-    $fetch<LogWithDetails>(`/api/logs/${id.value}` as string, {
+    requestFetch<LogWithDetails>(`/api/logs/${id.value}` as string, {
       timeout: 15_000,
       retry: 0,
     }),
@@ -205,7 +208,7 @@ const concluding = computed(() => finishing.value && !log.value?.finished_on)
 const slug = computed(() => log.value?.work?.slug || '')
 
 function fetchWork(workSlug: string): Promise<WorkWithDetails> {
-  return $fetch<WorkWithDetails>(`/api/works/${encodeURIComponent(workSlug)}` as string, {
+  return requestFetch<WorkWithDetails>(`/api/works/${encodeURIComponent(workSlug)}` as string, {
     timeout: 15_000,
     retry: 0,
   })
@@ -215,7 +218,7 @@ const { data: work, error: workError } = useAsyncData<WorkWithDetails | null>(
   `entry-work-${id.value}`,
   async () => {
     const workSlug = slug.value
-      || (await $fetch<LogWithDetails>(`/api/logs/${id.value}` as string, { timeout: 15_000, retry: 0 })).work?.slug
+      || (await requestFetch<LogWithDetails>(`/api/logs/${id.value}` as string, { timeout: 15_000, retry: 0 })).work?.slug
     return workSlug ? fetchWork(workSlug) : null
   },
   { watch: [slug] },

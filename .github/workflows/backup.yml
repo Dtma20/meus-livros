@@ -56,7 +56,7 @@ jobs:
             -e PGCONNSTR="$DATABASE_URL_DIRECT" \
             -v "$PWD:/out" \
             postgres:17-alpine \
-            sh -c 'pg_dump --format=plain --no-owner --no-privileges "$PGCONNSTR" | gzip -9 > /out/dump.sql.gz'
+            sh -c 'set -o pipefail; pg_dump --format=plain --no-owner --no-privileges "$PGCONNSTR" | gzip -9 > /out/dump.sql.gz'
 
       - name: Conferir que o dump não está vazio
         run: |

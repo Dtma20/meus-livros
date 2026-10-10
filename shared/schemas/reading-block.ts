@@ -1,9 +1,14 @@
 import { z } from 'zod'
-import { getTodaySaoPaulo, isFutureDateSaoPaulo } from './log'
+import { getTodaySaoPaulo, isCalendarDate, isFutureDateSaoPaulo } from './log'
+
+// Upper bound for any page number in a reading block (longest known book is well below this).
+const MAX_PAGE_NUMBER = 100000
+const PAGE_TOO_LARGE = 'Número de páginas grande demais.'
 
 export const readingBlockDateSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, { message: 'Data deve estar no formato AAAA-MM-DD.' })
+  .refine(isCalendarDate, { message: 'Data inválida.' })
   .refine((d) => !isFutureDateSaoPaulo(d), {
     message: 'A data não pode ser no futuro.',
   })
@@ -13,11 +18,13 @@ export const readingBlockInputSchema = z
     start_page: z
       .number({ error: 'A página inicial é obrigatória.' })
       .int({ message: 'A página inicial deve ser um número inteiro.' })
-      .min(1, { message: 'A página inicial deve ser pelo menos 1.' }),
+      .min(1, { message: 'A página inicial deve ser pelo menos 1.' })
+      .max(MAX_PAGE_NUMBER, { message: PAGE_TOO_LARGE }),
     end_page: z
       .number({ error: 'A página final é obrigatória.' })
       .int({ message: 'A página final deve ser um número inteiro.' })
-      .min(1, { message: 'A página final deve ser pelo menos 1.' }),
+      .min(1, { message: 'A página final deve ser pelo menos 1.' })
+      .max(MAX_PAGE_NUMBER, { message: PAGE_TOO_LARGE }),
     comment: z
       .string()
       .max(5000, { message: 'O comentário pode ter no máximo 5.000 caracteres.' })
@@ -35,11 +42,13 @@ export const updateReadingBlockInputSchema = z
       .number()
       .int({ message: 'A página inicial deve ser um número inteiro.' })
       .min(1, { message: 'A página inicial deve ser pelo menos 1.' })
+      .max(MAX_PAGE_NUMBER, { message: PAGE_TOO_LARGE })
       .optional(),
     end_page: z
       .number()
       .int({ message: 'A página final deve ser um número inteiro.' })
       .min(1, { message: 'A página final deve ser pelo menos 1.' })
+      .max(MAX_PAGE_NUMBER, { message: PAGE_TOO_LARGE })
       .optional(),
     comment: z
       .string()

@@ -245,7 +245,7 @@ import ReviewText from '~/components/log/ReviewText.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
-import { formatReadingDate } from '~/utils/entry'
+import { buildOgImageUrl, formatReadingDate } from '~/utils/entry'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { useDelayedDelete, type DelayedDeleteContext, type PageHideDeleteResult } from '~/composables/useDelayedDelete'
 import type { WorkAuthorView, WorkEditionView, WorkWithDetails } from '~~/shared/schemas/work'
@@ -351,11 +351,12 @@ const ogDescription = computed(() => {
   return `${work.value.title} - ${meta}`
 })
 
-const absoluteCoverUrl = computed(() => {
+// Same safe resolution as the entry OG image: a default=false ISBN URL 404s for books without a
+// cover and breaks the WhatsApp preview, so it (and any unconfirmed cover) falls back to the static image.
+const ogImageUrl = computed(() => {
   const url = work.value?.cover_url
-  if (!url) return undefined
-  if (url.startsWith('http://') || url.startsWith('https://')) return url
-  return `${requestUrl.origin}${url.startsWith('/') ? '' : '/'}${url}`
+  const confirmed = url && !url.includes('default=false') ? url : null
+  return buildOgImageUrl({ workCoverUrl: confirmed, origin: requestUrl.origin })
 })
 
 const pageUrl = computed(() => {
@@ -368,7 +369,7 @@ useSeoMeta({
   ogTitle: () => work.value?.title ?? '',
   description: () => ogDescription.value,
   ogDescription: () => ogDescription.value,
-  ogImage: () => absoluteCoverUrl.value,
+  ogImage: () => ogImageUrl.value,
   ogUrl: () => pageUrl.value,
   ogType: 'book',
 })

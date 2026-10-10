@@ -9,6 +9,16 @@ import { visibleLogs, type Viewer } from './visibility'
 
 const commentAuthor = alias(users, 'comment_author')
 
+// Anonymous readers never receive a private member's handle; the masking happens in SQL.
+function commentAuthorView(viewer: Viewer) {
+  if (viewer) return { handle: commentAuthor.handle, display_name: commentAuthor.display_name }
+  const hidden = eq(commentAuthor.profile_visibility, 'privado')
+  return {
+    handle: sql<string | null>`CASE WHEN ${hidden} THEN NULL ELSE ${commentAuthor.handle} END`,
+    display_name: sql<string>`CASE WHEN ${hidden} THEN 'Membro' ELSE ${commentAuthor.display_name} END`,
+  }
+}
+
 function notFound() {
   return createError({
     statusCode: 404,
@@ -41,7 +51,7 @@ export async function getCommentsForLog(logId: string, viewer: Viewer, query: Co
     created_at: sql<string>`to_char(${comments.created_at} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
     // Keep PostgreSQL microseconds: JavaScript Date would round the pagination boundary.
     cursor_created_at: sql<string>`to_char(${comments.created_at} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`,
-    user: { handle: commentAuthor.handle, display_name: commentAuthor.display_name },
+    user: commentAuthorView(viewer),
     can_delete: viewer ? sql<boolean>`${comments.user_id} = ${viewer.id} OR ${reading_logs.user_id} = ${viewer.id}` : sql<boolean>`false`,
   }).from(comments)
     .innerJoin(reading_logs, eq(reading_logs.id, comments.log_id))
@@ -93,11 +103,12 @@ export async function createComment(logId: string, userId: string, input: Commen
 }
 
 export async function deleteComment(logId: string, commentId: string, userId: string): Promise<void> {
-  const permission = exists(db.select({ id: reading_logs.id }).from(reading_logs)
-    .innerJoin(users, eq(users.id, reading_logs.user_id))
-    .where(and(eq(reading_logs.id, comments.log_id), visibleLogs({ id: userId }),
-      or(eq(comments.user_id, userId), eq(reading_logs.user_id, userId)),
-    )))
+  // The comment's author and the reading's owner may delete, whatever the reading's current visibility.
+  const permission = or(
+    eq(comments.user_id, userId),
+    exists(db.select({ id: reading_logs.id }).from(reading_logs)
+      .where(and(eq(reading_logs.id, comments.log_id), eq(reading_logs.user_id, userId)))),
+  )
   const [deleted] = await db.delete(comments)
     .where(and(eq(comments.id, commentId), eq(comments.log_id, logId), permission))
     .returning({ id: comments.id })

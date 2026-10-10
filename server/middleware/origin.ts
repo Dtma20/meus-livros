@@ -1,4 +1,4 @@
-import { createError, defineEventHandler, getRequestHeader, getRequestHost } from 'h3'
+import { defineEventHandler, getRequestHeader, getRequestHost, setResponseStatus } from 'h3'
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
 
@@ -17,10 +17,8 @@ export default defineEventHandler((event) => {
     originHost = new URL(origin).host
   }
   catch {
-    throw createError({
-      statusCode: 403,
-      data: { error: 'origem_invalida', message: 'Origem da requisição inválida.' },
-    })
+    setResponseStatus(event, 403)
+    return { error: 'origem_invalida', message: 'Origem da requisição inválida.' }
   }
 
   const allowed = new Set<string>([getRequestHost(event)])
@@ -34,9 +32,7 @@ export default defineEventHandler((event) => {
   }
 
   if (!allowed.has(originHost)) {
-    throw createError({
-      statusCode: 403,
-      data: { error: 'origem_invalida', message: 'Origem da requisição inválida.' },
-    })
+    setResponseStatus(event, 403)
+    return { error: 'origem_invalida', message: 'Origem da requisição inválida.' }
   }
 })

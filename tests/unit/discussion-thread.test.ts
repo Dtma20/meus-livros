@@ -131,4 +131,12 @@ describe('DiscussionThread', () => {
     expect(container.textContent).not.toContain('<script>texto</script>')
     expect(fetchMock).toHaveBeenLastCalledWith('/api/logs/log2/comments', expect.anything())
   })
+  it('shows a masked author as plain text without a profile link', async () => {
+    fetchMock.mockResolvedValueOnce({ comments: [{ ...comment, user: { handle: null, display_name: 'Membro' } }], nextCursor: null })
+    const { container } = mount({ logId: 'log1', initiallyOpen: true })
+    await flush()
+    expect(container.querySelector('.discussion-meta a')).toBeNull()
+    expect(container.querySelector('a[href^="/@"]')).toBeNull()
+    expect(container.querySelector('.discussion-author')?.textContent).toBe('Membro')
+  })
 })

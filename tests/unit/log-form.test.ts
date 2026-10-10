@@ -648,4 +648,43 @@ describe('LogForm - edit mode leave guard', () => {
     }
     form.unmount()
   })
+
+  it('sends null, not 0, for pages and year that were typed and then cleared', async () => {
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    const fetchMock = vi.fn(async (url: string, options?: { method?: string }) => {
+      if (url.includes('/editions') && options?.method === 'POST') return { id: 'edition-new' }
+      if (url.includes('/editions')) return { editions: [] }
+      return {}
+    })
+    globalScope.$fetch = fetchMock
+
+    const form = await mountForm()
+    const editionToggle = Array.from(form.host.querySelectorAll<HTMLButtonElement>('.toggle-link-btn'))
+      .find((button) => button.textContent?.includes('Li outra edição'))
+    editionToggle!.click()
+    await nextTick()
+    const newEditionToggle = Array.from(form.host.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.includes('Cadastrar nova edição'))
+    newEditionToggle!.click()
+    await nextTick()
+
+    const pages = form.host.querySelector<HTMLInputElement>('#log-new-edition-pages')!
+    const year = form.host.querySelector<HTMLInputElement>('#log-new-edition-year')!
+    for (const input of [pages, year]) {
+      input.value = '120'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    for (const input of [pages, year]) {
+      input.value = ''
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    form.host.querySelector<HTMLButtonElement>('.edition-create-btn')!.click()
+    await nextTick()
+    await nextTick()
+
+    const post = fetchMock.mock.calls.find((call) => call[1]?.method === 'POST')
+    expect(post).toBeDefined()
+    expect(post?.[1]).toMatchObject({ body: { page_count: null, published_year: null } })
+    form.unmount()
+  })
 })
