@@ -1,7 +1,7 @@
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { emailOTP } from 'better-auth/plugins/email-otp'
-import { and, eq, isNotNull } from 'drizzle-orm'
+import { and, eq, isNotNull, sql } from 'drizzle-orm'
 import { boolean, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import { isForbiddenPassword, requestOtpSchema, verifyOtpSchema } from '../../shared/schemas/auth'
@@ -344,8 +344,9 @@ function invalidOtpRequestResponse(): Response {
   )
 }
 
-// The one answer for a wrong, expired or used code, and for an address no longer on the allowlist.
-// Same status and body in every case, so the caller cannot tell them apart.
+// The one answer for a wrong, expired, used or exhausted code, and for an address no longer on the allowlist.
+// Same status and body in every case, so the caller cannot tell them apart. better-auth's TOO_MANY_ATTEMPTS
+// lands here too: a 429 for it would reveal that the address has a live code, which only invitees get.
 function invalidOtpResponse(): Response {
   return Response.json(
     { error: 'validacao', message: 'Código inválido ou expirado.' },
@@ -353,17 +354,34 @@ function invalidOtpResponse(): Response {
   )
 }
 
-// Only the refusal TOO_MANY_ATTEMPTS (email-otp error-codes) gets a 429; any other failure stays invalidOtpResponse.
-function tooManyOtpAttemptsResponse(): Response {
+// Every verify attempt for an address counts here, invited or not, before any other check. The 429 is the same
+// for both, so it reveals nothing about the account (security.md §4.3, §8).
+function otpVerifyLimitResponse(): Response {
   return Response.json(
-    { error: 'muitas_tentativas', message: 'Muitas tentativas. Peça um novo código.' },
+    { error: 'muitas_tentativas', message: 'Muitas tentativas. Peça um novo código e tente mais tarde.' },
     { status: 429, headers: { 'content-type': 'application/json' } },
   )
 }
 
-async function isTooManyOtpAttempts(response: Response): Promise<boolean> {
-  const body: unknown = await response.json().catch(() => null)
-  return typeof body === 'object' && body !== null && 'code' in body && body.code === 'TOO_MANY_ATTEMPTS'
+// Deletes what removeInvite (services/invites.ts) deletes, for an address whose invite is already gone: its
+// sessions and its password credential. session."userId" holds ba_user.id, so it is reached through ba_user by e-mail.
+async function revokeAccessFor(email: string): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`
+      DELETE FROM "session"
+      WHERE "userId" IN (
+        SELECT id FROM ba_user WHERE email = ${email}
+      )
+    `)
+
+    await tx.execute(sql`
+      DELETE FROM "account"
+      WHERE "providerId" = 'credential'
+        AND "userId" IN (
+          SELECT id FROM ba_user WHERE email = ${email}
+        )
+    `)
+  })
 }
 
 // Headers for every request this module builds for better-auth. Nothing else from the client's headers
@@ -528,6 +546,11 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     }
 
     const { email, otp } = parsed.data
+    // Before the allowlist: an atomic upsert, so parallel guesses cannot read the same count (H1 item 2).
+    if (!(await checkRateLimit(`otp-verify:email:${email}`, 5))) {
+      return otpVerifyLimitResponse()
+    }
+
     // Checked when the code is consumed, so a code issued before the invite was removed signs nobody in (TASK-069).
     if (!(await isEmailAllowed(email))) {
       warnRefusedOtp(email, 'sign_in_otp')
@@ -546,9 +569,6 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       return stripSessionToken(response)
     }
 
-    if (await isTooManyOtpAttempts(response)) {
-      return tooManyOtpAttemptsResponse()
-    }
     return invalidOtpResponse()
   }
 
@@ -723,6 +743,11 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     }
 
     const { email, otp } = parsed.data
+    // Same bucket as sign-in (H1 item 2). Before the password rules and the allowlist, for invitees and everyone else alike.
+    if (!(await checkRateLimit(`otp-verify:email:${email}`, 5))) {
+      return otpVerifyLimitResponse()
+    }
+
     const newPassword = typeof body.password === 'string' ? body.password : ''
 
     // Does not depend on the address or the user, so every caller gets the same answer (TASK-069, item 2).
@@ -748,7 +773,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       asResponse: true,
     })
     if (!check.ok) {
-      return (await isTooManyOtpAttempts(check)) ? tooManyOtpAttemptsResponse() : invalidOtpResponse()
+      return invalidOtpResponse()
     }
 
     // Read only after the code has been proven, so the handle check answers only the owner of the mailbox.
@@ -774,12 +799,16 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     )
 
     if (response.ok) {
+      // The allowlist was read before better-auth hashed the password. If the invite was removed in that window,
+      // the credential just written must go too, with the sessions (H1 item 3).
+      if (!(await isEmailAllowed(email))) {
+        await revokeAccessFor(email)
+        warnRefusedOtp(email, 'reset_password')
+        return invalidOtpResponse()
+      }
       return response
     }
 
-    if (await isTooManyOtpAttempts(response)) {
-      return tooManyOtpAttemptsResponse()
-    }
     return invalidOtpResponse()
   }
 

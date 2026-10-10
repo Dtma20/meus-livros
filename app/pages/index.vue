@@ -249,10 +249,11 @@ const { data: pageData, pending, refresh } = await useAsyncData<HomeAsyncData>('
   }
 
   // Settled separately: a feed failure only replaces the feed section,
-  // and the reader's own shelves still render.
+  // and the reader's own shelves still render. Each request has a deadline, so a stalled
+  // one cannot keep the whole page in its loading state.
   const [dashboardRes, feedRes] = await Promise.allSettled([
-    requestFetch<DashboardResponse>('/api/dashboard'),
-    requestFetch<FeedResponse>('/api/feed/recentes'),
+    requestFetch<DashboardResponse>('/api/dashboard', { timeout: 15_000, retry: 0 }),
+    requestFetch<FeedResponse>('/api/feed/recentes', { timeout: 15_000, retry: 0 }),
   ])
   const dashboard = dashboardRes.status === 'fulfilled' ? dashboardRes.value : null
   const feed = feedRes.status === 'fulfilled' ? feedRes.value : null

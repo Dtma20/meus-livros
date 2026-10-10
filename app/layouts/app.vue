@@ -106,6 +106,7 @@ import { useKeyboardShortcuts } from '~/composables/useKeyboardShortcuts'
 import { useKeyboardShortcutPreferences } from '~/composables/useKeyboardShortcutPreferences'
 import { useFlash, type FlashMessage } from '~/composables/useFlash'
 import { clearStoredFormDrafts } from '~/composables/useFormDraft'
+import { flushPendingDeletes } from '~/composables/useDelayedDelete'
 
 const session = useState<AuthSessionState>('auth:session')
 const { characterKeyShortcutsEnabled } = useKeyboardShortcutPreferences()
@@ -162,6 +163,18 @@ async function handleSignOut() {
     return
   }
   isSigningOut.value = true
+
+  // Pending deletes ("Desfazer" countdowns) are sent while the session still exists: a delete
+  // sent after signOut gets 401 and the deletion is lost without anyone knowing.
+  // Five seconds at most; a failure here must not block the sign-out.
+  try {
+    await Promise.race([
+      flushPendingDeletes(),
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ])
+  }
+  catch {
+  }
 
   try {
     await Promise.race([

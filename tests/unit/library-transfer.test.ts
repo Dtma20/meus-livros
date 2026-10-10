@@ -8,6 +8,7 @@ import {
   parseAuthors,
   parseFormat,
   parseImportVisibility,
+  parseReadingDates,
 } from '../../server/services/library-transfer'
 import { livroJsonSchema } from '../../shared/schemas/export-import'
 
@@ -161,6 +162,21 @@ describe('library-transfer unit tests', () => {
       expect(GENRE_SLUG_MAP['Não-Ficção']).toBe('nao-ficcao')
       expect(GENRE_SLUG_MAP['Sci-fi']).toBe('ficcao-cientifica')
       expect(GENRE_SLUG_MAP['Distopia']).toBe('distopia')
+    })
+  })
+
+  describe('finish precision without a finish date', () => {
+    const NOW = new Date('2026-10-10T12:00:00Z')
+    const base = { title: 'T', author: 'A', genre: [] }
+
+    it('keeps the precision the file gives', () => {
+      expect(parseReadingDates({ ...base, finished_precision: 'mes' }, NOW))
+        .toEqual({ ok: true, startedOn: null, finishedOn: null, finishedPrecision: 'mes' })
+    })
+
+    it('uses "dia", the default of a manual reading, when the file gives no precision', () => {
+      expect(parseReadingDates(base, NOW))
+        .toEqual({ ok: true, startedOn: null, finishedOn: null, finishedPrecision: 'dia' })
     })
   })
 })

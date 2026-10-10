@@ -21,6 +21,15 @@ function wrongOtpFor(real: string): string {
   return real === '000000' ? '111111' : '000000'
 }
 
+// The 429 for the verify limit, the same for an invitee and for an address with no invite.
+const OTP_VERIFY_LIMIT_BODY = {
+  error: 'muitas_tentativas',
+  message: 'Muitas tentativas. Peça um novo código e tente mais tarde.',
+}
+
+// The 400 for a wrong, expired or exhausted code, and for an address with no invite.
+const INVALID_OTP_BODY = { error: 'validacao', message: 'Código inválido ou expirado.' }
+
 function cookieHeaderFrom(res: Response): string {
   const jar = new Map<string, string>()
   for (const raw of res.headers.getSetCookie()) {
@@ -107,6 +116,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
       ...allTestIps.flatMap((ip) => [`otp:ip:${ip}`, `signin:ip:${ip}`]),
       ...createdEmails.flatMap((e) => [
         `otp:email:${e.toLowerCase().trim()}`,
+        `otp-verify:email:${e.toLowerCase().trim()}`,
         `signin:id:${e.toLowerCase().trim()}`,
         `setpw:email:${e.toLowerCase().trim()}`,
       ]),
@@ -1206,7 +1216,7 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
       }),
     )
     expect(exhausted.status).toBe(429)
-    expect(await exhausted.json()).toEqual({ error: 'muitas_tentativas', message: 'Muitas tentativas. Peça um novo código.' })
+    expect(await exhausted.json()).toEqual(OTP_VERIFY_LIMIT_BODY)
 
     const resetMember = await createActiveMember({
       email: `test-bloqueio-reset-${testId}@example.com`,
@@ -1271,6 +1281,245 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     expect(byEmail.status).toBe(429)
     expect((await byEmail.json()).error).toBe('muitas_tentativas')
   }, 90000)
+
+  it('H1 item 2 - 20 parallel wrong codes on one reset: exactly 5 are checked, the rest get 429, and the right code after them is refused', async () => {
+    const parallelEmail = `test-paralelo-${testId}@example.com`
+    const parallelIp = uniqueTestIp()
+    const member = await createActiveMember({
+      email: parallelEmail,
+      handle: `tpa${testId % 1000000000}`,
+      name: 'Parallel Member',
+    })
+
+    const forgetRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/forget-password/email-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': parallelIp },
+        body: JSON.stringify({ email: member.email }),
+      }),
+    )
+    expect(forgetRes.status).toBe(200)
+    const otp = (await waitForEmail()).text.match(/\b\d{6}\b/)![0]
+
+    const newPassword = 'NovaSenhaParalela2026'
+    const resetWith = (code: string) =>
+      handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': parallelIp },
+          body: JSON.stringify({ email: member.email, otp: code, password: newPassword }),
+        }),
+      )
+
+    const guesses = await Promise.all(Array.from({ length: 20 }, () => resetWith(wrongOtpFor(otp))))
+    const statuses = guesses.map((res) => res.status)
+    const checked = statuses.filter((status) => status === 400).length
+    expect(checked, 'tentativas que chegaram ao better-auth').toBe(5)
+    expect(statuses.filter((status) => status === 429).length).toBe(20 - checked)
+    for (const res of guesses.filter((res) => res.status === 429)) {
+      expect(await res.json()).toEqual(OTP_VERIFY_LIMIT_BODY)
+    }
+
+    // The right code, sent after the burst but still inside the hour, is refused too.
+    const rightRes = await resetWith(otp)
+    expect(rightRes.status).toBe(429)
+    expect(await rightRes.json()).toEqual(OTP_VERIFY_LIMIT_BODY)
+
+    // The password did not change: the old one still works and the new one does not.
+    const oldLogin = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': parallelIp },
+        body: JSON.stringify({ identificador: member.email, senha: initialPassword }),
+      }),
+    )
+    expect(oldLogin.status).toBe(200)
+
+    const newLogin = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': parallelIp },
+        body: JSON.stringify({ identificador: member.email, senha: newPassword }),
+      }),
+    )
+    expect(newLogin.status).toBe(400)
+  }, 60000)
+
+  it('H1 item 2 - an address with no invite gets the same 429 body on its sixth attempt as an invitee', async () => {
+    const strangerEmail = `test-desconhecido-${testId}@example.com`
+    createdEmails.push(strangerEmail)
+
+    const verify = () =>
+      handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+          body: JSON.stringify({ email: strangerEmail, otp: '000000' }),
+        }),
+      )
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const res = await verify()
+      expect(res.status, `tentativa ${attempt}`).toBe(400)
+      expect(await res.json()).toEqual(INVALID_OTP_BODY)
+    }
+
+    const sixth = await verify()
+    expect(sixth.status).toBe(429)
+    expect(await sixth.json()).toEqual(OTP_VERIFY_LIMIT_BODY)
+  }, 20000)
+
+  it('H1 item 3 - a reset that finishes after its invite was removed ends with no credential and no session', async () => {
+    const raceEmail = `test-corrida-${testId}@example.com`
+    const raceHandle = `tco${testId % 1000000000}`
+    const member = await createActiveMember({ email: raceEmail, handle: raceHandle, name: 'Race Member' })
+
+    // Signed in before the reset, so there is a session that could survive it.
+    const loginRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ identificador: member.email, senha: initialPassword }),
+      }),
+    )
+    expect(loginRes.status).toBe(200)
+    expect(await countSessionsFor(member.email)).toBeGreaterThan(0)
+
+    const forgetRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/forget-password/email-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: member.email }),
+      }),
+    )
+    expect(forgetRes.status).toBe(200)
+    const otp = (await waitForEmail()).text.match(/\b\d{6}\b/)![0]
+
+    // The admin takes the address off the allowlist after the allowlist check, while better-auth is
+    // setting the password. better-auth then succeeds, and only the post-check can notice.
+    const realHandler = auth.handler
+    const handlerSpy = vi.spyOn(auth, 'handler').mockImplementation(async (request: Request) => {
+      if (new URL(request.url).pathname.endsWith('/email-otp/reset-password')) {
+        await db.delete(schema.allowed_emails).where(eq(schema.allowed_emails.email, raceEmail))
+      }
+      return realHandler.call(auth, request)
+    })
+
+    let resetRes: Response
+    try {
+      resetRes = await handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/email-otp/reset-password', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+          body: JSON.stringify({ email: member.email, otp, password: 'NovaSenhaCorrida2026' }),
+        }),
+      )
+    } finally {
+      handlerSpy.mockRestore()
+    }
+
+    expect(resetRes.status).toBe(400)
+    expect(await resetRes.json()).toEqual(INVALID_OTP_BODY)
+    expect(await countSessionsFor(member.email)).toBe(0)
+
+    const [credential] = await db.execute(sql<{ n: number }>`
+      SELECT count(a.*)::int AS n
+      FROM account a
+      JOIN ba_user u ON u.id = a."userId"
+      WHERE u.email = ${member.email} AND a."providerId" = 'credential'
+    `)
+    expect(Number(credential?.n ?? -1)).toBe(0)
+  }, 30000)
+
+  it('H1 item 5 - the 11th password change within an hour returns 429 muitas_tentativas', async () => {
+    const changeEmail = `test-limite-troca-${testId}@example.com`
+    const member = await createActiveMember({
+      email: changeEmail,
+      handle: `tlt${testId % 1000000000}`,
+      name: 'Change Limit User',
+    })
+    const ip = uniqueTestIp()
+
+    const loginRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+        body: JSON.stringify({ identificador: member.email, senha: initialPassword }),
+      }),
+    )
+    expect(loginRes.status).toBe(200)
+    const cookie = cookieHeaderFrom(loginRes)
+    const sessionUser = await getSessionUserByHeaders(new Headers({ cookie }))
+    expect(sessionUser).not.toBeNull()
+    createdRateLimitKeys.push(`pwchange:user:${sessionUser!.id}`)
+
+    const changeWith = (currentPassword: string) =>
+      handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/change-password', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'cookie': cookie, 'x-forwarded-for': ip },
+          body: JSON.stringify({ currentPassword, newPassword: 'TrocaLimite2026' }),
+        }),
+      )
+
+    for (let attempt = 1; attempt <= 10; attempt++) {
+      const res = await changeWith('senhaErrada2026')
+      expect(res.status, `troca ${attempt}`).toBe(400)
+    }
+
+    const eleventh = await changeWith(initialPassword)
+    expect(eleventh.status).toBe(429)
+    expect(await eleventh.json()).toEqual({
+      error: 'muitas_tentativas',
+      message: 'Muitas tentativas. Aguarde uma hora e tente novamente.',
+    })
+  }, 30000)
+
+  it('H1 item 5 - the sixth code request for one e-mail within an hour returns 429', async () => {
+    const requestEmail = `test-limite-pedido-${testId}@example.com`
+    const ip = uniqueTestIp()
+
+    // No invite for this address: the request limit runs before the allowlist check, so it applies anyway.
+    const request = () =>
+      handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+          body: JSON.stringify({ email: requestEmail, type: 'sign-in' }),
+        }),
+      )
+
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const res = await request()
+      expect(res.status, `pedido ${attempt}`).toBe(200)
+    }
+
+    const sixth = await request()
+    expect(sixth.status).toBe(429)
+    expect((await sixth.json()).error).toBe('muitas_tentativas')
+  }, 20000)
+
+  it('H1 item 5 - the 21st code request from one IP, for different e-mails, returns 429', async () => {
+    const ip = uniqueTestIp()
+
+    const request = (index: number) =>
+      handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+          body: JSON.stringify({ email: `test-ip-${testId}-${index}@example.com`, type: 'sign-in' }),
+        }),
+      )
+
+    for (let index = 1; index <= 20; index++) {
+      const res = await request(index)
+      expect(res.status, `pedido ${index}`).toBe(200)
+    }
+
+    const twentyFirst = await request(21)
+    expect(twentyFirst.status).toBe(429)
+    expect((await twentyFirst.json()).error).toBe('muitas_tentativas')
+  }, 30000)
 
   it('TASK-070 - the auth route keeps the Response (status and set-cookie) and turns a throw into 500 { error, message, requestId }', async () => {
     const routeIp = uniqueTestIp()

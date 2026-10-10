@@ -248,7 +248,7 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
     expect(asError(caught).data?.work?.id).toBe(first.id)
   })
 
-  it('normalises an invalid edition ISBN to null and allows another null ISBN', async () => {
+  it('refuses an invalid edition ISBN on update and keeps the saved one', async () => {
     const work = await catalog.createWork(
       {
         title: `${MARKER} Edições ISBN inválido`,
@@ -257,17 +257,55 @@ describe.skipIf(!hasDatabaseUrl)('Catalog services', () => {
       },
       userId,
     )
-    const first = await catalog.createEdition(work.id, { isbn: uniqueTestIsbn13() }, userId)
+    const savedIsbn = uniqueTestIsbn13()
+    const first = await catalog.createEdition(work.id, { isbn: savedIsbn }, userId)
     const second = await catalog.createEdition(work.id, { isbn: null }, userId)
 
-    await catalog.updateEdition(first.id, { isbn: 'não é ISBN' }, userId)
+    let caught: unknown
+    try {
+      await catalog.updateEdition(first.id, { isbn: 'não é ISBN' }, userId)
+    } catch (error) {
+      caught = error
+    }
+
+    expect(asError(caught).statusCode).toBe(400)
+    expect(asError(caught).data?.error).toBe('validacao')
+    expect(asError(caught).data?.message).toBe('ISBN inválido. Confira os dígitos.')
 
     const rows = await db
       .select({ id: schema.editions.id, isbn13: schema.editions.isbn13 })
       .from(schema.editions)
       .where(sqlOp.inArray(schema.editions.id, [first.id, second.id]))
     expect(rows).toHaveLength(2)
-    expect(rows.every((row) => row.isbn13 === null)).toBe(true)
+    expect(rows.find((row) => row.id === first.id)?.isbn13).toBe(savedIsbn)
+    expect(rows.find((row) => row.id === second.id)?.isbn13).toBeNull()
+  })
+
+  it('refuses a new work whose edition has an invalid ISBN and leaves no work behind', async () => {
+    const title = `${MARKER} Obra com ISBN inválido na criação`
+    let caught: unknown
+    try {
+      await catalog.createWork(
+        {
+          title,
+          authors: [{ name: `${MARKER} Autor ISBN inválido na criação` }],
+          genre_ids: [],
+          edition: { isbn: '9788535914848' },
+        },
+        userId,
+      )
+    } catch (error) {
+      caught = error
+    }
+
+    expect(asError(caught).statusCode).toBe(400)
+    expect(asError(caught).data?.error).toBe('validacao')
+
+    const rows = await db
+      .select({ id: schema.works.id })
+      .from(schema.works)
+      .where(sqlOp.eq(schema.works.title, title))
+    expect(rows).toHaveLength(0)
   })
 
   it('refuses deletion of an edition created by member A when requested by member B with 403', async () => {

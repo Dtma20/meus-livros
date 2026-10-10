@@ -266,6 +266,15 @@ async function handleResendOtp() {
   }
 }
 
+// The server's message is shown for a 429 (attempts used up) and for a 400 (a password rule, or the same
+// answer for a bad code). Anything else keeps the generic code message.
+function motivoDoErro(error: { status?: number; message?: string }): string {
+  if ((error.status === 400 || error.status === 429) && error.message) {
+    return error.message
+  }
+  return 'Código inválido ou expirado.'
+}
+
 async function handleResetPassword() {
   errorMessage.value = ''
 
@@ -302,7 +311,7 @@ async function handleResetPassword() {
     })
 
     if (error) {
-      errorMessage.value = 'Código inválido ou expirado.'
+      errorMessage.value = motivoDoErro(error)
       await nextTick()
       otpInputRef.value?.focus()
       return

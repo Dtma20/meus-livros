@@ -101,7 +101,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LogForm from '~/components/log/LogForm.vue'
 import SearchBox from '~/components/search/SearchBox.vue'
@@ -237,9 +237,21 @@ function onWorkSelect(work: SearchResult): void {
   }
 }
 
+// Every selection gets a generation number. A response from an earlier selection
+// (or one that lands after unmount) must not change the page: the reader may
+// already be writing a review for the work that is selected now.
+let loadGeneration = 0
+
+onUnmounted(() => {
+  loadGeneration += 1
+})
+
 watch(
   workId,
   async (id) => {
+    const generation = ++loadGeneration
+    const isCurrentLoad = (): boolean => generation === loadGeneration && workId.value === id
+
     if (id && isMounted) {
       focusAfterLoad = true
       selectionAnnouncement.value = ''
@@ -259,6 +271,7 @@ watch(
         timeout: 15_000,
         retry: 0,
       })
+      if (!isCurrentLoad()) return
       if (data) {
         initialWork.value = {
           id: data.id,
@@ -273,12 +286,15 @@ watch(
         workError.value = true
       }
     } catch {
+      if (!isCurrentLoad()) return
       workError.value = true
       initialWork.value = null
     } finally {
-      loadingWork.value = false
-      if (focusAfterLoad && workId.value === id) {
-        focusShelfHeading()
+      if (isCurrentLoad()) {
+        loadingWork.value = false
+        if (focusAfterLoad) {
+          focusShelfHeading()
+        }
       }
     }
   },

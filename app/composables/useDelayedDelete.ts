@@ -28,6 +28,18 @@ interface DelayedDeleteOptions<T> {
 
 const UNDO_SECONDS = 6
 
+// Module-level on purpose: a request started by a page that has already unmounted must still be
+// awaitable. Instances register only once mounted, so server rendering never fills these sets.
+const mountedFlushers = new Set<() => void>()
+const inFlightRequests = new Set<Promise<unknown>>()
+
+// Starts every pending delete as an ordinary (non-keepalive) request and resolves once all
+// requests in flight have settled. Callers run it while the session still exists. It never rejects.
+export async function flushPendingDeletes(): Promise<void> {
+  for (const flush of [...mountedFlushers]) flush()
+  await Promise.allSettled([...inFlightRequests])
+}
+
 export function useDelayedDelete<T>(options: DelayedDeleteOptions<T>) {
   const pendingItem = shallowRef<T | null>(null)
   const secondsRemaining = ref(0)
@@ -60,7 +72,21 @@ export function useDelayedDelete<T>(options: DelayedDeleteOptions<T>) {
     options.onPageHideResult?.(transaction.item, transaction.result)
   }
 
-  async function runDelete(
+  function runDelete(
+    item: T,
+    reason: DelayedDeleteReason,
+    pageHideTransaction?: PageHideTransaction<T>,
+  ): Promise<boolean> {
+    const request = deleteItem(item, reason, pageHideTransaction)
+    inFlightRequests.add(request)
+    const forget = (): void => {
+      inFlightRequests.delete(request)
+    }
+    void request.then(forget, forget)
+    return request
+  }
+
+  async function deleteItem(
     item: T,
     reason: DelayedDeleteReason,
     pageHideTransaction?: PageHideTransaction<T>,
@@ -98,6 +124,10 @@ export function useDelayedDelete<T>(options: DelayedDeleteOptions<T>) {
   function commitPending(reason: 'countdown' | 'replacement' | 'leave' = 'countdown'): Promise<boolean> {
     const item = takePending()
     return item === null ? Promise.resolve(false) : runDelete(item, reason)
+  }
+
+  function flushPending(): void {
+    void commitPending('leave')
   }
 
   function start(item: T): void {
@@ -146,11 +176,13 @@ export function useDelayedDelete<T>(options: DelayedDeleteOptions<T>) {
   }
 
   onMounted(() => {
+    mountedFlushers.add(flushPending)
     window.addEventListener('pagehide', onPageHide)
     window.addEventListener('pageshow', onPageShow)
   })
 
   onBeforeUnmount(() => {
+    mountedFlushers.delete(flushPending)
     window.removeEventListener('pagehide', onPageHide)
     window.removeEventListener('pageshow', onPageShow)
     const pending = takePending()

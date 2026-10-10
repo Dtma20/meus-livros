@@ -428,6 +428,7 @@
 
 <script setup lang="ts">
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
+import { getSafeRedirectUrl } from '~/utils/redirect'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { AuthSessionState } from '~/middleware/auth'
 import { createFormDraftKey, useFormDraft } from '~/composables/useFormDraft'
@@ -456,6 +457,14 @@ const emit = defineEmits<{
   (e: 'success', work: { id: string; slug: string }): void
   (e: 'cancel'): void
 }>()
+
+// Only /app/novo reads work_id, so a saved work always lands there, whatever the caller passed as returnTo.
+function savedWorkPath(workId: string): string {
+  return `/app/novo?work_id=${encodeURIComponent(workId)}`
+}
+
+// returnTo may come from a query string: only same-site paths may reach navigateTo or a link.
+const safeReturnTo = computed(() => getSafeRedirectUrl(props.returnTo || '/app/novo'))
 
 const authSession = useState<AuthSessionState | null>('auth:session', () => null)
 
@@ -1068,9 +1077,7 @@ async function handleSubmit(force = false): Promise<void> {
       body: payload,
     })
 
-    const target = props.returnTo || '/app/novo'
-    const sep = target.includes('?') ? '&' : '?'
-    savedWorkHref.value = `${target}${sep}work_id=${res.id}`
+    savedWorkHref.value = savedWorkPath(res.id)
     clearDraft()
     emit('success', res)
     try {
@@ -1108,9 +1115,7 @@ async function handleSubmit(force = false): Promise<void> {
 async function useExistingDuplicate(): Promise<void> {
   if (!duplicateWork.value || submitting.value || savedWorkHref.value) return
   cancelIsbnLookup()
-  const target = props.returnTo || '/app/novo'
-  const sep = target.includes('?') ? '&' : '?'
-  savedWorkHref.value = `${target}${sep}work_id=${duplicateWork.value.id}`
+  savedWorkHref.value = savedWorkPath(duplicateWork.value.id)
   submitting.value = true
   serverError.value = ''
   formDraft.flush()
@@ -1141,7 +1146,7 @@ async function handleCancel(): Promise<void> {
   if (props.returnTo) {
     submitting.value = true
     try {
-      const navigation = await navigateTo(props.returnTo)
+      const navigation = await navigateTo(safeReturnTo.value)
       if (navigation) serverError.value = 'Não foi possível voltar. Seu rascunho foi mantido.'
     } catch {
       serverError.value = 'Não foi possível voltar. Seu rascunho foi mantido.'

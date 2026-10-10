@@ -167,3 +167,58 @@ describe('JSON import request and feedback', () => {
     expect(items[0]?.textContent).toContain('15/03/2024')
   })
 })
+
+describe('JSON import timeout', () => {
+  const TIMEOUT_MESSAGE = 'A importação pode ter sido concluída mesmo assim. Confira sua biblioteca antes de enviar de novo.'
+
+  // Shape ofetch gives a request that hit its own timeout: a FetchError whose cause is the TimeoutError.
+  function timeoutError(): Error {
+    const cause = Object.assign(new Error('[TimeoutError]: The operation was aborted due to timeout'), { name: 'TimeoutError' })
+    return Object.assign(
+      new Error('[POST] "/api/library/import": <no response> [TimeoutError]: The operation was aborted due to timeout'),
+      { name: 'FetchError', cause },
+    )
+  }
+
+  it('says the import may have been saved and keeps the import button disabled', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(timeoutError())
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await loadPreviewAndSubmit()
+
+    expect(container.querySelector('.error-banner')?.textContent).toContain(TIMEOUT_MESSAGE)
+    expect(container.querySelector<HTMLButtonElement>('.btn-import')?.disabled).toBe(true)
+    expect(container.querySelector('.btn-resend')).not.toBeNull()
+  })
+
+  it('sends the import again only from the explicit "Enviar mesmo assim" button', async () => {
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(timeoutError())
+      .mockResolvedValueOnce({ success: true, imported: 1, skipped: 0, errors: [] })
+    vi.stubGlobal('$fetch', fetchMock)
+
+    await loadPreviewAndSubmit()
+    container.querySelector<HTMLButtonElement>('.btn-import')!.click()
+    await nextTick()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    container.querySelector<HTMLButtonElement>('.btn-resend')!.click()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(container.querySelector('.success-card')).not.toBeNull()
+  })
+
+  it('enables the import again only after a different file is chosen', async () => {
+    vi.stubGlobal('$fetch', vi.fn().mockRejectedValue(timeoutError()))
+    await loadPreviewAndSubmit()
+
+    await selectFile('novo.json')
+    ControlledReader.instances[1]!.finish('Livro novo')
+    await nextTick()
+
+    expect(container.querySelector('.error-banner')).toBeNull()
+    expect(container.querySelector('.btn-resend')).toBeNull()
+    expect(container.querySelector<HTMLButtonElement>('.btn-import')?.disabled).toBe(false)
+  })
+})

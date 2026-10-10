@@ -45,7 +45,7 @@ public/og-fallback.png
    - `og:image` - absolute cover URL
    - `og:type=article`, `og:locale=pt_BR`, `og:url` canonical absolute
 5. **`og:image` must never carry `?default=false`.** That parameter makes Open Library return 404 for unknown ISBNs, which is correct for an `<img onerror>` fallback but leaves WhatsApp with a broken preview on exactly the books that have no cover. Serve `/og-fallback.png` instead.
-6. `Cache-Control: private, no-store` when rendered with a session; public entries rendered anonymously may be cached briefly.
+6. `Cache-Control: private, no-store`, always. Public entries rendered anonymously were first allowed a brief shared cache (`s-maxage=60`); the owner removed it on 2026-10-10, because an entry made private kept being served from the CDN for up to a minute - the same reason the feed cache went.
 7. A share button using the Web Share API where available, falling back to copy-to-clipboard.
 8. Links to the work page and the reader's profile.
 

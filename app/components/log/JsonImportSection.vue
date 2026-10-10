@@ -93,11 +93,20 @@
           <button
             type="submit"
             class="btn btn-primary btn-import"
-            :disabled="isSubmitting"
+            :disabled="isSubmitting || timedOut"
             @click="submitImport"
           >
             <span v-if="isSubmitting">Importando livros...</span>
             <span v-else>Confirmar e importar {{ totalParsedBooks }} livros</span>
+          </button>
+          <button
+            v-if="timedOut"
+            type="button"
+            class="btn btn-secondary btn-resend"
+            :disabled="isSubmitting"
+            @click="resendImport"
+          >
+            Enviar mesmo assim
           </button>
           <button
             type="button"
@@ -284,6 +293,7 @@ const apiError = ref('')
 const apiErrorDetails = ref<string[]>([])
 const importIssues = ref<string[]>([])
 const isSubmitting = ref(false)
+const timedOut = ref(false)
 
 const allParsedBooks = ref<LivroJson[]>([])
 const previewBooks = ref<LivroJson[]>([])
@@ -382,6 +392,7 @@ function readFile(file: File) {
   parseError.value = ''
   apiError.value = ''
   apiErrorDetails.value = []
+  timedOut.value = false
   allParsedBooks.value = []
   previewBooks.value = []
   totalParsedBooks.value = 0
@@ -437,7 +448,16 @@ function readFile(file: File) {
 }
 
 const IMPORT_FALLBACK_MESSAGE = 'Ocorreu um erro ao importar os livros. Tente novamente.'
+const IMPORT_TIMEOUT_MESSAGE = 'A importação pode ter sido concluída mesmo assim. Confira sua biblioteca antes de enviar de novo.'
 const IMPORT_TIMEOUT_MS = 60_000
+
+// ofetch rejects a request that hit its own timeout with a FetchError whose cause is the TimeoutError it raised.
+function isTimeoutError(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false
+  const { name, cause } = err as { name?: unknown; cause?: unknown }
+  if (name === 'TimeoutError') return true
+  return typeof cause === 'object' && cause !== null && (cause as { name?: unknown }).name === 'TimeoutError'
+}
 
 // Error body from the server: { error, message, details?, fields? }. Read as data, never as markup.
 function readErrorBody(err: unknown): Record<string, unknown> | null {
@@ -474,10 +494,22 @@ function describeErrorDetails(body: Record<string, unknown> | null): string[] {
   return lines
 }
 
+// After a timeout the server may already have saved the books, so the main button stays off until a new file
+// is chosen; only the explicit "Enviar mesmo assim" button sends again.
 async function submitImport() {
+  if (timedOut.value) return
+  await sendImport()
+}
+
+async function resendImport() {
+  await sendImport()
+}
+
+async function sendImport() {
   if (allParsedBooks.value.length === 0 || isSubmitting.value) return
 
   isSubmitting.value = true
+  timedOut.value = false
   apiError.value = ''
   apiErrorDetails.value = []
   importIssues.value = []
@@ -497,6 +529,11 @@ async function submitImport() {
     }
     importIssues.value = res.errors
   } catch (err: unknown) {
+    if (isTimeoutError(err)) {
+      timedOut.value = true
+      apiError.value = IMPORT_TIMEOUT_MESSAGE
+      return
+    }
     const body = readErrorBody(err)
     const message = typeof body?.message === 'string' && body.message !== '' ? body.message : IMPORT_FALLBACK_MESSAGE
     apiError.value = message
@@ -513,6 +550,7 @@ function reset() {
   apiErrorDetails.value = []
   importIssues.value = []
   isSubmitting.value = false
+  timedOut.value = false
   allParsedBooks.value = []
   previewBooks.value = []
   totalParsedBooks.value = 0

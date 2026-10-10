@@ -157,3 +157,59 @@ describe('/entrar/ativar - retry after set-password fails', () => {
     page.unmount()
   })
 })
+
+describe('/entrar/ativar - motivo do erro ao validar o código', () => {
+  beforeEach(() => {
+    mocks.sendVerificationOtp.mockReset().mockResolvedValue({ error: null })
+    mocks.signInEmailOtp.mockReset().mockResolvedValue({ error: null })
+    mocks.push.mockReset().mockResolvedValue(undefined)
+    globalScope.$fetch = vi.fn()
+  })
+
+  afterEach(() => {
+    delete globalScope.$fetch
+  })
+
+  it('shows the server message when the attempts are used up (429)', async () => {
+    mocks.signInEmailOtp.mockResolvedValueOnce({
+      error: { status: 429, message: 'Muitas tentativas. Peça um novo código e tente mais tarde.' },
+    })
+
+    const page = mountPage()
+    await reachActivationStep(page.host)
+    await submit(page.host)
+
+    expect(page.error()).toBe('Muitas tentativas. Peça um novo código e tente mais tarde.')
+    expect(page.submitButton()?.disabled).toBe(false)
+
+    page.unmount()
+  })
+
+  it('keeps the generic code message for a 400 that is only a bad or expired code', async () => {
+    mocks.signInEmailOtp.mockResolvedValueOnce({
+      error: { status: 400, message: 'Código inválido ou expirado.' },
+    })
+
+    const page = mountPage()
+    await reachActivationStep(page.host)
+    await submit(page.host)
+
+    expect(page.error()).toBe('Código inválido ou expirado.')
+
+    page.unmount()
+  })
+
+  it('keeps the generic code message for any other failure', async () => {
+    mocks.signInEmailOtp.mockResolvedValueOnce({
+      error: { status: 500, statusText: 'Internal Server Error' },
+    })
+
+    const page = mountPage()
+    await reachActivationStep(page.host)
+    await submit(page.host)
+
+    expect(page.error()).toBe('Código inválido ou expirado.')
+
+    page.unmount()
+  })
+})

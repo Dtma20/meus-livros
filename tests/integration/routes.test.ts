@@ -158,10 +158,10 @@ describe('Route integration HTTP tests', () => {
     expect(html).not.toContain('ID da entrada:')
   })
 
-  it('GET /entrada/<public id> is shared-cacheable for an anonymous visitor', async () => {
+  it('GET /entrada/<public id> is never shared-cacheable, even for an anonymous visitor', async () => {
     const res = await fetch(`${baseUrl}/entrada/${publicLogId}`, { redirect: 'manual' })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe('public, max-age=60, s-maxage=60')
+    expect(res.headers.get('cache-control')).toBe('private, no-store')
   })
 
   it('GET /entrada/<public id> with the session cookie is never shared-cacheable', async () => {

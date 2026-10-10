@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { removeFixtures } from './fixtures'
 
@@ -321,4 +322,52 @@ describe.skipIf(!hasDatabaseUrl)('Reading logs integration tests', () => {
     const read = await logsService.getLogById(created.id, { id: userAId })
     expect(read.review).toBe(scriptPayload)
   })
+
+  it('the 61st log in an hour for one user gets 429 and is not stored', async () => {
+    const [userC] = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}-c@example.com`,
+        handle: `uc${Date.now()}`.slice(0, 20),
+        display_name: 'Usuário C',
+      })
+      .returning({ id: schema.users.id })
+    if (!userC) throw new Error('Não foi possível criar usuário de teste.')
+
+    // A fresh user starts with an empty hourly bucket. These calls run without skipRateLimit.
+    for (let i = 0; i < 60; i++) {
+      await logsService.createLog(
+        {
+          work_id: workAId,
+          finished_on: '2026-01-01',
+          finished_precision: 'dia',
+          visibility: 'publico',
+        },
+        userC.id,
+      )
+    }
+
+    let caught: unknown
+    try {
+      await logsService.createLog(
+        {
+          work_id: workAId,
+          finished_on: '2026-01-01',
+          finished_precision: 'dia',
+          visibility: 'publico',
+        },
+        userC.id,
+      )
+    } catch (err) {
+      caught = err
+    }
+    expect(asError(caught).statusCode).toBe(429)
+    expect(asError(caught).data?.error).toBe('muitas_tentativas')
+
+    const stored = await db
+      .select({ id: schema.reading_logs.id })
+      .from(schema.reading_logs)
+      .where(eq(schema.reading_logs.user_id, userC.id))
+    expect(stored).toHaveLength(60)
+  }, 30_000)
 })

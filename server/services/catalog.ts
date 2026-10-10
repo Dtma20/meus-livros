@@ -30,6 +30,16 @@ function badRequest(message: string) {
   })
 }
 
+// An empty ISBN means "no ISBN". A typed one must normalise, or the request is refused:
+// silently storing null would wipe the ISBN the edition already has.
+function editionIsbnOrNull(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim() ?? ''
+  if (trimmed === '') return null
+  const isbn13 = normalizeIsbn(trimmed)
+  if (!isbn13) throw badRequest('ISBN inválido. Confira os dígitos.')
+  return isbn13
+}
+
 function isUniqueViolation(error: unknown): boolean {
   const code = (error as { code?: unknown, cause?: { code?: unknown } } | null)?.code
     ?? (error as { cause?: { code?: unknown } } | null)?.cause?.code
@@ -128,7 +138,7 @@ async function insertEdition(
   input: EditionInput,
   userId: string,
 ): Promise<{ id: string }> {
-  const isbn13 = normalizeIsbn(input.isbn ?? null)
+  const isbn13 = editionIsbnOrNull(input.isbn)
 
   try {
     const [row] = await tx
@@ -180,6 +190,9 @@ export async function createWork(
   }
 
   const authorSlugs = input.authors.map((a) => slugify(a.name)).filter(Boolean)
+
+  // Checked before any write, so a bad edition ISBN leaves no work or author behind.
+  if (input.edition) editionIsbnOrNull(input.edition.isbn)
 
   if (!options.force) {
     const duplicate = await findDuplicateWork(input.title, authorSlugs, conn)
@@ -485,7 +498,7 @@ export async function updateEdition(
   }
   let isbn13: string | null = null
   if (hasField(input, 'isbn')) {
-    isbn13 = normalizeIsbn(input.isbn ?? null)
+    isbn13 = editionIsbnOrNull(input.isbn)
     patch.isbn13 = isbn13
   }
   if (hasField(input, 'publisher')) patch.publisher = input.publisher ?? null

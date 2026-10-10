@@ -3,7 +3,7 @@ import type { FeedEntry } from '~~/shared/schemas/feed'
 
 export interface UseFeedNewPostsOptions {
   // Newest entry on screen. Its (created_at, id) is the cursor new posts are compared against.
-  getTop: () => Pick<FeedEntry, 'id' | 'created_at'> | undefined
+  getTop: () => FeedOrderKey | undefined
 
   fetchLatest: () => Promise<FeedEntry[]>
 
@@ -16,13 +16,20 @@ export interface UseFeedNewPostsOptions {
   enabled?: boolean | Ref<boolean> | (() => boolean)
 }
 
+type FeedOrderKey = Pick<FeedEntry, 'id' | 'created_at' | 'sort_key'>
+
 // Same order as the feed cursor in server/services/feed.ts: (created_at, id) descending.
 // An entry is new only if it sorts above the top, so an older entry the client never saw
 // (for example, one that slid into the window after the top was deleted) is not new.
-function sortsAboveTop(
-  entry: Pick<FeedEntry, 'id' | 'created_at'>,
-  top: Pick<FeedEntry, 'id' | 'created_at'>,
-): boolean {
+// sort_key carries the cursor's microseconds; Date keeps only milliseconds, which is not
+// enough to order two entries created in the same millisecond.
+function sortsAboveTop(entry: FeedOrderKey, top: FeedOrderKey): boolean {
+  if (entry.sort_key !== undefined && top.sort_key !== undefined) {
+    if (entry.sort_key !== top.sort_key) return entry.sort_key > top.sort_key
+    return entry.id > top.id
+  }
+
+  // Payloads without sort_key fall back to the millisecond comparison.
   const entryTime = new Date(entry.created_at).getTime()
   const topTime = new Date(top.created_at).getTime()
   if (entryTime !== topTime) return entryTime > topTime

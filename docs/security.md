@@ -59,6 +59,7 @@ default-src 'self';
 img-src 'self' https: data:;
 script-src 'self' 'unsafe-inline';
 style-src 'self' 'unsafe-inline';
+font-src 'self' data:;
 object-src 'none';
 frame-ancestors 'none';
 base-uri 'self';
@@ -190,7 +191,7 @@ A Postgres table, not Redis. At this scale a counter row is correct and adding R
 | **Password sign-in** | **30 / IP / hour, 10 / (account, IP) / hour and 50 / account / hour** (TASK-067). The account buckets key on the email the identifier resolves to, so a handle and an email for the same person share them; an unknown identifier keys on the dummy address it resolves to. Per-account alone lets one host spray one likely password across every handle; per-IP alone lets a distributed attacker grind a single account. 50 rather than 10 per account is the TASK-067 trade against a stranger locking a member out |
 | **Password change** | 10 / user / hour |
 | Activation or reset code request | 5 / email / hour, 20 / IP / hour |
-| OTP verify | 5 attempts / code, then the code dies; the next attempt answers 429 `muitas_tentativas` |
+| OTP verify | 5 attempts / code, then the code dies. On top of that, 5 verifications / email / hour in the rate-limit table, counted before anything else for every address alike - better-auth's per-code counter is not atomic, and concurrent guesses got past it (reproduced, 2026-10-10). A dead code answers the same 400 as a wrong one: a distinct status would tell an attacker that a code existed, i.e. whether the address is invited or active (§4.3) |
 | `POST /api/logs` | 60 / user / hour |
 | `POST /api/works` | 30 / user / hour, counted in the rate-limit table - deleting a work does not give the slot back |
 | `GET /api/isbn` | 60 / user / hour. Replaced `GET /api/search/externo`, removed with the Open Library search on 2026-09-24 |

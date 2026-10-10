@@ -280,5 +280,21 @@ describe('Logger unit tests', () => {
       expect(result.cause.message).toBe('duplicate key value; [parâmetros omitidos]')
       expect(JSON.stringify(result)).not.toContain('rw_123')
     })
+
+    it('cuts the bound values from the message text of a log call, not only from Error objects', () => {
+      const entries: LogEntry[] = []
+      const testLogger = new Logger({
+        minLevel: 'DEBUG',
+        outputHandler: (entry) => entries.push(entry),
+      })
+
+      testLogger.warn(`Falha ao importar livro #1 (Obra): ${failedQuery(new Error('x')).message}`)
+
+      expect(entries[0]?.message).toContain('Falha ao importar livro #1 (Obra): Failed query: select "id" from "users"')
+      expect(entries[0]?.message).toContain('[parâmetros omitidos]')
+      expect(entries[0]?.message).not.toContain('Usuário de escrita')
+      expect(entries[0]?.message).not.toContain('rw_123')
+      expect(entries[0]?.message).not.toMatch(/params:/)
+    })
   })
 })

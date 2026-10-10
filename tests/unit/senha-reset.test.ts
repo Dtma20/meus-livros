@@ -115,3 +115,56 @@ describe('/entrar/senha - timeouts', () => {
     page.unmount()
   })
 })
+
+describe('/entrar/senha - motivo do erro ao redefinir', () => {
+  beforeEach(() => {
+    mocks.forgetPasswordEmailOtp.mockReset().mockResolvedValue({ error: null })
+    mocks.resetPassword.mockReset().mockResolvedValue({ error: null })
+  })
+
+  // Gets the page to the reset step with a valid code and password, then submits.
+  async function resetWithAnswer(answer: { error: unknown }) {
+    mocks.resetPassword.mockResolvedValueOnce(answer)
+
+    const page = mountPage()
+    await fill(page.host, 'email', 'ana@exemplo.com')
+    await submit(page.host)
+    await fill(page.host, 'otp-code', '123456')
+    await fill(page.host, 'new-password', PASSWORD)
+    await fill(page.host, 'confirm-password', PASSWORD)
+    await submit(page.host)
+
+    return page
+  }
+
+  it('shows the server password-rule message for a 400', async () => {
+    const page = await resetWithAnswer({
+      error: { status: 400, message: 'Senha inválida ou muito fraca.' },
+    })
+
+    expect(page.error()).toBe('Senha inválida ou muito fraca.')
+    expect(page.submitButton()?.disabled).toBe(false)
+
+    page.unmount()
+  })
+
+  it('shows the server message when the attempts are used up (429)', async () => {
+    const page = await resetWithAnswer({
+      error: { status: 429, message: 'Muitas tentativas. Peça um novo código e tente mais tarde.' },
+    })
+
+    expect(page.error()).toBe('Muitas tentativas. Peça um novo código e tente mais tarde.')
+
+    page.unmount()
+  })
+
+  it('keeps the generic code message for any other failure', async () => {
+    const page = await resetWithAnswer({
+      error: { status: 500, statusText: 'Internal Server Error' },
+    })
+
+    expect(page.error()).toBe('Código inválido ou expirado.')
+
+    page.unmount()
+  })
+})

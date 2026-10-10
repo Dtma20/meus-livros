@@ -94,6 +94,19 @@ describe('API Handler (defineApiHandler)', () => {
     expect(result.requestId).toBeDefined()
   })
 
+  it('answers a data-less 400 (malformed JSON from readBody) as validacao in Portuguese', async () => {
+    const event = createMockEvent({ method: 'POST' })
+    const handler = defineApiHandler(async () => {
+      throw createError({ statusCode: 400, statusMessage: 'Bad Request' })
+    })
+
+    const result = (await handler(event)) as { error: string; message: string }
+
+    expect(event.node.res.statusCode).toBe(400)
+    expect(result.error).toBe('validacao')
+    expect(result.message).toBe('Corpo da requisição inválido.')
+  })
+
   it('maps Postgres unique violation (code 23505) to 409 conflito', async () => {
     const event = createMockEvent()
     const pgError = new Error('duplicate key value violates unique constraint')

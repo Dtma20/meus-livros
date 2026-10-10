@@ -173,6 +173,12 @@ describe('BookPage og:image', () => {
     expect(await ogImageFor(cover)).toBe(FALLBACK)
   })
 
+  it('keeps a confirmed Open Library id cover that carries default=false, without the flag', async () => {
+    const cover = 'https://covers.openlibrary.org/b/id/1234567-L.jpg?default=false'
+
+    expect(await ogImageFor(cover)).toBe('https://covers.openlibrary.org/b/id/1234567-L.jpg')
+  })
+
   it('uses the static fallback when the work has no confirmed cover', async () => {
     expect(await ogImageFor(null)).toBe(FALLBACK)
   })

@@ -112,10 +112,13 @@ export function defineApiHandler<T extends EventHandlerRequest, D>(
         const statusCode = caught.statusCode || 500
         setResponseStatus(event, statusCode)
 
-        const data = (caught.data as ApiError | undefined) ?? {
-          error: statusCode >= 500 ? 'erro_interno' : 'erro_requisicao',
-          message: caught.statusMessage || 'Não foi possível completar a operação.',
-        }
+        // An h3 error without data (a malformed JSON body from readBody, for one) carries an English
+        // statusMessage such as "Bad Request"; the client gets the documented code and Portuguese copy instead.
+        const data = (caught.data as ApiError | undefined) ?? (statusCode >= 500
+          ? { error: 'erro_interno', message: 'Não foi possível completar a operação.' }
+          : statusCode === 400
+            ? { error: 'validacao', message: 'Corpo da requisição inválido.' }
+            : { error: 'erro_requisicao', message: 'Não foi possível completar a operação.' })
 
         const responseData: ApiError = {
           ...data,

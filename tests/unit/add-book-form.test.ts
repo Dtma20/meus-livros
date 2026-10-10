@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { type Component, createApp, nextTick, ref } from 'vue'
+import { type Component, createApp, defineComponent, h, nextTick, ref } from 'vue'
 import { createFormDraftKey } from '../../app/composables/useFormDraft'
 
 const DRAFT_KEY = createFormDraftKey('add-book', 'user-1', 'create', '/app/novo|')!
@@ -341,6 +341,32 @@ describe('AddBookForm component', () => {
       }),
     )
 
+    expect(navigatedTo).toBe('/app/novo?work_id=work-new-1')
+
+    form.unmount()
+  })
+
+  it('lands on /app/novo with work_id even when returnTo is another page', async () => {
+    const form = await mountForm({ returnTo: '/livro/outra-pagina' })
+
+    const titleEl = form.titleInput()!
+    titleEl.value = 'Livro Criado pela Busca'
+    titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const authorEl = form.authorInput()!
+    authorEl.value = 'Autora Qualquer'
+    authorEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    form.addAuthorBtn()!.click()
+    await nextTick()
+
+    form.submitBtn()!.click()
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(navigatedTo).toBe('/app/novo?work_id=work-new-1')
 
     form.unmount()
@@ -944,6 +970,105 @@ describe('AddBookForm component', () => {
         navigatedTo = dest
       }
     }
+  })
+})
+
+describe('livro/novo page with an external ret', () => {
+  let BookPage: Component | undefined
+  let mockFetch: ReturnType<typeof vi.fn>
+  const NuxtLinkStub = defineComponent({
+    name: 'NuxtLink',
+    props: { to: { type: String, required: true } },
+    setup(props, { slots }) {
+      return () => h('a', { href: props.to }, slots.default?.())
+    },
+  })
+
+  beforeEach(() => {
+    localStorage.clear()
+    navigatedTo = null
+    setDraftTestUserId('user-1')
+    globalScope.navigateTo = (dest: string) => {
+      navigatedTo = dest
+    }
+    mockFetch = vi.fn(async () => ({ id: 'work-new-1', slug: 'obra-nova' }))
+    globalScope.$fetch = mockFetch
+    globalScope.definePageMeta = () => {}
+    globalScope.useSeoMeta = () => {}
+    globalScope.useRoute = () => ({ query: { ret: 'https://evil.example/entrar' } })
+  })
+
+  afterEach(() => {
+    while (activeWrappers.length > 0) {
+      try {
+        activeWrappers.pop()?.unmount()
+      } catch {}
+    }
+    localStorage.clear()
+    document.body.innerHTML = ''
+    delete globalScope.useRoute
+  })
+
+  async function mountBookPage() {
+    if (!BookPage) {
+      BookPage = (await import('../../app/pages/app/livro/novo.vue')).default as Component
+    }
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const app = createApp(BookPage)
+    app.component('NuxtLink', NuxtLinkStub)
+    app.mount(host)
+    await nextTick()
+    await nextTick()
+
+    const wrapper = {
+      host,
+      unmount: () => {
+        app.unmount()
+        host.remove()
+      },
+    }
+    activeWrappers.push(wrapper)
+    return wrapper
+  }
+
+  it('creates no link to an external ret after the work is saved', async () => {
+    const page = await mountBookPage()
+
+    const titleEl = page.host.querySelector<HTMLInputElement>('#book-title')!
+    titleEl.value = 'Livro Vindo de Fora'
+    titleEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+
+    const authorEl = page.host.querySelector<HTMLInputElement>('#author-input')!
+    authorEl.value = 'Autor Qualquer'
+    authorEl.dispatchEvent(new Event('input', { bubbles: true }))
+    await nextTick()
+    page.host.querySelector<HTMLButtonElement>('.btn-add-author')!.click()
+    await nextTick()
+
+    page.host.querySelector<HTMLButtonElement>('.btn-submit')!.click()
+    await nextTick()
+    await nextTick()
+    await nextTick()
+
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    const hrefs = Array.from(page.host.querySelectorAll('a')).map((a) => a.getAttribute('href'))
+    expect(hrefs.some((href) => href?.includes('evil.example'))).toBe(false)
+    expect(hrefs).toContain('/app/novo?work_id=work-new-1')
+  })
+
+  it('cancels to an internal path instead of the external ret', async () => {
+    const page = await mountBookPage()
+
+    const cancelBtn = Array.from(page.host.querySelectorAll('button')).find(
+      (b) => b.textContent?.includes('Cancelar'),
+    )
+    expect(cancelBtn).toBeTruthy()
+    cancelBtn!.click()
+    await nextTick()
+
+    expect(navigatedTo).toBe('/')
   })
 })
 

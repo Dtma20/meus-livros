@@ -174,6 +174,7 @@
           ref="emptyAddBtnRef"
           type="button"
           class="empty-blocks-action"
+          :disabled="saving"
           @click="openAddForm('empty')"
         >
           <svg
@@ -231,6 +232,7 @@
               class="btn-icon btn-icon-delete"
               title="Excluir trecho"
               aria-label="Excluir trecho"
+              :disabled="saving"
               @click="startRemove(block)"
             >
               Excluir
@@ -336,6 +338,9 @@ const formReadAt = ref('')
 const formError = ref('')
 const deleteError = ref('')
 const saving = ref(false)
+// Bumped whenever the open form is opened, switched or closed. A save response only touches the
+// form when the form is still the one that sent the request.
+let formGeneration = 0
 const saveNotice = ref('')
 let noticeTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -448,6 +453,8 @@ function onCancelClick(): void {
 }
 
 function openAddForm(opener: AddOpener = 'header'): void {
+  if (saving.value) return
+  formGeneration += 1
   addOpener = opener
   editingBlock.value = null
   const lastEndPage = progress.value.current_page
@@ -462,6 +469,8 @@ function openAddForm(opener: AddOpener = 'header'): void {
 }
 
 function startEdit(block: ReadingBlockView): void {
+  if (saving.value) return
+  formGeneration += 1
   showAddForm.value = false
   editingBlock.value = block
   formStartPage.value = block.start_page
@@ -473,10 +482,16 @@ function startEdit(block: ReadingBlockView): void {
 }
 
 function cancelForm(): void {
+  formGeneration += 1
   showAddForm.value = false
   editingBlock.value = null
   formError.value = ''
   blockErrors.value = {}
+}
+
+// True while the form that started a request (its block id, or 'new') is still the open one.
+function isSameForm(formKey: string, generation: number): boolean {
+  return generation === formGeneration && (editingBlock.value?.id ?? 'new') === formKey
 }
 
 async function saveBlock(): Promise<void> {
@@ -487,6 +502,8 @@ async function saveBlock(): Promise<void> {
     return
   }
 
+  const formKey = editingBlock.value?.id ?? 'new'
+  const generation = formGeneration
   saving.value = true
   formError.value = ''
 
@@ -532,17 +549,21 @@ async function saveBlock(): Promise<void> {
       blocks.value.unshift(created)
     }
 
-    const wasEditing = Boolean(editingBlock.value)
+    const wasEditing = formKey !== 'new'
     updateLocalProgress()
-    cancelForm()
-    if (!wasEditing) returnFocusToAddTrigger()
+    if (isSameForm(formKey, generation)) {
+      cancelForm()
+      if (!wasEditing) returnFocusToAddTrigger()
+    }
     saveNotice.value = wasEditing ? 'Trecho atualizado.' : 'Trecho salvo.'
     if (noticeTimer) clearTimeout(noticeTimer)
     noticeTimer = setTimeout(() => { saveNotice.value = '' }, 4000)
   } catch (err: unknown) {
-    formError.value = isTimeoutOrAbort(err)
-      ? TIMEOUT_MESSAGE
-      : err instanceof Error ? err.message : 'Ocorreu um erro ao salvar.'
+    if (isSameForm(formKey, generation)) {
+      formError.value = isTimeoutOrAbort(err)
+        ? TIMEOUT_MESSAGE
+        : err instanceof Error ? err.message : 'Ocorreu um erro ao salvar.'
+    }
   } finally {
     saving.value = false
   }
@@ -639,6 +660,7 @@ const {
 const pendingRemoval = computed<PendingRemoval | null>(() => delayedRemoval.value)
 
 function startRemove(block: ReadingBlockView): void {
+  if (saving.value) return
   if (editingBlock.value?.id === block.id) cancelForm()
 
   const index = blocks.value.findIndex((b) => b.id === block.id)

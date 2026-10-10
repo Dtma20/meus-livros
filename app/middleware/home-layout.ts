@@ -30,10 +30,9 @@ export default defineNuxtRouteMiddleware(async () => {
     return
   }
 
-  // Server only (ssrContext exists only during SSR). A cookie-less SSR response is anonymous and can be
-  // stored by a shared cache (entrada/[id].vue sends s-maxage=60) and served to a signed-in member.
-  // Writing fetched: true would put "signed out" into that copy's payload, so the session stays unfetched
-  // and the client asks /api/users/me again on hydration.
+  // Server only (ssrContext exists only during SSR). A cookie-less SSR response is anonymous; if any cache
+  // ever stored one and served it to a signed-in member, fetched: true would put "signed out" into that
+  // copy's payload. So the session stays unfetched and the client asks /api/users/me again on hydration.
   const requestEvent = nuxtApp.ssrContext?.event
   if (requestEvent && !getCookie(requestEvent, SESSION_COOKIE)) {
     nuxtApp.runWithContext(applyLayout)

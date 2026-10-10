@@ -27,10 +27,11 @@
           <label class="form-hint" :for="`author-name-${author.id}`">Nome</label>
           <input
             :id="`author-name-${author.id}`"
-            v-model="author.name"
+            :value="author.name"
             class="form-input"
             type="text"
             maxlength="200"
+            @input="onAuthorNameInput(author, $event)"
           >
         </div>
 
@@ -42,13 +43,13 @@
             class="form-input"
             type="text"
             maxlength="100"
-            :list="author.countryLocked ? undefined : 'country-options'"
-            :readonly="author.countryLocked"
-            :aria-describedby="author.countryLocked ? `author-country-locked-${author.id}` : undefined"
+            :list="isCountryLocked(author) ? undefined : 'country-options'"
+            :readonly="isCountryLocked(author)"
+            :aria-describedby="isCountryLocked(author) ? `author-country-locked-${author.id}` : undefined"
             autocomplete="off"
           >
           <p
-            v-if="author.countryLocked"
+            v-if="isCountryLocked(author)"
             :id="`author-country-locked-${author.id}`"
             class="form-hint"
           >
@@ -169,20 +170,49 @@ interface AuthorRow {
   id: string
   name: string
   country: string
+  // The author as the server returned it. A different name is a different author,
+  // so the locked country only applies while the name still matches this one.
+  originalName: string
+  originalCountry: string
   // True when the server already has a country for this author. The server
   // only fills an empty country (backfillAuthorCountry), so the field is read-only.
-  countryLocked: boolean
+  hasServerCountry: boolean
 }
 
 const authorIdPrefix = useId()
 let nextAuthorId = 0
 
-function createAuthorRow(name: string, country: string, countryLocked = false): AuthorRow {
+function createAuthorRow(name: string, country: string, hasServerCountry = false): AuthorRow {
   return {
     id: `${authorIdPrefix}-author-${nextAuthorId++}`,
     name,
     country,
-    countryLocked,
+    originalName: name,
+    originalCountry: country,
+    hasServerCountry,
+  }
+}
+
+function sameAuthorName(a: string, b: string): boolean {
+  return a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase()
+}
+
+function isCountryLocked(row: AuthorRow): boolean {
+  return row.hasServerCountry && sameAuthorName(row.name, row.originalName)
+}
+
+function onAuthorNameInput(row: AuthorRow, event: Event): void {
+  const wasLocked = isCountryLocked(row)
+  row.name = (event.target as HTMLInputElement).value
+
+  if (!row.hasServerCountry) return
+  if (isCountryLocked(row)) {
+    // Back to the original author: lock again with the country the server has.
+    row.country = row.originalCountry
+  } else if (wasLocked) {
+    // The locked country belongs to the original author. Drop it, so the payload
+    // never sends another author's country under the new name.
+    row.country = ''
   }
 }
 

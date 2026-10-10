@@ -276,6 +276,32 @@ describe.skipIf(!hasDatabaseUrl)('Work and edition editing', () => {
     expect(cleared?.publisher).toBe('Editora Original')
   })
 
+  it('refuses an ISBN with a swapped digit with 400 and keeps the ISBN already saved', async () => {
+    const work = await makeWork('isbn-digito-trocado')
+    const [edition] = await db
+      .select({ id: schema.editions.id })
+      .from(schema.editions)
+      .where(sqlOp.eq(schema.editions.work_id, work.id))
+    if (!edition) throw new Error('A edição de teste não foi criada.')
+
+    await catalog.updateEdition(edition.id, { isbn: '9788535914849' }, ownerId)
+
+    try {
+      await catalog.updateEdition(edition.id, { isbn: '9788535914848' }, ownerId)
+      expect.unreachable('updateEdition deveria ter recusado o ISBN com dígito trocado.')
+    } catch (caught) {
+      expect(asError(caught).statusCode).toBe(400)
+      expect(asError(caught).data?.error).toBe('validacao')
+      expect(asError(caught).data?.message).toBe('ISBN inválido. Confira os dígitos.')
+    }
+
+    const [kept] = await db
+      .select({ isbn13: schema.editions.isbn13 })
+      .from(schema.editions)
+      .where(sqlOp.eq(schema.editions.id, edition.id))
+    expect(kept?.isbn13).toBe('9788535914849')
+  })
+
   it('answers 409 rather than 500 when an ISBN is already taken', async () => {
     const first = await makeWork('isbn-a')
     const second = await makeWork('isbn-b')

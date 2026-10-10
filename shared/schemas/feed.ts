@@ -58,6 +58,8 @@ export const feedEntrySchema = z.object({
   started_on: z.string().nullable().optional(),
   finished_on: z.string().nullable().optional(),
   created_at: z.union([z.date(), z.string()]),
+  // YYYY-MM-DDTHH:MM:SS.ffffffZ in UTC: fixed width, so string order is time order.
+  sort_key: z.string().optional(),
   user: feedUserSchema,
   work: feedWorkSchema,
   edition: feedEditionSchema.nullable(),

@@ -21,11 +21,14 @@
           type="text"
           maxlength="40"
           inputmode="numeric"
+          :aria-invalid="Boolean(errors.isbn)"
+          :aria-describedby="errors.isbn ? `${uid}-isbn-error` : undefined"
         >
         <p class="form-hint">
-          Qualquer grafia serve. Se não for um ISBN válido, a edição fica sem ISBN. Tudo bem:
-          várias edições podem ficar sem.
+          Com ou sem hífens. Deixe em branco se a edição não tiver ISBN: várias edições podem ficar
+          sem.
         </p>
+        <p v-if="errors.isbn" :id="`${uid}-isbn-error`" class="error-message">{{ errors.isbn }}</p>
       </div>
 
       <div class="form-group">
@@ -139,6 +142,7 @@
 import { computed, ref, useId } from 'vue'
 import BookCover from '~/components/book/BookCover.vue'
 import { LANGUAGES } from '~~/shared/constants/languages'
+import { normalizeIsbn } from '~~/shared/lib/isbn'
 import { isHttpsCoverUrl, type WorkEditionView } from '~~/shared/schemas/work'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 
@@ -197,6 +201,12 @@ function intOrNull(value: string): number | null {
 
 function validate(): boolean {
   const next: Record<string, string> = {}
+
+  // Same normaliser as the server. A mistyped ISBN is refused here, not stored as "no ISBN".
+  const typedIsbn = textOrNull(isbn.value)
+  if (typedIsbn !== null && normalizeIsbn(typedIsbn) === null) {
+    next.isbn = 'ISBN inválido. Confira os dígitos.'
+  }
 
   const pages = intOrNull(pagesText.value)
   if (Number.isNaN(pages)) {

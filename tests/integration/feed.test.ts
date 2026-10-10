@@ -467,6 +467,14 @@ describe.skipIf(!hasDatabaseUrl)('TASK-018 - Feed service and visibility integra
       expect(pageAnon.entries.some((e) => e.id === privLogId)).toBe(false)
     }, 30000)
 
+    it('each entry carries the microsecond sort_key the cursor orders by', async () => {
+      const page = await feedService.getFeedPage({ id: userOtherId }, { limit: 10 })
+      const fixtureEntry = page.entries.find((e) => e.id === log3Id)
+      // The fixture was written with millisecond precision, so the microsecond digits are zeros.
+      const expected = new Date(fixtureEntry!.created_at).toISOString().replace('Z', '000Z')
+      expect(fixtureEntry?.sort_key).toBe(expected)
+    }, 30000)
+
     it('malformed cursor throws 400 cursor_invalido', async () => {
       await expect(
         feedService.getFeedPage({ id: userOtherId }, { cursor: 'malformed_not_base64_json' })

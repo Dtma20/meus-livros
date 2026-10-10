@@ -218,8 +218,9 @@ export class Logger {
       ? (sanitizeLogData(combinedContext) as Record<string, unknown>)
       : undefined
 
+    // Messages can carry a failed query's text too (e.g. a wrapped drizzle error), so params are cut here as well.
     const sanitizedMessage = typeof message === 'string'
-      ? message.replace(EMAIL_REGEX, (email) => redactEmail(email))
+      ? redactEmails(cutQueryParams(message))
       : String(message)
 
     const entry: LogEntry = {

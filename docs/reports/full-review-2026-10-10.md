@@ -76,6 +76,47 @@ Baseline before any fix: lint, typecheck, 747 unit tests, build, 185 integration
 
 The overlap was 19 items, and most of those are the easy ones: the checklist rows of TASK-024 that anyone reading the task would tick. The rest split almost evenly - 15 findings only Claude raised, 10 only Codex - and in each list several are the reproduced, cross-file kind the skill asks for: the reset oracle and the logging leak on one side, the edition race and the editor's lost cookie on the other. Neither engine alone would have caught half of the real defects. Codex classified more items as blockers (it marked every TASK-024 row blocking, as the task says); Claude separated decisions the owner had already taken from defects, which is what produced the four owner questions.
 
+## Round 2 - review of `d820e45`
+
+Same prompts plus a note pointing at round 1 and the owner's decisions. **Codex pass B did not finish**: it hit the Codex usage limit mid-run and produced no report. So round 2 has three reviewers, and the security pass ran on Claude alone.
+
+| Finding | Found by | Origin | Fix |
+|---|---|---|---|
+| A dead OTP code answered 429 only when a code existed, telling invited, active and unknown addresses apart | Claude B-01 | **introduced in round 1** | Same 400 as a wrong code |
+| Concurrent reset guesses got past the 5-attempt limit: `checkVerificationOTP` is not atomic (reproduced: 1 of 50 parallel guesses reset the password) | Claude A-01, Codex A-02 | **introduced in round 1** | 5 verifications / email / hour in the rate-limit table, counted first for every address |
+| A reset in flight while the invite is removed recreates the credential (reproduced) | Codex A-01 | incomplete TASK-069 | Allowlist re-checked after the reset; credential and sessions revoked |
+| Renaming an author keeps the previous author's locked country, and sends it | Claude A-02, Codex A-06 | **introduced in round 1** | The lock follows the original name |
+| The work OG dropped confirmed `/b/id/` covers that carry `default=false` | Claude A-03 | **introduced in round 1** | Only `/b/isbn/` with `default=false` falls back |
+| The ESLint ban missed `el['innerHTML']`, `Reflect.set`, `:innerHTML`, `v-bind="{ innerHTML }"` (reproduced) | Claude B-02 | incomplete | Computed members, `Reflect.set`, `vue/no-restricted-v-bind` |
+| A body with neither `content-length` nor `transfer-encoding` skipped the cap (reproduced) | Codex A-04 | incomplete | 411 `tamanho_obrigatorio` for POST/PUT/PATCH |
+| `/entrada/[id]` shared-cached for 60 s after turning private | all three | preexisting | **Owner: remove.** Always `private, no-store`; TASK-014 updated |
+| Deleting a block during a save, or the empty-state add, reopened the race | Codex A-07 | incomplete | Disabled while saving, handlers guarded, response bound to its form |
+| `/app/novo` applied a stale work response, saving the review on the wrong book (reproduced) | Codex A-05, Claude A-09 | preexisting | Generation counter |
+| Import attached an arbitrary edition, or inserted an empty one, for items with no ISBN | Claude A-04 | preexisting | Edition only by ISBN, or from real edition data |
+| "Adicionar livro novo" from the header returned to a page that ignored the new work; `ret` was an open redirect into a link | Claude A-05, B-04 | preexisting | Always `/app/novo?work_id=`; `ret` through `getSafeRedirectUrl` |
+| Signing out during an undo countdown lost the deletion (401 on the keepalive DELETE) | Claude A-10 | preexisting | Pending deletes flushed before `signOut` |
+| A mistyped ISBN silently erased the stored one | Claude A-11 | preexisting | 400 `validacao`, client-side check too. `scripts/migrate-livros.ts` now normalises first, so the three legacy ASINs still store as no ISBN |
+| "Nova atividade" compared timestamps in milliseconds against a microsecond cursor | Codex A-09 | incomplete | `sort_key` carries the precise cursor |
+| Home feed and dashboard fetches had no timeout | Codex A-08 | preexisting | 15 s timeout, `retry: 0` |
+| Import timeout invited a resubmit that duplicates the library | Claude A-07 | introduced (timeout) | Warning plus an explicit "Enviar mesmo assim" |
+| Export/import round trip: precision of unfinished reads, `country_code`, same-day order | Claude A-12 | preexisting | All three kept |
+| Query params leaked through a log *message* (import) | Claude B-06 | incomplete | `cutQueryParams` on every message |
+| Code screens hid the real reason (password rule, 429) | Claude A-08 | preexisting | Server message shown for 400 and 429 |
+| No test exceeded the password-change, code-request and `POST /api/logs` limits | Claude B-03 | preexisting | Tests added |
+| Malformed JSON answered `erro_requisicao` / "Bad Request"; undocumented codes; stale §2.2 and §2 text | Claude B-07 | incomplete | `validacao` in Portuguese; `api.md` and `security.md` updated |
+
+Round 1 introduced five defects that round 2 caught - four of them in fixes to findings that had been reproduced. Re-reviewing fixes, not only the original code, was the part of the loop that earned its cost.
+
+Gates after round 2: lint and typecheck clean, 852 unit tests, build, 224 integration tests and 24 SSR tests green (local Docker Postgres); the four secret values appear 0 times in `.vercel/output/static`.
+
+### Left open when the owner stopped the loop after round 2
+
+- No round 3: the round-2 fixes were verified by the gates below, not re-reviewed.
+- `DELETE /api/admin/convites` reads a body; a DELETE with no `content-length` (only possible over HTTP/2, admin only) is not capped.
+- While the feed is pending, the home page still waits for it (now bounded to 15 s) before showing the dashboard; the feed's retry refetches both.
+- Import items with no ISBN but with a publisher create a new edition on every re-import; unfinished reads export first but list last.
+- SMTP retries against the function's `maxDuration` (round 1, Claude A-16) - needs the deploy.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

@@ -475,4 +475,60 @@ describe('ReadingBlocksSection - save in flight and timeouts', () => {
     expect(container.textContent).toContain('Começo lento.')
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(`${TIMEOUT_MESSAGE} O trecho voltou para a lista.`)
   })
+
+  it('disables Excluir while a save is pending, so the countdown cannot start', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK, SECOND_BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    editButton(container, 'b1').click()
+    await flush()
+    submitForm(container)
+    await flush()
+
+    expect(container.querySelector<HTMLButtonElement>('[data-block-id="b2"] .btn-icon-delete')?.disabled).toBe(true)
+    expect(container.querySelector<HTMLButtonElement>('[data-block-id="b1"] .btn-icon-delete')?.disabled).toBe(true)
+  })
+
+  it('ignores Editar, Excluir and Registrar clicks that get past the disabled state during a save', async () => {
+    const fetchMock = vi.fn(() => new Promise<Response>(() => {}))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK, SECOND_BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    editButton(container, 'b1').click()
+    await flush()
+    submitForm(container)
+    await flush()
+
+    // A disabled button ignores clicks in a browser. Removing the attribute here reaches the handlers
+    // directly, and they must still ignore the calls while the save is pending.
+    const bypassed = [
+      editButton(container, 'b2'),
+      container.querySelector<HTMLButtonElement>('[data-block-id="b2"] .btn-icon-delete'),
+      container.querySelector<HTMLButtonElement>('.btn-add-block'),
+    ]
+    for (const button of bypassed) {
+      if (!button) throw new Error('Botão esperado não encontrado.')
+      button.disabled = false
+      button.click()
+    }
+    await flush()
+
+    expect(container.querySelector('.form-card-title')?.textContent?.trim()).toBe('Editar trecho lido')
+    expect(container.querySelector<HTMLTextAreaElement>('#block-comment')?.value).toBe('Começo lento.')
+    expect(container.querySelector('[data-block-id="b2"]')).not.toBeNull()
+    expect(buttonsMatching(container, 'Desfazer')).toHaveLength(0)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
 })

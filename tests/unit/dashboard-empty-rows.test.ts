@@ -194,14 +194,19 @@ describe('dashboard partial failure', () => {
     globalScope.useRequestFetch = originalUseRequestFetch
   })
 
-  function runFetcher(failing: string) {
+  function runFetcher(
+    failing: string,
+    failure: unknown = new Error('falhou'),
+    calls: Array<{ url: string, options: unknown }> = [],
+  ) {
     globalScope.useState = (key: string, init?: () => unknown) => ({
       value: key === 'auth:session'
         ? { user: { id: 'u1', handle: 'leitor' }, fetched: true }
         : (init ? init() : null),
     })
-    globalScope.useRequestFetch = () => async (url: string) => {
-      if (url === failing) throw new Error('falhou')
+    globalScope.useRequestFetch = () => async (url: string, options?: unknown) => {
+      calls.push({ url, options })
+      if (url === failing) throw failure
       if (url === '/api/dashboard') return { inProgress: [inProgressBook], completed: [], shelf: [shelfBook] }
       return { entries: [] }
     }
@@ -222,6 +227,24 @@ describe('dashboard partial failure', () => {
     const feed = wrapper.find('.feed-section')
     expect(feed?.textContent).toContain('Não foi possível carregar a atividade do grupo.')
     expect(feed?.textContent).not.toContain('Ninguém registrou nada ainda')
+    expect(wrapper.text()).not.toContain('Não foi possível carregar suas leituras.')
+    wrapper.unmount()
+  })
+
+  it('gives both home requests a deadline and no retry, and keeps the dashboard when the feed times out', async () => {
+    const calls: Array<{ url: string, options: unknown }> = []
+    runFetcher('/api/feed/recentes', new DOMException('The operation timed out.', 'TimeoutError'), calls)
+    const wrapper = mount(IndexPage)
+    await flushAsync()
+
+    expect(calls.map((call) => call.url).sort()).toEqual(['/api/dashboard', '/api/feed/recentes'])
+    for (const call of calls) {
+      expect(call.options).toEqual({ timeout: 15_000, retry: 0 })
+    }
+    expect(wrapper.find('.in-progress-section')).not.toBeNull()
+    expect(wrapper.find('.shelf-section')).not.toBeNull()
+    const feed = wrapper.find('.feed-section')
+    expect(feed?.textContent).toContain('Não foi possível carregar a atividade do grupo.')
     expect(wrapper.text()).not.toContain('Não foi possível carregar suas leituras.')
     wrapper.unmount()
   })

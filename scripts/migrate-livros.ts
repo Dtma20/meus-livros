@@ -286,7 +286,8 @@ export async function main(): Promise<void> {
             ol_work_key: null,
             genre_ids: [...genreIdSet],
             edition: {
-              isbn: livro.isbn,
+              // createWork refuses an ISBN it cannot normalise; the three ASINs in livros.json store as no ISBN (migration.md §2).
+              isbn: normalizeIsbn(livro.isbn),
               publisher: livro.publisher,
               page_count: livro.pages,
               published_year: null,

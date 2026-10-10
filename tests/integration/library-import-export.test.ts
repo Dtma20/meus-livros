@@ -348,6 +348,141 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     const missing = Object.entries(transferService.GENRE_SLUG_MAP).filter(([, slug]) => !slugs.has(slug))
     expect(missing).toEqual([])
   })
+
+  it('reuses an edition only by ISBN: an item with no ISBN and no edition data keeps edition_id null', async () => {
+    const userId = await createImportUser('edicao-vazia')
+    const title = `${MARKER} Obra Com Duas Edicoes`
+    const author = `${MARKER} Autor Duas Edicoes`
+    const base = String(Date.now()).slice(-9)
+    const isbnA = isbn13WithCheckDigit(`978${base}`)
+    const isbnB = isbn13WithCheckDigit(`978${String(Number(base) + 1).padStart(9, '0')}`)
+
+    const seeded = await transferService.importUserLibrary(userId, [
+      { title, author, read_in: 2020, isbn: isbnA, genre: [] },
+      { title, author, read_in: 2021, isbn: isbnB, genre: [] },
+    ])
+    expect(seeded.errors).toEqual([])
+
+    const [work] = await db
+      .select({ id: schema.works.id })
+      .from(schema.works)
+      .where(sqlOp.eq(schema.works.title, title))
+    if (!work) throw new Error('A obra de teste não foi criada.')
+
+    const countEditions = async (): Promise<number> =>
+      (await db
+        .select({ id: schema.editions.id })
+        .from(schema.editions)
+        .where(sqlOp.eq(schema.editions.work_id, work.id))).length
+
+    expect(await countEditions()).toBe(2)
+
+    const bare = await transferService.importUserLibrary(userId, [
+      { title, author, read_in: 2022, genre: [] },
+    ])
+    expect(bare.errors).toEqual([])
+    expect(bare.importedCount).toBe(1)
+
+    const [bareLog] = await db
+      .select({ work_id: schema.reading_logs.work_id, edition_id: schema.reading_logs.edition_id })
+      .from(schema.reading_logs)
+      .where(sqlOp.and(
+        sqlOp.eq(schema.reading_logs.user_id, userId),
+        sqlOp.eq(schema.reading_logs.finished_on, '2022-01-01'),
+      ))
+    expect(bareLog).toEqual({ work_id: work.id, edition_id: null })
+    expect(await countEditions()).toBe(2)
+
+    const withPublisher = await transferService.importUserLibrary(userId, [
+      { title, author, read_in: 2023, publisher: 'Editora Sem ISBN', genre: [] },
+    ])
+    expect(withPublisher.errors).toEqual([])
+    expect(await countEditions()).toBe(3)
+
+    const [publisherLog] = await db
+      .select({ edition_id: schema.reading_logs.edition_id })
+      .from(schema.reading_logs)
+      .where(sqlOp.and(
+        sqlOp.eq(schema.reading_logs.user_id, userId),
+        sqlOp.eq(schema.reading_logs.finished_on, '2023-01-01'),
+      ))
+    expect(publisherLog?.edition_id).not.toBeNull()
+  })
+
+  it('keeps the finish precision of an unfinished reading through an export and import', async () => {
+    const originId = await createImportUser('precisao-origem')
+    const pendingTitle = `${MARKER} Leitura Pendente`
+    const monthPendingTitle = `${MARKER} Pendente Com Mes`
+
+    const result = await transferService.importUserLibrary(originId, [
+      { title: pendingTitle, author: 'Autor Pendente', genre: [] },
+      { title: monthPendingTitle, author: 'Autor Pendente', finished_precision: 'mes', genre: [] },
+    ])
+    expect(result.errors).toEqual([])
+
+    const stored = await db
+      .select({ title: schema.works.title, finished_on: schema.reading_logs.finished_on, precision: schema.reading_logs.finished_precision })
+      .from(schema.reading_logs)
+      .innerJoin(schema.works, sqlOp.eq(schema.works.id, schema.reading_logs.work_id))
+      .where(sqlOp.eq(schema.reading_logs.user_id, originId))
+    expect(stored.find((row) => row.title === pendingTitle)).toMatchObject({ finished_on: null, precision: 'dia' })
+    expect(stored.find((row) => row.title === monthPendingTitle)).toMatchObject({ finished_on: null, precision: 'mes' })
+
+    const exported = await transferService.exportUserLibrary(originId)
+    expect(exported.find((b) => b.title === pendingTitle)).toMatchObject({ read_in: null, finished_precision: 'dia' })
+
+    const destinationId = await createImportUser('precisao-destino')
+    const reimport = await transferService.importUserLibrary(destinationId, exported)
+    expect(reimport.errors).toEqual([])
+
+    const restored = await db
+      .select({ title: schema.works.title, finished_on: schema.reading_logs.finished_on, precision: schema.reading_logs.finished_precision })
+      .from(schema.reading_logs)
+      .innerJoin(schema.works, sqlOp.eq(schema.works.id, schema.reading_logs.work_id))
+      .where(sqlOp.eq(schema.reading_logs.user_id, destinationId))
+    expect(restored.find((row) => row.title === pendingTitle)).toMatchObject({ finished_on: null, precision: 'dia' })
+    expect(restored.find((row) => row.title === monthPendingTitle)).toMatchObject({ finished_on: null, precision: 'mes' })
+  })
+
+  it('stores country_code next to country_label for an author created by the import', async () => {
+    const userId = await createImportUser('pais')
+    const authorName = `${MARKER} Autora Brasileira`
+
+    const result = await transferService.importUserLibrary(userId, [
+      { title: `${MARKER} Livro Com Pais`, author: authorName, country: 'Brasil', genre: [] },
+    ])
+    expect(result.errors).toEqual([])
+
+    const [author] = await db
+      .select({ country_code: schema.authors.country_code, country_label: schema.authors.country_label })
+      .from(schema.authors)
+      .where(sqlOp.eq(schema.authors.name, authorName))
+    expect(author).toEqual({ country_code: 'BR', country_label: 'Brasil' })
+  })
+
+  it('shows the readings of one finish date in the file order, in the export and on the profile', async () => {
+    const userId = await createImportUser('ordem')
+    const titles = [`${MARKER} Ordem A`, `${MARKER} Ordem B`, `${MARKER} Ordem C`]
+
+    const result = await transferService.importUserLibrary(
+      userId,
+      titles.map((title) => ({ title, author: 'Autor Ordem', read_in: '2024-05-10', genre: [] })),
+    )
+    expect(result.errors).toEqual([])
+
+    const exported = await transferService.exportUserLibrary(userId)
+    expect(exported.map((b) => b.title)).toEqual(titles)
+
+    const [owner] = await db
+      .select({ handle: schema.users.handle })
+      .from(schema.users)
+      .where(sqlOp.eq(schema.users.id, userId))
+    if (!owner) throw new Error('Usuário de teste não encontrado.')
+
+    const profiles = await import('../../server/services/profiles')
+    const profile = await profiles.getProfileByHandle(owner.handle, { id: userId })
+    expect(profile.logs.map((log) => log.work.title)).toEqual(titles)
+  })
 })
 
 describe('read_in, started_on and precision rules', () => {

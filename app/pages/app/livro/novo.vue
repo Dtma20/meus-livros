@@ -12,6 +12,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AddBookForm from '~/components/search/AddBookForm.vue'
+import { getSafeRedirectUrl } from '~/utils/redirect'
 
 definePageMeta({
   layout: 'app',
@@ -29,9 +30,11 @@ const initialTitle = computed(() => {
   return typeof q === 'string' ? q : ''
 })
 
+// ret is a query string the caller controls: only an internal path may become a link or a navigation target.
 const returnTo = computed(() => {
   const ret = route.query.ret
-  return typeof ret === 'string' ? ret : '/app/novo'
+  if (typeof ret !== 'string') return '/app/novo'
+  return getSafeRedirectUrl(ret)
 })
 </script>
 

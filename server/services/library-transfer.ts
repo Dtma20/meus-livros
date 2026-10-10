@@ -12,6 +12,7 @@ import {
 import { normalizeIsbn } from '../utils/isbn'
 import { slugify } from '../utils/slug'
 import { logger } from '../utils/logger'
+import { countryCodeFor } from '../../shared/constants/countries'
 import type { LivroJson, ImportResult } from '../../shared/schemas/export-import'
 import {
   getTodaySaoPaulo,
@@ -217,7 +218,8 @@ export function parseReadingDates(book: LivroJson, now: Date = new Date()): Read
   if (!readIn.ok) return { ok: false, reason: readIn.reason }
 
   let finishedOn = readIn.finishedOn
-  const finishedPrecision = readIn.finishedPrecision
+  // With no finish date, the file's precision is kept; otherwise the default a manual reading gets (logInputSchema).
+  const finishedPrecision = finishedOn === null ? (book.finished_precision ?? 'dia') : readIn.finishedPrecision
 
   if (finishedOn !== null && book.finished_precision && book.finished_precision !== finishedPrecision) {
     return {
@@ -383,6 +385,9 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
   let importedCount = 0
   let skippedCount = 0
   const errors: string[] = []
+  // The export lists the newest reading first, and the library sorts ties on finish date by created_at DESC.
+  // Item i gets created_at = start - i ms, so the file order is kept among readings with the same finish date.
+  const importStartMs = Date.now()
 
   for (let i = 0; i < books.length; i++) {
     const book = books[i]!
@@ -424,6 +429,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
               .values({
                 name: aName,
                 slug: aSlug,
+                country_code: countryCodeFor(book.country),
                 country_label: book.country ?? null,
                 created_by: userId,
               })
@@ -544,42 +550,36 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           }
         }
 
-        if (!editionId && !isbnOwnedByOtherWork) {
-          const [existingForWork] = await tx
-            .select({ id: editions.id })
-            .from(editions)
-            .where(eq(editions.work_id, workId))
-            .limit(1)
+        // An edition is reused only by ISBN. Without an ISBN, one is created only when the file carries real edition
+        // data; otherwise the reading keeps edition_id null instead of borrowing another edition of the same work.
+        const hasEditionData = Boolean(book.publisher?.trim()) || (book.pages ?? 0) > 0 || Boolean(book.cover_url)
 
-          if (existingForWork && !normalizedIsbn) {
-            editionId = existingForWork.id
-          } else {
-            const [createdEdition] = await tx
-              .insert(editions)
-              .values({
-                work_id: workId,
-                isbn13: normalizedIsbn,
-                publisher: book.publisher ?? null,
-                page_count: book.pages && book.pages > 0 ? book.pages : null,
-                cover_url: book.cover_url ?? null,
-                created_by: userId,
-              })
-              .onConflictDoNothing()
-              .returning({ id: editions.id })
+        if (!editionId && !isbnOwnedByOtherWork && (normalizedIsbn || hasEditionData)) {
+          const [createdEdition] = await tx
+            .insert(editions)
+            .values({
+              work_id: workId,
+              isbn13: normalizedIsbn,
+              publisher: book.publisher ?? null,
+              page_count: book.pages && book.pages > 0 ? book.pages : null,
+              cover_url: book.cover_url ?? null,
+              created_by: userId,
+            })
+            .onConflictDoNothing()
+            .returning({ id: editions.id })
 
-            editionId = createdEdition ? createdEdition.id : null
-            if (!editionId && normalizedIsbn) {
-              // Second resolution: a concurrent insert may have taken this ISBN for another work.
-              const [raced] = await tx
-                .select({ id: editions.id, work_id: editions.work_id })
-                .from(editions)
-                .where(eq(editions.isbn13, normalizedIsbn))
-              if (raced) {
-                if (raced.work_id === workId) {
-                  editionId = raced.id
-                } else {
-                  isbnOwnedByOtherWork = true
-                }
+          editionId = createdEdition ? createdEdition.id : null
+          if (!editionId && normalizedIsbn) {
+            // Second resolution: a concurrent insert may have taken this ISBN for another work.
+            const [raced] = await tx
+              .select({ id: editions.id, work_id: editions.work_id })
+              .from(editions)
+              .where(eq(editions.isbn13, normalizedIsbn))
+            if (raced) {
+              if (raced.work_id === workId) {
+                editionId = raced.id
+              } else {
+                isbnOwnedByOtherWork = true
               }
             }
           }
@@ -603,6 +603,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           finished_precision: dates.finishedPrecision,
           format: parseFormat(book.source),
           visibility,
+          created_at: new Date(importStartMs - i),
         })
 
         importedCount++

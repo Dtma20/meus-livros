@@ -273,7 +273,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { getCookie, setResponseHeader, setResponseStatus } from 'h3'
+import { setResponseHeader, setResponseStatus } from 'h3'
 import BookCover from '~/components/book/BookCover.vue'
 import StarRating from '~/components/book/StarRating.vue'
 import ReviewText from '~/components/log/ReviewText.vue'
@@ -322,12 +322,9 @@ const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
     try {
       const result = await requestFetch<LogWithDetails>(`/api/logs/${id.value}` as string)
       if (event) {
-        const hasSession = Boolean(getCookie(event, '__Secure-better-auth.session_token') || session.value?.user?.id)
-        if (hasSession || result.visibility === 'privado') {
-          setResponseHeader(event, 'Cache-Control', 'private, no-store')
-        } else {
-          setResponseHeader(event, 'Cache-Control', 'public, max-age=60, s-maxage=60')
-        }
+        // Never shared-cached, even for an anonymous viewer: an entry made private must stop being served at once
+        // (owner's decision, 2026-10-10 - the same reason the feed cache went).
+        setResponseHeader(event, 'Cache-Control', 'private, no-store')
       }
       return result
     } catch (err: unknown) {

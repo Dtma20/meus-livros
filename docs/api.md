@@ -23,7 +23,11 @@ Public pages fetch nothing from these endpoints - they are server-rendered direc
 | 403 | `sem_permissao` | Authenticated but not the owner |
 | 404 | `nao_encontrado` | Missing, **or** present but not visible to this viewer |
 | 409 | `conflito` | Handle taken, duplicate ISBN |
+| 400 | `isbn_invalido` | `GET /api/isbn` with something that is not an ISBN |
+| 400 | `referencia_invalida` | Foreign-key violation (Postgres 23503) |
+| 411 | `tamanho_obrigatorio` | POST/PUT/PATCH with no `content-length` |
 | 413 | `corpo_muito_grande` | Body over 64 KB (4 MB for `POST /api/library/import`) - [security.md](security.md) §7 |
+| 504 | `tempo_esgotado` | Statement timeout (Postgres 57014) |
 | 429 | `muitas_tentativas` | Rate limit |
 | 500 | `erro_interno` | Everything else |
 
@@ -74,7 +78,7 @@ The daily credential is a **password**; the six-digit email code is kept for fir
 
 **Account enumeration.** Requesting a code for an address that is not on the allowlist must return the same status, body and approximate timing as one that is. Whether an address is invited - and whether it has already activated - is not public information. The same rule binds sign-in: the not-found branch verifies against a dummy hash instead of returning early, so a nonexistent handle is not measurably faster than a wrong password.
 
-**Rate limiting.** A Postgres table, no Redis. 10 sign-in attempts per identifier per hour and 30 per IP per hour; 5 code requests per email per hour and 20 per IP per hour. Exceeding any of them returns `429`. Full table in [security.md](security.md) §8.
+**Rate limiting.** A Postgres table, no Redis. Sign-in: 30 per IP per hour, 10 per (account, IP) and 50 per account, the account being the email the identifier resolves to; 5 code requests per email per hour and 20 per IP per hour; 5 code verifications per email per hour, counted for every address alike. Exceeding any of them returns `429`. Full table in [security.md](security.md) §8.
 
 **Sessions.** better-auth database sessions, httpOnly + Secure + SameSite=Lax cookie, 30-day expiry with rolling refresh. Database-backed rather than a sealed stateless cookie specifically so a session can be revoked server-side - which is also what makes "sign out everywhere else" implementable on a password change.
 

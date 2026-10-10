@@ -165,6 +165,35 @@ describe('useFeedNewPosts', () => {
     mounted.unmount()
   })
 
+  it('orders entries created in the same millisecond by the microsecond sort_key', async () => {
+    // Both entries fall in the same millisecond. The newer one (.123900Z) has the smaller id, so
+    // only sort_key can tell that it is newer; a millisecond comparison followed by id would not.
+    const sameMillisecond = '2026-10-01T12:00:00.123Z'
+    const top = {
+      ...createMockEntry('1'),
+      id: 'ffffffff-0000-4000-8000-000000000002',
+      created_at: sameMillisecond,
+      sort_key: '2026-10-01T12:00:00.123100Z',
+    }
+    const newer = {
+      ...createMockEntry('1'),
+      id: '00000000-0000-4000-8000-000000000001',
+      created_at: sameMillisecond,
+      sort_key: '2026-10-01T12:00:00.123900Z',
+    }
+
+    const mounted = mountComposable({
+      getTop: () => top,
+      fetchLatest: async () => [newer, top],
+    })
+
+    await mounted.composable.check()
+
+    expect(mounted.composable.pendingNewEntries.value.map((e) => e.id)).toEqual([newer.id])
+
+    mounted.unmount()
+  })
+
   it('dismiss() clears pending posts without applying', async () => {
     const mounted = mountComposable({
       getTop: () => createMockEntry('3'),

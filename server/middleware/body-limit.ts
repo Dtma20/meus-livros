@@ -11,6 +11,11 @@ function tooLarge(event: H3Event) {
   return { error: 'corpo_muito_grande', message: 'A requisição é grande demais.' }
 }
 
+function lengthRequired(event: H3Event) {
+  setResponseStatus(event, 411)
+  return { error: 'tamanho_obrigatorio', message: 'Informe o tamanho da requisição.' }
+}
+
 export default defineEventHandler((event) => {
   if (!BODY_METHODS.has(event.method)) {
     return
@@ -24,6 +29,11 @@ export default defineEventHandler((event) => {
     // Without a length, a chunked body can be any size. Browsers always send content-length for string bodies.
     if (getRequestHeader(event, 'transfer-encoding') !== undefined) {
       return tooLarge(event)
+    }
+    // HTTP/2 allows a body with neither header, so a write must state its size. DELETE is exempt:
+    // browsers send no content-length on a bodiless DELETE.
+    if (event.method !== 'DELETE') {
+      return lengthRequired(event)
     }
     return
   }

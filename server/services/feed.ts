@@ -185,6 +185,8 @@ export async function getFeedPage(
     started_on: row.started_on,
     finished_on: row.finished_on,
     created_at: row.created_at,
+    // Microsecond timestamp, the same value the cursor uses. The Date above keeps milliseconds only.
+    sort_key: row.cursor_created_at,
     user: row.user,
     work: {
       ...row.work,

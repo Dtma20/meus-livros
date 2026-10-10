@@ -17,6 +17,19 @@ describe('Feed Unit Tests', () => {
     expect(entry).toMatchObject({ kind: 'reading_block', log_id: logId, block: { id, start_page: 10, end_page: 20 } })
   })
 
+  it('keeps the microsecond sort_key in the response contract', () => {
+    const id = '11111111-1111-4111-8111-111111111111'
+    const entry = feedEntrySchema.parse({
+      id, kind: 'reading_log', log_id: id, block: null,
+      rating: 5, review_excerpt: null, created_at: '2026-10-01T12:00:00.123Z',
+      sort_key: '2026-10-01T12:00:00.123900Z',
+      user: { handle: 'leitor', display_name: 'Leitor' },
+      work: { id, title: 'Livro', slug: 'livro', first_published_year: null, cover_url: null, authors: [] },
+      edition: null,
+    })
+    expect(entry.sort_key).toBe('2026-10-01T12:00:00.123900Z')
+  })
+
   describe('formatRelativeDate', () => {
     const fixedNow = new Date('2026-09-20T12:00:00.000Z')
 
