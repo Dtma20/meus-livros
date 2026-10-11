@@ -156,7 +156,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, reactive, ref, useId } from 'vue'
+import { nextTick, reactive, ref, useId, watch } from 'vue'
 import GenrePicker from '~/components/search/GenrePicker.vue'
 import { COUNTRIES, countryCodeFor, countryLabelFor } from '~~/shared/constants/countries'
 import { LANGUAGES } from '~~/shared/constants/languages'
@@ -216,6 +216,23 @@ function onAuthorNameInput(row: AuthorRow, event: Event): void {
   }
 }
 
+function buildAuthorRows(work: WorkWithDetails): AuthorRow[] {
+  return work.authors.length > 0
+    ? work.authors.map((a) =>
+        createAuthorRow(
+          a.name,
+          a.country_label ?? countryLabelFor(a.country_code) ?? '',
+          Boolean(a.country_code || a.country_label),
+        ),
+      )
+    : [createAuthorRow('', '')]
+}
+
+function resetAuthorRows(work: WorkWithDetails): void {
+  const nextRows = buildAuthorRows(work)
+  authorRows.splice(0, authorRows.length, ...nextRows)
+}
+
 const title = ref(props.work.title)
 const yearText = ref(
   props.work.first_published_year === null ? '' : String(props.work.first_published_year),
@@ -225,16 +242,45 @@ const seriesName = ref(props.work.series_name ?? '')
 const seriesNumber = ref(props.work.series_number ?? '')
 const genreIds = ref<number[]>(props.work.genres.map((g) => g.id))
 
-const authorRows = reactive<AuthorRow[]>(
-  props.work.authors.length > 0
-    ? props.work.authors.map((a) =>
-        createAuthorRow(
-          a.name,
-          a.country_label ?? countryLabelFor(a.country_code) ?? '',
-          Boolean(a.country_code || a.country_label),
-        ),
-      )
-    : [createAuthorRow('', '')],
+const authorRows = reactive<AuthorRow[]>(buildAuthorRows(props.work))
+
+function computeSnapshot(): string {
+  return JSON.stringify({
+    title: title.value,
+    authors: authorRows.map((a) => ({ name: a.name, country: a.country })),
+    yearText: yearText.value,
+    originalLanguage: originalLanguage.value,
+    seriesName: seriesName.value,
+    seriesNumber: seriesNumber.value,
+    genreIds: [...genreIds.value].sort((a, b) => a - b),
+  })
+}
+
+let baselineSnapshot = computeSnapshot()
+
+function isDirty(): boolean {
+  return computeSnapshot() !== baselineSnapshot
+}
+
+let justSaved = false
+
+watch(
+  () => props.work,
+  (newWork) => {
+    if (justSaved || !isDirty()) {
+      resetAuthorRows(newWork)
+      title.value = newWork.title
+      yearText.value =
+        newWork.first_published_year === null ? '' : String(newWork.first_published_year)
+      originalLanguage.value = newWork.original_language ?? ''
+      seriesName.value = newWork.series_name ?? ''
+      seriesNumber.value = newWork.series_number ?? ''
+      genreIds.value = newWork.genres.map((g) => g.id)
+      justSaved = false
+      baselineSnapshot = computeSnapshot()
+    }
+  },
+  { deep: true },
 )
 
 const saving = ref(false)
@@ -294,6 +340,7 @@ function validate(): boolean {
 async function handleSubmit(): Promise<void> {
   serverError.value = ''
   savedAt.value = null
+  justSaved = false
   if (!validate()) return
 
   const yearRaw = yearText.value.trim()
@@ -326,6 +373,7 @@ async function handleSubmit(): Promise<void> {
       retry: 0,
     })
     savedAt.value = Date.now()
+    justSaved = true
     emit('saved')
   } catch (error) {
     serverError.value = isTimeoutOrAbort(error)

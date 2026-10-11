@@ -306,12 +306,26 @@ describe('Auth middleware: auth.ts', () => {
     })
   })
 
-  it('does not redirect public paths', async () => {
-    expect(await runAuthMiddleware({ path: '/', fullPath: '/' })).toBeUndefined()
-    expect(await runAuthMiddleware({ path: '/@diogo', fullPath: '/@diogo' })).toBeUndefined()
-    expect(await runAuthMiddleware({ path: '/livro/x', fullPath: '/livro/x' })).toBeUndefined()
-    expect(await runAuthMiddleware({ path: '/entrada/x', fullPath: '/entrada/x' })).toBeUndefined()
-    expect(await runAuthMiddleware({ path: '/entrar', fullPath: '/entrar' })).toBeUndefined()
+  it('redirects unauthenticated users from /atividade to /entrar?next=/atividade with 302', async () => {
+    const result = await runAuthMiddleware({
+      path: '/atividade',
+      fullPath: '/atividade'
+    })
+    expect(result).toEqual({
+      path: '/entrar?next=%2Fatividade',
+      redirectCode: 302
+    })
+  })
+
+  it('redirects unauthenticated users from /membros to /entrar?next=/membros with 302', async () => {
+    const result = await runAuthMiddleware({
+      path: '/membros',
+      fullPath: '/membros'
+    })
+    expect(result).toEqual({
+      path: '/entrar?next=%2Fmembros',
+      redirectCode: 302
+    })
   })
 })
 

@@ -117,10 +117,16 @@ const { data: pageData, pending, error, refresh } = await useAsyncData(
   `stats-${handle.value}`,
   async () => {
     const [statsRes, meRes] = await Promise.allSettled([
-      requestFetch<StatsResponse>(`/api/users/${encodeURIComponent(handle.value)}/stats`),
+      requestFetch<StatsResponse>(`/api/users/${encodeURIComponent(handle.value)}/stats`, {
+        timeout: 15_000,
+        retry: 0,
+      }),
       session.value?.user
         ? Promise.resolve(session.value.user)
-        : requestFetch<AuthSessionUser | null>('/api/users/me').catch(() => null),
+        : requestFetch<AuthSessionUser | null>('/api/users/me', {
+            timeout: 15_000,
+            retry: 0,
+          }).catch(() => null),
     ])
 
     if (statsRes.status === 'rejected') {

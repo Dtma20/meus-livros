@@ -598,6 +598,123 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(objPayload.error).toBe('validacao')
     expect(objPayload.fields).toHaveProperty('books.0.author')
   })
+
+  it('preserves null format across export and import roundtrip and distinguishes it from absent field', async () => {
+    const originUserId = await createImportUser('format-null-origin')
+    const nullFormatTitle = `${MARKER} Livro Formato Nulo`
+    const absentFormatTitle = `${MARKER} Livro Formato Ausente`
+
+    const importResult = await transferService.importUserLibrary(originUserId, [
+      {
+        title: nullFormatTitle,
+        author: 'Autor Formato Nulo',
+        source: null,
+        genre: [],
+      },
+      {
+        title: absentFormatTitle,
+        author: 'Autor Formato Ausente',
+        genre: [],
+      },
+    ])
+
+    expect(importResult.errors).toEqual([])
+    expect(importResult.importedCount).toBe(2)
+
+    const storedLogs = await db
+      .select({
+        title: schema.works.title,
+        format: schema.reading_logs.format,
+      })
+      .from(schema.reading_logs)
+      .innerJoin(schema.works, sqlOp.eq(schema.works.id, schema.reading_logs.work_id))
+      .where(sqlOp.eq(schema.reading_logs.user_id, originUserId))
+
+    const nullLog = storedLogs.find((l) => l.title === nullFormatTitle)
+    const absentLog = storedLogs.find((l) => l.title === absentFormatTitle)
+    expect(nullLog?.format).toBeNull()
+    expect(absentLog?.format).toBe('fisico')
+
+    const exported = await transferService.exportUserLibrary(originUserId)
+    const exportedNullBook = exported.find((b) => b.title === nullFormatTitle)
+    const exportedAbsentBook = exported.find((b) => b.title === absentFormatTitle)
+
+    expect(exportedNullBook).toBeDefined()
+    expect(exportedNullBook?.source).toBeNull()
+    expect(exportedAbsentBook?.source).toBe('Físico')
+    expect(livroJsonSchema.array().safeParse(exported).success).toBe(true)
+
+    const destUserId = await createImportUser('format-null-dest')
+    const reimportResult = await transferService.importUserLibrary(destUserId, exported)
+    expect(reimportResult.errors).toEqual([])
+    expect(reimportResult.importedCount).toBe(2)
+
+    const reimportedLogs = await db
+      .select({
+        title: schema.works.title,
+        format: schema.reading_logs.format,
+      })
+      .from(schema.reading_logs)
+      .innerJoin(schema.works, sqlOp.eq(schema.works.id, schema.reading_logs.work_id))
+      .where(sqlOp.eq(schema.reading_logs.user_id, destUserId))
+
+    const reimportedNullLog = reimportedLogs.find((l) => l.title === nullFormatTitle)
+    expect(reimportedNullLog?.format).toBeNull()
+
+    const destExported = await transferService.exportUserLibrary(destUserId)
+    const destNullBook = destExported.find((b) => b.title === nullFormatTitle)
+    expect(destNullBook?.source).toBeNull()
+  })
+
+  it('exports and imports a work with three 200-character authors without error', async () => {
+    const originUserId = await createImportUser('long-authors-origin')
+    const workTitle = `${MARKER} Obra Com Tres Autores Longos`
+
+    const a1 = `AutorUm_${'x'.repeat(192)}`
+    const a2 = `AutorDois_${'y'.repeat(190)}`
+    const a3 = `AutorTres_${'z'.repeat(190)}`
+    expect(a1.length).toBe(200)
+    expect(a2.length).toBe(200)
+    expect(a3.length).toBe(200)
+
+    const joinedAuthors = `${a1}, ${a2}, ${a3}`
+    expect(joinedAuthors.length).toBe(604)
+
+    const parseResult = livroJsonSchema.safeParse({
+      title: workTitle,
+      author: joinedAuthors,
+      genre: [],
+    })
+    expect(parseResult.success).toBe(true)
+
+    const importResult = await transferService.importUserLibrary(originUserId, [
+      {
+        title: workTitle,
+        author: joinedAuthors,
+        genre: [],
+      },
+    ])
+    expect(importResult.errors).toEqual([])
+    expect(importResult.importedCount).toBe(1)
+
+    const exported = await transferService.exportUserLibrary(originUserId)
+    const exportedBook = exported.find((b) => b.title === workTitle)
+    expect(exportedBook).toBeDefined()
+    expect(exportedBook?.author).toBe(joinedAuthors)
+    expect(exportedBook?.author.length).toBe(604)
+
+    const reparseResult = livroJsonSchema.array().safeParse(exported)
+    expect(reparseResult.success).toBe(true)
+
+    const destUserId = await createImportUser('long-authors-dest')
+    const destImportResult = await transferService.importUserLibrary(destUserId, exported)
+    expect(destImportResult.errors).toEqual([])
+    expect(destImportResult.importedCount).toBe(1)
+
+    const destExported = await transferService.exportUserLibrary(destUserId)
+    const destBook = destExported.find((b) => b.title === workTitle)
+    expect(destBook?.author).toBe(joinedAuthors)
+  })
 })
 
 describe('read_in, started_on and precision rules', () => {

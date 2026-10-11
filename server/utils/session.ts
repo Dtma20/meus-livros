@@ -34,14 +34,15 @@ export async function requireSessionUser(event: H3Event): Promise<SessionUser> {
 
   const method = (event.method || 'UNKNOWN').toUpperCase()
   if (method !== 'GET' && method !== 'HEAD') {
-    await assertWriteBudget(`write:user:${user.id}`)
+    await assertWriteBudget(user.email ?? user.id)
   }
 
   return user
 }
 
-export async function assertWriteBudget(userKey: string): Promise<void> {
-  const allowed = await checkRateLimit(userKey, WRITES_PER_HOUR)
+export async function assertWriteBudget(email: string): Promise<void> {
+  const normalizedEmail = email.trim().toLowerCase()
+  const allowed = await checkRateLimit(`write:email:${normalizedEmail}`, WRITES_PER_HOUR)
   if (!allowed) {
     throw createError({
       statusCode: 429,

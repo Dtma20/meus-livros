@@ -588,7 +588,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     }
 
     try {
-      await assertWriteBudget(`write:ba:${sessionData.user.id}`)
+      await assertWriteBudget(sessionEmail)
     } catch (e: unknown) {
       if (e && typeof e === 'object' && 'statusCode' in e && e.statusCode === 429 && 'data' in e) {
         return Response.json(
@@ -853,8 +853,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     }
 
     try {
-      // getSessionUserByHeaders resolves to users.id, the same key requireSessionUser counts under.
-      await assertWriteBudget(`write:user:${sessionUser.id}`)
+      await assertWriteBudget(sessionUser.email ?? sessionUser.id)
     } catch (e: unknown) {
       if (e && typeof e === 'object' && 'statusCode' in e && e.statusCode === 429 && 'data' in e) {
         return Response.json(

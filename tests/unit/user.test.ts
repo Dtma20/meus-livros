@@ -218,10 +218,41 @@ describe('TASK-008 - Route middleware logic (unit)', () => {
     const resultPromise = await runMiddleware({ path: '/app/novo', fullPath: '/app/novo' })
     const result = await resultPromise
     expect(result).toBeUndefined()
+    expect(globalScope.$fetch).toHaveBeenCalledWith('/api/users/me', {
+      timeout: 15_000,
+      retry: 0,
+    })
     expect(sessionRef.value.user).toMatchObject({
       id: 'uuid-42',
       handle: 'maria',
       hasProfile: true,
+    })
+
+    delete globalScope.$fetch
+  })
+
+  it('middleware passes timeout: 15_000 and retry: 0 and redirects to /entrar on timeout', async () => {
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    const sessionRef = { value: { user: null as unknown, fetched: false, hasProfile: false } }
+    globalScope.useState = () => sessionRef
+    const timeoutError = new Error('The operation was aborted due to timeout')
+    timeoutError.name = 'TimeoutError'
+    globalScope.$fetch = vi.fn().mockRejectedValue(timeoutError)
+
+    const resultPromise = await runMiddleware({ path: '/app/novo', fullPath: '/app/novo' })
+    const result = await resultPromise
+    expect(globalScope.$fetch).toHaveBeenCalledWith('/api/users/me', {
+      timeout: 15_000,
+      retry: 0,
+    })
+    expect(result).toEqual({
+      path: '/entrar?next=%2Fapp%2Fnovo',
+      redirectCode: 302,
+    })
+    expect(sessionRef.value).toEqual({
+      user: null,
+      hasProfile: false,
+      fetched: true,
     })
 
     delete globalScope.$fetch
@@ -257,5 +288,46 @@ describe('TASK-008 - Route middleware logic (unit)', () => {
     })
 
     delete globalScope.$fetch
+  })
+
+  it('redirects unauthenticated users trying to access /atividade or /membros to /entrar', async () => {
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    globalScope.useState = (_key: string, init?: () => unknown) => ({
+      value: init ? init() : { user: null },
+    })
+
+    const resultAtividade = await runMiddleware({ path: '/atividade', fullPath: '/atividade' })
+    expect(resultAtividade).toEqual({
+      path: '/entrar?next=%2Fatividade',
+      redirectCode: 302,
+    })
+
+    const resultMembros = await runMiddleware({ path: '/membros', fullPath: '/membros' })
+    expect(resultMembros).toEqual({
+      path: '/entrar?next=%2Fmembros',
+      redirectCode: 302,
+    })
+  })
+
+  it('redirects authenticated users without profile trying to access /atividade or /membros to /app/bem-vindo', async () => {
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    globalScope.useState = () => ({
+      value: {
+        user: { id: 'ba_test_user', email: 'test@example.com' },
+        hasProfile: false,
+      },
+    })
+
+    const resultAtividade = await runMiddleware({ path: '/atividade', fullPath: '/atividade' })
+    expect(resultAtividade).toEqual({
+      path: '/app/bem-vindo',
+      redirectCode: 302,
+    })
+
+    const resultMembros = await runMiddleware({ path: '/membros', fullPath: '/membros' })
+    expect(resultMembros).toEqual({
+      path: '/app/bem-vindo',
+      redirectCode: 302,
+    })
   })
 })

@@ -42,7 +42,10 @@ export default defineNuxtRouteMiddleware(async () => {
   const requestFetch = useRequestFetch()
 
   try {
-    const profile = await requestFetch<AuthSessionUser | null>('/api/users/me')
+    const profile = await requestFetch<AuthSessionUser | null>('/api/users/me', {
+      timeout: 15_000,
+      retry: 0,
+    })
     session.value = profile
       ? { user: { ...profile, hasProfile: true }, hasProfile: true, fetched: true }
       : { user: { hasProfile: false }, hasProfile: false, fetched: true }

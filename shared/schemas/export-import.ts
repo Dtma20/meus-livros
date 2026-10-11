@@ -4,7 +4,7 @@ import { datePrecisionSchema, ratingSchema, reviewSchema } from './log'
 
 export const livroJsonSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório.').max(300),
-  author: z.string().min(1, 'O autor é obrigatório.').max(500),
+  author: z.string().min(1, 'O autor é obrigatório.').max(1008),
   country: z.string().max(100).optional().nullable(),
   country_code: z.string().max(10).optional().nullable(),
   original_language: z.string().max(50).optional().nullable(),
@@ -19,6 +19,7 @@ export const livroJsonSchema = z.object({
   rate: ratingSchema.optional().nullable(),
   review: reviewSchema.optional().nullable(),
   source: z.string().max(50).optional().nullable(),
+  format: z.string().max(50).optional().nullable(),
   series_name: z.string().max(255).optional().nullable(),
   series_number: z.string().max(50).optional().nullable(),
   genre: z.array(z.string().max(50)).optional().default([]),

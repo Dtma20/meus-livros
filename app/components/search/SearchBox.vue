@@ -191,13 +191,26 @@ async function fetchResults(term: string, generation: number): Promise<void> {
   const controller = new AbortController()
   abortController = controller
 
+  const timeoutController = new AbortController()
+  const timeoutTimer = setTimeout(() => {
+    timeoutController.abort(new DOMException('The operation was aborted due to timeout', 'TimeoutError'))
+  }, 10_000)
+
+  let signal: AbortSignal
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
+    signal = AbortSignal.any([controller.signal, timeoutController.signal])
+  } else {
+    controller.signal.addEventListener('abort', () => timeoutController.abort(controller.signal.reason), { once: true })
+    signal = timeoutController.signal
+  }
+
   loading.value = true
   searchError.value = ''
 
   try {
     const res = await fetch(
       `/api/search?q=${encodeURIComponent(term)}`,
-      { signal: controller.signal },
+      { signal },
     )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
     const data = await res.json() as { works: SearchResult[] }
@@ -213,12 +226,14 @@ async function fetchResults(term: string, generation: number): Promise<void> {
     )
     activeIndex.value = -1
   } catch {
-    if (controller.signal.aborted || generation !== searchGeneration || term !== query.value.trim()) return
+    const isTimeout = timeoutController.signal.aborted
+    if ((controller.signal.aborted && !isTimeout) || generation !== searchGeneration || term !== query.value.trim()) return
     results.value = []
     searched.value = false
     activeIndex.value = -1
     searchError.value = 'Não foi possível buscar livros agora.'
   } finally {
+    clearTimeout(timeoutTimer)
     if (generation === searchGeneration && abortController === controller) {
       loading.value = false
       abortController = null

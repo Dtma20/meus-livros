@@ -17,13 +17,20 @@ function lengthRequired(event: H3Event) {
   return { error: 'tamanho_obrigatorio', message: 'Informe o tamanho da requisição.' }
 }
 
+function normalizePathname(pathname: string): string {
+  const lower = pathname.toLowerCase()
+  const trimmed = lower.replace(/\/+$/, '')
+  return trimmed === '' ? '/' : trimmed
+}
+
 export default defineEventHandler((event) => {
   if (!BODY_METHODS.has(event.method)) {
     return
   }
 
   const url = getRequestURL(event)
-  const isImport = event.method === 'POST' && url.pathname === IMPORT_PATH
+  const pathname = normalizePathname(url.pathname)
+  const isImport = event.method === 'POST' && pathname === IMPORT_PATH
   const limit = isImport ? IMPORT_LIMIT : DEFAULT_LIMIT
 
   const contentLength = getRequestHeader(event, 'content-length')
@@ -34,7 +41,7 @@ export default defineEventHandler((event) => {
     }
     // HTTP/2 allows a body with neither header, so a write must state its size. DELETE is exempt:
     // browsers send no content-length on a bodiless DELETE, except for endpoints known to accept a body.
-    const isDeleteWithBody = event.method === 'DELETE' && DELETE_WITH_BODY_PATHS.has(url.pathname)
+    const isDeleteWithBody = event.method === 'DELETE' && DELETE_WITH_BODY_PATHS.has(pathname)
     if (event.method !== 'DELETE' || isDeleteWithBody) {
       return lengthRequired(event)
     }

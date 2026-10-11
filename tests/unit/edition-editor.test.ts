@@ -122,3 +122,53 @@ describe('EditionEditor ISBN', () => {
     wrapper.unmount()
   })
 })
+
+describe('EditionEditor busy state during submit', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn(async () => ({}))
+    vi.stubGlobal('$fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('disables fields while POST is pending, ignores a second submit, and re-enables fields after failure', async () => {
+    let rejectPromise!: (reason?: unknown) => void
+    const pendingPromise = new Promise((_resolve, reject) => {
+      rejectPromise = reject
+    })
+    fetchMock.mockImplementationOnce(() => pendingPromise)
+
+    const wrapper = mountEditor(null)
+    const input = isbnInput(wrapper.container)
+    const fieldset = wrapper.container.querySelector('fieldset')
+    expect(fieldset?.disabled).toBe(false)
+    expect(input.disabled).toBe(false)
+
+    submit(wrapper.container)
+    await nextTick()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fieldset?.disabled).toBe(true)
+    expect(input.disabled).toBe(true)
+
+    // A second submit while busy does not trigger another fetch
+    submit(wrapper.container)
+    await nextTick()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    // After failure, fields become editable again
+    rejectPromise(new Error('Network error'))
+    await nextTick()
+    await nextTick()
+
+    expect(fieldset?.disabled).toBe(false)
+    expect(input.disabled).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+

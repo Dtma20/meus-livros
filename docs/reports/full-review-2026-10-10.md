@@ -134,6 +134,23 @@ The owner could no longer spend Claude quota, so round 3 ran both passes on Code
 
 Gates after round 3: lint and typecheck clean, 858 unit tests, build, 230 integration and 24 SSR tests green; secret values 0 times in the client bundle.
 
+## Round 4 - review of `23ce1f4`
+
+Codex, both passes; fixes by `agy` (Gemini 3.8 Flash high).
+
+| Finding | Found by | Fix |
+|---|---|---|
+| `DELETE /api/admin/convites/` (trailing slash) skipped the body rules the router still served | Codex A-01, B-01 | Pathname normalised before every path comparison |
+| One person had two write budgets (`write:ba:` and `write:user:`) | Codex B-02 | One key per normalised email |
+| Fields edited while a new edition was being posted were lost | Codex A-02 | Fields disabled while busy; submit guarded |
+| Export turned an unknown format into "Físico" | Codex A-03 | `null` kept through the round trip |
+| An export with long author names was refused by its own importer | Codex A-04 | `author` cap 1008 |
+| Client GETs in middlewares, profile, stats, year, work, entry and search had no timeout | Codex A-05 | `timeout` + `retry: 0`; search tells a timeout from a cancel |
+| `/atividade` and `/membros` showed a load error to anonymous visitors instead of the login redirect | Codex A-06 | Named `auth` middleware no longer limited to `/app` |
+| A country saved on an author stayed editable until reload | Codex A-07 | Author rows rebuilt from the reloaded work |
+
+Gates after round 4: lint and typecheck clean, 872 unit, build, 233 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

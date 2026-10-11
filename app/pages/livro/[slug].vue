@@ -271,7 +271,10 @@ const nuxtApp = typeof useNuxtApp === 'function'
 
 const { data: work, pending, error, refresh } = await useAsyncData<WorkWithDetails>(
   `work-${slug.value}`,
-  () => requestFetch<WorkWithDetails>(`/api/works/${encodeURIComponent(slug.value)}`),
+  () => requestFetch<WorkWithDetails>(`/api/works/${encodeURIComponent(slug.value)}`, {
+    timeout: 15_000,
+    retry: 0,
+  }),
 )
 
 const isNotFound = computed(() => {

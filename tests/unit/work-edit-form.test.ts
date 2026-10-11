@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, nextTick } from 'vue'
+import { createApp, h, nextTick, shallowRef } from 'vue'
 import WorkEditForm from '../../app/components/book/WorkEditForm.vue'
 import type { WorkWithDetails } from '../../shared/schemas/work'
 
@@ -28,11 +28,19 @@ const work: WorkWithDetails = {
 function mountForm(formWork: WorkWithDetails = work) {
   const container = document.createElement('div')
   document.body.appendChild(container)
-  const app = createApp(WorkEditForm, { work: formWork, onSaved: vi.fn() })
+  const currentWork = shallowRef(formWork)
+  const app = createApp({
+    render() {
+      return h(WorkEditForm, { work: currentWork.value, onSaved: vi.fn() })
+    },
+  })
   app.mount(container)
 
   return {
     container,
+    setWork(newWork: WorkWithDetails) {
+      currentWork.value = newWork
+    },
     unmount() {
       app.unmount()
       container.remove()
@@ -236,3 +244,131 @@ describe('WorkEditForm country after the author name changes', () => {
     wrapper.unmount()
   })
 })
+
+describe('WorkEditForm country locked after server save and props update', () => {
+  const lockedHint = 'O país deste autor já está definido e não pode ser alterado aqui.'
+
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchMock = vi.fn(async () => ({}))
+    vi.stubGlobal('$fetch', fetchMock)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function firstCountryInput(container: HTMLElement): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>('.author-row .author-country-group input')
+    if (!input) throw new Error('Expected the first author country field to be rendered')
+    return input
+  }
+
+  function typeInto(input: HTMLInputElement, value: string): void {
+    input.value = value
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  }
+
+  it('locks the country field as read-only after saving and receiving updated props from the server', async () => {
+    const workWithoutCountry: WorkWithDetails = {
+      ...work,
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: null, country_label: null }],
+    }
+    const wrapper = mountForm(workWithoutCountry)
+
+    const countryInput = firstCountryInput(wrapper.container)
+    expect(countryInput.readOnly).toBe(false)
+    expect(countryInput.getAttribute('list')).toBe('country-options')
+
+    // 1. Preencher Brasil
+    typeInto(countryInput, 'Brasil')
+    await nextTick()
+    expect(countryInput.value).toBe('Brasil')
+
+    // 2. Salvar
+    wrapper.container
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.container.textContent).toContain('Alterações salvas.')
+
+    // 3. Atualizar as props com o país Brasil
+    const workWithCountry: WorkWithDetails = {
+      ...work,
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: 'BR', country_label: 'Brasil' }],
+    }
+    wrapper.setWork(workWithCountry)
+    await nextTick()
+
+    // 4. O campo fica readonly
+    const updatedCountryInput = firstCountryInput(wrapper.container)
+    expect(updatedCountryInput.readOnly).toBe(true)
+    expect(updatedCountryInput.value).toBe('Brasil')
+    expect(updatedCountryInput.hasAttribute('list')).toBe(false)
+    expect(updatedCountryInput.getAttribute('aria-describedby')).toBeTruthy()
+    expect(wrapper.container.textContent).toContain(lockedHint)
+
+    wrapper.unmount()
+  })
+
+  it('reconstructs and locks author country when props change and the form is not dirty', async () => {
+    const workWithoutCountry: WorkWithDetails = {
+      ...work,
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: null, country_label: null }],
+    }
+    const wrapper = mountForm(workWithoutCountry)
+
+    const countryInput = firstCountryInput(wrapper.container)
+    expect(countryInput.readOnly).toBe(false)
+
+    // Props change while form is not dirty
+    const workWithCountry: WorkWithDetails = {
+      ...work,
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: 'BR', country_label: 'Brasil' }],
+    }
+    wrapper.setWork(workWithCountry)
+    await nextTick()
+
+    const updatedCountryInput = firstCountryInput(wrapper.container)
+    expect(updatedCountryInput.readOnly).toBe(true)
+    expect(updatedCountryInput.value).toBe('Brasil')
+    expect(updatedCountryInput.hasAttribute('list')).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('does not overwrite in-progress user edits when props change externally without save', async () => {
+    const workWithoutCountry: WorkWithDetails = {
+      ...work,
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: null, country_label: null }],
+    }
+    const wrapper = mountForm(workWithoutCountry)
+
+    const countryInput = firstCountryInput(wrapper.container)
+    expect(countryInput.readOnly).toBe(false)
+
+    // User types in a country, form is now dirty
+    typeInto(countryInput, 'Argentina')
+    await nextTick()
+    expect(countryInput.value).toBe('Argentina')
+
+    // External prop update happens without saving
+    const workWithCountry: WorkWithDetails = {
+      ...work,
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: 'BR', country_label: 'Brasil' }],
+    }
+    wrapper.setWork(workWithCountry)
+    await nextTick()
+
+    const currentCountryInput = firstCountryInput(wrapper.container)
+    expect(currentCountryInput.value).toBe('Argentina')
+    expect(currentCountryInput.readOnly).toBe(false)
+
+    wrapper.unmount()
+  })
+})
+

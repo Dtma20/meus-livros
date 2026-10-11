@@ -114,6 +114,37 @@ describe('library-transfer unit tests', () => {
         expect(withoutCode.data.country_code).toBeUndefined()
       }
     })
+
+    it('accepts null and undefined in source and format fields', () => {
+      const withNullSource = livroJsonSchema.safeParse({ title: 'T', author: 'A', source: null })
+      expect(withNullSource.success).toBe(true)
+      if (withNullSource.success) {
+        expect(withNullSource.data.source).toBeNull()
+      }
+
+      const withNullFormat = livroJsonSchema.safeParse({ title: 'T', author: 'A', format: null })
+      expect(withNullFormat.success).toBe(true)
+      if (withNullFormat.success) {
+        expect(withNullFormat.data.format).toBeNull()
+      }
+    })
+
+    it('accepts author field up to 1008 characters and rejects beyond that', () => {
+      const a200_1 = 'A'.repeat(200)
+      const a200_2 = 'B'.repeat(200)
+      const a200_3 = 'C'.repeat(200)
+      const threeAuthors = `${a200_1}, ${a200_2}, ${a200_3}`
+      expect(threeAuthors.length).toBe(604)
+
+      const result604 = livroJsonSchema.safeParse({ title: 'T', author: threeAuthors })
+      expect(result604.success).toBe(true)
+
+      const a1008 = 'A'.repeat(1008)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: a1008 }).success).toBe(true)
+
+      const a1009 = 'A'.repeat(1009)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: a1009 }).success).toBe(false)
+    })
   })
 
   describe('parseImportVisibility', () => {
@@ -158,14 +189,17 @@ describe('library-transfer unit tests', () => {
       expect(parseFormat('e-book')).toBe('ebook')
       expect(parseFormat('Digital')).toBe('ebook')
       expect(parseFormat('Audiobook')).toBe('audio')
-      expect(parseFormat(null)).toBe('fisico')
+      expect(parseFormat(null)).toBeNull()
+      expect(parseFormat(undefined)).toBe('fisico')
+      expect(parseFormat()).toBe('fisico')
     })
 
     it('correctly maps enum format to human-readable label', () => {
       expect(formatSourceLabel('fisico')).toBe('Físico')
       expect(formatSourceLabel('ebook')).toBe('Kindle')
       expect(formatSourceLabel('audio')).toBe('Audiobook')
-      expect(formatSourceLabel(null)).toBe('Físico')
+      expect(formatSourceLabel(null)).toBeNull()
+      expect(formatSourceLabel(undefined)).toBeNull()
     })
   })
 

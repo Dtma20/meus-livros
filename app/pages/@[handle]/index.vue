@@ -334,10 +334,16 @@ const { data: pageData, pending, error, refresh } = await useAsyncData(
   `profile-${handle.value}`,
   async () => {
     const [profileRes, meRes] = await Promise.allSettled([
-      requestFetch<ProfileResponse>(`/api/users/${handle.value}` as string),
+      requestFetch<ProfileResponse>(`/api/users/${handle.value}` as string, {
+        timeout: 15_000,
+        retry: 0,
+      }),
       session.value?.user
         ? Promise.resolve(session.value.user)
-        : requestFetch<AuthSessionUser | null>('/api/users/me').catch(() => null),
+        : requestFetch<AuthSessionUser | null>('/api/users/me', {
+            timeout: 15_000,
+            retry: 0,
+          }).catch(() => null),
     ])
 
     if (profileRes.status === 'rejected') {

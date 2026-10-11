@@ -97,6 +97,16 @@ describe('Body size limit (server/middleware/body-limit.ts)', () => {
     expect(body.ok).toBe(true)
   })
 
+  it('accepts a 1 MB body on POST /api/library/import/ with trailing slash', async () => {
+    const res = await fetch(`${baseUrl}/api/library/import/`, {
+      method: 'POST',
+      body: 'a'.repeat(1 * MB),
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
+  })
+
   it('rejects a body one byte over 4 MB on POST /api/library/import', async () => {
     const res = await fetch(`${baseUrl}/api/library/import`, {
       method: 'POST',
@@ -167,6 +177,20 @@ describe('Body size limit (server/middleware/body-limit.ts)', () => {
 
   it('requires content-length on DELETE endpoints known to read a body (/api/admin/convites)', async () => {
     const raw = await sendRaw(port, 'DELETE /api/admin/convites HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n')
+    expect(statusOf(raw)).toBe(411)
+    const body = JSON.parse(raw.slice(raw.indexOf('\r\n\r\n') + 4))
+    expect(body).toEqual({ error: 'tamanho_obrigatorio', message: 'Informe o tamanho da requisição.' })
+  })
+
+  it('requires content-length on DELETE /api/admin/convites/ with trailing slash', async () => {
+    const raw = await sendRaw(port, 'DELETE /api/admin/convites/ HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n')
+    expect(statusOf(raw)).toBe(411)
+    const body = JSON.parse(raw.slice(raw.indexOf('\r\n\r\n') + 4))
+    expect(body).toEqual({ error: 'tamanho_obrigatorio', message: 'Informe o tamanho da requisição.' })
+  })
+
+  it('normalizes uppercase path on DELETE /API/ADMIN/CONVITES/', async () => {
+    const raw = await sendRaw(port, 'DELETE /API/ADMIN/CONVITES/ HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n')
     expect(statusOf(raw)).toBe(411)
     const body = JSON.parse(raw.slice(raw.indexOf('\r\n\r\n') + 4))
     expect(body).toEqual({ error: 'tamanho_obrigatorio', message: 'Informe o tamanho da requisição.' })

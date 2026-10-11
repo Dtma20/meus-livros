@@ -13,7 +13,7 @@ export default defineApiHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers })
     if (session?.user?.email) {
       email = session.user.email.trim().toLowerCase()
-      await assertWriteBudget(`write:ba:${session.user.id}`)
+      await assertWriteBudget(email)
     }
   }
 

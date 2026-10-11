@@ -11,95 +11,102 @@
       />
     </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label" :for="`${uid}-isbn`">ISBN</label>
-        <input
-          :id="`${uid}-isbn`"
-          v-model="isbn"
-          class="form-input"
-          type="text"
-          maxlength="40"
-          inputmode="numeric"
-          :aria-invalid="Boolean(errors.isbn)"
-          :aria-describedby="errors.isbn ? `${uid}-isbn-error` : undefined"
-        >
-        <p class="form-hint">
-          Com ou sem hífens. Deixe em branco se a edição não tiver ISBN: várias edições podem ficar
-          sem.
-        </p>
-        <p v-if="errors.isbn" :id="`${uid}-isbn-error`" class="error-message">{{ errors.isbn }}</p>
+    <fieldset :disabled="busy" class="edition-fields">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" :for="`${uid}-isbn`">ISBN</label>
+          <input
+            :id="`${uid}-isbn`"
+            v-model="isbn"
+            class="form-input"
+            type="text"
+            maxlength="40"
+            inputmode="numeric"
+            :disabled="busy"
+            :aria-invalid="Boolean(errors.isbn)"
+            :aria-describedby="errors.isbn ? `${uid}-isbn-error` : undefined"
+          >
+          <p class="form-hint">
+            Com ou sem hífens. Deixe em branco se a edição não tiver ISBN: várias edições podem ficar
+            sem.
+          </p>
+          <p v-if="errors.isbn" :id="`${uid}-isbn-error`" class="error-message">{{ errors.isbn }}</p>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" :for="`${uid}-publisher`">Editora</label>
+          <input
+            :id="`${uid}-publisher`"
+            v-model="publisher"
+            class="form-input"
+            type="text"
+            maxlength="200"
+            :disabled="busy"
+          >
+        </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" :for="`${uid}-publisher`">Editora</label>
-        <input
-          :id="`${uid}-publisher`"
-          v-model="publisher"
-          class="form-input"
-          type="text"
-          maxlength="200"
-        >
-      </div>
-    </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" :for="`${uid}-pages`">Páginas</label>
+          <input
+            :id="`${uid}-pages`"
+            v-model="pagesText"
+            class="form-input"
+            type="number"
+            step="1"
+            min="1"
+            max="50000"
+            :disabled="busy"
+            :aria-invalid="Boolean(errors.page_count)"
+          >
+          <p v-if="errors.page_count" class="error-message">{{ errors.page_count }}</p>
+        </div>
 
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label" :for="`${uid}-pages`">Páginas</label>
-        <input
-          :id="`${uid}-pages`"
-          v-model="pagesText"
-          class="form-input"
-          type="number"
-          step="1"
-          min="1"
-          max="50000"
-          :aria-invalid="Boolean(errors.page_count)"
-        >
-        <p v-if="errors.page_count" class="error-message">{{ errors.page_count }}</p>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label" :for="`${uid}-year`">Ano desta edição</label>
-        <input
-          :id="`${uid}-year`"
-          v-model="yearText"
-          class="form-input"
-          type="number"
-          step="1"
-          min="-3000"
-          max="2100"
-          :aria-invalid="Boolean(errors.published_year)"
-        >
-        <p v-if="errors.published_year" class="error-message">{{ errors.published_year }}</p>
-      </div>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label" :for="`${uid}-language`">Idioma desta edição</label>
-        <select :id="`${uid}-language`" v-model="language" class="form-select">
-          <option value="">Não informado</option>
-          <option v-for="lang in LANGUAGES" :key="lang.code" :value="lang.code">
-            {{ lang.label }}
-          </option>
-        </select>
+        <div class="form-group">
+          <label class="form-label" :for="`${uid}-year`">Ano desta edição</label>
+          <input
+            :id="`${uid}-year`"
+            v-model="yearText"
+            class="form-input"
+            type="number"
+            step="1"
+            min="-3000"
+            max="2100"
+            :disabled="busy"
+            :aria-invalid="Boolean(errors.published_year)"
+          >
+          <p v-if="errors.published_year" class="error-message">{{ errors.published_year }}</p>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label class="form-label" :for="`${uid}-cover`">URL da capa</label>
-        <input
-          :id="`${uid}-cover`"
-          v-model="coverUrl"
-          class="form-input"
-          type="url"
-          maxlength="2000"
-          placeholder="https://…"
-          :aria-invalid="Boolean(errors.cover_url)"
-        >
-        <p v-if="errors.cover_url" class="error-message">{{ errors.cover_url }}</p>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" :for="`${uid}-language`">Idioma desta edição</label>
+          <select :id="`${uid}-language`" v-model="language" class="form-select" :disabled="busy">
+            <option value="">Não informado</option>
+            <option v-for="lang in LANGUAGES" :key="lang.code" :value="lang.code">
+              {{ lang.label }}
+            </option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" :for="`${uid}-cover`">URL da capa</label>
+          <input
+            :id="`${uid}-cover`"
+            v-model="coverUrl"
+            class="form-input"
+            type="url"
+            maxlength="2000"
+            placeholder="https://…"
+            :disabled="busy"
+            :aria-invalid="Boolean(errors.cover_url)"
+          >
+          <p v-if="errors.cover_url" class="error-message">{{ errors.cover_url }}</p>
+        </div>
       </div>
-    </div>
+    </fieldset>
 
     <p v-if="serverError" class="error-message server-error" role="alert">{{ serverError }}</p>
 
@@ -249,6 +256,7 @@ function reportError(error: unknown, fallback: string): void {
 }
 
 async function handleSubmit(): Promise<void> {
+  if (busy.value) return
   serverError.value = ''
   savedNote.value = ''
   confirmingDelete.value = false
@@ -326,6 +334,16 @@ async function handleDelete(): Promise<void> {
   border-radius: var(--radius-md);
   padding: var(--space-4);
   min-width: 0;
+}
+
+.edition-fields {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .edition-head {

@@ -325,7 +325,7 @@ describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: 200 por usuário por hora
   })
 
   it('200 authenticated PATCH /api/users/me pass and the 201st in the hour returns 429', async () => {
-    writerRateLimitKeys.push(hashRateLimitKey(`write:user:${writerId}`))
+    writerRateLimitKeys.push(hashRateLimitKey(`write:email:${writerId}@test.invalid`))
 
     const patch = (bio: string) =>
       fetch(`${serverUrl}/api/users/me`, {
@@ -405,7 +405,8 @@ describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: limite na criacao de perf
   })
 
   it('200 authenticated POST /api/users pass and the 201st in the hour returns 429', async () => {
-    writerRateLimitKeys.push(hashRateLimitKey(`write:ba:${testBaUserId}`))
+    const userEmail = `${writerMarker}@example.com`
+    writerRateLimitKeys.push(hashRateLimitKey(`write:email:${userEmail}`))
 
     const postUser = (handle: string) =>
       fetch(`${serverUrl}/api/users`, {
@@ -416,11 +417,96 @@ describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: limite na criacao de perf
 
     await db.execute(sql`
       INSERT INTO rate_limit (key, count, window_start)
-      VALUES (${hashRateLimitKey(`write:ba:${testBaUserId}`)}, 200, date_trunc('hour', now()))
+      VALUES (${hashRateLimitKey(`write:email:${userEmail}`)}, 200, date_trunc('hour', now()))
       ON CONFLICT (key, window_start) DO UPDATE SET count = 200
     `)
 
     const limited = await postUser(`rw_${Date.now() % 100000}`)
+    expect(limited.status).toBe(429)
+    const body = (await limited.json()) as { error?: string; message?: string }
+    expect(body.error).toBe('muitas_tentativas')
+    expect(body.message).toBe('Muitas ações em pouco tempo. Aguarde e tente novamente.')
+  }, 120_000)
+})
+
+describe.skipIf(!hasDatabaseUrl)('Orçamento de escrita: chave unificada por email entre fluxos ba e requireSessionUser', () => {
+  let client: typeof import('../../server/db')['client']
+  let server: Server
+  let serverUrl: string
+  const sharedMarker = `zz-rl-unified-${Date.now()}`
+  const sharedEmail = `${sharedMarker}@example.com`
+  const sharedRateLimitKeys: string[] = []
+
+  beforeAll(async () => {
+    const { vi } = await import('vitest')
+    vi.resetModules()
+    const dbModule = await import('../../server/db')
+    client = dbModule.client
+    const { requireSessionUser } = await import('../../server/utils/session')
+    const { defineApiHandler } = await import('../../server/utils/api')
+
+    const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        const userId = event.headers.get('x-test-user-id')
+        if (userId) {
+          event.context.user = { id: userId, email: sharedEmail }
+        }
+      }),
+    )
+    app.use(
+      '/api/test-session-write',
+      defineApiHandler(async (event) => {
+        await requireSessionUser(event)
+        return { ok: true }
+      }),
+    )
+
+    server = createServer(toNodeListener(app))
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve())
+    })
+    const address = server.address()
+    const port = typeof address === 'object' && address ? address.port : 0
+    serverUrl = `http://127.0.0.1:${port}`
+  })
+
+  afterAll(async () => {
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve())
+    })
+
+    try {
+      await deleteRateLimits(sharedRateLimitKeys)
+    } finally {
+      await client?.end()
+    }
+  })
+
+  it('2 escritas pelo fluxo ba mais 198 por requireSessionUser sao aceitas; a 201a retorna 429', async () => {
+    const { assertWriteBudget } = await import('../../server/utils/session')
+    sharedRateLimitKeys.push(hashRateLimitKey(`write:email:${sharedEmail}`))
+
+    // 2 escritas simulando fluxo BA (assertWriteBudget com o email normalizado, inclusive testando trim e maiusculas)
+    await assertWriteBudget(`  ${sharedEmail.toUpperCase()}  `)
+    await assertWriteBudget(sharedEmail)
+
+    const sessionWrite = () =>
+      fetch(`${serverUrl}/api/test-session-write`, {
+        method: 'POST',
+        headers: {
+          'x-test-user-id': `usr_${Date.now()}`,
+        },
+      })
+
+    // 198 escritas via requireSessionUser sao aceitas
+    for (let i = 1; i <= 198; i++) {
+      const res = await sessionWrite()
+      expect(res.status, `Escrita ${i} de 198 via requireSessionUser`).toBe(200)
+    }
+
+    // A 199a chamada via requireSessionUser (201a no total para este email) atinge o teto e recebe 429
+    const limited = await sessionWrite()
     expect(limited.status).toBe(429)
     const body = (await limited.json()) as { error?: string; message?: string }
     expect(body.error).toBe('muitas_tentativas')

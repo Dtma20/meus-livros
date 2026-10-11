@@ -320,7 +320,10 @@ const { data: log, pending, error, refresh } = useAsyncData<LogWithDetails>(
   `entry-${id.value}`,
   async () => {
     try {
-      const result = await requestFetch<LogWithDetails>(`/api/logs/${id.value}` as string)
+      const result = await requestFetch<LogWithDetails>(`/api/logs/${id.value}` as string, {
+        timeout: 15_000,
+        retry: 0,
+      })
       if (event) {
         // Never shared-cached, even for an anonymous viewer: an entry made private must stop being served at once
         // (owner's decision, 2026-10-10 - the same reason the feed cache went).

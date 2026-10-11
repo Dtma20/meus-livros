@@ -90,8 +90,9 @@ export function parseAuthors(raw: string): string[] {
     .filter(Boolean)
 }
 
-export function parseFormat(source?: string | null): 'fisico' | 'ebook' | 'audio' {
-  if (!source) return 'fisico'
+export function parseFormat(source?: string | null): 'fisico' | 'ebook' | 'audio' | null {
+  if (source === null) return null
+  if (source === undefined) return 'fisico'
   const lower = source.toLowerCase()
   if (lower.includes('kindle') || lower.includes('ebook') || lower.includes('e-book') || lower.includes('digital')) {
     return 'ebook'
@@ -102,10 +103,11 @@ export function parseFormat(source?: string | null): 'fisico' | 'ebook' | 'audio
   return 'fisico'
 }
 
-export function formatSourceLabel(format?: string | null): string {
+export function formatSourceLabel(format?: string | null): string | null {
   if (format === 'ebook') return 'Kindle'
   if (format === 'audio') return 'Audiobook'
-  return 'Físico'
+  if (format === 'fisico') return 'Físico'
+  return null
 }
 
 export function formatImportError(bookIndex: number, title: string): string {
@@ -616,7 +618,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           started_on: dates.startedOn,
           finished_on: dates.finishedOn,
           finished_precision: dates.finishedPrecision,
-          format: parseFormat(book.source),
+          format: parseFormat(book.source !== undefined ? book.source : book.format),
           visibility,
           created_at: new Date(importStartMs - i),
         })
