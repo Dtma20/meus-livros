@@ -837,7 +837,8 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
         warnRefusedOtp(email, 'reset_password')
         return invalidOtpResponse()
       }
-      return response
+      // better-auth answers { status } here today; stripped anyway so a library change cannot leak a token.
+      return stripSessionToken(response)
     }
 
     return invalidOtpResponse()

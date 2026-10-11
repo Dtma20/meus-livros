@@ -4,10 +4,10 @@ import { defineApiHandler, parseOrThrow } from '../../utils/api'
 import { requireSessionUser } from '../../utils/session'
 import { importUserLibrary } from '../../services/library-transfer'
 import { checkRateLimit } from '../../services/rate-limit'
-import { livroJsonSchema } from '../../../shared/schemas/export-import'
+import { importBatchItemSchema } from '../../../shared/schemas/export-import'
 
 const booksArraySchema = z
-  .array(livroJsonSchema)
+  .array(importBatchItemSchema)
   .min(1, 'Envie ao menos um livro para importação.')
   .max(1000, 'Limite de 1000 livros por importação.')
 

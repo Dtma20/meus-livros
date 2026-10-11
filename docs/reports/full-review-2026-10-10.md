@@ -240,6 +240,20 @@ Muse Spark and Step 5 on both passes, run one at a time (parallel `opencode` run
 
 Gates after round 10: lint and typecheck clean, 907 unit, build, 245 integration and 24 SSR tests green; secret values 0 times in the client bundle.
 
+## Round 11 - review of `0cd59d7`
+
+Muse Spark and Step 5 on both passes. **No blocker on the security pass from either engine**; Muse checked every round-10 fix and found it complete.
+
+| Finding | Found by | Fix |
+|---|---|---|
+| Any other optional import field with the wrong type still refused the whole file - rounds 7-10 had loosened fields one at a time | Muse A-01, Step A-01 | Closed as a class: the batch schema only requires `title`/`author`; one strict `livroItemSchema` is checked per item |
+| `Reflect.set(el, ['innerHTML'], x)` passed the sink rule | Step B-01 | Array-key selector |
+| `book-catalog.md` §4 still named `/api/search/externo` | Muse A-02 | Points at `/api/isbn` |
+| `get-session` could expose a nested `session.token` | Step A-02 | Not reproduced - every token-bearing branch already strips it; the reset branch, which returns no token, is now stripped too |
+| Logged Postgres detail, keepalive DELETE without request id, `resolveIdentifier` always `found` | Step A-03-A-05 | Dropped: §11 allows the detail in logs; nit; deliberate for timing parity |
+
+Gates after round 11: lint and typecheck clean, 910 unit, build, 247 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

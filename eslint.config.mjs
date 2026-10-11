@@ -87,7 +87,7 @@ const HTML_SINKS = [
     message: 'Do not pass innerHTML or outerHTML as a property (h() props, domProps, Object.assign). Reviews are plain text and v-html is banned (CLAUDE.md, Security). Use text children.',
   },
   {
-    selector: 'CallExpression[callee.object.name="Reflect"]:matches([callee.property.name="set"], [callee.property.value="set"], [callee.property.quasis.0.value.raw="set"]):matches([arguments.1.value=/^(innerHTML|outerHTML)$/], [arguments.1.quasis.0.value.raw=/^(innerHTML|outerHTML)$/])',
+    selector: 'CallExpression[callee.object.name="Reflect"]:matches([callee.property.name="set"], [callee.property.value="set"], [callee.property.quasis.0.value.raw="set"]):matches([arguments.1.value=/^(innerHTML|outerHTML)$/], [arguments.1.quasis.0.value.raw=/^(innerHTML|outerHTML)$/], [arguments.1.elements.0.value=/^(innerHTML|outerHTML)$/], [arguments.1.elements.0.quasis.0.value.raw=/^(innerHTML|outerHTML)$/])',
     message: HTML_SINK_MESSAGE,
   },
 

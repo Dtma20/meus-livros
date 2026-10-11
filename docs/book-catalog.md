@@ -116,7 +116,7 @@ The 86 migrated books seed this from day one - the first friend to sign up searc
 | | |
 |---|---|
 | Persisted | Everything in `works` and `editions` |
-| Fetched live | Only inside `GET /api/search/externo`, only on an explicit button press, only with a session |
+| Fetched live | Only inside `GET /api/isbn` (BrasilAPI, plus an Open Library cover lookup), only on an explicit button press or Enter, only with a session. The Open Library search endpoint `GET /api/search/externo` was removed on 2026-09-24 |
 | Cached | Nothing. There is nothing to cache - results are either persisted on accept or discarded |
 
 This deletes an entire subsystem the discovery documents assumed: no catalog mirror, no sync job, no cache invalidation, no staleness policy.

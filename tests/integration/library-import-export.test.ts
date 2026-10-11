@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { createApp, defineEventHandler, toWebHandler } from 'h3'
-import { livroJsonSchema, type LivroJson } from '../../shared/schemas/export-import'
+import {
+  livroJsonSchema,
+  type ImportBatchItem,
+  type LivroJson,
+} from '../../shared/schemas/export-import'
 import { removeFixtures } from './fixtures'
 
 const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
@@ -182,7 +186,7 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
 
     expect(result.importedCount).toBe(2)
     expect(result.skippedCount).toBe(1)
-    expect(result.errors).toEqual([transferService.formatImportError(3, invalidTitle)])
+    expect(result.errors).toEqual([`${transferService.formatImportError(3, invalidTitle)} Motivo: Visibilidade inválida.`])
 
     const stored = await db
       .select({ title: schema.works.title, visibility: schema.reading_logs.visibility })
@@ -903,7 +907,7 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     const badCoverTitle = `${MARKER} Capa Invalida Http`
     const validTitle = `${MARKER} Livro Valido Lote Forma`
 
-    const batch: LivroJson[] = [
+    const batch: ImportBatchItem[] = [
       {
         title: badYearTitle,
         author: 'Autor Teste',
@@ -992,6 +996,143 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(payload.errors[1]).toContain('Motivo: Invalid input: expected int, received number')
     expect(payload.errors[2]).toContain(httpBadCoverTitle)
     expect(payload.errors[2]).toContain('Motivo: A URL da capa precisa começar com https://')
+  })
+
+  it('imports valid book in a batch with started_on 20200101, visibility 1, genre "Romance", isbn 123, rate 3.7 and year "abc", skipping 6 invalid items with reasons', async () => {
+    const userId = await createImportUser('item-schema-estrito')
+    const validTitle = `${MARKER} Livro Valido Estrito`
+    const badStartedTitle = `${MARKER} Started On Numerico`
+    const badVisibilityTitle = `${MARKER} Visibilidade Numerica`
+    const badGenreTitle = `${MARKER} Genero String`
+    const badIsbnTitle = `${MARKER} ISBN Numerico`
+    const badRateTitle = `${MARKER} Nota Float Invalida`
+    const badYearTitle = `${MARKER} Ano String Invalida`
+
+    const batch: ImportBatchItem[] = [
+      {
+        title: validTitle,
+        author: 'Autor Valido',
+        year: 2021,
+        pages: 350,
+        genre: ['Ficção'],
+      },
+      {
+        title: badStartedTitle,
+        author: 'Autor Teste',
+        started_on: 20200101,
+      },
+      {
+        title: badVisibilityTitle,
+        author: 'Autor Teste',
+        visibility: 1,
+      },
+      {
+        title: badGenreTitle,
+        author: 'Autor Teste',
+        genre: 'Romance',
+      },
+      {
+        title: badIsbnTitle,
+        author: 'Autor Teste',
+        isbn: 123,
+      },
+      {
+        title: badRateTitle,
+        author: 'Autor Teste',
+        rate: 3.7,
+      },
+      {
+        title: badYearTitle,
+        author: 'Autor Teste',
+        year: 'abc',
+      },
+    ]
+
+    const result = await transferService.importUserLibrary(userId, batch)
+    expect(result.importedCount).toBe(1)
+    expect(result.skippedCount).toBe(6)
+    expect(result.errors).toHaveLength(6)
+
+    expect(result.errors[0]).toContain(badStartedTitle)
+    expect(result.errors[0]).toContain('Motivo: Invalid input: expected string, received number')
+
+    expect(result.errors[1]).toContain(badVisibilityTitle)
+    expect(result.errors[1]).toContain('Motivo: Visibilidade inválida.')
+
+    expect(result.errors[2]).toContain(badGenreTitle)
+    expect(result.errors[2]).toContain('Motivo: Invalid input: expected array, received string')
+
+    expect(result.errors[3]).toContain(badIsbnTitle)
+    expect(result.errors[3]).toContain('Motivo: Invalid input: expected string, received number')
+
+    expect(result.errors[4]).toContain(badRateTitle)
+    expect(result.errors[4]).toContain('Motivo: A nota deve ser em intervalos de 0,5 estrela.')
+
+    expect(result.errors[5]).toContain(badYearTitle)
+    expect(result.errors[5]).toContain('Motivo: Invalid input: expected number, received string')
+
+    const stored = await db
+      .select({ title: schema.works.title })
+      .from(schema.works)
+      .where(sqlOp.eq(schema.works.title, validTitle))
+
+    expect(stored).toHaveLength(1)
+    expect(stored[0]?.title).toBe(validTitle)
+  })
+
+  it('accepts batch with started_on 20200101, visibility 1, genre "Romance", isbn 123, rate 3.7 and year "abc" via POST /api/library/import without rejecting the file', async () => {
+    const httpUserId = await createImportUser('http-estrito')
+    const { default: importHandler } = await import('../../server/api/library/import.post')
+    const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        event.context.user = { id: httpUserId, email: `${MARKER}-http-estrito@example.com` }
+      }),
+    )
+    app.use(importHandler)
+    const handler = toWebHandler(app)
+
+    const httpValidTitle = `${MARKER} HTTP Valido Estrito`
+    const httpBadStartedTitle = `${MARKER} HTTP Started On 20200101`
+    const httpBadVisibilityTitle = `${MARKER} HTTP Visibility 1`
+    const httpBadGenreTitle = `${MARKER} HTTP Genre Romance`
+    const httpBadIsbnTitle = `${MARKER} HTTP ISBN 123`
+    const httpBadRateTitle = `${MARKER} HTTP Rate 3.7`
+    const httpBadYearTitle = `${MARKER} HTTP Year Abc`
+
+    const response = await handler(
+      new Request('http://localhost:3000/api/library/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify([
+          { title: httpValidTitle, author: 'Autor Valido', year: 2021, pages: 300 },
+          { title: httpBadStartedTitle, author: 'Autor Invalido', started_on: 20200101 },
+          { title: httpBadVisibilityTitle, author: 'Autor Invalido', visibility: 1 },
+          { title: httpBadGenreTitle, author: 'Autor Invalido', genre: 'Romance' },
+          { title: httpBadIsbnTitle, author: 'Autor Invalido', isbn: 123 },
+          { title: httpBadRateTitle, author: 'Autor Invalido', rate: 3.7 },
+          { title: httpBadYearTitle, author: 'Autor Invalido', year: 'abc' },
+        ]),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    const payload = (await response.json()) as { success: boolean; imported: number; skipped: number; errors: string[] }
+    expect(payload.success).toBe(true)
+    expect(payload.imported).toBe(1)
+    expect(payload.skipped).toBe(6)
+    expect(payload.errors[0]).toContain(httpBadStartedTitle)
+    expect(payload.errors[0]).toContain('Motivo: Invalid input: expected string, received number')
+    expect(payload.errors[1]).toContain(httpBadVisibilityTitle)
+    expect(payload.errors[1]).toContain('Motivo: Visibilidade inválida.')
+    expect(payload.errors[2]).toContain(httpBadGenreTitle)
+    expect(payload.errors[2]).toContain('Motivo: Invalid input: expected array, received string')
+    expect(payload.errors[3]).toContain(httpBadIsbnTitle)
+    expect(payload.errors[3]).toContain('Motivo: Invalid input: expected string, received number')
+    expect(payload.errors[4]).toContain(httpBadRateTitle)
+    expect(payload.errors[4]).toContain('Motivo: A nota deve ser em intervalos de 0,5 estrela.')
+    expect(payload.errors[5]).toContain(httpBadYearTitle)
+    expect(payload.errors[5]).toContain('Motivo: Invalid input: expected number, received string')
   })
 })
 

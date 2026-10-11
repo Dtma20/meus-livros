@@ -13,15 +13,17 @@ import { normalizeIsbn } from '../utils/isbn'
 import { slugify } from '../utils/slug'
 import { logger } from '../utils/logger'
 import { COUNTRIES, countryCodeFor, countryLabelFor } from '../../shared/constants/countries'
-import { importPagesSchema, type LivroJson, type ImportResult } from '../../shared/schemas/export-import'
-import { coverUrlSchema, publicationYearSchema } from '../../shared/schemas/work'
+import {
+  livroItemSchema,
+  type ImportBatchItem,
+  type ImportResult,
+  type LivroJson,
+} from '../../shared/schemas/export-import'
 
 import {
   getTodaySaoPaulo,
   isFutureDateSaoPaulo,
   logVisibilitySchema,
-  ratingSchema,
-  reviewSchema,
   type DatePrecision,
   type LogVisibility,
 } from '../../shared/schemas/log'
@@ -383,7 +385,10 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
   })
 }
 
-export async function importUserLibrary(userId: string, books: LivroJson[]): Promise<ImportResult> {
+export async function importUserLibrary(
+  userId: string,
+  books: Array<Record<string, unknown> | ImportBatchItem | LivroJson>,
+): Promise<ImportResult> {
   logger.info(`Iniciando importação de ${books.length} livros para o usuário ${userId}`, {
     module: 'import',
     userId,
@@ -406,10 +411,21 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
   const importStartMs = Date.now()
 
   for (let i = 0; i < books.length; i++) {
-    const book = books[i]!
+    const rawBook = books[i]!
     const bookIndex = i + 1
+    const candidateTitle = (rawBook as Record<string, unknown>).title
+    const rawTitle = typeof candidateTitle === 'string' && candidateTitle.trim() ? candidateTitle : 'Livro'
 
     try {
+      const parsedItem = livroItemSchema.safeParse(rawBook)
+      if (!parsedItem.success) {
+        const reason = parsedItem.error.issues[0]?.message ?? 'dados do livro inválidos.'
+        errors.push(`${formatImportError(bookIndex, rawTitle)} Motivo: ${reason}`)
+        skippedCount++
+        continue
+      }
+
+      const book = parsedItem.data
       const visibility = parseImportVisibility(book.visibility)
 
       // Refuses this item only, before any row is written for it.
@@ -420,61 +436,9 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
         continue
       }
 
-      if (book.rate !== null && book.rate !== undefined) {
-        const parsedRate = ratingSchema.safeParse(book.rate)
-        if (!parsedRate.success) {
-          const reason = parsedRate.error.issues[0]?.message ?? 'nota inválida.'
-          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
-          skippedCount++
-          continue
-        }
-      }
-
-      if (book.review !== null && book.review !== undefined) {
-        const parsedReview = reviewSchema.safeParse(book.review)
-        if (!parsedReview.success) {
-          const reason = parsedReview.error.issues[0]?.message ?? 'resenha inválida.'
-          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
-          skippedCount++
-          continue
-        }
-      }
-
-      let validYear: number | null = null
-      if (book.year !== null && book.year !== undefined) {
-        const parsedYear = publicationYearSchema.safeParse(book.year)
-        if (!parsedYear.success) {
-          const reason = parsedYear.error.issues[0]?.message ?? 'ano inválido.'
-          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
-          skippedCount++
-          continue
-        }
-        validYear = parsedYear.data
-      }
-
-      let validPages: number | null = null
-      if (book.pages !== null && book.pages !== undefined) {
-        const parsedPages = importPagesSchema.safeParse(book.pages)
-        if (!parsedPages.success) {
-          const reason = parsedPages.error.issues[0]?.message ?? 'número de páginas inválido.'
-          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
-          skippedCount++
-          continue
-        }
-        validPages = parsedPages.data
-      }
-
-      let validCoverUrl: string | null = null
-      if (book.cover_url !== null && book.cover_url !== undefined) {
-        const parsedCoverUrl = coverUrlSchema.safeParse(book.cover_url)
-        if (!parsedCoverUrl.success) {
-          const reason = parsedCoverUrl.error.issues[0]?.message ?? 'URL da capa inválida.'
-          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
-          skippedCount++
-          continue
-        }
-        validCoverUrl = parsedCoverUrl.data
-      }
+      const validYear = book.year ?? null
+      const validPages = book.pages ?? null
+      const validCoverUrl = book.cover_url ?? null
 
       // Warnings for an item are reported only once that item commits.
       const itemWarnings: string[] = []
@@ -689,16 +653,16 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
       errors.push(...itemWarnings)
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err)
-      logger.warn(`Falha ao importar livro #${bookIndex} (${book.title}): ${msg}`, {
+      logger.warn(`Falha ao importar livro #${bookIndex} (${rawTitle}): ${msg}`, {
         module: 'import',
-        bookTitle: book.title,
+        bookTitle: rawTitle,
         error: {
           name: err instanceof Error ? err.name : 'UnknownError',
           message: msg,
           stack: err instanceof Error ? err.stack : undefined,
         },
       })
-      errors.push(formatImportError(bookIndex, book.title))
+      errors.push(formatImportError(bookIndex, rawTitle))
       skippedCount++
     }
   }

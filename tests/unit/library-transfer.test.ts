@@ -10,13 +10,18 @@ import {
   parseImportVisibility,
   parseReadingDates,
 } from '../../server/services/library-transfer'
-import { importPagesSchema, livroJsonSchema } from '../../shared/schemas/export-import'
+import {
+  importBatchItemSchema,
+  importPagesSchema,
+  livroItemSchema,
+  livroJsonSchema,
+} from '../../shared/schemas/export-import'
 
 // These parsing tests never query PostgreSQL; fail on accidental database use.
 vi.mock('../../server/db', () => ({ db: {} }))
 
 describe('library-transfer unit tests', () => {
-  describe('livroJsonSchema validation', () => {
+  describe('livroItemSchema validation', () => {
     it('validates a complete book record', () => {
       const valid = {
         title: 'O Pequeno Príncipe',
@@ -37,7 +42,7 @@ describe('library-transfer unit tests', () => {
         cover_url: 'https://example.com/cover.jpg',
       }
 
-      const result = livroJsonSchema.safeParse(valid)
+      const result = livroItemSchema.safeParse(valid)
       expect(result.success).toBe(true)
     })
 
@@ -47,7 +52,7 @@ describe('library-transfer unit tests', () => {
         author: 'Autor Anônimo',
       }
 
-      const result = livroJsonSchema.safeParse(minimal)
+      const result = livroItemSchema.safeParse(minimal)
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.title).toBe('Livro Sem Metadados')
@@ -56,56 +61,60 @@ describe('library-transfer unit tests', () => {
     })
 
     it('rejects records missing title or author', () => {
-      expect(livroJsonSchema.safeParse({ author: 'Só Autor' }).success).toBe(false)
-      expect(livroJsonSchema.safeParse({ title: 'Só Título' }).success).toBe(false)
-      expect(livroJsonSchema.safeParse({ title: '', author: 'Autor' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ author: 'Só Autor' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'Só Título' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: '', author: 'Autor' }).success).toBe(false)
     })
 
-    // The batch schema no longer refuses a bad rating: one bad item must not sink a 1,000-book file.
-    // importUserLibrary refuses that item alone (see library-import-export.test.ts).
-    it('leaves rating validation to the per-item import step', () => {
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 3.7 }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 4.5 }).success).toBe(true)
+    it('validates rating strictly and rejects invalid values', () => {
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', rate: 3.7 }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', rate: 4.5 }).success).toBe(true)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', rate: 5 }).success).toBe(true)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', rate: 6 }).success).toBe(false)
     })
 
-    // The batch schema no longer refuses an out-of-bounds or non-integer publication year: one bad item must not sink a 1,000-book file.
-    // importUserLibrary refuses that item alone (see library-import-export.test.ts).
-    it('leaves publication year validation to the per-item import step', () => {
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: 99999 }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: -5000 }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: 'abc' }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: 1999.5 }).success).toBe(true)
+    it('validates publication year strictly and rejects invalid values', () => {
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', year: 99999 }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', year: -5000 }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', year: 'abc' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', year: 1999.5 }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', year: 2021 }).success).toBe(true)
     })
 
-    // The batch schema no longer enforces integers or the 50000-page ceiling: importUserLibrary refuses that item alone.
-    it('leaves page count validation to the per-item import step', () => {
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', pages: 99999 }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', pages: 3.5 }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', pages: 'abc' }).success).toBe(true)
+    it('validates page count strictly and rejects invalid values', () => {
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', pages: 99999 }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', pages: 3.5 }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', pages: 'abc' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', pages: 0 }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', pages: 100 }).success).toBe(true)
     })
 
-    // The batch schema leaves cover URL validation to the per-item import step.
-    it('leaves cover URL validation to the per-item import step', () => {
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'javascript:alert(1)' }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'http://exemplo.com/a.jpg' }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'https://exemplo.com/a.jpg' }).success).toBe(true)
+    it('validates cover URL strictly and rejects non-https URLs', () => {
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', cover_url: 'javascript:alert(1)' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', cover_url: 'http://exemplo.com/a.jpg' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', cover_url: 'https://exemplo.com/a.jpg' }).success).toBe(true)
     })
 
-    it('keeps the visibility field instead of stripping it', () => {
-      const result = livroJsonSchema.safeParse({ title: 'T', author: 'A', visibility: 'privado' })
-      expect(result.success).toBe(true)
-      if (result.success) {
-        expect(result.data.visibility).toBe('privado')
+    it('keeps valid visibility and rejects invalid visibility values', () => {
+      const validPub = livroItemSchema.safeParse({ title: 'T', author: 'A', visibility: 'publico' })
+      expect(validPub.success).toBe(true)
+      const validPriv = livroItemSchema.safeParse({ title: 'T', author: 'A', visibility: 'privado' })
+      expect(validPriv.success).toBe(true)
+      if (validPriv.success) {
+        expect(validPriv.data.visibility).toBe('privado')
       }
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', visibility: 'secreto' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', visibility: 1 }).success).toBe(false)
     })
 
-    it('lets an unknown visibility through so the import fails only that book', () => {
-      const result = livroJsonSchema.safeParse({ title: 'T', author: 'A', visibility: 'secreto' })
-      expect(result.success).toBe(true)
+    it('rejects invalid types for started_on, genre and isbn', () => {
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', started_on: 20200101 }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', genre: 'Romance' }).success).toBe(false)
+      expect(livroItemSchema.safeParse({ title: 'T', author: 'A', isbn: 123 }).success).toBe(false)
     })
 
     it('treats a missing visibility as absent', () => {
-      const result = livroJsonSchema.safeParse({ title: 'T', author: 'A' })
+      const result = livroItemSchema.safeParse({ title: 'T', author: 'A' })
       expect(result.success).toBe(true)
       if (result.success) {
         expect(result.data.visibility).toBeUndefined()
@@ -161,6 +170,30 @@ describe('library-transfer unit tests', () => {
 
       const a1009 = 'A'.repeat(1009)
       expect(livroJsonSchema.safeParse({ title: 'T', author: a1009 }).success).toBe(false)
+    })
+  })
+
+  describe('importBatchItemSchema validation', () => {
+    it('validates minimal record with title and author', () => {
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A' }).success).toBe(true)
+    })
+
+    it('rejects records missing title or author', () => {
+      expect(importBatchItemSchema.safeParse({ author: 'Só Autor' }).success).toBe(false)
+      expect(importBatchItemSchema.safeParse({ title: 'Só Título' }).success).toBe(false)
+      expect(importBatchItemSchema.safeParse({ title: '', author: 'Autor' }).success).toBe(false)
+    })
+
+    it('passes through any other field as unknown so batch is not rejected', () => {
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', rate: 3.7 }).success).toBe(true)
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', year: 'abc' }).success).toBe(true)
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', pages: 3.5 }).success).toBe(true)
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', cover_url: 'http://x' }).success).toBe(true)
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', visibility: 1 }).success).toBe(true)
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', visibility: 'secreto' }).success).toBe(true)
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', started_on: 20200101 }).success).toBe(true)
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', genre: 'Romance' }).success).toBe(true)
+      expect(importBatchItemSchema.safeParse({ title: 'T', author: 'A', isbn: 123 }).success).toBe(true)
     })
   })
 
