@@ -68,21 +68,26 @@ describe('library-transfer unit tests', () => {
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 4.5 }).success).toBe(true)
     })
 
-    // The batch schema no longer refuses an out-of-bounds publication year: one bad item must not sink a 1,000-book file.
+    // The batch schema no longer refuses an out-of-bounds or non-integer publication year: one bad item must not sink a 1,000-book file.
     // importUserLibrary refuses that item alone (see library-import-export.test.ts).
     it('leaves publication year validation to the per-item import step', () => {
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: 99999 }).success).toBe(true)
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: -5000 }).success).toBe(true)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: 'abc' }).success).toBe(true)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: 1999.5 }).success).toBe(true)
     })
 
-    // The batch schema no longer enforces the 50000-page ceiling: importUserLibrary refuses that item alone.
-    it('leaves page count ceiling validation to the per-item import step', () => {
+    // The batch schema no longer enforces integers or the 50000-page ceiling: importUserLibrary refuses that item alone.
+    it('leaves page count validation to the per-item import step', () => {
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', pages: 99999 }).success).toBe(true)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', pages: 3.5 }).success).toBe(true)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', pages: 'abc' }).success).toBe(true)
     })
 
-    it('accepts only https cover URLs', () => {
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'javascript:alert(1)' }).success).toBe(false)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'http://exemplo.com/a.jpg' }).success).toBe(false)
+    // The batch schema leaves cover URL validation to the per-item import step.
+    it('leaves cover URL validation to the per-item import step', () => {
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'javascript:alert(1)' }).success).toBe(true)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'http://exemplo.com/a.jpg' }).success).toBe(true)
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', cover_url: 'https://exemplo.com/a.jpg' }).success).toBe(true)
     })
 

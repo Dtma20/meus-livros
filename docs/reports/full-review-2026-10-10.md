@@ -226,6 +226,20 @@ Muse Spark on both passes; Step's code-review pass failed on the `opencode` SQLi
 | `finished_precision` can be patched inconsistently with `finished_on`; a malformed identifier may answer faster than a wrong password | Muse A-03, B-02 | Questions, left open |
 | Backup key and restore | Muse B-01 | **Open - owner action** |
 
+## Round 10 - review of `de3795b`
+
+Muse Spark and Step 5 on both passes, run one at a time (parallel `opencode` runs lock its SQLite).
+
+| Finding | Found by | Fix |
+|---|---|---|
+| A wrongly typed `year`/`pages` or a non-https `cover_url` still refused the whole import file | Muse A-01, A-02, B-04 | Shape checked per item too |
+| Logger printed a raw `Error` passed as `_rawError` next to the sanitised line | Muse B-03 | Escape hatch removed; nothing on the server set it |
+| `api.md` still listed `GET /api/search/externo` and `GET /api/logs?handle=` | Muse A-04, A-05 | Replaced by `/api/isbn`; the phantom list route removed |
+| `finished_precision` patchable inconsistently with `finished_on`; sign-in not-found timing; a computed sink assignment through a variable | Muse A-03, B-02, Step B-01 | Questions/nit, left open (better-auth already hashes on not-found, round 1) |
+| Backup key and restore | Muse B-01 | **Open - owner action** |
+
+Gates after round 10: lint and typecheck clean, 907 unit, build, 245 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

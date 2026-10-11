@@ -249,16 +249,10 @@ export class Logger {
       return
     }
 
-    const rawErrorArg =
-      mergedContext._rawError ??
-      (mergedContext.context as { _rawError?: unknown } | undefined)?._rawError
-
+    // Only the sanitised line is printed. A raw Error passed alongside it would bypass sanitizeLogData,
+    // and a DrizzleQueryError carries the query params (emails) in its message.
     if (level === 'ERROR' || level === 'FATAL') {
-      if (rawErrorArg instanceof Error) {
-        console.error(formatted, rawErrorArg)
-      } else {
-        console.error(formatted)
-      }
+      console.error(formatted)
     } else if (level === 'WARN') {
       console.warn(formatted)
     } else {

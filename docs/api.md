@@ -152,7 +152,7 @@ Rules that make it hold:
 | Method | Route | Auth | Purpose |
 |---|---|---|---|
 | `GET` | `/api/search?q=` | optional | Local catalog search |
-| `GET` | `/api/search/externo?q=` | **session** | Open Library lookup, explicitly invoked |
+| `GET` | `/api/isbn?isbn=` | **session** | ISBN autofill (BrasilAPI + Open Library cover), explicitly invoked; replaced `/api/search/externo`, removed 2026-09-24 |
 
 **`GET /api/search?q=dostoievski`**
 
@@ -162,13 +162,7 @@ Rules that make it hold:
 - Each result carries `{ id, slug, title, authors[], first_published_year, cover_url, log_count }`.
 - **Zero results inserts one `search_misses` row**, fire-and-forget, never blocking the response.
 
-**`GET /api/search/externo?q=` - deliberately separate, and session-gated.**
-
-Open Library averages **8.4 s** and times out outright (measured, [book-catalog.md](book-catalog.md)). It must never sit in the local search path.
-
-- Hard **2-second** `AbortController` timeout. On timeout or non-200, return `{ results: [], indisponivel: true }` with status `200`. A slow Open Library degrades to "não achamos nada online", never to an error page.
-- Session-gated so anonymous traffic cannot use us as a proxy to hammer a free public API.
-- Rate limited to 20/user/hour.
+**`GET /api/isbn?isbn=` - deliberately separate, and session-gated.** The Open Library search this section used to describe was removed on 2026-09-24 (it averaged 8.4 s and missed most Brazilian editions). The ISBN autofill that replaced it fires only on an explicit click or Enter, is session-gated, rate limited to 60/user/hour, and has its own timeouts ([security.md](security.md) §8-§9).
 
 ### Books (works and editions)
 
@@ -207,7 +201,6 @@ Open Library averages **8.4 s** and times out outright (measured, [book-catalog.
 | `GET` | `/api/logs/:id` | optional | One entry (the permalink) |
 | `PATCH` | `/api/logs/:id` | session + owner | Edit |
 | `DELETE` | `/api/logs/:id` | session + owner | Delete |
-| `GET` | `/api/logs?handle=&limit=&cursor=` | optional | List, filtered by visibility |
 
 **`POST /api/logs`**
 
@@ -264,7 +257,7 @@ Measured at p95, from São Paulo, against a warm Neon compute.
 | Operation | Target | Note |
 |---|---|---|
 | `GET /api/search` | < 150 ms | `ILIKE` over ~1,500 rows is a sub-ms scan; the budget is network |
-| `GET /api/search/externo` | < 2,000 ms | Hard timeout, degrades to empty |
+| `GET /api/isbn` | < 8,000 ms | BrasilAPI timeout; the cover lookup runs alongside with 2.5 s |
 | `POST /api/logs` | < 300 ms | |
 | SSR `/entrada/{id}` TTFB | < 800 ms | The WhatsApp-preview path. The one that matters most |
 | SSR `/@{handle}` TTFB | < 1,000 ms | Grid of up to ~200 entries |

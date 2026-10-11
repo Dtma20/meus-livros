@@ -235,21 +235,16 @@ describe('Logger unit tests', () => {
   })
 
   describe('Handling of _rawError', () => {
-    it('passes _rawError as second argument only when it is an Error instance', () => {
+    it('never prints a raw Error next to the sanitised line', () => {
       const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
       const testLogger = new Logger({ minLevel: 'DEBUG' })
 
-      const errorInstance = new Error('x')
+      const errorInstance = new Error('Failed query: select 1 params: maria@example.com')
       testLogger.error('mensagem com Error', { _rawError: errorInstance })
 
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1)
-      expect(consoleErrorSpy).toHaveBeenLastCalledWith(expect.any(String), errorInstance)
-
-      testLogger.error('mensagem com texto', { _rawError: 'texto' })
-
-      expect(consoleErrorSpy).toHaveBeenCalledTimes(2)
-      expect(consoleErrorSpy.mock.calls[1]).toHaveLength(1)
-      expect(consoleErrorSpy.mock.calls[1]![0]).toEqual(expect.any(String))
+      expect(consoleErrorSpy.mock.calls[0]).toHaveLength(1)
+      expect(String(consoleErrorSpy.mock.calls[0]![0])).not.toContain('maria@example.com')
 
       consoleErrorSpy.mockRestore()
     })

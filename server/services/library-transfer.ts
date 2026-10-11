@@ -14,7 +14,7 @@ import { slugify } from '../utils/slug'
 import { logger } from '../utils/logger'
 import { COUNTRIES, countryCodeFor, countryLabelFor } from '../../shared/constants/countries'
 import { importPagesSchema, type LivroJson, type ImportResult } from '../../shared/schemas/export-import'
-import { publicationYearSchema } from '../../shared/schemas/work'
+import { coverUrlSchema, publicationYearSchema } from '../../shared/schemas/work'
 
 import {
   getTodaySaoPaulo,
@@ -440,6 +440,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
         }
       }
 
+      let validYear: number | null = null
       if (book.year !== null && book.year !== undefined) {
         const parsedYear = publicationYearSchema.safeParse(book.year)
         if (!parsedYear.success) {
@@ -448,8 +449,10 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           skippedCount++
           continue
         }
+        validYear = parsedYear.data
       }
 
+      let validPages: number | null = null
       if (book.pages !== null && book.pages !== undefined) {
         const parsedPages = importPagesSchema.safeParse(book.pages)
         if (!parsedPages.success) {
@@ -458,6 +461,19 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           skippedCount++
           continue
         }
+        validPages = parsedPages.data
+      }
+
+      let validCoverUrl: string | null = null
+      if (book.cover_url !== null && book.cover_url !== undefined) {
+        const parsedCoverUrl = coverUrlSchema.safeParse(book.cover_url)
+        if (!parsedCoverUrl.success) {
+          const reason = parsedCoverUrl.error.issues[0]?.message ?? 'URL da capa inválida.'
+          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
+          skippedCount++
+          continue
+        }
+        validCoverUrl = parsedCoverUrl.data
       }
 
       // Warnings for an item are reported only once that item commits.
@@ -552,7 +568,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
               title: book.title.trim(),
               slug: finalSlug,
               original_language: langIso,
-              first_published_year: book.year ?? null,
+              first_published_year: validYear,
               series_name: book.series_name ?? null,
               series_number: book.series_number ?? null,
               created_by: userId,
@@ -613,7 +629,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
 
         // An edition is reused only by ISBN. Without an ISBN, one is created only when the file carries real edition
         // data; otherwise the reading keeps edition_id null instead of borrowing another edition of the same work.
-        const hasEditionData = Boolean(book.publisher?.trim()) || (book.pages ?? 0) > 0 || Boolean(book.cover_url)
+        const hasEditionData = Boolean(book.publisher?.trim()) || (validPages ?? 0) > 0 || Boolean(validCoverUrl)
 
         if (!editionId && !isbnOwnedByOtherWork && (normalizedIsbn || hasEditionData)) {
           const [createdEdition] = await tx
@@ -622,8 +638,8 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
               work_id: workId,
               isbn13: normalizedIsbn,
               publisher: book.publisher ?? null,
-              page_count: book.pages && book.pages > 0 ? book.pages : null,
-              cover_url: book.cover_url ?? null,
+              page_count: validPages && validPages > 0 ? validPages : null,
+              cover_url: validCoverUrl,
               created_by: userId,
             })
             .onConflictDoNothing()

@@ -895,6 +895,104 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(payload.errors[1]).toContain(httpBadPagesTitle)
     expect(payload.errors[1]).toContain('Motivo: Número de páginas superior a 50.000.')
   })
+
+  it('imports valid book in a batch with year "abc", pages 3.5 and cover_url "http://x", skipping 3 invalid items with reasons', async () => {
+    const userId = await createImportUser('forma-item')
+    const badYearTitle = `${MARKER} Ano Invalido Abc`
+    const badPagesTitle = `${MARKER} Paginas Invalidas Float`
+    const badCoverTitle = `${MARKER} Capa Invalida Http`
+    const validTitle = `${MARKER} Livro Valido Lote Forma`
+
+    const batch: LivroJson[] = [
+      {
+        title: badYearTitle,
+        author: 'Autor Teste',
+        year: 'abc',
+        genre: [],
+      },
+      {
+        title: badPagesTitle,
+        author: 'Autor Teste',
+        pages: 3.5,
+        genre: [],
+      },
+      {
+        title: badCoverTitle,
+        author: 'Autor Teste',
+        cover_url: 'http://x',
+        genre: [],
+      },
+      {
+        title: validTitle,
+        author: 'Autor Teste',
+        year: 2021,
+        pages: 350,
+        cover_url: 'https://example.com/cover.jpg',
+        genre: [],
+      },
+    ]
+
+    const result = await transferService.importUserLibrary(userId, batch)
+    expect(result.importedCount).toBe(1)
+    expect(result.skippedCount).toBe(3)
+    expect(result.errors).toHaveLength(3)
+    expect(result.errors[0]).toContain(badYearTitle)
+    expect(result.errors[0]).toContain('Motivo: Invalid input: expected number, received string')
+    expect(result.errors[1]).toContain(badPagesTitle)
+    expect(result.errors[1]).toContain('Motivo: Invalid input: expected int, received number')
+    expect(result.errors[2]).toContain(badCoverTitle)
+    expect(result.errors[2]).toContain('Motivo: A URL da capa precisa começar com https://')
+
+    const stored = await db
+      .select({ title: schema.works.title })
+      .from(schema.works)
+      .where(sqlOp.inArray(schema.works.title, [badYearTitle, badPagesTitle, badCoverTitle, validTitle]))
+
+    expect(stored).toHaveLength(1)
+    expect(stored[0]?.title).toBe(validTitle)
+  })
+
+  it('accepts batch with year "abc", pages 3.5 and cover_url "http://x" via POST /api/library/import without rejecting the file', async () => {
+    const { default: importHandler } = await import('../../server/api/library/import.post')
+    const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        event.context.user = { id: testUserId, email: `${MARKER}@example.com` }
+      }),
+    )
+    app.use(importHandler)
+    const handler = toWebHandler(app)
+
+    const httpBadYearTitle = `${MARKER} HTTP Ano Abc`
+    const httpBadPagesTitle = `${MARKER} HTTP Paginas Float`
+    const httpBadCoverTitle = `${MARKER} HTTP Capa Http`
+    const httpValidTitle = `${MARKER} HTTP Valido Forma`
+
+    const response = await handler(
+      new Request('http://localhost:3000/api/library/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify([
+          { title: httpBadYearTitle, author: 'Autor Invalido', year: 'abc' },
+          { title: httpBadPagesTitle, author: 'Autor Invalido', pages: 3.5 },
+          { title: httpBadCoverTitle, author: 'Autor Invalido', cover_url: 'http://x' },
+          { title: httpValidTitle, author: 'Autor Valido', year: 2021, pages: 300, cover_url: 'https://example.com/cover.jpg' },
+        ]),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    const payload = (await response.json()) as { success: boolean; imported: number; skipped: number; errors: string[] }
+    expect(payload.success).toBe(true)
+    expect(payload.imported).toBe(1)
+    expect(payload.skipped).toBe(3)
+    expect(payload.errors[0]).toContain(httpBadYearTitle)
+    expect(payload.errors[0]).toContain('Motivo: Invalid input: expected number, received string')
+    expect(payload.errors[1]).toContain(httpBadPagesTitle)
+    expect(payload.errors[1]).toContain('Motivo: Invalid input: expected int, received number')
+    expect(payload.errors[2]).toContain(httpBadCoverTitle)
+    expect(payload.errors[2]).toContain('Motivo: A URL da capa precisa começar com https://')
+  })
 })
 
 describe('read_in, started_on and precision rules', () => {

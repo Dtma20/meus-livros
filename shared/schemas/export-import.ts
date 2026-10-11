@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { coverUrlSchema } from './work'
 import { datePrecisionSchema } from './log'
 
 export const importPagesSchema = z
@@ -15,9 +14,10 @@ export const livroJsonSchema = z.object({
   country_code: z.string().max(10).optional().nullable(),
   original_language: z.string().max(50).optional().nullable(),
   // Checked per item in library-transfer.ts with publicationYearSchema, so one bad year skips only that book.
-  year: z.number().int().optional().nullable(),
+  year: z.unknown().optional(),
   publisher: z.string().max(255).optional().nullable(),
-  pages: z.number().int().positive().optional().nullable(),
+  // Checked per item in library-transfer.ts with importPagesSchema, so one bad page count skips only that book.
+  pages: z.unknown().optional(),
   // Format is checked per item by parseReadIn in library-transfer.ts, so one bad date skips only that book.
   read_in: z.union([z.number().int(), z.string()]).optional().nullable(),
   // Optional, so exports from before these fields existed still import. Checked per item in library-transfer.ts.
@@ -31,7 +31,8 @@ export const livroJsonSchema = z.object({
   series_number: z.string().max(50).optional().nullable(),
   genre: z.array(z.string().max(50)).optional().default([]),
   isbn: z.string().max(50).optional().nullable(),
-  cover_url: coverUrlSchema.optional().nullable(),
+  // Checked per item in library-transfer.ts with coverUrlSchema, so one bad cover URL skips only that book.
+  cover_url: z.unknown().optional(),
   visibility: z.string().max(50).optional().nullable(),
 })
 
