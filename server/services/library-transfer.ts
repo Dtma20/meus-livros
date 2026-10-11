@@ -12,8 +12,9 @@ import {
 import { normalizeIsbn } from '../utils/isbn'
 import { slugify } from '../utils/slug'
 import { logger } from '../utils/logger'
-import { countryCodeFor } from '../../shared/constants/countries'
+import { COUNTRIES, countryCodeFor, countryLabelFor } from '../../shared/constants/countries'
 import type { LivroJson, ImportResult } from '../../shared/schemas/export-import'
+
 import {
   getTodaySaoPaulo,
   isFutureDateSaoPaulo,
@@ -21,6 +22,8 @@ import {
   type DatePrecision,
   type LogVisibility,
 } from '../../shared/schemas/log'
+
+const VALID_COUNTRY_CODES = new Set(COUNTRIES.map((c) => c.code))
 
 export const ISO_IDIOMA: Record<string, string> = {
   'inglês': 'en',
@@ -290,6 +293,7 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
     .select({
       work_id: work_authors.work_id,
       name: authors.name,
+      country_code: authors.country_code,
       country_label: authors.country_label,
     })
     .from(work_authors)
@@ -297,14 +301,18 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
     .where(inArray(work_authors.work_id, workIds))
     .orderBy(work_authors.position)
 
-  const authorsByWork = new Map<string, Array<{ name: string; country: string | null }>>()
+  const authorsByWork = new Map<string, Array<{ name: string; country: string | null; country_code: string | null }>>()
   for (const a of authorRows) {
     let list = authorsByWork.get(a.work_id)
     if (!list) {
       list = []
       authorsByWork.set(a.work_id, list)
     }
-    list.push({ name: a.name, country: a.country_label })
+    const rawCode = a.country_code?.trim().toUpperCase() || null
+    const validCode = (rawCode && VALID_COUNTRY_CODES.has(rawCode)) ? rawCode : null
+    const countryCode = validCode ?? countryCodeFor(a.country_label)
+    const country = (a.country_label?.trim() || (countryCode ? countryLabelFor(countryCode) : null)) ?? null
+    list.push({ name: a.name, country, country_code: countryCode ?? null })
   }
 
   const genreRows = await db
@@ -330,6 +338,7 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
     const workAuthorsList = authorsByWork.get(log.work_id) ?? []
     const authorStr = workAuthorsList.map((a) => a.name).join(', ') || 'Autor Desconhecido'
     const country = workAuthorsList[0]?.country ?? null
+    const countryCode = workAuthorsList[0]?.country_code ?? null
     const lang = log.original_language ? (IDIOMA_ISO_REVERSE[log.original_language] ?? log.original_language) : null
 
     let readIn: number | string | null = null
@@ -347,6 +356,7 @@ export async function exportUserLibrary(userId: string): Promise<LivroJson[]> {
       title: log.title,
       author: authorStr,
       country,
+      country_code: countryCode,
       original_language: lang,
       year: log.first_published_year,
       publisher: log.publisher ?? null,
@@ -424,13 +434,18 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           if (existingAuthor) {
             authorIds.push(existingAuthor.id)
           } else {
+            const rawCountryCode = typeof book.country_code === 'string' ? book.country_code.trim().toUpperCase() : null
+            const validCountryCode = (rawCountryCode && VALID_COUNTRY_CODES.has(rawCountryCode)) ? rawCountryCode : null
+            const authorCountryCode = validCountryCode ?? countryCodeFor(book.country)
+            const authorCountryLabel = book.country?.trim() || (authorCountryCode ? countryLabelFor(authorCountryCode) : null)
+
             const [newAuthor] = await tx
               .insert(authors)
               .values({
                 name: aName,
                 slug: aSlug,
-                country_code: countryCodeFor(book.country),
-                country_label: book.country ?? null,
+                country_code: authorCountryCode,
+                country_label: authorCountryLabel,
                 created_by: userId,
               })
               .onConflictDoNothing()

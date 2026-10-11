@@ -17,6 +17,7 @@ import {
 } from '../server/db/schema'
 import { createWork } from '../server/services/catalog'
 import { normalizeIsbn } from '../server/utils/isbn'
+import { logger } from '../server/utils/logger'
 import { countryCodeFor } from '../shared/constants/countries'
 import { writeGenerosTxt } from './seed-genres'
 
@@ -421,7 +422,7 @@ const isDirectExecution = process.argv[1] && (
 
 if (isDirectExecution) {
   main().catch((err: unknown) => {
-    console.error('\nMigração falhou:', err instanceof Error ? err.message : err)
+    logger.error(`Migração falhou: ${err instanceof Error ? err.message : String(err)}`)
     process.exit(1)
   })
 }

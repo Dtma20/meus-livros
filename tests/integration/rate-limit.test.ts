@@ -349,3 +349,81 @@ describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: 200 por usuário por hora
     expect(body.message).toBe('Muitas ações em pouco tempo. Aguarde e tente novamente.')
   }, 120_000)
 })
+
+describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: limite na criacao de perfil (POST /api/users)', () => {
+  let db: typeof import('../../server/db')['db']
+  let client: typeof import('../../server/db')['client']
+  let server: Server
+  let serverUrl: string
+  const writerMarker = `zz-rl-create-user-${Date.now()}`
+  const testBaUserId = `ba_${Date.now()}`
+  const writerRateLimitKeys: string[] = []
+  let auth: typeof import('../../server/services/auth')['auth']
+  let getSessionSpy: import('vitest').MockInstance
+
+  beforeAll(async () => {
+    const { vi } = await import('vitest')
+    vi.resetModules()
+    const dbModule = await import('../../server/db')
+    db = dbModule.db
+    client = dbModule.client
+    const { default: createUserHandler } = await import('../../server/api/users/index.post')
+    const authModule = await import('../../server/services/auth')
+    auth = authModule.auth
+
+    getSessionSpy = vi.spyOn(auth.api, 'getSession').mockImplementation(async () => {
+      return {
+        session: {} as Record<string, unknown>,
+        user: { id: testBaUserId, email: `${writerMarker}@example.com` } as Record<string, unknown>
+      } as unknown as { session: import('better-auth').Session; user: import('better-auth').User }
+    })
+
+    const app = createApp()
+    app.use('/api/users', createUserHandler)
+
+    server = createServer(toNodeListener(app))
+    await new Promise<void>((resolve) => {
+      server.listen(0, '127.0.0.1', () => resolve())
+    })
+    const address = server.address()
+    const port = typeof address === 'object' && address ? address.port : 0
+    serverUrl = `http://127.0.0.1:${port}`
+  })
+
+  afterAll(async () => {
+    getSessionSpy?.mockRestore()
+    await new Promise<void>((resolve) => {
+      server.close(() => resolve())
+    })
+
+    try {
+      await removeFixtures(writerMarker)
+      await deleteRateLimits(writerRateLimitKeys)
+    } finally {
+      await client?.end()
+    }
+  })
+
+  it('200 authenticated POST /api/users pass and the 201st in the hour returns 429', async () => {
+    writerRateLimitKeys.push(hashRateLimitKey(`write:ba:${testBaUserId}`))
+
+    const postUser = (handle: string) =>
+      fetch(`${serverUrl}/api/users`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ handle, display_name: 'Usuário Rate Limit' }),
+      })
+
+    await db.execute(sql`
+      INSERT INTO rate_limit (key, count, window_start)
+      VALUES (${hashRateLimitKey(`write:ba:${testBaUserId}`)}, 200, date_trunc('hour', now()))
+      ON CONFLICT (key, window_start) DO UPDATE SET count = 200
+    `)
+
+    const limited = await postUser(`rw_${Date.now() % 100000}`)
+    expect(limited.status).toBe(429)
+    const body = (await limited.json()) as { error?: string; message?: string }
+    expect(body.error).toBe('muitas_tentativas')
+    expect(body.message).toBe('Muitas ações em pouco tempo. Aguarde e tente novamente.')
+  }, 120_000)
+})

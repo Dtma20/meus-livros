@@ -531,4 +531,98 @@ describe('ReadingBlocksSection - save in flight and timeouts', () => {
     expect(buttonsMatching(container, 'Desfazer')).toHaveLength(0)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
+
+  it('disables form fields and prevents second submit while POST is pending', async () => {
+    let resolveSave: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { resolveSave = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [],
+      initialProgress: { ...inProgress, pages_read: 0, current_page: 0, percentage: 0 },
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    buttonsMatching(container, 'Registrar trecho lido')[0]?.click()
+    await flush()
+
+    const startInput = container.querySelector<HTMLInputElement>('#block-start-page')
+    const endInput = container.querySelector<HTMLInputElement>('#block-end-page')
+    const readAtInput = container.querySelector<HTMLInputElement>('#block-read-at')
+    const commentInput = container.querySelector<HTMLTextAreaElement>('#block-comment')
+    const fieldset = container.querySelector<HTMLFieldSetElement>('fieldset')
+
+    expect(startInput?.disabled).toBe(false)
+    expect(endInput?.disabled).toBe(false)
+    expect(readAtInput?.disabled).toBe(false)
+    expect(commentInput?.disabled).toBe(false)
+    expect(fieldset?.disabled).toBe(false)
+
+    submitForm(container)
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(startInput?.disabled).toBe(true)
+    expect(endInput?.disabled).toBe(true)
+    expect(readAtInput?.disabled).toBe(true)
+    expect(commentInput?.disabled).toBe(true)
+    expect(fieldset?.disabled).toBe(true)
+
+    // A second submit while the POST request is in flight must not trigger another fetch.
+    submitForm(container)
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    resolveSave?.(new Response(JSON.stringify({ id: 'b1', start_page: 1, end_page: 10, comment: '', read_at: '2026-10-10' }), { status: 201 }))
+    await flush()
+  })
+
+  it('disables form fields and prevents second submit while PATCH is pending', async () => {
+    let resolveSave: ((response: Response) => void) | undefined
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => { resolveSave = resolve }))
+    vi.stubGlobal('fetch', fetchMock)
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    editButton(container, 'b1').click()
+    await flush()
+
+    const startInput = container.querySelector<HTMLInputElement>('#block-start-page')
+    const endInput = container.querySelector<HTMLInputElement>('#block-end-page')
+    const readAtInput = container.querySelector<HTMLInputElement>('#block-read-at')
+    const commentInput = container.querySelector<HTMLTextAreaElement>('#block-comment')
+    const fieldset = container.querySelector<HTMLFieldSetElement>('fieldset')
+
+    expect(startInput?.disabled).toBe(false)
+    expect(endInput?.disabled).toBe(false)
+    expect(readAtInput?.disabled).toBe(false)
+    expect(commentInput?.disabled).toBe(false)
+    expect(fieldset?.disabled).toBe(false)
+
+    submitForm(container)
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(startInput?.disabled).toBe(true)
+    expect(endInput?.disabled).toBe(true)
+    expect(readAtInput?.disabled).toBe(true)
+    expect(commentInput?.disabled).toBe(true)
+    expect(fieldset?.disabled).toBe(true)
+
+    // A second submit while the PATCH request is in flight must not trigger another fetch.
+    submitForm(container)
+    await flush()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+
+    resolveSave?.(new Response(JSON.stringify({ ...BLOCK, comment: 'Editado.' }), { status: 200 }))
+    await flush()
+  })
 })

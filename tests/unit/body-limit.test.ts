@@ -165,6 +165,35 @@ describe('Body size limit (server/middleware/body-limit.ts)', () => {
     expect(statusOf(raw)).toBe(200)
   })
 
+  it('requires content-length on DELETE endpoints known to read a body (/api/admin/convites)', async () => {
+    const raw = await sendRaw(port, 'DELETE /api/admin/convites HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n')
+    expect(statusOf(raw)).toBe(411)
+    const body = JSON.parse(raw.slice(raw.indexOf('\r\n\r\n') + 4))
+    expect(body).toEqual({ error: 'tamanho_obrigatorio', message: 'Informe o tamanho da requisição.' })
+  })
+
+  it('rejects an oversized body on DELETE /api/admin/convites with 413', async () => {
+    const res = await fetch(`${baseUrl}/api/admin/convites`, {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: 'a'.repeat(64 * KB + 1),
+    })
+    expect(res.status).toBe(413)
+    const body = await res.json()
+    expect(body).toEqual({ error: 'corpo_muito_grande', message: 'A requisição é grande demais.' })
+  })
+
+  it('allows a valid body under 64 KB on DELETE /api/admin/convites', async () => {
+    const res = await fetch(`${baseUrl}/api/admin/convites`, {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'user@example.com' }),
+    })
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.ok).toBe(true)
+  })
+
   it('does not affect GET requests', async () => {
     const res = await fetch(`${baseUrl}/test`, { method: 'GET' })
     expect(res.status).toBe(200)

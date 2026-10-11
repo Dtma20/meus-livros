@@ -47,74 +47,80 @@
       </h3>
 
       <form novalidate @submit.prevent="saveBlock">
-        <div class="form-pages-row">
-          <div class="form-field">
-            <label for="block-start-page" class="field-label">Página inicial</label>
-            <input
-              id="block-start-page"
-              v-model.number="formStartPage"
-              type="number"
-              min="1"
-              :max="knownTotalPages ?? undefined"
-              required
-              class="field-input"
-              placeholder="ex: 45"
-              :aria-invalid="blockErrors.start_page ? 'true' : undefined"
-              :aria-describedby="blockErrors.start_page ? 'block-start-page-error' : undefined"
-            >
-            <span v-if="blockErrors.start_page" id="block-start-page-error" class="field-error-msg">{{ blockErrors.start_page }}</span>
+        <fieldset class="form-fieldset" :disabled="saving">
+          <div class="form-pages-row">
+            <div class="form-field">
+              <label for="block-start-page" class="field-label">Página inicial</label>
+              <input
+                id="block-start-page"
+                v-model.number="formStartPage"
+                type="number"
+                min="1"
+                :max="knownTotalPages ?? undefined"
+                required
+                class="field-input"
+                placeholder="ex: 45"
+                :disabled="saving"
+                :aria-invalid="blockErrors.start_page ? 'true' : undefined"
+                :aria-describedby="blockErrors.start_page ? 'block-start-page-error' : undefined"
+              >
+              <span v-if="blockErrors.start_page" id="block-start-page-error" class="field-error-msg">{{ blockErrors.start_page }}</span>
+            </div>
+
+            <div class="form-field">
+              <label for="block-end-page" class="field-label">Página final</label>
+              <input
+                id="block-end-page"
+                v-model.number="formEndPage"
+                type="number"
+                min="1"
+                :max="knownTotalPages ?? undefined"
+                required
+                class="field-input"
+                placeholder="ex: 72"
+                :disabled="saving"
+                :aria-invalid="blockErrors.end_page ? 'true' : undefined"
+                :aria-describedby="blockErrors.end_page ? 'block-end-page-error' : undefined"
+              >
+              <span v-if="blockErrors.end_page" id="block-end-page-error" class="field-error-msg">{{ blockErrors.end_page }}</span>
+            </div>
+
+            <div class="form-field">
+              <label for="block-read-at" class="field-label">Data</label>
+              <input
+                id="block-read-at"
+                v-model="formReadAt"
+                type="date"
+                required
+                class="field-input"
+                :disabled="saving"
+              >
+            </div>
           </div>
 
-          <div class="form-field">
-            <label for="block-end-page" class="field-label">Página final</label>
-            <input
-              id="block-end-page"
-              v-model.number="formEndPage"
-              type="number"
-              min="1"
-              :max="knownTotalPages ?? undefined"
-              required
-              class="field-input"
-              placeholder="ex: 72"
-              :aria-invalid="blockErrors.end_page ? 'true' : undefined"
-              :aria-describedby="blockErrors.end_page ? 'block-end-page-error' : undefined"
-            >
-            <span v-if="blockErrors.end_page" id="block-end-page-error" class="field-error-msg">{{ blockErrors.end_page }}</span>
+          <div class="form-field mt-3">
+            <div class="label-row">
+              <label for="block-comment" class="field-label">
+                Anotação / Comentário sobre este trecho (opcional)
+              </label>
+              <span class="char-count" :class="{ 'char-count-limit': formComment.length > COMMENT_MAX }">
+                {{ formComment.length.toLocaleString('pt-BR') }} / 5.000
+              </span>
+            </div>
+            <textarea
+              id="block-comment"
+              v-model="formComment"
+              rows="3"
+              maxlength="5000"
+              class="field-input field-textarea"
+              placeholder="O que chamou sua atenção neste trecho?"
+              :disabled="saving"
+              :aria-invalid="blockErrors.comment ? 'true' : undefined"
+              :aria-describedby="blockErrors.comment ? 'block-comment-error' : undefined"
+            />
+            <span v-if="blockErrors.comment" id="block-comment-error" class="field-error-msg">{{ blockErrors.comment }}</span>
           </div>
-
-          <div class="form-field">
-            <label for="block-read-at" class="field-label">Data</label>
-            <input
-              id="block-read-at"
-              v-model="formReadAt"
-              type="date"
-              required
-              class="field-input"
-            >
-          </div>
-        </div>
-
-        <div class="form-field mt-3">
-          <div class="label-row">
-            <label for="block-comment" class="field-label">
-              Anotação / Comentário sobre este trecho (opcional)
-            </label>
-            <span class="char-count" :class="{ 'char-count-limit': formComment.length > COMMENT_MAX }">
-              {{ formComment.length.toLocaleString('pt-BR') }} / 5.000
-            </span>
-          </div>
-          <textarea
-            id="block-comment"
-            v-model="formComment"
-            rows="3"
-            maxlength="5000"
-            class="field-input field-textarea"
-            placeholder="O que chamou sua atenção neste trecho?"
-            :aria-invalid="blockErrors.comment ? 'true' : undefined"
-            :aria-describedby="blockErrors.comment ? 'block-comment-error' : undefined"
-          />
-          <span v-if="blockErrors.comment" id="block-comment-error" class="field-error-msg">{{ blockErrors.comment }}</span>
-        </div>
+        </fieldset>
 
         <div
           v-if="invalidBlockFields.length > 0"
@@ -495,6 +501,7 @@ function isSameForm(formKey: string, generation: number): boolean {
 }
 
 async function saveBlock(): Promise<void> {
+  if (saving.value) return
   formError.value = ''
   if (!validateBlock()) {
     const first = invalidBlockFields.value[0]
@@ -855,6 +862,13 @@ function formatBlockDate(dateStr: string): string {
   color: var(--text-bright);
   margin-top: 0;
   margin-bottom: var(--space-3);
+}
+
+.form-fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 
 .form-pages-row {

@@ -73,17 +73,14 @@ const HTML_SINKS = [
   },
   {
     // Covers h() props, domProps and Object.assign(el, { outerHTML: x }).
-    selector: 'Property:matches([key.name=/^(innerHTML|outerHTML)$/], [key.value=/^(innerHTML|outerHTML)$/])',
+    selector: 'Property:matches([key.name=/^(innerHTML|outerHTML)$/], [key.value=/^(innerHTML|outerHTML)$/], [key.quasis.0.value.raw=/^(innerHTML|outerHTML)$/])',
     message: 'Do not pass innerHTML or outerHTML as a property (h() props, domProps, Object.assign). Reviews are plain text and v-html is banned (CLAUDE.md, Security). Use text children.',
   },
   {
-    selector: 'CallExpression[callee.object.name="Reflect"][callee.property.name="set"][arguments.1.value=/^(innerHTML|outerHTML)$/]',
+    selector: 'CallExpression[callee.object.name="Reflect"]:matches([callee.property.name="set"], [callee.property.value="set"], [callee.property.quasis.0.value.raw="set"]):matches([arguments.1.value=/^(innerHTML|outerHTML)$/], [arguments.1.quasis.0.value.raw=/^(innerHTML|outerHTML)$/])',
     message: HTML_SINK_MESSAGE,
   },
-  {
-    selector: 'CallExpression[callee.object.name="Reflect"][callee.property.name="set"][arguments.1.quasis.0.value.raw=/^(innerHTML|outerHTML)$/]',
-    message: HTML_SINK_MESSAGE,
-  },
+
 ]
 
 export default withNuxt(

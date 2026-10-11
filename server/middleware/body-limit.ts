@@ -5,6 +5,7 @@ const DEFAULT_LIMIT = 64 * 1024
 // A 1000-book export goes past 64 KB, so the import route gets its own ceiling.
 const IMPORT_LIMIT = 4 * 1024 * 1024
 const IMPORT_PATH = '/api/library/import'
+const DELETE_WITH_BODY_PATHS = new Set(['/api/admin/convites'])
 
 function tooLarge(event: H3Event) {
   setResponseStatus(event, 413)
@@ -21,7 +22,8 @@ export default defineEventHandler((event) => {
     return
   }
 
-  const isImport = event.method === 'POST' && getRequestURL(event).pathname === IMPORT_PATH
+  const url = getRequestURL(event)
+  const isImport = event.method === 'POST' && url.pathname === IMPORT_PATH
   const limit = isImport ? IMPORT_LIMIT : DEFAULT_LIMIT
 
   const contentLength = getRequestHeader(event, 'content-length')
@@ -31,8 +33,9 @@ export default defineEventHandler((event) => {
       return tooLarge(event)
     }
     // HTTP/2 allows a body with neither header, so a write must state its size. DELETE is exempt:
-    // browsers send no content-length on a bodiless DELETE.
-    if (event.method !== 'DELETE') {
+    // browsers send no content-length on a bodiless DELETE, except for endpoints known to accept a body.
+    const isDeleteWithBody = event.method === 'DELETE' && DELETE_WITH_BODY_PATHS.has(url.pathname)
+    if (event.method !== 'DELETE' || isDeleteWithBody) {
       return lengthRequired(event)
     }
     return

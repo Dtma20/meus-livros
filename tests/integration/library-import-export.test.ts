@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { createApp, defineEventHandler, toWebHandler } from 'h3'
 import { livroJsonSchema, type LivroJson } from '../../shared/schemas/export-import'
 import { removeFixtures } from './fixtures'
 
@@ -460,6 +461,80 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(author).toEqual({ country_code: 'BR', country_label: 'Brasil' })
   })
 
+  it('preserves country_code in round-trip when author has country_code BR and country_label null', async () => {
+    const originUserId = await createImportUser('pais-rt-orig')
+    const authorName = `${MARKER} Autor Apenas Codigo`
+    const authorSlug = `${MARKER}-autor-apenas-codigo`.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+    const workTitle = `${MARKER} Livro Apenas Codigo`
+    const workSlug = `${MARKER}-livro-apenas-codigo`.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+
+    const [author] = await db
+      .insert(schema.authors)
+      .values({
+        name: authorName,
+        slug: authorSlug,
+        country_code: 'BR',
+        country_label: null,
+        created_by: originUserId,
+      })
+      .returning({ id: schema.authors.id })
+    if (!author) throw new Error('Falha ao criar autor com apenas country_code.')
+
+    const [work] = await db
+      .insert(schema.works)
+      .values({
+        title: workTitle,
+        slug: workSlug,
+        created_by: originUserId,
+      })
+      .returning({ id: schema.works.id })
+    if (!work) throw new Error('Falha ao criar obra.')
+
+    await db.insert(schema.work_authors).values({
+      work_id: work.id,
+      author_id: author.id,
+      position: 1,
+    })
+
+    await db.insert(schema.reading_logs).values({
+      user_id: originUserId,
+      work_id: work.id,
+      visibility: 'publico',
+    })
+
+    // Export includes country_code: 'BR' and derives country: 'Brasil'
+    const exported = await transferService.exportUserLibrary(originUserId)
+    const exportedBook = exported.find((b) => b.title === workTitle)
+    expect(exportedBook).toBeDefined()
+    expect(exportedBook?.country_code).toBe('BR')
+    expect(exportedBook?.country).toBe('Brasil')
+
+    // Clean up author and work from origin so destination catalogue does not have this author
+    await db.delete(schema.reading_logs).where(sqlOp.eq(schema.reading_logs.user_id, originUserId))
+    await db.delete(schema.work_authors).where(sqlOp.eq(schema.work_authors.work_id, work.id))
+    await db.delete(schema.works).where(sqlOp.eq(schema.works.id, work.id))
+    await db.delete(schema.authors).where(sqlOp.eq(schema.authors.id, author.id))
+
+    // Import into a destination user whose catalogue does not have this author
+    const destUserId = await createImportUser('pais-rt-dest')
+    const importResult = await transferService.importUserLibrary(destUserId, [exportedBook!])
+    expect(importResult.errors).toEqual([])
+    expect(importResult.importedCount).toBe(1)
+
+    // The newly created author in the catalogue has country_code = 'BR'
+    const [restoredAuthor] = await db
+      .select({ country_code: schema.authors.country_code, country_label: schema.authors.country_label })
+      .from(schema.authors)
+      .where(sqlOp.eq(schema.authors.name, authorName))
+    expect(restoredAuthor).toEqual({ country_code: 'BR', country_label: 'Brasil' })
+
+    // Roundtrip export also retains country_code = 'BR'
+    const destExported = await transferService.exportUserLibrary(destUserId)
+    const destBook = destExported.find((b) => b.title === workTitle)
+    expect(destBook?.country_code).toBe('BR')
+    expect(destBook?.country).toBe('Brasil')
+  })
+
   it('shows the readings of one finish date in the file order, in the export and on the profile', async () => {
     const userId = await createImportUser('ordem')
     const titles = [`${MARKER} Ordem A`, `${MARKER} Ordem B`, `${MARKER} Ordem C`]
@@ -482,6 +557,46 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     const profiles = await import('../../server/services/profiles')
     const profile = await profiles.getProfileByHandle(owner.handle, { id: userId })
     expect(profile.logs.map((log) => log.work.title)).toEqual(titles)
+  })
+
+  it('returns 400 with fields when an invalid JSON file is posted to /api/library/import', async () => {
+    const { default: importHandler } = await import('../../server/api/library/import.post')
+    const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        event.context.user = { id: testUserId, email: `${MARKER}@example.com` }
+      }),
+    )
+    app.use(importHandler)
+    const handler = toWebHandler(app)
+
+    const response = await handler(
+      new Request('http://localhost:3000/api/library/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify([{ title: 123 }]),
+      }),
+    )
+
+    expect(response.status).toBe(400)
+    const payload = (await response.json()) as { error: string; message: string; fields?: Record<string, string> }
+    expect(payload.error).toBe('validacao')
+    expect(payload.fields).toBeDefined()
+    expect(typeof payload.fields).toBe('object')
+    expect(payload.fields).toHaveProperty('0.author')
+
+    const objResponse = await handler(
+      new Request('http://localhost:3000/api/library/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ books: [{ title: 123 }] }),
+      }),
+    )
+
+    expect(objResponse.status).toBe(400)
+    const objPayload = (await objResponse.json()) as { error: string; message: string; fields?: Record<string, string> }
+    expect(objPayload.error).toBe('validacao')
+    expect(objPayload.fields).toHaveProperty('books.0.author')
   })
 })
 

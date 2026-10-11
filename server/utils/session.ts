@@ -34,19 +34,23 @@ export async function requireSessionUser(event: H3Event): Promise<SessionUser> {
 
   const method = (event.method || 'UNKNOWN').toUpperCase()
   if (method !== 'GET' && method !== 'HEAD') {
-    const allowed = await checkRateLimit(`write:user:${user.id}`, WRITES_PER_HOUR)
-    if (!allowed) {
-      throw createError({
-        statusCode: 429,
-        data: {
-          error: 'muitas_tentativas',
-          message: 'Muitas ações em pouco tempo. Aguarde e tente novamente.',
-        },
-      })
-    }
+    await assertWriteBudget(`write:user:${user.id}`)
   }
 
   return user
+}
+
+export async function assertWriteBudget(userKey: string): Promise<void> {
+  const allowed = await checkRateLimit(userKey, WRITES_PER_HOUR)
+  if (!allowed) {
+    throw createError({
+      statusCode: 429,
+      data: {
+        error: 'muitas_tentativas',
+        message: 'Muitas ações em pouco tempo. Aguarde e tente novamente.',
+      },
+    })
+  }
 }
 
 export async function requireAdmin(event: H3Event): Promise<{ id: string; email: string }> {

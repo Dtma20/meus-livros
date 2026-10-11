@@ -3,6 +3,7 @@ import { createUserSchema } from '../../../shared/schemas/user'
 import { auth } from '../../services/auth'
 import { createUser } from '../../services/users'
 import { defineApiHandler, parseOrThrow } from '../../utils/api'
+import { assertWriteBudget } from '../../utils/session'
 
 export default defineApiHandler(async (event) => {
   const contextUser = event.context.user as { email?: string; id?: string } | undefined
@@ -12,6 +13,7 @@ export default defineApiHandler(async (event) => {
     const session = await auth.api.getSession({ headers: event.headers })
     if (session?.user?.email) {
       email = session.user.email.trim().toLowerCase()
+      await assertWriteBudget(`write:ba:${session.user.id}`)
     }
   }
 

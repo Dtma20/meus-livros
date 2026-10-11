@@ -94,6 +94,26 @@ describe('library-transfer unit tests', () => {
         expect(result.data.visibility).toBeUndefined()
       }
     })
+
+    it('accepts country_code and keeps old exports without country_code valid', () => {
+      const withCode = livroJsonSchema.safeParse({ title: 'T', author: 'A', country: 'Brasil', country_code: 'BR' })
+      expect(withCode.success).toBe(true)
+      if (withCode.success) {
+        expect(withCode.data.country_code).toBe('BR')
+      }
+
+      const withNullCode = livroJsonSchema.safeParse({ title: 'T', author: 'A', country_code: null })
+      expect(withNullCode.success).toBe(true)
+      if (withNullCode.success) {
+        expect(withNullCode.data.country_code).toBeNull()
+      }
+
+      const withoutCode = livroJsonSchema.safeParse({ title: 'T', author: 'A' })
+      expect(withoutCode.success).toBe(true)
+      if (withoutCode.success) {
+        expect(withoutCode.data.country_code).toBeUndefined()
+      }
+    })
   })
 
   describe('parseImportVisibility', () => {

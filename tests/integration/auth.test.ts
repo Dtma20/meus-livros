@@ -1716,4 +1716,135 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     `)
     expect(accountAfter?.password).toBe(accountBefore?.password)
   }, 30000)
+
+  it('login races with invite removal: returns 400 and issues no session', async () => {
+    const raceEmail = `test-race-login-${testId}@example.com`
+    const member = await createActiveMember({
+      email: raceEmail,
+      handle: `tr_login_${testId % 10000000}`,
+      password: initialPassword,
+      name: 'Race Login User',
+    })
+    createdRateLimitKeys.push(`signin:id:${member.handle}`)
+
+    const realHandler = auth.handler
+    const handlerSpy = vi.spyOn(auth, 'handler').mockImplementation(async (request: Request) => {
+      if (new URL(request.url).pathname.endsWith('/sign-in/email')) {
+        await db.delete(schema.allowed_emails).where(eq(schema.allowed_emails.email, raceEmail))
+      }
+      return realHandler.call(auth, request)
+    })
+
+    let loginRes: Response
+    try {
+      loginRes = await handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/entrar', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+          body: JSON.stringify({ identificador: member.handle, senha: initialPassword }),
+        }),
+      )
+    } finally {
+      handlerSpy.mockRestore()
+    }
+
+    expect(loginRes.status).toBe(400)
+    const loginBody = await loginRes.json()
+    expect(loginBody.error).toBe('validacao')
+    expect(loginBody.message).toBe('E-mail, usuário ou senha incorretos.')
+    expect(cookieHeaderFrom(loginRes)).toBe('')
+    expect(await countSessionsFor(member.email)).toBe(0)
+  }, 30000)
+
+  it('activation OTP races with invite removal: returns 400 and issues no session', async () => {
+    const raceEmail = `test-race-otp-${testId}@example.com`
+    createdEmails.push(raceEmail)
+    await db.insert(schema.allowed_emails).values({ email: raceEmail, note: 'Race OTP' })
+
+    const codeRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: raceEmail, type: 'sign-in' }),
+      }),
+    )
+    expect(codeRes.status).toBe(200)
+
+    const otp = (await waitForEmail()).text.match(/\b\d{6}\b/)![0]
+
+    const realHandler = auth.handler
+    const handlerSpy = vi.spyOn(auth, 'handler').mockImplementation(async (request: Request) => {
+      if (new URL(request.url).pathname.endsWith('/sign-in/email-otp')) {
+        await db.delete(schema.allowed_emails).where(eq(schema.allowed_emails.email, raceEmail))
+      }
+      return realHandler.call(auth, request)
+    })
+
+    let verifyRes: Response
+    try {
+      verifyRes = await handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+          body: JSON.stringify({ email: raceEmail, otp }),
+        }),
+      )
+    } finally {
+      handlerSpy.mockRestore()
+    }
+
+    expect(verifyRes.status).toBe(400)
+    expect(await verifyRes.json()).toEqual(INVALID_OTP_BODY)
+    expect(cookieHeaderFrom(verifyRes)).toBe('')
+    expect(await countSessionsFor(raceEmail)).toBe(0)
+  }, 30000)
+
+  it('set-password races with invite removal: returns 400, revokes session and credential', async () => {
+    const raceEmail = `test-race-setpw-${testId}@example.com`
+    createdEmails.push(raceEmail)
+    await db.insert(schema.allowed_emails).values({ email: raceEmail, note: 'Race setpw' })
+
+    await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/email-otp/send-verification-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: raceEmail, type: 'sign-in' }),
+      }),
+    )
+    const otp = (await waitForEmail()).text.match(/\b\d{6}\b/)![0]
+
+    const verifyRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/sign-in/email-otp', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': testIp },
+        body: JSON.stringify({ email: raceEmail, otp }),
+      }),
+    )
+    const cookie = cookieHeaderFrom(verifyRes)
+
+    await db.delete(schema.allowed_emails).where(eq(schema.allowed_emails.email, raceEmail))
+
+    const setPwRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/set-password', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'cookie': cookie!, 'x-forwarded-for': testIp },
+        body: JSON.stringify({ newPassword: 'NovaSenhaTeste2026' }),
+      }),
+    )
+
+    expect(setPwRes.status).toBe(400)
+    const setPwBody = await setPwRes.json()
+    expect(setPwBody.error).toBe('validacao')
+    expect(setPwBody.message).toBe('Não foi possível definir a senha.')
+
+    expect(await countSessionsFor(raceEmail)).toBe(0)
+
+    const [credential] = await db.execute(sql<{ n: number }>`
+      SELECT count(a.*)::int AS n
+      FROM account a
+      JOIN ba_user u ON u.id = a."userId"
+      WHERE u.email = ${raceEmail} AND a."providerId" = 'credential'
+    `)
+    expect(Number(credential?.n ?? -1)).toBe(0)
+  }, 30000)
 })

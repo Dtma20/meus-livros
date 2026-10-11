@@ -117,6 +117,23 @@ Gates after round 2: lint and typecheck clean, 852 unit tests, build, 224 integr
 - Import items with no ISBN but with a publisher create a new edition on every re-import; unfinished reads export first but list last.
 - SMTP retries against the function's `maxDuration` (round 1, Claude A-16) - needs the deploy.
 
+## Round 3 - review of `7089252`
+
+The owner could no longer spend Claude quota, so round 3 ran both passes on Codex alone (`gpt-6.1-sol`, high), and the fixes went to Antigravity (`agy`): Gemini 3.1 Pro high for auth, Gemini 3.8 Flash high for the rest. The orchestrator checked each diff and corrected two things itself: the fixer had put the write budget on `/sign-out` (a member over budget could not sign out) and keyed `/change-password` under a second bucket.
+
+| Finding | Found by | Fix |
+|---|---|---|
+| Password sign-in, OTP sign-in and `/set-password` racing `removeInvite` re-create a session or credential (the round-2 post-check covered only the reset) | Codex A-01, B-01, B-02 | Allowlist re-checked after success in all three; access revoked and no `set-cookie` returned |
+| `POST /api/users` and the authenticated auth branches skipped the 200 writes/hour budget | Codex B-03 | `assertWriteBudget` shared by `requireSessionUser`, `POST /api/users`, `/set-password`, `/change-password` |
+| `DELETE /api/admin/convites` reads a body with no cap | Codex B-04 | DELETE paths that read a body get the POST rules (411/413) |
+| `scripts/migrate-livros.ts` printed a query error with the full email | Codex B-05 | Message cut and redacted |
+| `Reflect['set']` and computed `innerHTML` keys passed the ESLint ban | Codex B-06 | Selectors added |
+| Import's Zod error carried `details`, not `fields` | Codex B-07 | Same shape as `parseOrThrow` |
+| Export dropped `country_code` when the label was empty | Codex A-02 | Exported and preferred on import |
+| Text typed in a reading block while it saved was lost | Codex A-03 | Fields disabled while saving; re-entry guarded |
+
+Gates after round 3: lint and typecheck clean, 858 unit tests, build, 230 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

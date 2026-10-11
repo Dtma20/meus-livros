@@ -18,6 +18,7 @@ import {
   checkSignInAccountLimit,
   checkSignInIpLimit,
 } from './rate-limit'
+import { assertWriteBudget } from '../utils/session'
 
 const betterAuthSecret = process.env.BETTER_AUTH_SECRET
 const betterAuthUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
@@ -566,6 +567,10 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       }),
     )
     if (response.ok) {
+      if (!(await isEmailAllowed(email))) {
+        await revokeAccessFor(email)
+        return invalidOtpResponse()
+      }
       return stripSessionToken(response)
     }
 
@@ -575,11 +580,23 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
   if (request.method === 'POST' && authPath === '/set-password') {
     const sessionData = await auth.api.getSession({ headers: request.headers })
     const sessionEmail = sessionData?.user?.email?.trim().toLowerCase()
-    if (!sessionEmail) {
+    if (!sessionData || !sessionEmail) {
       return Response.json(
         { error: 'nao_autenticado', message: 'É necessário entrar para continuar.' },
         { status: 401, headers: { 'content-type': 'application/json' } },
       )
+    }
+
+    try {
+      await assertWriteBudget(`write:ba:${sessionData.user.id}`)
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'statusCode' in e && e.statusCode === 429 && 'data' in e) {
+        return Response.json(
+          e.data,
+          { status: 429, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      throw e
     }
 
     const rateLimitOk = await checkRateLimit(`setpw:email:${sessionEmail}`, 10)
@@ -627,6 +644,13 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     })
 
     if (setPwRes.ok) {
+      if (!(await isEmailAllowed(sessionEmail))) {
+        await revokeAccessFor(sessionEmail)
+        return Response.json(
+          { error: 'validacao', message: 'Não foi possível definir a senha.' },
+          { status: 400, headers: { 'content-type': 'application/json' } },
+        )
+      }
       return Response.json(
         { success: true },
         { status: 200, headers: { 'content-type': 'application/json' } },
@@ -691,6 +715,13 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
 
     const response = await auth.handler(signInRequest)
     if (response.ok) {
+      if (!(await isEmailAllowed(resolved.email))) {
+        await revokeAccessFor(resolved.email)
+        return Response.json(
+          { error: 'validacao', message: 'E-mail, usuário ou senha incorretos.' },
+          { status: 400, headers: { 'content-type': 'application/json' } },
+        )
+      }
       return stripSessionToken(response)
     }
 
@@ -821,6 +852,19 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       )
     }
 
+    try {
+      // getSessionUserByHeaders resolves to users.id, the same key requireSessionUser counts under.
+      await assertWriteBudget(`write:user:${sessionUser.id}`)
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'statusCode' in e && e.statusCode === 429 && 'data' in e) {
+        return Response.json(
+          e.data,
+          { status: 429, headers: { 'content-type': 'application/json' } },
+        )
+      }
+      throw e
+    }
+
     const rateLimitExceeded = await checkPasswordChangeLimit(sessionUser.id)
     if (rateLimitExceeded) {
       return Response.json(rateLimitExceeded, {
@@ -889,6 +933,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     return stripSessionToken(await auth.handler(request))
   }
 
+  // Not counted against the write budget: signing out must never be refused.
   if (request.method === 'POST' && authPath === '/sign-out') {
     return auth.handler(request)
   }
