@@ -191,8 +191,10 @@ async function fetchResults(term: string, generation: number): Promise<void> {
   const controller = new AbortController()
   abortController = controller
 
+  let timedOut = false
   const timeoutController = new AbortController()
   const timeoutTimer = setTimeout(() => {
+    timedOut = true
     timeoutController.abort(new DOMException('The operation was aborted due to timeout', 'TimeoutError'))
   }, 10_000)
 
@@ -226,7 +228,7 @@ async function fetchResults(term: string, generation: number): Promise<void> {
     )
     activeIndex.value = -1
   } catch {
-    const isTimeout = timeoutController.signal.aborted
+    const isTimeout = timedOut
     if ((controller.signal.aborted && !isTimeout) || generation !== searchGeneration || term !== query.value.trim()) return
     results.value = []
     searched.value = false

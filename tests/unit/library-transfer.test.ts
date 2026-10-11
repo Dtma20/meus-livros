@@ -190,8 +190,10 @@ describe('library-transfer unit tests', () => {
       expect(parseFormat('Digital')).toBe('ebook')
       expect(parseFormat('Audiobook')).toBe('audio')
       expect(parseFormat(null)).toBeNull()
-      expect(parseFormat(undefined)).toBe('fisico')
-      expect(parseFormat()).toBe('fisico')
+      expect(parseFormat(undefined)).toBeNull()
+      expect(parseFormat()).toBeNull()
+      expect(parseFormat('')).toBeNull()
+      expect(parseFormat('   ')).toBeNull()
     })
 
     it('correctly maps enum format to human-readable label', () => {

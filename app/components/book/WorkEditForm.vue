@@ -262,12 +262,31 @@ function isDirty(): boolean {
   return computeSnapshot() !== baselineSnapshot
 }
 
-let justSaved = false
+function updateAuthorBaselines(work: WorkWithDetails): void {
+  for (let i = 0; i < authorRows.length; i++) {
+    const row = authorRows[i]
+    if (!row) continue
+    const matching =
+      work.authors.find(
+        (a) => sameAuthorName(a.name, row.name) || sameAuthorName(a.name, row.originalName),
+      ) ?? work.authors[i]
+    if (matching) {
+      const serverCountry = matching.country_label ?? countryLabelFor(matching.country_code) ?? ''
+      const hasServerCountry = Boolean(matching.country_code || matching.country_label)
+      row.originalName = matching.name
+      row.originalCountry = serverCountry
+      row.hasServerCountry = hasServerCountry
+      if (hasServerCountry && !row.country) {
+        row.country = serverCountry
+      }
+    }
+  }
+}
 
 watch(
   () => props.work,
   (newWork) => {
-    if (justSaved || !isDirty()) {
+    if (!isDirty()) {
       resetAuthorRows(newWork)
       title.value = newWork.title
       yearText.value =
@@ -276,8 +295,9 @@ watch(
       seriesName.value = newWork.series_name ?? ''
       seriesNumber.value = newWork.series_number ?? ''
       genreIds.value = newWork.genres.map((g) => g.id)
-      justSaved = false
       baselineSnapshot = computeSnapshot()
+    } else {
+      updateAuthorBaselines(newWork)
     }
   },
   { deep: true },
@@ -340,7 +360,6 @@ function validate(): boolean {
 async function handleSubmit(): Promise<void> {
   serverError.value = ''
   savedAt.value = null
-  justSaved = false
   if (!validate()) return
 
   const yearRaw = yearText.value.trim()
@@ -373,7 +392,7 @@ async function handleSubmit(): Promise<void> {
       retry: 0,
     })
     savedAt.value = Date.now()
-    justSaved = true
+    baselineSnapshot = computeSnapshot()
     emit('saved')
   } catch (error) {
     serverError.value = isTimeoutOrAbort(error)

@@ -348,13 +348,14 @@ describe('WorkEditForm country locked after server save and props update', () =>
     }
     const wrapper = mountForm(workWithoutCountry)
 
-    const countryInput = firstCountryInput(wrapper.container)
-    expect(countryInput.readOnly).toBe(false)
+    const titleInput = wrapper.container.querySelector<HTMLInputElement>('#work-title')
+    expect(titleInput).not.toBeNull()
+    if (!titleInput) throw new Error('Expected title field to be rendered')
 
-    // User types in a country, form is now dirty
-    typeInto(countryInput, 'Argentina')
+    // User types in title, form is now dirty
+    typeInto(titleInput, 'Título modificado')
     await nextTick()
-    expect(countryInput.value).toBe('Argentina')
+    expect(titleInput.value).toBe('Título modificado')
 
     // External prop update happens without saving
     const workWithCountry: WorkWithDetails = {
@@ -364,9 +365,68 @@ describe('WorkEditForm country locked after server save and props update', () =>
     wrapper.setWork(workWithCountry)
     await nextTick()
 
+    // Title edit is preserved
+    expect(titleInput.value).toBe('Título modificado')
+
+    // Author country from server is updated and locked
     const currentCountryInput = firstCountryInput(wrapper.container)
-    expect(currentCountryInput.value).toBe('Argentina')
-    expect(currentCountryInput.readOnly).toBe(false)
+    expect(currentCountryInput.value).toBe('Brasil')
+    expect(currentCountryInput.readOnly).toBe(true)
+    expect(currentCountryInput.hasAttribute('list')).toBe(false)
+    expect(currentCountryInput.getAttribute('aria-describedby')).toBeTruthy()
+    expect(wrapper.container.textContent).toContain(lockedHint)
+
+    wrapper.unmount()
+  })
+
+  it('preserves typed title and locks server country when user edits title after save before props update', async () => {
+    const workWithoutCountry: WorkWithDetails = {
+      ...work,
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: null, country_label: null }],
+    }
+    const wrapper = mountForm(workWithoutCountry)
+
+    const countryInput = firstCountryInput(wrapper.container)
+    expect(countryInput.readOnly).toBe(false)
+
+    // 1. Preencher Brasil e salvar
+    typeInto(countryInput, 'Brasil')
+    await nextTick()
+    expect(countryInput.value).toBe('Brasil')
+
+    wrapper.container
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.container.textContent).toContain('Alterações salvas.')
+
+    // 2. Digitar no título antes de as props mudarem
+    const titleInput = wrapper.container.querySelector<HTMLInputElement>('#work-title')
+    expect(titleInput).not.toBeNull()
+    if (!titleInput) throw new Error('Expected title field to be rendered')
+    typeInto(titleInput, 'Título recém-digitado')
+    await nextTick()
+    expect(titleInput.value).toBe('Título recém-digitado')
+
+    // 3. Atualizar as props
+    const workWithCountry: WorkWithDetails = {
+      ...work,
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: 'BR', country_label: 'Brasil' }],
+    }
+    wrapper.setWork(workWithCountry)
+    await nextTick()
+
+    // 4. O título digitado continua no campo, e o país vindo do servidor fica travado
+    expect(titleInput.value).toBe('Título recém-digitado')
+    const updatedCountryInput = firstCountryInput(wrapper.container)
+    expect(updatedCountryInput.readOnly).toBe(true)
+    expect(updatedCountryInput.value).toBe('Brasil')
+    expect(updatedCountryInput.hasAttribute('list')).toBe(false)
+    expect(updatedCountryInput.getAttribute('aria-describedby')).toBeTruthy()
+    expect(wrapper.container.textContent).toContain(lockedHint)
 
     wrapper.unmount()
   })

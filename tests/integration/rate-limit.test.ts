@@ -379,6 +379,14 @@ describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: limite na criacao de perf
     })
 
     const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        const testContextEmail = event.headers.get('x-test-context-email')
+        if (testContextEmail) {
+          event.context.user = { email: testContextEmail, id: 'test-ctx-user' }
+        }
+      }),
+    )
     app.use('/api/users', createUserHandler)
 
     server = createServer(toNodeListener(app))
@@ -424,6 +432,31 @@ describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: limite na criacao de perf
     const limited = await postUser(`rw_${Date.now() % 100000}`)
     expect(limited.status).toBe(429)
     const body = (await limited.json()) as { error?: string; message?: string }
+    expect(body.error).toBe('muitas_tentativas')
+    expect(body.message).toBe('Muitas ações em pouco tempo. Aguarde e tente novamente.')
+  }, 120_000)
+
+  it('POST /api/users with event.context.user set enforces write budget and returns 429 when budget is exhausted', async () => {
+    const contextEmail = `ctx-${writerMarker}@example.com`
+    writerRateLimitKeys.push(hashRateLimitKey(`write:email:${contextEmail}`))
+
+    await db.execute(sql`
+      INSERT INTO rate_limit (key, count, window_start)
+      VALUES (${hashRateLimitKey(`write:email:${contextEmail}`)}, 200, date_trunc('hour', now()))
+      ON CONFLICT (key, window_start) DO UPDATE SET count = 200
+    `)
+
+    const res = await fetch(`${serverUrl}/api/users`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-test-context-email': contextEmail,
+      },
+      body: JSON.stringify({ handle: `ctx_${Date.now() % 100000}`, display_name: 'Usuário Context' }),
+    })
+
+    expect(res.status).toBe(429)
+    const body = (await res.json()) as { error?: string; message?: string }
     expect(body.error).toBe('muitas_tentativas')
     expect(body.message).toBe('Muitas ações em pouco tempo. Aguarde e tente novamente.')
   }, 120_000)

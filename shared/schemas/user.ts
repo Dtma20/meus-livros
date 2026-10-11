@@ -77,7 +77,6 @@ export const updateProfileSchema = z.object({
   profile_visibility: z
     .enum(['publico', 'privado'], { error: 'Visibilidade de perfil inválida.' })
     .optional(),
-  handle: z.string().optional(),
 })
 
 export type CreateUserInput = z.infer<typeof createUserSchema>

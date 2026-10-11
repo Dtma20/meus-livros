@@ -383,15 +383,26 @@ if (event && error.value) {
   setResponseStatus(event, status)
 }
 
+const OG_ISBN_COVER = /^https?:\/\/covers\.openlibrary\.org\/b\/isbn\//
+const OG_ID_COVER = /^https?:\/\/covers\.openlibrary\.org\/b\/id\//
+const OG_ID_COVER_FLAG = /\?default=false$/
+
+function ogCoverUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  if (!url.includes('default=false')) return url
+  if (OG_ISBN_COVER.test(url)) return null
+  return OG_ID_COVER.test(url) ? url.replace(OG_ID_COVER_FLAG, '') : url
+}
+
 const firstCover = computed(() => {
   const items = profile.value?.logs || []
   for (const l of items) {
-    const url = l.work.cover_url || l.edition?.cover_url
-    if (url) {
-      return url.startsWith('http') ? url : `${reqUrl?.origin ?? ''}${url}`
+    const raw = ogCoverUrl(l.work.cover_url) || ogCoverUrl(l.edition?.cover_url)
+    if (raw) {
+      return raw.startsWith('http') ? raw : `${reqUrl?.origin ?? ''}${raw}`
     }
   }
-  return `${reqUrl?.origin ?? ''}/favicon.ico`
+  return `${reqUrl?.origin ?? ''}/og-fallback.png`
 })
 
 useSeoMeta({

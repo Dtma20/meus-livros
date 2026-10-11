@@ -91,9 +91,10 @@ export function parseAuthors(raw: string): string[] {
 }
 
 export function parseFormat(source?: string | null): 'fisico' | 'ebook' | 'audio' | null {
-  if (source === null) return null
-  if (source === undefined) return 'fisico'
-  const lower = source.toLowerCase()
+  if (source === null || source === undefined) return null
+  const trimmed = source.trim()
+  if (trimmed === '') return null
+  const lower = trimmed.toLowerCase()
   if (lower.includes('kindle') || lower.includes('ebook') || lower.includes('e-book') || lower.includes('digital')) {
     return 'ebook'
   }

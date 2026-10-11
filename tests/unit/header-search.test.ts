@@ -420,6 +420,68 @@ describe('SearchBox request lifecycle', () => {
     vi.useRealTimers()
   })
 
+  it('distinguishes timeout from cancellation when AbortSignal.any is not supported (fallback branch)', async () => {
+    vi.useFakeTimers()
+    const originalFetch = global.fetch
+    const originalAny = AbortSignal.any
+
+    // Temporarily remove AbortSignal.any to force the fallback branch (Safari < 17.4)
+    // @ts-expect-error mutating global AbortSignal for testing fallback
+    delete AbortSignal.any
+
+    try {
+      const fetchSpy = vi.fn<typeof fetch>().mockImplementation((_url, init) => {
+        const p = deferred<Response>()
+        init?.signal?.addEventListener('abort', () => {
+          p.reject(init?.signal?.reason ?? new DOMException('Aborted', 'AbortError'))
+        })
+        return p.promise
+      })
+      global.fetch = fetchSpy
+
+      const wrapper = mount(SearchBox, { navigateOnSelect: false })
+      const input = wrapper.find<HTMLInputElement>('input[type="search"]')
+      if (!input) throw new Error('search input not found')
+      input.focus()
+
+      // 1. Cancellation: query replaced while request is in-flight
+      input.value = 'busca inicial'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(250)
+      await flushMicrotasks()
+      expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+      // User types new query, canceling the first in-flight request
+      input.value = 'busca canceladora'
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+      await nextTick()
+      await flushMicrotasks()
+
+      // Cancellation stays silent: no alert is shown
+      expect(wrapper.find('[role="alert"]')).toBeNull()
+
+      // 2. Timeout: let the second request start and time out at 10s
+      await vi.advanceTimersByTimeAsync(250)
+      await flushMicrotasks()
+      expect(fetchSpy).toHaveBeenCalledTimes(2)
+
+      // Advance 10s to trigger timeout
+      await vi.advanceTimersByTimeAsync(10_000)
+      await flushMicrotasks()
+
+      // Timeout shows recoverable error
+      expect(wrapper.find('[role="alert"]')?.textContent ?? '').toContain('Não foi possível buscar livros agora.')
+      expect(wrapper.find('button.search-retry')).not.toBeNull()
+
+      wrapper.unmount()
+    } finally {
+      AbortSignal.any = originalAny
+      global.fetch = originalFetch
+      vi.useRealTimers()
+    }
+  })
+
   it('exposes a controlled listbox only while selectable results exist', async () => {
     vi.useFakeTimers()
     const originalFetch = global.fetch

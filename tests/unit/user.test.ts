@@ -137,12 +137,16 @@ describe('TASK-008 - Schema validations for POST and PATCH (unit)', () => {
     expect(result.success).toBe(false)
   })
 
-  it('updateProfileSchema accepts handle field in payload so route can ignore it', () => {
+  it('updateProfileSchema strips handle field from payload and does not include it in parsed data', () => {
     const result = updateProfileSchema.safeParse({
       display_name: 'João',
       handle: 'hacker_handle',
     })
     expect(result.success).toBe(true)
+    if (result.success) {
+      expect('handle' in result.data).toBe(false)
+      expect(result.data).toEqual({ display_name: 'João' })
+    }
   })
 })
 

@@ -151,6 +151,24 @@ Codex, both passes; fixes by `agy` (Gemini 3.8 Flash high).
 
 Gates after round 4: lint and typecheck clean, 872 unit, build, 233 integration and 24 SSR tests green; secret values 0 times in the client bundle.
 
+## Round 5 - review of `0d8ca16`
+
+Codex ran out of quota at the start of this round, and Grok 4.7 (its own `grok` CLI) hit its free limit on the first call; neither produced a report. Both passes ran on Muse Spark 1.3 (free) and Step 5 preview (free), through `opencode`. Both Step runs exhausted their step budget before writing the formal report, so their findings come from the candidate list each left. No blocker was confirmed by Step; Muse found one regression from round 4.
+
+| Finding | Found by | Fix |
+|---|---|---|
+| `WorkEditForm` watch erased text typed between a save and the reload (round 4 regression) | Muse A-01 | Reset only when not dirty; baseline and country lock refreshed either way |
+| Search classified a cancel as a timeout on browsers without `AbortSignal.any` | Step A-1 | Explicit timed-out flag |
+| Profile OG emitted `cover_url` without the `default=false` rule | Muse A-06 | Same rule as the work page |
+| Import invented `fisico` for an absent or empty format | Muse A-02 | `null` |
+| `PATCH /api/users/me` accepted `handle` and ignored it | Muse A-04 | Removed from the schema |
+| `/entrar` spent rate-limit budget on empty submissions | Muse A-05 | Emptiness checked first |
+| `POST /api/users` skipped the write budget on one branch | Muse B-02, Step A-4 | Counted on both |
+| Error codes missing from `api.md` §1 | Muse A-03 | Table completed |
+| `updateWork`/`updateEdition` have no ownership check | Step A-2 | Not a defect: `648cfdc` opened catalog editing to every member, with `updated_by` as the trail (TASK-066) |
+
+Gates after round 5: lint and typecheck clean, 878 unit, build, 235 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

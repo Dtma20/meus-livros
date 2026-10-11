@@ -675,6 +675,13 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
     const rawIdentifier = typeof body.identificador === 'string' ? body.identificador : ''
     const password = typeof body.senha === 'string' ? body.senha : ''
 
+    if (!rawIdentifier || !password) {
+      return Response.json(
+        { error: 'validacao', message: 'E-mail, usuário ou senha incorretos.' },
+        { status: 400, headers: { 'content-type': 'application/json' } },
+      )
+    }
+
     const ip = getClientIp(request.headers)
 
     // IP first, before any lookup. The account buckets are keyed by the resolved e-mail, so a handle and
@@ -695,13 +702,6 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
         status: 429,
         headers: { 'content-type': 'application/json' },
       })
-    }
-
-    if (!rawIdentifier || !password) {
-      return Response.json(
-        { error: 'validacao', message: 'E-mail, usuário ou senha incorretos.' },
-        { status: 400, headers: { 'content-type': 'application/json' } },
-      )
     }
 
     const signInRequest = new Request(`${betterAuthUrl}/api/auth/sign-in/email`, {

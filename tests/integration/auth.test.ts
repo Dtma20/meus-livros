@@ -691,6 +691,42 @@ describe.skipIf(!hasDatabaseUrl)('TASK-027 - Password authentication + activatio
     expect(body.error).toBe('muitas_tentativas')
   }, 20000)
 
+  it('31 empty sign-in attempts from one IP do not consume the IP rate limit nor make the next valid login receive 429', async () => {
+    const emptyIp = uniqueTestIp()
+    allTestIps.push(emptyIp)
+    createdRateLimitKeys.push(`signin:ip:${emptyIp}`)
+
+    for (let i = 0; i < 31; i++) {
+      const emptyRes = await handleAuthRequest(
+        new Request('http://localhost:3000/api/auth/entrar', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-forwarded-for': emptyIp },
+          body: JSON.stringify({ identificador: '', senha: '' }),
+        }),
+      )
+      expect(emptyRes.status).toBe(400)
+      const body = await emptyRes.json()
+      expect(body.error).toBe('validacao')
+    }
+
+    const hashedEmptyIpKey = createHash('sha256').update(`signin:ip:${emptyIp}`).digest('hex')
+    const [counter] = await db.execute(sql<{ count: number }>`
+      SELECT count FROM rate_limit
+      WHERE key = ${hashedEmptyIpKey}
+        AND window_start = date_trunc('hour', now())
+    `)
+    expect(counter).toBeUndefined()
+
+    const validAttemptRes = await handleAuthRequest(
+      new Request('http://localhost:3000/api/auth/entrar', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': emptyIp },
+        body: JSON.stringify({ identificador: allowedEmail, senha: 'anyPassword' }),
+      }),
+    )
+    expect(validAttemptRes.status).not.toBe(429)
+  }, 20000)
+
   it('password reset flow: sends code, resets password, invalidates old sessions, single-use code', async () => {
     const resetEmail = `test-reset-${Date.now()}@example.com`
     const resetHandle = `tr_${Date.now() % 10000000}`

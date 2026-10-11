@@ -24,6 +24,12 @@ Public pages fetch nothing from these endpoints - they are server-rendered direc
 | 404 | `nao_encontrado` | Missing, **or** present but not visible to this viewer |
 | 409 | `conflito` | Handle taken, duplicate ISBN |
 | 400 | `isbn_invalido` | `GET /api/isbn` with something that is not an ISBN |
+| 400 | `cursor_invalido` | Feed or comments cursor that does not parse |
+| 400 | `erro_requisicao` | Any other 4xx raised without a specific code |
+| 403 | `origem_invalida` | Mutation whose `Origin` is not the app's host ([security.md](security.md) §6) |
+| 409 | `convite_existente` | Admin invites: address already invited |
+| 400 | `convite_proprio` | Admin invites: removing your own invite |
+| 502 | `consulta_indisponivel` | `GET /api/isbn` upstream failed |
 | 400 | `referencia_invalida` | Foreign-key violation (Postgres 23503) |
 | 411 | `tamanho_obrigatorio` | POST/PUT/PATCH with no `content-length` |
 | 413 | `corpo_muito_grande` | Body over 64 KB (4 MB for `POST /api/library/import`) - [security.md](security.md) §7 |

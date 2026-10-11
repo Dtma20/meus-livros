@@ -32,7 +32,10 @@ vi.hoisted(() => {
   })
   globalScope.useRequestFetch = () => vi.fn()
   globalScope.useRequestURL = () => new URL('http://localhost:3000/@diogo')
-  globalScope.useSeoMeta = () => {}
+  globalScope.useSeoMeta = (meta: Record<string, () => unknown>) => {
+    const scope = globalThis as unknown as { __lastSeoMeta?: Record<string, () => unknown> }
+    scope.__lastSeoMeta = meta
+  }
   globalScope.useHead = () => {}
   globalScope.createError = (err: unknown) => err
 })
@@ -92,81 +95,81 @@ function mount<T extends Component>(component: T, props: Record<string, unknown>
   }
 }
 
-describe('ProfilePage (app/pages/@[handle]/index.vue) - Visibility switcher and owner controls', () => {
-  const sampleProfile: ProfileResponse = {
-    user: {
-      id: 'user-1',
-      handle: 'diogo',
-      display_name: 'Diogo',
-      bio: 'Leitor assíduo',
-      profile_visibility: 'publico',
-      created_at: new Date('2024-01-01'),
-    },
-    stats: {
-      totalBooks: 2,
-      uniqueAuthors: 2,
-      uniqueCountries: 2,
-      totalPages: 500,
-      averagePages: 250,
-    },
-    logs: [
-      {
-        id: 'log-1',
-        rating: 5,
-        started_on: '2024-01-01',
-        finished_on: '2024-01-10',
-        finished_precision: 'dia',
-        format: 'fisico',
-        visibility: 'publico',
-        created_at: new Date('2024-01-10T12:00:00Z'),
-        work: {
-          id: 'work-1',
-          title: 'Livro Público',
-          slug: 'livro-publico',
-          first_published_year: 2020,
-          cover_url: null,
-          authors: [{ id: 'a1', name: 'Autor 1', slug: 'autor-1', country_code: 'BR', country_label: 'Brasil' }],
-          genres: [{ id: 1, slug: 'ficcao', label_pt: 'Ficção' }],
-        },
-        edition: {
-          id: 'e1',
-          isbn13: '9788598078397',
-          page_count: 200,
-          published_year: 2020,
-          cover_url: null,
-          ol_cover_id: null,
-        },
+const sampleProfile: ProfileResponse = {
+  user: {
+    id: 'user-1',
+    handle: 'diogo',
+    display_name: 'Diogo',
+    bio: 'Leitor assíduo',
+    profile_visibility: 'publico',
+    created_at: new Date('2024-01-01'),
+  },
+  stats: {
+    totalBooks: 2,
+    uniqueAuthors: 2,
+    uniqueCountries: 2,
+    totalPages: 500,
+    averagePages: 250,
+  },
+  logs: [
+    {
+      id: 'log-1',
+      rating: 5,
+      started_on: '2024-01-01',
+      finished_on: '2024-01-10',
+      finished_precision: 'dia',
+      format: 'fisico',
+      visibility: 'publico',
+      created_at: new Date('2024-01-10T12:00:00Z'),
+      work: {
+        id: 'work-1',
+        title: 'Livro Público',
+        slug: 'livro-publico',
+        first_published_year: 2020,
+        cover_url: null,
+        authors: [{ id: 'a1', name: 'Autor 1', slug: 'autor-1', country_code: 'BR', country_label: 'Brasil' }],
+        genres: [{ id: 1, slug: 'ficcao', label_pt: 'Ficção' }],
       },
-      {
-        id: 'log-2',
-        rating: 4,
-        started_on: '2024-02-01',
-        finished_on: '2024-02-15',
-        finished_precision: 'dia',
-        format: 'ebook',
-        visibility: 'privado',
-        created_at: new Date('2024-02-15T12:00:00Z'),
-        work: {
-          id: 'work-2',
-          title: 'Livro Privado',
-          slug: 'livro-privado',
-          first_published_year: 2021,
-          cover_url: null,
-          authors: [{ id: 'a2', name: 'Autor 2', slug: 'autor-2', country_code: 'PT', country_label: 'Portugal' }],
-          genres: [{ id: 2, slug: 'historia', label_pt: 'História' }],
-        },
-        edition: {
-          id: 'e2',
-          isbn13: null,
-          page_count: 300,
-          published_year: 2021,
-          cover_url: null,
-          ol_cover_id: null,
-        },
+      edition: {
+        id: 'e1',
+        isbn13: '9788598078397',
+        page_count: 200,
+        published_year: 2020,
+        cover_url: null,
+        ol_cover_id: null,
       },
-    ],
-  }
+    },
+    {
+      id: 'log-2',
+      rating: 4,
+      started_on: '2024-02-01',
+      finished_on: '2024-02-15',
+      finished_precision: 'dia',
+      format: 'ebook',
+      visibility: 'privado',
+      created_at: new Date('2024-02-15T12:00:00Z'),
+      work: {
+        id: 'work-2',
+        title: 'Livro Privado',
+        slug: 'livro-privado',
+        first_published_year: 2021,
+        cover_url: null,
+        authors: [{ id: 'a2', name: 'Autor 2', slug: 'autor-2', country_code: 'PT', country_label: 'Portugal' }],
+        genres: [{ id: 2, slug: 'historia', label_pt: 'História' }],
+      },
+      edition: {
+        id: 'e2',
+        isbn13: null,
+        page_count: 300,
+        published_year: 2021,
+        cover_url: null,
+        ol_cover_id: null,
+      },
+    },
+  ],
+}
 
+describe('ProfilePage (app/pages/@[handle]/index.vue) - Visibility switcher and owner controls', () => {
   it('renders "Editar perfil" link and 3 visibility tabs when viewer is owner', async () => {
     mockPageData.value = {
       profile: sampleProfile,
@@ -280,6 +283,97 @@ describe('ProfilePage (app/pages/@[handle]/index.vue) - Visibility switcher and 
     const visibilityNav = wrapper.find('.visibility-nav')
     expect(visibilityNav).toBeNull()
 
+    wrapper.unmount()
+  })
+})
+
+describe('ProfilePage og:image', () => {
+  const FALLBACK = 'http://localhost:3000/og-fallback.png'
+
+  function getOgImage(): unknown {
+    const meta = (globalThis as unknown as { __lastSeoMeta?: Record<string, () => unknown> }).__lastSeoMeta
+    return meta?.ogImage?.()
+  }
+
+  function setProfileLogs(logs: ProfileResponse['logs']): void {
+    mockPageData.value = {
+      profile: {
+        ...sampleProfile,
+        logs,
+      },
+      currentUser: null,
+    }
+  }
+
+  it('falls back to /og-fallback.png with absolute origin when profile has no logs or no covers', async () => {
+    setProfileLogs([])
+    const wrapper = mount(ProfilePage)
+    await wrapper.router.push('/@diogo')
+    await flushAsync()
+
+    expect(getOgImage()).toBe(FALLBACK)
+    wrapper.unmount()
+  })
+
+  it('discards an OpenLibrary ISBN cover with default=false and falls back to /og-fallback.png', async () => {
+    setProfileLogs([
+      {
+        ...sampleProfile.logs[0]!,
+        work: {
+          ...sampleProfile.logs[0]!.work,
+          cover_url: 'https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg?default=false',
+        },
+        edition: {
+          ...sampleProfile.logs[0]!.edition!,
+          cover_url: null,
+        },
+      },
+    ])
+    const wrapper = mount(ProfilePage)
+    await wrapper.router.push('/@diogo')
+    await flushAsync()
+
+    expect(getOgImage()).toBe(FALLBACK)
+    wrapper.unmount()
+  })
+
+  it('removes ?default=false from an OpenLibrary id cover', async () => {
+    setProfileLogs([
+      {
+        ...sampleProfile.logs[0]!,
+        work: {
+          ...sampleProfile.logs[0]!.work,
+          cover_url: 'https://covers.openlibrary.org/b/id/1234567-L.jpg?default=false',
+        },
+      },
+    ])
+    const wrapper = mount(ProfilePage)
+    await wrapper.router.push('/@diogo')
+    await flushAsync()
+
+    expect(getOgImage()).toBe('https://covers.openlibrary.org/b/id/1234567-L.jpg')
+    wrapper.unmount()
+  })
+
+  it('uses edition cover when work cover is an ISBN cover with default=false', async () => {
+    setProfileLogs([
+      {
+        ...sampleProfile.logs[0]!,
+        work: {
+          ...sampleProfile.logs[0]!.work,
+          cover_url: 'https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg?default=false',
+        },
+        edition: {
+          ...sampleProfile.logs[0]!.edition!,
+          cover_url: 'https://covers.openlibrary.org/b/id/9999999-L.jpg?default=false',
+        },
+      },
+    ])
+    const wrapper = mount(ProfilePage)
+    await wrapper.router.push('/@diogo')
+    await flushAsync()
+
+    expect(getOgImage()).toBe('https://covers.openlibrary.org/b/id/9999999-L.jpg')
     wrapper.unmount()
   })
 })

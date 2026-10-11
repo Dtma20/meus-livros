@@ -599,10 +599,11 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(objPayload.fields).toHaveProperty('books.0.author')
   })
 
-  it('preserves null format across export and import roundtrip and distinguishes it from absent field', async () => {
+  it('preserves null format across export and import roundtrip for null, absent and empty format', async () => {
     const originUserId = await createImportUser('format-null-origin')
     const nullFormatTitle = `${MARKER} Livro Formato Nulo`
     const absentFormatTitle = `${MARKER} Livro Formato Ausente`
+    const emptyFormatTitle = `${MARKER} Livro Formato Vazio`
 
     const importResult = await transferService.importUserLibrary(originUserId, [
       {
@@ -616,10 +617,16 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
         author: 'Autor Formato Ausente',
         genre: [],
       },
+      {
+        title: emptyFormatTitle,
+        author: 'Autor Formato Vazio',
+        source: '',
+        genre: [],
+      },
     ])
 
     expect(importResult.errors).toEqual([])
-    expect(importResult.importedCount).toBe(2)
+    expect(importResult.importedCount).toBe(3)
 
     const storedLogs = await db
       .select({
@@ -632,22 +639,26 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
 
     const nullLog = storedLogs.find((l) => l.title === nullFormatTitle)
     const absentLog = storedLogs.find((l) => l.title === absentFormatTitle)
+    const emptyLog = storedLogs.find((l) => l.title === emptyFormatTitle)
     expect(nullLog?.format).toBeNull()
-    expect(absentLog?.format).toBe('fisico')
+    expect(absentLog?.format).toBeNull()
+    expect(emptyLog?.format).toBeNull()
 
     const exported = await transferService.exportUserLibrary(originUserId)
     const exportedNullBook = exported.find((b) => b.title === nullFormatTitle)
     const exportedAbsentBook = exported.find((b) => b.title === absentFormatTitle)
+    const exportedEmptyBook = exported.find((b) => b.title === emptyFormatTitle)
 
     expect(exportedNullBook).toBeDefined()
     expect(exportedNullBook?.source).toBeNull()
-    expect(exportedAbsentBook?.source).toBe('Físico')
+    expect(exportedAbsentBook?.source).toBeNull()
+    expect(exportedEmptyBook?.source).toBeNull()
     expect(livroJsonSchema.array().safeParse(exported).success).toBe(true)
 
     const destUserId = await createImportUser('format-null-dest')
     const reimportResult = await transferService.importUserLibrary(destUserId, exported)
     expect(reimportResult.errors).toEqual([])
-    expect(reimportResult.importedCount).toBe(2)
+    expect(reimportResult.importedCount).toBe(3)
 
     const reimportedLogs = await db
       .select({
@@ -659,7 +670,11 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
       .where(sqlOp.eq(schema.reading_logs.user_id, destUserId))
 
     const reimportedNullLog = reimportedLogs.find((l) => l.title === nullFormatTitle)
+    const reimportedAbsentLog = reimportedLogs.find((l) => l.title === absentFormatTitle)
+    const reimportedEmptyLog = reimportedLogs.find((l) => l.title === emptyFormatTitle)
     expect(reimportedNullLog?.format).toBeNull()
+    expect(reimportedAbsentLog?.format).toBeNull()
+    expect(reimportedEmptyLog?.format).toBeNull()
 
     const destExported = await transferService.exportUserLibrary(destUserId)
     const destNullBook = destExported.find((b) => b.title === nullFormatTitle)
