@@ -195,12 +195,13 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 - User profile creation and managemen
     })
     createdUserIds.push(user.id)
 
+    // handle is not part of UpdateUserData any more; the cast stands in for a caller that sends it anyway.
     const updated = await updateUserProfile(user.id, {
       display_name: 'Nome Modificado',
       bio: 'Minha nova biografia de leitor.',
       profile_visibility: 'privado',
       handle: 'tentativa_troca_handle',
-    })
+    } as Parameters<typeof updateUserProfile>[1])
 
     expect(updated.handle).toBe(originalHandle)
     expect(updated.display_name).toBe('Nome Modificado')

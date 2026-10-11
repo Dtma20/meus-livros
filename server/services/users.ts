@@ -16,7 +16,6 @@ export interface UpdateUserData {
   display_name?: string
   bio?: string | null
   profile_visibility?: Visibility
-  handle?: string
 }
 
 export async function getUserById(id: string): Promise<User | null> {

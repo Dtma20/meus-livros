@@ -254,6 +254,26 @@ Muse Spark and Step 5 on both passes. **No blocker on the security pass from eit
 
 Gates after round 11: lint and typecheck clean, 910 unit, build, 247 integration and 24 SSR tests green; secret values 0 times in the client bundle.
 
+## Round 12 - review of `2e5dea8`
+
+Muse Spark and Step 5 on both passes. **No blocker from any of the four reviews**, and Step wrote no finding on either pass. Muse's remaining items:
+
+| Finding | Found by | Fix |
+|---|---|---|
+| Import preview accepted empty titles and more than 1,000 items that the server then refused | Muse A-02 | Preview applies the same rules and blocks the send |
+| `UpdateUserData.handle` unused | Muse A-04 | Removed |
+| `title`/`author` of the wrong type still refuse the whole file | Muse A-01, B-01 | Kept: they are the two required fields of the batch |
+| Import route re-declares schemas from `shared/`; client-error logging of unauthenticated text; body cap trusts the declared `content-length` | Muse A-03, B-02, B-03 | Questions/nits left open: the client-error route is IP-limited and sanitised; h3 reads at most the declared length |
+
+Gates after round 12: lint and typecheck clean, 912 unit, build, 247 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
+## Where the loop stopped
+
+Rounds 11 (security pass) and 12 (both passes) produced no blocker on any engine; what the reviewers raise now are questions and nits. The loop was ended there on the owner's instruction to keep Claude spend down. Still open, none fixable in code here:
+
+- **Owner:** commit `.github/backup-key.pub.asc`, run the backup workflow, record one restore (`docs/runbook-restore.md`).
+- **On the first deploy:** that `/_nuxt/*` and `/api/*` resolve and carry the security headers under Nitro's Vercel route order; the forged `X-Forwarded-For`; cookie attributes as served; the four visibility tests against production; SMTP retries against the function's `maxDuration`.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

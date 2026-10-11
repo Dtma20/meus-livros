@@ -93,7 +93,7 @@
           <button
             type="submit"
             class="btn btn-primary btn-import"
-            :disabled="isSubmitting || timedOut"
+            :disabled="isSubmitting || timedOut || totalParsedBooks > 1000"
             @click="submitImport"
           >
             <span v-if="isSubmitting">Importando livros...</span>
@@ -419,13 +419,27 @@ function readFile(file: File) {
 
       const validBooks: LivroJson[] = []
       for (const item of list) {
-        if (item && typeof item === 'object' && typeof item.title === 'string' && typeof item.author === 'string') {
+        if (
+          item &&
+          typeof item === 'object' &&
+          'title' in item &&
+          typeof item.title === 'string' &&
+          item.title.trim() !== '' &&
+          'author' in item &&
+          typeof item.author === 'string' &&
+          item.author.trim() !== ''
+        ) {
           validBooks.push(item as LivroJson)
         }
       }
 
       if (validBooks.length === 0) {
         parseError.value = 'Nenhum livro com "title" e "author" válidos foi encontrado no arquivo.'
+        return
+      }
+
+      if (validBooks.length > 1000) {
+        parseError.value = `O arquivo tem ${validBooks.length} livros; o limite é 1000 por importação.`
         return
       }
 
@@ -506,7 +520,7 @@ async function resendImport() {
 }
 
 async function sendImport() {
-  if (allParsedBooks.value.length === 0 || isSubmitting.value) return
+  if (allParsedBooks.value.length === 0 || allParsedBooks.value.length > 1000 || isSubmitting.value) return
 
   isSubmitting.value = true
   timedOut.value = false

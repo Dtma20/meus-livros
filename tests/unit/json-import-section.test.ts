@@ -14,7 +14,10 @@ class ControlledReader {
   readAsText(_file: File): void {}
   abort(): void { this.aborted = true }
   finish(title: string): void {
-    this.result = JSON.stringify([{ title, author: 'Autora' }])
+    this.finishItems([{ title, author: 'Autora' }])
+  }
+  finishItems(items: unknown[]): void {
+    this.result = JSON.stringify(items)
     const event = new ProgressEvent('load')
     Object.defineProperty(event, 'target', { value: this })
     this.onload?.call(this as unknown as FileReader, event as ProgressEvent<FileReader>)
@@ -113,6 +116,36 @@ describe('JSON import preview lifecycle', () => {
     app!.unmount()
     app = null
     expect(reader.aborted).toBe(true)
+  })
+
+  it('disables import and displays the limit message when file exceeds 1000 books', async () => {
+    await selectFile('exceeds-limit.json')
+    const items = Array.from({ length: 1001 }, (_, i) => ({
+      title: `Livro ${i + 1}`,
+      author: 'Autora',
+    }))
+    ControlledReader.instances[0]!.finishItems(items)
+    await nextTick()
+
+    expect(container.querySelector('.error-banner')?.textContent).toContain(
+      'O arquivo tem 1001 livros; o limite é 1000 por importação.',
+    )
+    expect(container.querySelector('.preview-section')).toBeNull()
+    expect(container.querySelector('.btn-import')).toBeNull()
+  })
+
+  it('does not count an item with an empty title as valid', async () => {
+    await selectFile('books.json')
+    ControlledReader.instances[0]!.finishItems([
+      { title: '', author: 'Autora' },
+      { title: '   ', author: 'Autora 2' },
+      { title: 'Livro Válido', author: 'Autora Válida' },
+    ])
+    await nextTick()
+
+    expect(container.querySelector('.preview-title')?.textContent).toContain('1 livro encontrado')
+    expect(container.querySelectorAll('.preview-item')).toHaveLength(1)
+    expect(container.querySelector('.preview-item-title')?.textContent).toBe('Livro Válido')
   })
 })
 
