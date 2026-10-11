@@ -4,6 +4,13 @@ import { createApp, defineComponent, h, nextTick } from 'vue'
 
 import LoginPage from '../../app/pages/entrar/index.vue'
 
+const mocks = vi.hoisted(() => ({ push: vi.fn() }))
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push: mocks.push }),
+}))
+
 vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
   globalScope.useSeoMeta = () => {}
@@ -110,6 +117,48 @@ describe('/entrar - submit with empty fields', () => {
     await submit(page.host)
     expect(page.error()).toBe('Preencha e-mail ou usuário e senha.')
     expect(fetchMock).not.toHaveBeenCalled()
+    page.unmount()
+  })
+
+  it('shows the connection message for a server error and keeps the fields filled', async () => {
+    fetchMock.mockRejectedValueOnce({ status: 500 })
+
+    const page = mountPage()
+    await fill(page.host, 'identificador', 'ana@exemplo.com')
+    await fill(page.host, 'senha', 'senha-segura')
+    await submit(page.host)
+
+    expect(page.error()).toBe('N\u00e3o foi poss\u00edvel concluir agora. Verifique sua conex\u00e3o e tente novamente.')
+    expect(page.host.querySelector<HTMLInputElement>('#identificador')?.value).toBe('ana@exemplo.com')
+    expect(page.host.querySelector<HTMLInputElement>('#senha')?.value).toBe('senha-segura')
+
+    page.unmount()
+  })
+
+  it('keeps the credential message for an unauthorized response', async () => {
+    fetchMock.mockRejectedValueOnce({ status: 401 })
+
+    const page = mountPage()
+    await fill(page.host, 'identificador', 'ana@exemplo.com')
+    await fill(page.host, 'senha', 'senha-incorreta')
+    await submit(page.host)
+
+    expect(page.error()).toBe('E-mail, usuário ou senha incorretos.')
+
+    page.unmount()
+  })
+
+  it('shows the connection message when navigation fails after login succeeds', async () => {
+    fetchMock.mockResolvedValueOnce({})
+    mocks.push.mockRejectedValueOnce(new Error('navigation failed'))
+
+    const page = mountPage()
+    await fill(page.host, 'identificador', 'ana@exemplo.com')
+    await fill(page.host, 'senha', 'senha-segura')
+    await submit(page.host)
+
+    expect(page.error()).toBe('N\u00e3o foi poss\u00edvel concluir agora. Verifique sua conex\u00e3o e tente novamente.')
+
     page.unmount()
   })
 })

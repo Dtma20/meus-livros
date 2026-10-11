@@ -233,8 +233,12 @@ function syncWithImage() {
   const img = imgRef.value
   if (!img) return
   if (img.complete) {
-    hidden.value = false
-    loaded.value = true
+    if (img.naturalWidth > 0) {
+      hidden.value = false
+      loaded.value = true
+    } else {
+      onError()
+    }
     return
   }
   loaded.value = false

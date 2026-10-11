@@ -50,8 +50,14 @@ export default defineNuxtRouteMiddleware(async () => {
       ? { user: { ...profile, hasProfile: true }, hasProfile: true, fetched: true }
       : { user: { hasProfile: false }, hasProfile: false, fetched: true }
   }
-  catch {
-    session.value = { user: null, hasProfile: false, fetched: true }
+  catch (error) {
+    const requestError = error as {
+      statusCode?: number
+      status?: number
+      response?: { status?: number }
+    } | null
+    const status = requestError?.statusCode ?? requestError?.status ?? requestError?.response?.status
+    session.value = { user: null, hasProfile: false, fetched: status === 401 }
   }
 
   nuxtApp.runWithContext(applyLayout)

@@ -160,6 +160,19 @@ import { authClient } from '~/utils/auth-client'
 import AppLogo from '~/components/ui/AppLogo.vue'
 import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/shared/schemas/auth'
 
+const CONNECTION_ERROR_MESSAGE = 'Não foi possível concluir agora. Verifique sua conexão e tente novamente.'
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const fetchError = error as { statusCode?: number; status?: number; response?: { status?: number } }
+  return fetchError.statusCode ?? fetchError.status ?? fetchError.response?.status
+}
+
+function isConnectionError(error: unknown): boolean {
+  const status = getErrorStatus(error)
+  return isTimeoutOrAbort(error) || status == null || status >= 500
+}
+
 const route = useRoute()
 const router = useRouter()
 
@@ -272,11 +285,19 @@ async function handleResendOtp() {
   }
 }
 
-// The server's message is shown for a 429 (attempts used up) and for a 400 (a password rule, or the same
-// answer for a bad code). Anything else keeps the generic code message.
-function motivoDoErro(error: { status?: number; message?: string }): string {
-  if ((error.status === 400 || error.status === 429) && error.message) {
+// Preserve server messages for 400 validation and 429 rate limiting; connection failures get a generic message.
+function motivoDoErro(error: {
+  statusCode?: number
+  status?: number
+  response?: { status?: number }
+  message?: string
+}): string {
+  const status = getErrorStatus(error)
+  if ((status === 400 || status === 429) && error.message) {
     return error.message
+  }
+  if (isConnectionError(error)) {
+    return CONNECTION_ERROR_MESSAGE
   }
   return 'Código inválido ou expirado.'
 }
@@ -333,8 +354,8 @@ async function handleActivate() {
         body: { newPassword: parsedPassword.data },
       })
     } catch (err: unknown) {
-      errorMessage.value = isTimeoutOrAbort(err)
-        ? TIMEOUT_MESSAGE
+      errorMessage.value = isConnectionError(err)
+        ? CONNECTION_ERROR_MESSAGE
         : 'Não foi possível definir a senha. Tente novamente.'
       return
     }
@@ -344,9 +365,12 @@ async function handleActivate() {
     const redirectPath = getSafeRedirectUrl(route.query.next)
     await router.push(redirectPath)
   } catch (err: unknown) {
-    errorMessage.value = isTimeoutOrAbort(err)
-      ? TIMEOUT_MESSAGE
-      : 'Não foi possível ativar sua conta. Tente novamente.'
+    const status = getErrorStatus(err)
+    errorMessage.value = isConnectionError(err)
+      ? CONNECTION_ERROR_MESSAGE
+      : status === 400 || status === 401 || status === 403
+        ? 'Código inválido ou expirado.'
+        : 'Não foi possível ativar sua conta. Tente novamente.'
   } finally {
     loading.value = false
   }
@@ -469,7 +493,7 @@ function changeEmail() {
 
 
 .error-message {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-sm);
   margin: 0;
   line-height: var(--line-height-normal);

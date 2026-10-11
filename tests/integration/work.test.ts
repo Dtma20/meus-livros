@@ -180,6 +180,52 @@ describe.skipIf(!hasDatabaseUrl)('Work service integration tests (TASK-015)', ()
     expect(resultOwner.average_rating).toBe(3.5)
   }, 20000)
 
+  it('includes the owner’s open reading when it is older than 50 visible logs', async () => {
+    const work = await catalogService.createWork(
+      {
+        title: `${MARKER} Obra com muitas leituras`,
+        authors: [{ name: `${MARKER} Autor de muitas leituras` }],
+        genre_ids: [],
+      },
+      userAId,
+      { skipRateLimit: true },
+    )
+    const openLog = await logsService.createLog(
+      {
+        work_id: work.id,
+        finished_precision: 'dia',
+        visibility: 'publico',
+      },
+      userAId,
+      { skipRateLimit: true },
+    )
+
+    for (let index = 0; index < 51; index++) {
+      await logsService.createLog(
+        {
+          work_id: work.id,
+          rating: 4,
+          finished_precision: 'dia',
+          visibility: 'publico',
+        },
+        userBId,
+        { skipRateLimit: true },
+      )
+    }
+
+    await db
+      .update(schema.reading_logs)
+      .set({ created_at: new Date('2000-01-01T00:00:00.000Z') })
+      .where(eq(schema.reading_logs.id, openLog.id))
+
+    const result = await worksService.getWorkBySlug(work.slug, { id: userAId })
+
+    expect(result.log_count).toBe(52)
+    expect(result.logs).toHaveLength(52)
+    expect(result.logs.some((log) => log.id === openLog.id)).toBe(true)
+    expect(result.average_rating).toBe(4)
+  }, 30000)
+
   it('a work with first_published_year = -500 renders 500 a.C.', async () => {
     const result = await worksService.getWorkBySlug(workASlug, null)
     expect(result.first_published_year).toBe(-500)

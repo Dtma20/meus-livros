@@ -22,14 +22,19 @@ export const coverUrlSchema = z
 
 export const publicationYearSchema = z
   .number()
-  .int()
+  .int({ message: 'Informe um ano inteiro.' })
   .min(-3000, { message: 'Ano anterior a -3000.' })
   .max(2100, { message: 'Ano posterior a 2100.' })
 
 export const editionInputSchema = z.object({
   isbn: z.string().max(40).nullish(),
   publisher: z.string().max(200).nullish(),
-  page_count: z.number().int().positive().max(50000).nullish(),
+  page_count: z
+    .number()
+    .int({ message: 'Informe um número inteiro de páginas.' })
+    .positive({ message: 'O número de páginas deve ser positivo.' })
+    .max(50000, { message: 'O limite é 50.000 páginas.' })
+    .nullish(),
   published_year: publicationYearSchema.nullish(),
   language: z.string().length(2).nullish(),
   cover_url: coverUrlSchema.nullish(),

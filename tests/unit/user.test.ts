@@ -260,7 +260,7 @@ describe('TASK-008 - Route middleware logic (unit)', () => {
     expect(sessionRef.value).toEqual({
       user: null,
       hasProfile: false,
-      fetched: true,
+      fetched: false,
     })
 
     delete globalScope.$fetch

@@ -2,7 +2,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick } from 'vue'
 import AtivarPage from '../../app/pages/entrar/ativar.vue'
-import { TIMEOUT_MESSAGE } from '../../app/utils/fetch-error'
 
 const mocks = vi.hoisted(() => ({
   sendVerificationOtp: vi.fn(),
@@ -117,7 +116,7 @@ describe('/entrar/ativar - retry after set-password fails', () => {
     await reachActivationStep(page.host)
 
     await submit(page.host)
-    expect(page.error()).toBe('Não foi possível definir a senha. Tente novamente.')
+    expect(page.error()).toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
 
     await submit(page.host)
 
@@ -151,7 +150,7 @@ describe('/entrar/ativar - retry after set-password fails', () => {
     await reachActivationStep(page.host)
     await submit(page.host)
 
-    expect(page.error()).toBe(TIMEOUT_MESSAGE)
+    expect(page.error()).toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
     expect(page.submitButton()?.disabled).toBe(false)
 
     page.unmount()
@@ -199,10 +198,49 @@ describe('/entrar/ativar - motivo do erro ao validar o código', () => {
     page.unmount()
   })
 
-  it('keeps the generic code message for any other failure', async () => {
+  it('shows the connection message for a server error', async () => {
     mocks.signInEmailOtp.mockResolvedValueOnce({
       error: { status: 500, statusText: 'Internal Server Error' },
     })
+
+    const page = mountPage()
+    await reachActivationStep(page.host)
+    await submit(page.host)
+
+    expect(page.error()).toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
+
+    page.unmount()
+  })
+
+  it('keeps the generic code message for an unauthorized response', async () => {
+    mocks.signInEmailOtp.mockResolvedValueOnce({
+      error: { status: 401, message: 'Unauthorized' },
+    })
+
+    const page = mountPage()
+    await reachActivationStep(page.host)
+    await submit(page.host)
+
+    expect(page.error()).toBe('Código inválido ou expirado.')
+
+    page.unmount()
+  })
+
+  it('shows the connection message when code validation rejects with a server error', async () => {
+    mocks.signInEmailOtp.mockRejectedValueOnce({ status: 500 })
+
+    const page = mountPage()
+    await reachActivationStep(page.host)
+    await submit(page.host)
+
+    expect(page.error()).toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
+    expect(page.host.querySelector<HTMLInputElement>('#otp-code')?.value).toBe('123456')
+
+    page.unmount()
+  })
+
+  it('keeps the generic code message when code validation rejects as unauthorized', async () => {
+    mocks.signInEmailOtp.mockRejectedValueOnce({ status: 401 })
 
     const page = mountPage()
     await reachActivationStep(page.host)

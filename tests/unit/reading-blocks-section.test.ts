@@ -143,6 +143,23 @@ const inProgress = {
   is_complete: false,
 }
 
+describe('ReadingBlocksSection - progress with unknown total', () => {
+  it('keeps registered-page text and hides the progress bar when percentage is unknown', () => {
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [],
+      initialProgress: { ...inProgress, total_pages: null, percentage: null },
+      isOwner: false,
+      editionPageCount: null,
+      isFinished: false,
+    })
+
+    expect(container.querySelector('[role="progressbar"]')).toBeNull()
+    expect(container.querySelector('.section-subtitle')?.textContent).toContain('20')
+    expect(container.querySelector('.section-subtitle')?.textContent).toContain('registradas')
+  })
+})
+
 const BLOCK = { id: 'b1', start_page: 1, end_page: 20, comment: 'Começo lento.', read_at: '2026-09-01' }
 
 async function flush(): Promise<void> {
@@ -394,6 +411,21 @@ describe('ReadingBlocksSection - save in flight and timeouts', () => {
   function timeoutError(): DOMException {
     return new DOMException('The operation timed out.', 'TimeoutError')
   }
+
+  it('focuses the start page field after clicking Editar', async () => {
+    const container = mount({
+      logId: 'log-1',
+      initialBlocks: [BLOCK],
+      initialProgress: inProgress,
+      isOwner: true,
+      editionPageCount: 336,
+    })
+
+    editButton(container, 'b1').click()
+    await flush()
+
+    expect(document.activeElement).toBe(container.querySelector('#block-start-page'))
+  })
 
   it('disables Editar and Registrar while a save is pending, so its response cannot close another form', async () => {
     let resolveSave: ((response: Response) => void) | undefined

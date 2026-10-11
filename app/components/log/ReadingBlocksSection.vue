@@ -32,7 +32,7 @@
       {{ saveNotice }}
     </p>
 
-    <div v-if="progress.pages_read > 0" class="progress-bar-wrap" role="progressbar" aria-label="Progresso da leitura" :aria-valuenow="progress.percentage ?? 0" aria-valuemin="0" aria-valuemax="100">
+    <div v-if="progress.pages_read > 0 && progress.percentage !== null" class="progress-bar-wrap" role="progressbar" aria-label="Progresso da leitura" :aria-valuenow="progress.percentage ?? 0" aria-valuemin="0" aria-valuemax="100">
       <div class="progress-bar-track">
         <div
           class="progress-bar-fill"
@@ -485,6 +485,7 @@ function startEdit(block: ReadingBlockView): void {
   formReadAt.value = block.read_at
   formError.value = ''
   blockErrors.value = {}
+  void focusBlockField('start_page')
 }
 
 function cancelForm(): void {
@@ -909,6 +910,11 @@ function formatBlockDate(dateStr: string): string {
 .field-input:focus {
   border-color: var(--highlight);
   box-shadow: none;
+}
+
+.field-input:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
 }
 
 .field-input[aria-invalid='true'] {

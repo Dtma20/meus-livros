@@ -649,6 +649,37 @@ describe('LogForm - edit mode leave guard', () => {
     form.unmount()
   })
 
+  it('shows an editions load error and retries the request', async () => {
+    const globalScope = globalThis as unknown as Record<string, unknown>
+    const fetchMock = vi.fn()
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce({ editions: [] })
+    globalScope.$fetch = fetchMock
+
+    const form = await mountForm()
+    const editionToggle = Array.from(form.host.querySelectorAll<HTMLButtonElement>('.toggle-link-btn'))
+      .find((button) => button.textContent?.includes('Li outra edição'))
+    editionToggle!.click()
+    await Promise.resolve()
+    await nextTick()
+    await nextTick()
+
+    expect(form.text()).toContain('Não foi possível carregar as edições.')
+    expect(form.text()).not.toContain('Nenhuma outra edição cadastrada para esta obra.')
+    const retryButton = Array.from(form.host.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.includes('Tentar novamente'))
+    expect(retryButton).toBeTruthy()
+
+    retryButton!.click()
+    await Promise.resolve()
+    await nextTick()
+    await nextTick()
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(form.text()).toContain('Nenhuma outra edição cadastrada para esta obra.')
+    form.unmount()
+  })
+
   it('sends null, not 0, for pages and year that were typed and then cleared', async () => {
     const globalScope = globalThis as unknown as Record<string, unknown>
     const fetchMock = vi.fn(async (url: string, options?: { method?: string }) => {

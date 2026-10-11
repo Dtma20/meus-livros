@@ -194,8 +194,12 @@ const groups = computed<GenreGroup[]>(() => [
 .genre-pill.is-selected {
   background-color: var(--star-color);
   border-color: var(--star-color);
-  color: #fff;
+  color: var(--on-highlight);
   font-weight: 600;
+}
+
+.genre-pill.is-selected:hover:not(:disabled) {
+  color: var(--on-highlight);
 }
 
 .genre-pill.is-disabled {

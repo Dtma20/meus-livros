@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { createApp, defineEventHandler, toNodeListener } from 'h3'
-import { createServer, request, type Server } from 'node:http'
+import { createApp, createEvent, defineEventHandler, readBody, toNodeListener } from 'h3'
+import { createServer, request, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { connect } from 'node:net'
+import { PassThrough } from 'node:stream'
 import bodyLimitMiddleware from '../../server/middleware/body-limit'
 
 const KB = 1024
@@ -39,7 +40,10 @@ describe('Body size limit (server/middleware/body-limit.ts)', () => {
     const app = createApp()
     app.use(bodyLimitMiddleware)
     app.use(
-      defineEventHandler((event) => {
+      defineEventHandler(async (event) => {
+        if (event.path === '/echo') {
+          return { body: await readBody(event) }
+        }
         return { ok: true, method: event.method }
       }),
     )
@@ -75,6 +79,59 @@ describe('Body size limit (server/middleware/body-limit.ts)', () => {
     expect(res.status).toBe(413)
     const body = await res.json()
     expect(body).toEqual({ error: 'corpo_muito_grande', message: 'A requisição é grande demais.' })
+  })
+
+  it('rejects actual body bytes above the limit when content-length understates the body', async () => {
+    const req = new PassThrough()
+    Object.assign(req, {
+      method: 'POST',
+      url: '/test',
+      headers: { host: '127.0.0.1', 'content-length': '1' },
+      connection: {},
+    })
+    const res = { statusCode: 200 } as ServerResponse
+    const event = createEvent(req as unknown as IncomingMessage, res)
+    const response = bodyLimitMiddleware(event)
+
+    req.write('a'.repeat(64 * KB))
+    req.end('b')
+
+    expect(await response).toEqual({ error: 'corpo_muito_grande', message: 'A requisição é grande demais.' })
+    expect(event.node.res.statusCode).toBe(413)
+  })
+
+  it('limits actual bytes from the h3 web request body', async () => {
+    const req = new PassThrough()
+    Object.assign(req, {
+      method: 'POST',
+      url: '/test',
+      headers: { host: '127.0.0.1', 'content-length': '1' },
+      connection: {},
+    })
+    const event = createEvent(req as unknown as IncomingMessage, { statusCode: 200 } as ServerResponse)
+    event.web = {
+      request: new Request('http://127.0.0.1/test', {
+        method: 'POST',
+        body: 'a'.repeat(64 * KB + 1),
+      }),
+    }
+
+    expect(await bodyLimitMiddleware(event)).toEqual({
+      error: 'corpo_muito_grande',
+      message: 'A requisição é grande demais.',
+    })
+    expect(event.node.res.statusCode).toBe(413)
+  })
+
+  it('preserves the captured request body for h3 readBody', async () => {
+    const res = await fetch(`${baseUrl}/echo`, {
+      method: 'POST',
+      headers: { 'content-type': 'text/plain' },
+      body: 'corpo preservado',
+    })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ body: 'corpo preservado' })
   })
 
   it.each(['PUT', 'PATCH', 'DELETE'])('rejects an oversized %s body with 413', async (method) => {

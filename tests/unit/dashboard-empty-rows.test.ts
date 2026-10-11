@@ -90,6 +90,16 @@ const work: DashboardWorkView = {
 
 const shelfBook: DashboardShelfBook = { id: 's1', work, created_at: new Date('2026-01-01T12:00:00Z') }
 
+const feedEntry: FeedEntry = {
+  id: 'f1',
+  rating: null,
+  review_excerpt: null,
+  created_at: '2026-10-01T12:00:00Z',
+  user: { handle: 'reader', display_name: 'Reader' },
+  work: { id: 'fw1', title: 'Meu livro', slug: 'meu-livro', first_published_year: null, cover_url: null, authors: [] },
+  edition: null,
+}
+
 const inProgressBook: DashboardInProgressBook = {
   id: 'r1',
   work,
@@ -198,6 +208,7 @@ describe('dashboard partial failure', () => {
     failing: string,
     failure: unknown = new Error('falhou'),
     calls: Array<{ url: string, options: unknown }> = [],
+    feedEntries: FeedEntry[] = [],
   ) {
     globalScope.useState = (key: string, init?: () => unknown) => ({
       value: key === 'auth:session'
@@ -208,7 +219,7 @@ describe('dashboard partial failure', () => {
       calls.push({ url, options })
       if (url === failing) throw failure
       if (url === '/api/dashboard') return { inProgress: [inProgressBook], completed: [], shelf: [shelfBook] }
-      return { entries: [] }
+      return { entries: feedEntries }
     }
     globalScope.useAsyncData = async (_key: string, handler: () => Promise<unknown>) => ({
       data: ref(await handler()),
@@ -249,13 +260,14 @@ describe('dashboard partial failure', () => {
     wrapper.unmount()
   })
 
-  it('shows the page-level error when the dashboard itself fails', async () => {
-    runFetcher('/api/dashboard')
+  it('shows the feed entry when the dashboard itself fails', async () => {
+    runFetcher('/api/dashboard', new Error('falhou'), [], [feedEntry])
     const wrapper = mount(IndexPage)
     await flushAsync()
 
     expect(wrapper.text()).toContain('Não foi possível carregar suas leituras.')
-    expect(wrapper.find('.dashboard-content')).toBeNull()
+    expect(wrapper.findAll('.feed-row')).toHaveLength(1)
+    expect(wrapper.find('.feed-work-title')?.textContent).toBe('Meu livro')
     wrapper.unmount()
   })
 })

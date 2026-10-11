@@ -56,6 +56,13 @@
   border-color: var(--danger);
 }
 
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+
 .error-message {
   font-size: var(--font-size-sm);
   color: var(--danger-text);
@@ -125,7 +132,6 @@
 }
 
 .btn-primary,
-.btn-secondary,
 .submit-btn,
 .empty-btn,
 .empty-btn-primary,
@@ -137,7 +143,6 @@
 }
 
 .btn-primary:hover:not(:disabled),
-.btn-secondary:hover:not(:disabled),
 .submit-btn:hover:not(:disabled),
 .empty-btn:hover:not(:disabled),
 .empty-btn-primary:hover:not(:disabled),
@@ -147,6 +152,17 @@
   border-color: rgba(255, 255, 255, 0.3);
   color: var(--text-strong);
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-color);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--card-bg);
+  color: var(--text-color);
 }
 
 .btn-danger,

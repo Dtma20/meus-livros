@@ -109,7 +109,7 @@ describe('/entrar/senha - timeouts', () => {
     await fill(page.host, 'confirm-password', PASSWORD)
     await submit(page.host)
 
-    expect(page.error()).toBe(TIMEOUT_MESSAGE)
+    expect(page.error()).toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
     expect(page.submitButton()?.disabled).toBe(false)
 
     page.unmount()
@@ -158,10 +158,54 @@ describe('/entrar/senha - motivo do erro ao redefinir', () => {
     page.unmount()
   })
 
-  it('keeps the generic code message for any other failure', async () => {
+  it('shows the connection message for a server error', async () => {
     const page = await resetWithAnswer({
       error: { status: 500, statusText: 'Internal Server Error' },
     })
+
+    expect(page.error()).toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
+
+    page.unmount()
+  })
+
+  it('keeps the generic code message for an unauthorized response', async () => {
+    const page = await resetWithAnswer({
+      error: { status: 401, message: 'Unauthorized' },
+    })
+
+    expect(page.error()).toBe('Código inválido ou expirado.')
+
+    page.unmount()
+  })
+
+  it('shows the connection message when password reset rejects with a server error', async () => {
+    mocks.resetPassword.mockRejectedValueOnce({ status: 500 })
+
+    const page = mountPage()
+    await fill(page.host, 'email', 'ana@exemplo.com')
+    await submit(page.host)
+    await fill(page.host, 'otp-code', '123456')
+    await fill(page.host, 'new-password', PASSWORD)
+    await fill(page.host, 'confirm-password', PASSWORD)
+    await submit(page.host)
+
+    expect(page.error()).toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
+    expect(page.host.querySelector<HTMLInputElement>('#otp-code')?.value).toBe('123456')
+    expect(page.host.querySelector<HTMLInputElement>('#new-password')?.value).toBe(PASSWORD)
+
+    page.unmount()
+  })
+
+  it('keeps the generic code message when password reset rejects as unauthorized', async () => {
+    mocks.resetPassword.mockRejectedValueOnce({ status: 401 })
+
+    const page = mountPage()
+    await fill(page.host, 'email', 'ana@exemplo.com')
+    await submit(page.host)
+    await fill(page.host, 'otp-code', '123456')
+    await fill(page.host, 'new-password', PASSWORD)
+    await fill(page.host, 'confirm-password', PASSWORD)
+    await submit(page.host)
 
     expect(page.error()).toBe('Código inválido ou expirado.')
 

@@ -227,12 +227,19 @@ describe('BookCover.vue loading placeholder', () => {
     wrapper.unmount()
   })
 
-  it('does not hide an image that finished with an error before mount', async () => {
+  it('renders the fallback when the image failed before mount', async () => {
     restore = stubImageState(true, 0)
-    const wrapper = mount({ alt: 'Capa quebrada', coverUrl: 'https://example.com/broken.jpg' })
+    const wrapper = mount({
+      alt: 'Capa quebrada',
+      title: 'Livro quebrado',
+      coverUrl: 'https://example.com/broken.jpg'
+    })
     await nextTick()
 
     expect(wrapper.root()?.classList.contains('is-loading')).toBe(false)
+    const src = wrapper.img()?.getAttribute('src') ?? ''
+    expect(src.startsWith('data:image/svg+xml')).toBe(true)
+    expect(decodePlaceholder(src)).toContain('Livro quebrado')
     wrapper.unmount()
   })
 

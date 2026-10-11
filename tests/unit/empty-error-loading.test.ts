@@ -190,6 +190,7 @@ describe('SearchBox.vue - Empty state on search miss', () => {
   })
 
   it('renders cover preview in search results dropdown for found works', async () => {
+    const naturalWidth = vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(200)
     const originalFetch = global.fetch
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -229,6 +230,7 @@ describe('SearchBox.vue - Empty state on search miss', () => {
 
     wrapper.unmount()
     global.fetch = originalFetch
+    naturalWidth.mockRestore()
   })
 })
 

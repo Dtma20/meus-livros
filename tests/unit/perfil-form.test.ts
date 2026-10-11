@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, nextTick } from 'vue'
 import PerfilPage from '../../app/pages/app/perfil.vue'
 
@@ -66,6 +66,16 @@ async function typeInto(host: HTMLElement, selector: string, value: string) {
   await nextTick()
 }
 
+async function submitPasswordChange(host: HTMLElement) {
+  await typeInto(host, '#current-password', 'senha-atual')
+  await typeInto(host, '#new-password', 'Cafeteira-Azul-2026')
+  await typeInto(host, '#confirm-password', 'Cafeteira-Azul-2026')
+  const form = host.querySelector<HTMLFormElement>('.password-card form')
+  if (!form) throw new Error('Formulário de senha não encontrado.')
+  form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+  await flush()
+}
+
 describe('/app/perfil - slow profile load', () => {
   beforeEach(() => {
     globalScope.useState = () => ({
@@ -119,5 +129,71 @@ describe('/app/perfil - slow profile load', () => {
 
     page.unmount()
     delete globalScope.$fetch
+  })
+})
+
+describe('/app/perfil - change password errors', () => {
+  beforeEach(() => {
+    globalScope.useState = () => ({
+      value: {
+        user: structuredClone(seedUser),
+        hasProfile: true,
+        fetched: true,
+      },
+    })
+    globalScope.$fetch = vi.fn(async () => ({ ...seedUser }))
+    mocks.changePassword.mockReset()
+  })
+
+  afterEach(() => {
+    delete globalScope.$fetch
+  })
+
+  it('shows the connection message for a returned server error and keeps the fields filled', async () => {
+    mocks.changePassword.mockResolvedValueOnce({ error: { status: 500 } })
+
+    const page = mountPage()
+    await submitPasswordChange(page.host)
+
+    expect(page.host.querySelector('#password-error')?.textContent?.trim())
+      .toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
+    expect(page.host.querySelector<HTMLInputElement>('#current-password')?.value).toBe('senha-atual')
+    expect(page.host.querySelector<HTMLInputElement>('#new-password')?.value).toBe('Cafeteira-Azul-2026')
+
+    page.unmount()
+  })
+
+  it('keeps the credential message for a returned unauthorized response', async () => {
+    mocks.changePassword.mockResolvedValueOnce({ error: { status: 401 } })
+
+    const page = mountPage()
+    await submitPasswordChange(page.host)
+
+    expect(page.host.querySelector('#password-error')?.textContent?.trim()).toBe('Senha atual incorreta.')
+
+    page.unmount()
+  })
+
+  it('shows the connection message when password change rejects with a server error', async () => {
+    mocks.changePassword.mockRejectedValueOnce({ status: 500 })
+
+    const page = mountPage()
+    await submitPasswordChange(page.host)
+
+    expect(page.host.querySelector('#password-error')?.textContent?.trim())
+      .toBe('Não foi possível concluir agora. Verifique sua conexão e tente novamente.')
+
+    page.unmount()
+  })
+
+  it('keeps the credential message when password change rejects as unauthorized', async () => {
+    mocks.changePassword.mockRejectedValueOnce({ status: 401 })
+
+    const page = mountPage()
+    await submitPasswordChange(page.host)
+
+    expect(page.host.querySelector('#password-error')?.textContent?.trim()).toBe('Senha atual incorreta.')
+
+    page.unmount()
   })
 })

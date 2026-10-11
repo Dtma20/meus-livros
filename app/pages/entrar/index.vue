@@ -82,6 +82,7 @@ import AppLogo from '~/components/ui/AppLogo.vue'
 import { getSafeRedirectUrl } from '~/utils/redirect'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { isTimeoutOrAbort } from '~/utils/fetch-error'
 import type { AuthSessionState } from '~/middleware/auth'
 import { signInSchema } from '~~/shared/schemas/auth'
 
@@ -101,6 +102,18 @@ const senha = ref('')
 const showPassword = ref(false)
 const errorMessage = ref('')
 const loading = ref(false)
+const CONNECTION_ERROR_MESSAGE = 'Não foi possível concluir agora. Verifique sua conexão e tente novamente.'
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const fetchError = error as { statusCode?: number; status?: number; response?: { status?: number } }
+  return fetchError.statusCode ?? fetchError.status ?? fetchError.response?.status
+}
+
+function isConnectionError(error: unknown): boolean {
+  const status = getErrorStatus(error)
+  return isTimeoutOrAbort(error) || status == null || status >= 500
+}
 
 async function handleSignIn() {
   errorMessage.value = ''
@@ -123,11 +136,12 @@ async function handleSignIn() {
         body: { identificador: parsed.data.identificador, senha: parsed.data.senha },
       })
     } catch (err) {
-      const status = (err as { statusCode?: number, status?: number }).statusCode
-        ?? (err as { status?: number }).status
+      const status = getErrorStatus(err)
       errorMessage.value = status === 429
         ? 'Muitas tentativas. Aguarde uma hora e tente novamente.'
-        : 'E-mail, usuário ou senha incorretos.'
+        : isConnectionError(err)
+          ? CONNECTION_ERROR_MESSAGE
+          : 'E-mail, usuário ou senha incorretos.'
       return
     }
 
@@ -136,7 +150,7 @@ async function handleSignIn() {
     const redirectPath = getSafeRedirectUrl(route.query.next)
     await router.push(redirectPath)
   } catch {
-    errorMessage.value = 'E-mail, usuário ou senha incorretos.'
+    errorMessage.value = CONNECTION_ERROR_MESSAGE
   } finally {
     loading.value = false
   }
@@ -226,7 +240,7 @@ async function handleSignIn() {
 }
 
 .error-message {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-sm);
   margin: 0;
   line-height: var(--line-height-normal);

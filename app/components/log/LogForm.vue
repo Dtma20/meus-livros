@@ -220,6 +220,12 @@
 
           <div v-if="showEditionPicker" id="edition-picker-panel" class="edition-picker-panel">
             <p v-if="loadingEditions" class="field-hint">Carregando edições…</p>
+            <div v-else-if="editionsError">
+              <p class="field-error" role="alert">Não foi possível carregar as edições.</p>
+              <button type="button" class="new-edition-toggle" @click="loadEditions">
+                Tentar novamente
+              </button>
+            </div>
             <EditionPicker
               v-else-if="editionsList.length > 0"
               v-model="editionId"
@@ -539,6 +545,7 @@ const showStartDate = ref(false)
 const showEditionPicker = ref(false)
 const editionsList = ref<LogEdition[]>([])
 const loadingEditions = ref(false)
+const editionsError = ref(false)
 const showNewEditionForm = ref(false)
 const creatingEdition = ref(false)
 const newEditionIsbn = ref('')
@@ -773,6 +780,7 @@ async function toggleEditionPicker(): Promise<void> {
 
 async function loadEditions(): Promise<void> {
   if (!selectedWork.value) return
+  editionsError.value = false
   loadingEditions.value = true
   try {
     const res = await $fetch<{ editions: LogEdition[] }>(
@@ -784,6 +792,7 @@ async function loadEditions(): Promise<void> {
     )
     editionsList.value = res.editions
   } catch {
+    editionsError.value = true
   } finally {
     loadingEditions.value = false
   }

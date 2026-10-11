@@ -419,6 +419,7 @@ async function handleSubmit(): Promise<void> {
     genre_ids: genreIds.value,
   }
 
+  const submittedSnapshot = computeSnapshot()
   saving.value = true
   try {
     await $fetch(`/api/works/${props.work.id}` as string, {
@@ -428,7 +429,7 @@ async function handleSubmit(): Promise<void> {
       retry: 0,
     })
     savedAt.value = Date.now()
-    baselineSnapshot = computeSnapshot()
+    baselineSnapshot = submittedSnapshot
     emit('saved')
   } catch (error) {
     serverError.value = isTimeoutOrAbort(error)

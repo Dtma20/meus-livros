@@ -89,8 +89,7 @@ async function assembleWorkDetails(
       .from(reading_logs)
       .innerJoin(users, eq(users.id, reading_logs.user_id))
       .where(and(eq(reading_logs.work_id, work.id), visibleLogs(viewer)))
-      .orderBy(desc(reading_logs.created_at), desc(reading_logs.id))
-      .limit(50),
+      .orderBy(desc(reading_logs.created_at), desc(reading_logs.id)),
 
     db
       .select({

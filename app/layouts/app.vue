@@ -176,13 +176,27 @@ async function handleSignOut() {
   catch {
   }
 
+  let signOutResult: Awaited<ReturnType<typeof authClient.signOut>> | null = null
+  let signOutTimeout: ReturnType<typeof setTimeout> | undefined
   try {
-    await Promise.race([
-      authClient.signOut().catch(() => {}),
-      new Promise((resolve) => setTimeout(resolve, 10000)),
+    signOutResult = await Promise.race([
+      authClient.signOut().catch(() => null),
+      new Promise<null>((resolve) => {
+        signOutTimeout = setTimeout(() => resolve(null), 10_000)
+      }),
     ])
   }
   catch {
+    signOutResult = null
+  }
+  finally {
+    if (signOutTimeout !== undefined) clearTimeout(signOutTimeout)
+  }
+
+  if (!signOutResult || signOutResult.error) {
+    isSigningOut.value = false
+    flash.set('Não foi possível sair. Tente novamente.', 'error')
+    return
   }
 
   // Clearing the session first makes open forms cancel their pending draft

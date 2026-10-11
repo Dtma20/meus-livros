@@ -374,6 +374,11 @@ onBeforeUnmount(() => {
   border-color: var(--danger);
 }
 
+.form-input:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
+
 .field-hint {
   font-size: var(--font-size-xs);
   color: var(--text-color);

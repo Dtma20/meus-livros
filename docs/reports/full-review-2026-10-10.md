@@ -267,6 +267,26 @@ Muse Spark and Step 5 on both passes. **No blocker from any of the four reviews*
 
 Gates after round 12: lint and typecheck clean, 912 unit, build, 247 integration and 24 SSR tests green; secret values 0 times in the client bundle.
 
+## Round 13 - final validation of `0f95058`, plus a design review
+
+Codex was back: both passes on `gpt-6.1-sol` (high), and a third Codex pass as a UI/UX review with its `vue-nuxt-ux-review` skill plus the `impeccable` and `frontend-review` lenses - from the code, since its browser was unavailable. Fixes by GPT Luna (`gpt-6-luna`, xhigh) as small closed tasks, one finding or one file each.
+
+**Codex found four blockers that eight rounds of Muse Spark and Step 5 had not** - the clearest sign in this report that the reviewer, not only the code, sets the count.
+
+| Finding | Found by | Fix |
+|---|---|---|
+| A failed sign-out was treated as success | Codex A-01 | Error shown; no navigation until it succeeds |
+| Editor overwrote text typed during a save (the `WorkEditForm` again) | Codex A-02, design D-01 | Fields disabled while saving |
+| The book page computed actions and ratings from the 50 most recent readings | Codex A-03 | Aggregates over all visible readings |
+| `scripts/dev.ts` masked a connection URL so that part of a password containing `:` stayed visible | Codex B-01 | Whole password masked |
+| Body cap trusted the declared `content-length` | Codex B-02 | Bytes actually read are capped |
+| A transient session error left the user signed out until reload | design D-02 | Only 401 settles the session; other errors retry |
+| Unknown total showed as a 100% progress bar | design D-03 | No bar without a total |
+| Selected genre 2.15:1, error text 3.86:1, import year 3.92:1 | design D-04-D-06 | Tokens that pass AA (8.31:1, 5.25:1, `--text-color`) |
+| Profile card overflowed 360 px; failures blamed the password; edition load failure looked like an empty catalog; import dropped items silently; edit did not move focus; dashboard error hid the feed; broken cover before hydration; error border hid focus; English validation text; primary and secondary buttons identical | design D-07-D-16 | Each fixed in its file, with a test where behaviour changed |
+
+Gates after round 13: lint and typecheck clean, 941 unit, build, 248 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
 ## Where the loop stopped
 
 Rounds 11 (security pass) and 12 (both passes) produced no blocker on any engine; what the reviewers raise now are questions and nits. The loop was ended there on the owner's instruction to keep Claude spend down. Still open, none fixable in code here:

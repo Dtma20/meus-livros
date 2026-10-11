@@ -5,6 +5,9 @@ const layoutCalls: string[] = []
 let sessionState: Record<string, unknown> = {}
 let meResponse: unknown = null
 let meRejects = false
+let meError: unknown = Object.assign(new Error('401'), { statusCode: 401 })
+let meResponses: unknown[] = []
+let meFetches = 0
 
 vi.hoisted(() => {
   const globalScope = globalThis as unknown as Record<string, unknown>
@@ -35,7 +38,13 @@ globalScope.useState = (key: string, init?: () => unknown) => {
 globalScope.$fetch = async () => null
 
 globalScope.useRequestFetch = () => async () => {
-  if (meRejects) throw new Error('401')
+  meFetches++
+  if (meResponses.length > 0) {
+    const response = meResponses.shift()
+    if (response instanceof Error) throw response
+    return response
+  }
+  if (meRejects) throw meError
   return meResponse
 }
 
@@ -50,12 +59,33 @@ describe('home-layout middleware', () => {
     sessionState = {}
     meResponse = null
     meRejects = false
+    meError = Object.assign(new Error('401'), { statusCode: 401 })
+    meResponses = []
+    meFetches = 0
   })
 
-  it('chooses the anonymous shell when /api/users/me rejects', async () => {
+  it('chooses the anonymous shell and caches a 401 response', async () => {
     meRejects = true
     await run()
     expect(layoutCalls).toEqual(['default'])
+    expect((sessionState['auth:session'] as { fetched?: boolean }).fetched).toBe(true)
+  })
+
+  it('retries the session lookup after a temporary failure', async () => {
+    meResponses = [
+      Object.assign(new Error('HTTP 503'), { statusCode: 503 }),
+      { id: 'u1', handle: 'dtma23', display_name: 'Diogo' },
+    ]
+
+    await run()
+    expect(layoutCalls).toEqual(['default'])
+    expect((sessionState['auth:session'] as { fetched?: boolean }).fetched).toBe(false)
+
+    await run()
+
+    expect(meFetches).toBe(2)
+    expect(layoutCalls).toEqual(['default', 'app'])
+    expect(sessionState['auth:session']).toMatchObject({ user: { id: 'u1' }, fetched: true })
   })
 
   it('chooses the anonymous shell for a verified identity with no profile', async () => {

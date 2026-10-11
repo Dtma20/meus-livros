@@ -494,5 +494,37 @@ describe('WorkEditForm country locked after server save and props update', () =>
 
     wrapper.unmount()
   })
-})
 
+  it('keeps edits typed while the PATCH is pending as unsaved changes', async () => {
+    let resolveSave: (() => void) | undefined
+    fetchMock.mockImplementation(() => new Promise((resolve) => {
+      resolveSave = () => resolve({})
+    }))
+
+    const wrapper = mountForm({ ...work, title: 'Título original' })
+    const titleInput = wrapper.container.querySelector<HTMLInputElement>('#work-title')
+    if (!titleInput) throw new Error('Expected title field to be rendered')
+
+    typeInto(titleInput, 'Título enviado')
+    wrapper.container
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await nextTick()
+
+    typeInto(titleInput, 'Texto durante PATCH')
+    resolveSave?.()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+
+    expect(titleInput.value).toBe('Texto durante PATCH')
+    expect(wrapper.isDirty()).toBe(true)
+
+    wrapper.setWork({ ...work, title: 'Título enviado' })
+    await nextTick()
+
+    expect(titleInput.value).toBe('Texto durante PATCH')
+    expect(wrapper.isDirty()).toBe(true)
+
+    wrapper.unmount()
+  })
+})

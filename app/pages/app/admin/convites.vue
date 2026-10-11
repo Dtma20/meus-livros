@@ -355,13 +355,13 @@ async function handleRemoveInvite(invite: InviteView) {
 }
 
 .field-error-message {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-xs);
   margin: var(--space-1) 0 0 0;
 }
 
 .form-error-message {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-sm);
   margin: 0;
 }

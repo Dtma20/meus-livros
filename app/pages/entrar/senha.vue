@@ -166,6 +166,19 @@ import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import AppLogo from '~/components/ui/AppLogo.vue'
 import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/shared/schemas/auth'
 
+const CONNECTION_ERROR_MESSAGE = 'Não foi possível concluir agora. Verifique sua conexão e tente novamente.'
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const fetchError = error as { statusCode?: number; status?: number; response?: { status?: number } }
+  return fetchError.statusCode ?? fetchError.status ?? fetchError.response?.status
+}
+
+function isConnectionError(error: unknown): boolean {
+  const status = getErrorStatus(error)
+  return isTimeoutOrAbort(error) || status == null || status >= 500
+}
+
 useSeoMeta({
   title: 'Recuperar senha',
 })
@@ -266,11 +279,19 @@ async function handleResendOtp() {
   }
 }
 
-// The server's message is shown for a 429 (attempts used up) and for a 400 (a password rule, or the same
-// answer for a bad code). Anything else keeps the generic code message.
-function motivoDoErro(error: { status?: number; message?: string }): string {
-  if ((error.status === 400 || error.status === 429) && error.message) {
+// Preserve server messages for 400 validation and 429 rate limiting; connection failures get a generic message.
+function motivoDoErro(error: {
+  statusCode?: number
+  status?: number
+  response?: { status?: number }
+  message?: string
+}): string {
+  const status = getErrorStatus(error)
+  if ((status === 400 || status === 429) && error.message) {
     return error.message
+  }
+  if (isConnectionError(error)) {
+    return CONNECTION_ERROR_MESSAGE
   }
   return 'Código inválido ou expirado.'
 }
@@ -319,8 +340,8 @@ async function handleResetPassword() {
 
     successReset.value = true
   } catch (err: unknown) {
-    errorMessage.value = isTimeoutOrAbort(err)
-      ? TIMEOUT_MESSAGE
+    errorMessage.value = isConnectionError(err)
+      ? CONNECTION_ERROR_MESSAGE
       : 'Código inválido ou expirado.'
   } finally {
     loading.value = false

@@ -136,7 +136,7 @@ async function main() {
       await runSeed()
     }
   } else {
-    console.log(`Usando banco remoto: ${dbUrl.replace(/:[^:@]+@/, ':***@')}`)
+    console.log(`Usando banco remoto: ${new URL(dbUrl).hostname}`)
   }
 
   startNuxtDev()

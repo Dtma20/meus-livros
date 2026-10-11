@@ -9,16 +9,16 @@
         <LoadingSkeleton :count="4" />
       </div>
 
-      <ErrorState
-        v-else-if="hasDashboardError"
-        title="Algo deu errado. Tente de novo."
-        message="Não foi possível carregar suas leituras."
-        action-label="Tentar de novo"
-        @retry="refresh"
-      />
-
       <div v-else class="dashboard-content">
-        <section v-if="inProgressBooks.length > 0" class="dashboard-section in-progress-section">
+        <ErrorState
+          v-if="hasDashboardError"
+          title="Algo deu errado. Tente de novo."
+          message="Não foi possível carregar suas leituras."
+          action-label="Tentar de novo"
+          @retry="refresh"
+        />
+
+        <section v-if="!hasDashboardError && inProgressBooks.length > 0" class="dashboard-section in-progress-section">
           <h2 class="section-title">Lendo agora</h2>
 
           <div class="in-progress-grid">
@@ -101,10 +101,10 @@
           </div>
         </section>
 
-        <ShelfSection v-if="shelfBooks.length > 0" :books="shelfBooks" />
+        <ShelfSection v-if="!hasDashboardError && shelfBooks.length > 0" :books="shelfBooks" />
 
         <ReadingCarousel
-          v-if="completedBooks.length > 0"
+          v-if="!hasDashboardError && completedBooks.length > 0"
           :books="completedBooks"
         />
 
@@ -152,7 +152,7 @@
         </section>
 
         <div
-          v-if="inProgressBooks.length === 0 || shelfBooks.length === 0"
+          v-if="!hasDashboardError && (inProgressBooks.length === 0 || shelfBooks.length === 0)"
           class="dashboard-empty-rows"
         >
           <section

@@ -57,6 +57,21 @@ async function selectFile(name: string, type = 'application/json'): Promise<void
 }
 
 describe('JSON import preview lifecycle', () => {
+  it('explains rejected items with their original positions', async () => {
+    await selectFile('books.json')
+    ControlledReader.instances[0]!.finishItems([
+      { title: 'Livro 1', author: 'Autora 1' },
+      { author: 'Autora sem título' },
+      { title: 'Livro 3', author: 'Autora 3' },
+    ])
+    await nextTick()
+
+    const rejectedItems = container.querySelector('.rejected-items')
+    expect(rejectedItems?.textContent).toContain('1 itens ser\u00e3o ignorados:')
+    expect(rejectedItems?.textContent).toContain('Item 2: Sem t\u00edtulo')
+    expect(container.querySelectorAll('.preview-item')).toHaveLength(2)
+  })
+
   it('does not create a feedback timer when clipboard completion follows unmount', async () => {
     vi.useFakeTimers()
     let finishCopy!: () => void

@@ -27,7 +27,7 @@ import type {
 } from '../../server/db/types'
 import { logDateSchema, logInputSchema } from '../../shared/schemas/log'
 import { readingBlockInputSchema, updateReadingBlockInputSchema } from '../../shared/schemas/reading-block'
-import { authorInputSchema, countryCodeSchema, coverUrlSchema } from '../../shared/schemas/work'
+import { authorInputSchema, countryCodeSchema, coverUrlSchema, editionInputSchema } from '../../shared/schemas/work'
 
 describe('Schema types compilation and usability', () => {
   it('constructs an object of every inferred select and insert type', () => {
@@ -277,6 +277,23 @@ describe('Log and reading block dates and page numbers', () => {
 })
 
 describe('Work schema validation', () => {
+  it('returns Portuguese validation messages for edition page count and year', () => {
+    const fractionalPages = editionInputSchema.safeParse({ page_count: 0.5 })
+    expect(fractionalPages.success).toBe(false)
+    expect(fractionalPages.error?.issues.find((issue) => issue.path[0] === 'page_count')?.message)
+      .toBe('Informe um número inteiro de páginas.')
+
+    const tooManyPages = editionInputSchema.safeParse({ page_count: 50001 })
+    expect(tooManyPages.success).toBe(false)
+    expect(tooManyPages.error?.issues.find((issue) => issue.path[0] === 'page_count')?.message)
+      .toBe('O limite é 50.000 páginas.')
+
+    const fractionalYear = editionInputSchema.safeParse({ published_year: 2024.5 })
+    expect(fractionalYear.success).toBe(false)
+    expect(fractionalYear.error?.issues.find((issue) => issue.path[0] === 'published_year')?.message)
+      .toBe('Informe um ano inteiro.')
+  })
+
   it('trims whitespace from coverUrlSchema and preserves valid https URL', () => {
     expect(coverUrlSchema.parse(' https://x.com/a.jpg ')).toBe('https://x.com/a.jpg')
   })

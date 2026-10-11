@@ -235,6 +235,19 @@ import type { AuthSessionState, AuthSessionUser } from '~/middleware/auth'
 import { authClient } from '~/utils/auth-client'
 import { isForbiddenPassword, senhaSchema } from '~~/shared/schemas/auth'
 
+const CONNECTION_ERROR_MESSAGE = 'Não foi possível concluir agora. Verifique sua conexão e tente novamente.'
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const fetchError = error as { statusCode?: number; status?: number; response?: { status?: number } }
+  return fetchError.statusCode ?? fetchError.status ?? fetchError.response?.status
+}
+
+function isConnectionError(error: unknown): boolean {
+  const status = getErrorStatus(error)
+  return isTimeoutOrAbort(error) || status == null || status >= 500
+}
+
 definePageMeta({
   layout: 'app',
   middleware: 'auth',
@@ -403,8 +416,11 @@ async function handleChangePassword() {
     })
 
     if (error) {
-      if (error.status === 429) {
+      const status = getErrorStatus(error)
+      if (status === 429) {
         passwordErrorMessage.value = 'Muitas tentativas. Aguarde uma hora e tente novamente.'
+      } else if (isConnectionError(error)) {
+        passwordErrorMessage.value = CONNECTION_ERROR_MESSAGE
       } else {
         passwordErrorMessage.value = 'Senha atual incorreta.'
       }
@@ -415,8 +431,13 @@ async function handleChangePassword() {
     currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
-  } catch {
-    passwordErrorMessage.value = 'Senha atual incorreta.'
+  } catch (err: unknown) {
+    const status = getErrorStatus(err)
+    passwordErrorMessage.value = status === 429
+      ? 'Muitas tentativas. Aguarde uma hora e tente novamente.'
+      : isConnectionError(err)
+        ? CONNECTION_ERROR_MESSAGE
+        : 'Senha atual incorreta.'
   } finally {
     loadingPassword.value = false
   }
@@ -433,6 +454,7 @@ async function handleChangePassword() {
 }
 
 .profile-card {
+  box-sizing: border-box;
   background-color: var(--card-bg);
   border-radius: var(--radius-md);
   padding: var(--space-8);
@@ -617,7 +639,7 @@ async function handleChangePassword() {
 }
 
 .error-message {
-  color: var(--danger);
+  color: var(--danger-text);
   font-size: var(--font-size-sm);
   margin: 0;
 }
@@ -632,6 +654,12 @@ async function handleChangePassword() {
 
 .admin-link {
   align-self: flex-start;
+}
+
+@media (max-width: 480px) {
+  .profile-card {
+    padding: 16px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

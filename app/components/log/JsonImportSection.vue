@@ -82,6 +82,15 @@
           ... e mais {{ totalParsedBooks - previewBooks.length }} livros no arquivo.
         </p>
 
+        <div v-if="rejectedItems.length > 0" class="rejected-items">
+          <p>{{ rejectedItems.length }} itens serão ignorados:</p>
+          <ul class="issue-list">
+            <li v-for="item in rejectedItems" :key="item.position">
+              Item {{ item.position }}: {{ item.reason }}
+            </li>
+          </ul>
+        </div>
+
         <div v-if="apiError" class="error-banner mt-3" role="alert">
           {{ apiError }}
         </div>
@@ -298,6 +307,7 @@ const timedOut = ref(false)
 const allParsedBooks = ref<LivroJson[]>([])
 const previewBooks = ref<LivroJson[]>([])
 const totalParsedBooks = ref(0)
+const rejectedItems = ref<Array<{ position: number; reason: string }>>([])
 
 const successSummary = ref<{ imported: number; skipped: number } | null>(null)
 
@@ -396,6 +406,7 @@ function readFile(file: File) {
   allParsedBooks.value = []
   previewBooks.value = []
   totalParsedBooks.value = 0
+  rejectedItems.value = []
 
   if (!file.name.endsWith('.json') && file.type !== 'application/json') {
     parseError.value = 'Por favor, selecione um arquivo no formato .json válido.'
@@ -418,20 +429,23 @@ function readFile(file: File) {
       }
 
       const validBooks: LivroJson[] = []
-      for (const item of list) {
-        if (
-          item &&
-          typeof item === 'object' &&
-          'title' in item &&
-          typeof item.title === 'string' &&
-          item.title.trim() !== '' &&
-          'author' in item &&
-          typeof item.author === 'string' &&
-          item.author.trim() !== ''
-        ) {
-          validBooks.push(item as LivroJson)
+      const rejected: Array<{ position: number; reason: string }> = []
+      list.forEach((item, index) => {
+        if (!item || typeof item !== 'object' || Array.isArray(item)) {
+          rejected.push({ position: index + 1, reason: 'Não é um objeto' })
+          return
         }
-      }
+        if (!('title' in item) || typeof item.title !== 'string' || item.title.trim() === '') {
+          rejected.push({ position: index + 1, reason: 'Sem título' })
+          return
+        }
+        if (!('author' in item) || typeof item.author !== 'string' || item.author.trim() === '') {
+          rejected.push({ position: index + 1, reason: 'Sem autor' })
+          return
+        }
+        validBooks.push(item as LivroJson)
+      })
+      rejectedItems.value = rejected
 
       if (validBooks.length === 0) {
         parseError.value = 'Nenhum livro com "title" e "author" válidos foi encontrado no arquivo.'
@@ -568,6 +582,7 @@ function reset() {
   allParsedBooks.value = []
   previewBooks.value = []
   totalParsedBooks.value = 0
+  rejectedItems.value = []
   successSummary.value = null
   isGuideOpen.value = true
   if (fileInputRef.value) {
@@ -701,7 +716,7 @@ function reset() {
 }
 
 .preview-item-meta {
-  color: #6e7681;
+  color: var(--text-color);
   font-size: var(--font-size-xs, 0.75rem);
 }
 
