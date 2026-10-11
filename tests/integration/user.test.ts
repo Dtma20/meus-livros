@@ -232,4 +232,33 @@ describe.skipIf(!hasDatabaseUrl)('TASK-008 - User profile creation and managemen
     expect(errorObj.statusCode).toBe(404)
     expect(errorObj.data?.error).toBe('nao_encontrado')
   })
+
+  it('PATCH /api/users/me rejects unexpected handle field with 400 validacao', async () => {
+    const { createApp, defineEventHandler, toWebHandler } = await import('h3')
+    const { default: mePatchHandler } = await import('../../server/api/users/me.patch')
+
+    const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        event.context.user = { id: 'dummy-user-id', email: 'dummy@example.com' }
+      }),
+    )
+    app.use(mePatchHandler)
+
+    const handler = toWebHandler(app)
+    const res = await handler(
+      new Request('http://localhost/api/users/me', {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          display_name: 'Nome Modificado',
+          handle: 'tentativa_troca_handle',
+        }),
+      }),
+    )
+
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { error: string }
+    expect(body.error).toBe('validacao')
+  })
 })

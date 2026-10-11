@@ -672,7 +672,7 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       )
     }
 
-    const rawIdentifier = typeof body.identificador === 'string' ? body.identificador : ''
+    const rawIdentifier = (typeof body.identificador === 'string' ? body.identificador : '').trim()
     const password = typeof body.senha === 'string' ? body.senha : ''
 
     if (!rawIdentifier || !password) {

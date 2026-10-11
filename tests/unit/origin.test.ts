@@ -56,7 +56,8 @@ describe('CSRF Origin Middleware (server/middleware/origin.ts)', () => {
     expect(body.ok).toBe(true)
   })
 
-  it('allows mutating request when origin matches request host', async () => {
+  it('allows mutating request when origin matches request host as fallback if BETTER_AUTH_URL is undefined', async () => {
+    delete process.env.BETTER_AUTH_URL
     const res = await fetch(`${baseUrl}/test`, {
       method: 'POST',
       headers: {
@@ -66,6 +67,31 @@ describe('CSRF Origin Middleware (server/middleware/origin.ts)', () => {
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.ok).toBe(true)
+  })
+
+  it('rejects mutating request matching request host when BETTER_AUTH_URL is defined and differs', async () => {
+    const res = await fetch(`${baseUrl}/test`, {
+      method: 'POST',
+      headers: {
+        origin: baseUrl,
+      },
+    })
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body).toEqual({ error: 'origem_invalida', message: 'Origem da requisição inválida.' })
+  })
+
+  it('rejects attacker matching Host and Origin when BETTER_AUTH_URL is defined', async () => {
+    const res = await fetch(`${baseUrl}/test`, {
+      method: 'POST',
+      headers: {
+        origin: 'https://atacante.com',
+        host: 'atacante.com',
+      },
+    })
+    expect(res.status).toBe(403)
+    const body = await res.json()
+    expect(body).toEqual({ error: 'origem_invalida', message: 'Origem da requisição inválida.' })
   })
 
   it('allows mutating request when origin matches canonical BETTER_AUTH_URL host', async () => {

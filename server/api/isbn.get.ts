@@ -17,7 +17,11 @@ export default defineApiHandler(async (event): Promise<IsbnLookupResult> => {
   const coverController = new AbortController()
   const coverPromise = findIsbnCover(isbn, coverController.signal).catch(() => null)
   try {
-    const raw = await $fetch<unknown>(`https://brasilapi.com.br/api/isbn/v1/${isbn}`, { timeout: 8000, retry: 0 })
+    const raw = await $fetch<unknown>(`https://brasilapi.com.br/api/isbn/v1/${isbn}`, {
+      headers: { 'User-Agent': 'meus-livros/1.0 (grupo de leitura; contato via repositório)' },
+      timeout: 8000,
+      retry: 0,
+    })
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid ISBN response')
     const data = sanitizeIsbnData(raw as Record<string, unknown>)
     if (!data.cover_url) {

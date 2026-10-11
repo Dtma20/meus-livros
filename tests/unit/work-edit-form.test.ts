@@ -29,9 +29,16 @@ function mountForm(formWork: WorkWithDetails = work) {
   const container = document.createElement('div')
   document.body.appendChild(container)
   const currentWork = shallowRef(formWork)
+  let formInstance: { isDirty: () => boolean } | null = null
   const app = createApp({
     render() {
-      return h(WorkEditForm, { work: currentWork.value, onSaved: vi.fn() })
+      return h(WorkEditForm, {
+        ref: (el) => {
+          formInstance = el as unknown as { isDirty: () => boolean } | null
+        },
+        work: currentWork.value,
+        onSaved: vi.fn(),
+      })
     },
   })
   app.mount(container)
@@ -40,6 +47,9 @@ function mountForm(formWork: WorkWithDetails = work) {
     container,
     setWork(newWork: WorkWithDetails) {
       currentWork.value = newWork
+    },
+    isDirty() {
+      return formInstance?.isDirty() ?? false
     },
     unmount() {
       app.unmount()
@@ -427,6 +437,60 @@ describe('WorkEditForm country locked after server save and props update', () =>
     expect(updatedCountryInput.hasAttribute('list')).toBe(false)
     expect(updatedCountryInput.getAttribute('aria-describedby')).toBeTruthy()
     expect(wrapper.container.textContent).toContain(lockedHint)
+
+    wrapper.unmount()
+  })
+
+  it('updates baseline for saved fields when props arrive while dirty, so reverting to saved value makes isDirty false', async () => {
+    const initialWork: WorkWithDetails = {
+      ...work,
+      title: 'Título Original',
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: null, country_label: null }],
+    }
+    const wrapper = mountForm(initialWork)
+    expect(wrapper.isDirty()).toBe(false)
+
+    // 1. Preencher Brasil e salvar
+    const countryInput = firstCountryInput(wrapper.container)
+    typeInto(countryInput, 'Brasil')
+    await nextTick()
+    expect(wrapper.isDirty()).toBe(true)
+
+    wrapper.container
+      .querySelector('form')
+      ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.container.textContent).toContain('Alterações salvas.')
+    expect(wrapper.isDirty()).toBe(false)
+
+    // 2. Alterar o título antes de as props chegarem (fica dirty)
+    const titleInput = wrapper.container.querySelector<HTMLInputElement>('#work-title')
+    expect(titleInput).not.toBeNull()
+    if (!titleInput) throw new Error('Expected title field to be rendered')
+    typeInto(titleInput, 'Título Provisório')
+    await nextTick()
+    expect(wrapper.isDirty()).toBe(true)
+
+    // 3. Atualizar as props com os valores salvos (incluindo o título atualizado)
+    const workWithSaved: WorkWithDetails = {
+      ...work,
+      title: 'Título Salvo',
+      authors: [{ id: 'author-1', name: 'Ana', slug: 'ana', country_code: 'BR', country_label: 'Brasil' }],
+    }
+    wrapper.setWork(workWithSaved)
+    await nextTick()
+
+    // 4. O título digitado continua no campo e o form continua dirty
+    expect(titleInput.value).toBe('Título Provisório')
+    expect(wrapper.isDirty()).toBe(true)
+
+    // 5. Se o usuário apagar a alteração e voltar ao valor salvo, isDirty fica falso
+    typeInto(titleInput, 'Título Salvo')
+    await nextTick()
+    expect(wrapper.isDirty()).toBe(false)
 
     wrapper.unmount()
   })

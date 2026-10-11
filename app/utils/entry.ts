@@ -48,15 +48,29 @@ export interface OgImageOptions {
   origin: string
 }
 
+const OG_ISBN_COVER = /^(?:https?:\/\/covers\.openlibrary\.org)?\/b\/isbn\//
+const OG_ID_COVER = /^(?:https?:\/\/covers\.openlibrary\.org)?\/b\/id\//
+const OG_ID_COVER_FLAG = /\?default=false$/
+
+export function ogCoverUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  const trimmed = url.trim()
+  if (!trimmed.includes('default=false')) return trimmed
+  if (OG_ISBN_COVER.test(trimmed)) return null
+  return OG_ID_COVER.test(trimmed) ? trimmed.replace(OG_ID_COVER_FLAG, '') : trimmed
+}
+
 export function buildOgImageUrl(options: OgImageOptions): string {
   const { editionCoverUrl, workCoverUrl, olCoverId, origin } = options
 
-  if (editionCoverUrl && isValidCoverUrl(editionCoverUrl)) {
-    return makeAbsoluteUrl(editionCoverUrl.trim(), origin)
+  const editionCover = ogCoverUrl(editionCoverUrl)
+  if (editionCover && isValidCoverUrl(editionCover)) {
+    return makeAbsoluteUrl(editionCover.trim(), origin)
   }
 
-  if (workCoverUrl && isValidCoverUrl(workCoverUrl)) {
-    return makeAbsoluteUrl(workCoverUrl.trim(), origin)
+  const workCover = ogCoverUrl(workCoverUrl)
+  if (workCover && isValidCoverUrl(workCover)) {
+    return makeAbsoluteUrl(workCover.trim(), origin)
   }
 
   if (olCoverId != null && String(olCoverId).trim() !== '') {

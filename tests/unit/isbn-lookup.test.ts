@@ -45,7 +45,11 @@ describe('authenticated ISBN lookup', () => {
     const response = await fetch(`${url}?isbn=85-325-1166-X`)
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ status: 'found', data: { title: 'Livro', authors: ['Autora'], publisher: 'Editora', page_count: 250, year: 2019, cover_url: 'https://example.com/cover.jpg' } })
-    expect(mocks.provider).toHaveBeenCalledWith('https://brasilapi.com.br/api/isbn/v1/9788532511669', { timeout: 8000, retry: 0 })
+    expect(mocks.provider).toHaveBeenCalledWith('https://brasilapi.com.br/api/isbn/v1/9788532511669', {
+      headers: { 'User-Agent': 'meus-livros/1.0 (grupo de leitura; contato via repositório)' },
+      timeout: 8000,
+      retry: 0,
+    })
   })
   it('discards absent and invalid fields without coercion', async () => {
     mocks.provider.mockResolvedValue({ title: null, authors: [' ', 17, 'Valid'], publisher: 'x'.repeat(201), page_count: 2.5, year: '2020', cover_url: 'http://example.com/a' })
@@ -97,5 +101,25 @@ describe('authenticated ISBN lookup', () => {
     const response = await fetch(`${url}?isbn=9788535902778`)
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ status: 'found', data: { title: 'Livro', authors: ['Autora'] } })
+  })
+})
+
+describe('findIsbnCover User-Agent header', () => {
+  it('sends User-Agent header to external cover fetch requests', async () => {
+    const { findIsbnCover } = await vi.importActual<typeof import('../../server/services/isbn-cover')>(
+      '../../server/services/isbn-cover',
+    )
+    mocks.provider.mockReset()
+    mocks.provider.mockResolvedValue(null)
+    const controller = new AbortController()
+    await findIsbnCover('9788532511669', controller.signal)
+
+    expect(mocks.provider).toHaveBeenCalled()
+    for (const call of mocks.provider.mock.calls) {
+      const options = call[1] as { headers?: Record<string, string> }
+      expect(options?.headers?.['User-Agent']).toBe(
+        'meus-livros/1.0 (grupo de leitura; contato via repositório)',
+      )
+    }
   })
 })

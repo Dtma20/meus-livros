@@ -137,16 +137,20 @@ describe('TASK-008 - Schema validations for POST and PATCH (unit)', () => {
     expect(result.success).toBe(false)
   })
 
-  it('updateProfileSchema strips handle field from payload and does not include it in parsed data', () => {
+  it('updateProfileSchema rejects unknown keys like handle (strict mode)', () => {
     const result = updateProfileSchema.safeParse({
       display_name: 'João',
       handle: 'hacker_handle',
     })
-    expect(result.success).toBe(true)
-    if (result.success) {
-      expect('handle' in result.data).toBe(false)
-      expect(result.data).toEqual({ display_name: 'João' })
-    }
+    expect(result.success).toBe(false)
+  })
+
+  it('updateProfileSchema rejects other arbitrary unknown fields', () => {
+    const result = updateProfileSchema.safeParse({
+      display_name: 'João',
+      extra_field: 'not_allowed',
+    })
+    expect(result.success).toBe(false)
   })
 })
 

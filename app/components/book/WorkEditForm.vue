@@ -244,8 +244,18 @@ const genreIds = ref<number[]>(props.work.genres.map((g) => g.id))
 
 const authorRows = reactive<AuthorRow[]>(buildAuthorRows(props.work))
 
-function computeSnapshot(): string {
-  return JSON.stringify({
+interface FormSnapshot {
+  title: string
+  authors: { name: string; country: string }[]
+  yearText: string
+  originalLanguage: string
+  seriesName: string
+  seriesNumber: string
+  genreIds: number[]
+}
+
+function computeSnapshot(): FormSnapshot {
+  return {
     title: title.value,
     authors: authorRows.map((a) => ({ name: a.name, country: a.country })),
     yearText: yearText.value,
@@ -253,13 +263,25 @@ function computeSnapshot(): string {
     seriesName: seriesName.value,
     seriesNumber: seriesNumber.value,
     genreIds: [...genreIds.value].sort((a, b) => a - b),
+  }
+}
+
+function serializeSnapshot(snapshot: FormSnapshot): string {
+  return JSON.stringify({
+    title: snapshot.title,
+    authors: snapshot.authors,
+    yearText: snapshot.yearText,
+    originalLanguage: snapshot.originalLanguage,
+    seriesName: snapshot.seriesName,
+    seriesNumber: snapshot.seriesNumber,
+    genreIds: [...snapshot.genreIds].sort((a, b) => a - b),
   })
 }
 
-let baselineSnapshot = computeSnapshot()
+let baselineSnapshot: FormSnapshot = computeSnapshot()
 
 function isDirty(): boolean {
-  return computeSnapshot() !== baselineSnapshot
+  return serializeSnapshot(computeSnapshot()) !== serializeSnapshot(baselineSnapshot)
 }
 
 function updateAuthorBaselines(work: WorkWithDetails): void {
@@ -278,6 +300,10 @@ function updateAuthorBaselines(work: WorkWithDetails): void {
       row.hasServerCountry = hasServerCountry
       if (hasServerCountry && !row.country) {
         row.country = serverCountry
+        const baselineAuthor = baselineSnapshot.authors[i]
+        if (baselineAuthor) {
+          baselineAuthor.country = serverCountry
+        }
       }
     }
   }
@@ -298,6 +324,16 @@ watch(
       baselineSnapshot = computeSnapshot()
     } else {
       updateAuthorBaselines(newWork)
+      baselineSnapshot = {
+        ...baselineSnapshot,
+        title: newWork.title,
+        yearText:
+          newWork.first_published_year === null ? '' : String(newWork.first_published_year),
+        originalLanguage: newWork.original_language ?? '',
+        seriesName: newWork.series_name ?? '',
+        seriesNumber: newWork.series_number ?? '',
+        genreIds: [...newWork.genres.map((g) => g.id)].sort((a, b) => a - b),
+      }
     }
   },
   { deep: true },
@@ -403,6 +439,10 @@ async function handleSubmit(): Promise<void> {
     saving.value = false
   }
 }
+
+defineExpose({
+  isDirty,
+})
 </script>
 
 <style scoped>

@@ -249,7 +249,9 @@ Validation that must live on the server, not just the form:
 
 ## 5. What is deliberately absent
 
-No endpoints for follows, likes, lists, want-to-read, notifications, comments, statistics, import, export, or author/genre/country browse. Each is a deferred product feature ([mvp-definition.md](mvp-definition.md) §3), and building the API before the feature is the definition of speculative work.
+No endpoints for follows, likes, lists, want-to-read, notifications, or author/genre/country browse. Each is a deferred product feature ([mvp-definition.md](mvp-definition.md) §3), and building the API before the feature is the definition of speculative work.
+
+Four features once on this list have shipped since and have endpoints: comments (`/api/logs/:id/comments`), statistics (`GET /api/users/:handle/stats`), and JSON import and export (`POST /api/library/import`, `GET /api/library/export`). The catalog is not delete-free either: a work can be deleted by its creator while it has no readings, and an edition by an admin or by its creator while no one else's reading uses it (TASK-066). Editing works and editions is open to every member, with `updated_by` as the trail (`648cfdc`).
 
 No `/api/v1` prefix - there are no external consumers to version against. No OpenAPI spec - the consumer is the same repository, typed by the same TypeScript.
 

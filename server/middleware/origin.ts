@@ -21,17 +21,21 @@ export default defineEventHandler((event) => {
     return { error: 'origem_invalida', message: 'Origem da requisição inválida.' }
   }
 
-  const allowed = new Set<string>([getRequestHost(event)])
+  let expectedHost: string
   const canonical = process.env.BETTER_AUTH_URL
   if (canonical) {
     try {
-      allowed.add(new URL(canonical).host)
+      expectedHost = new URL(canonical).host
     }
     catch {
+      expectedHost = ''
     }
   }
+  else {
+    expectedHost = getRequestHost(event)
+  }
 
-  if (!allowed.has(originHost)) {
+  if (originHost !== expectedHost) {
     setResponseStatus(event, 403)
     return { error: 'origem_invalida', message: 'Origem da requisição inválida.' }
   }

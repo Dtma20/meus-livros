@@ -169,6 +169,24 @@ Codex ran out of quota at the start of this round, and Grok 4.7 (its own `grok` 
 
 Gates after round 5: lint and typecheck clean, 878 unit, build, 235 integration and 24 SSR tests green; secret values 0 times in the client bundle.
 
+## Round 6 - review of `f8bd0ba`
+
+Muse Spark and Step 5 on both passes; fixes by `agy` (Gemini 3.8 Flash high). Step again ran out of steps before a formal report on pass A.
+
+| Finding | Found by | Fix |
+|---|---|---|
+| `/entrada` `og:image` still emitted `?default=false` covers (the work and profile pages did not) | Muse A-01 | Same cover rule in `app/utils/entry.ts` |
+| Removing `handle` from the profile schema did not change behaviour: Zod strips unknown keys | Muse A-02 | `updateProfileSchema` is `.strict()` - extra keys answer 400 |
+| A whitespace-only identifier still spent sign-in budget | Muse A-04 | Trimmed before the emptiness check |
+| Origin check also trusted the request's own `Host` | Step B-03 | Only `BETTER_AUTH_URL`'s host when it is set |
+| ISBN lookups sent no `User-Agent` (§9) | Muse B-01 | Descriptive header |
+| The `db` import ban stopped at four `../` levels | Step B-02 | Deeper patterns |
+| `WorkEditForm` dirty branch left the non-author baseline stale | Step A (candidate) | Baseline refreshed from the saved work |
+| `api.md` §5 listed shipped features as absent | Muse A-03 | Rewritten |
+| Nitro's Vercel preset emits the header route before `handle: filesystem` without `continue` | Step B-01 | **Open** - check on the first deploy that `/_nuxt/*` and `/api/*` still resolve and carry the headers; if not, move the headers to a server middleware |
+
+Gates after round 6: lint and typecheck clean, 885 unit, build, 237 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

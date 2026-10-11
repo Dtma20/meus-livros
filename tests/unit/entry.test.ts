@@ -239,6 +239,58 @@ describe('resolveEntryOgImageUrl', () => {
     const url = resolveEntryOgImageUrl(log, origin)
     expect(url).toBe('https://covers.example.com/casmurro.jpg')
   })
+
+  it('discards edition cover_url with ISBN carrying ?default=false and falls back to fallback image or ol_cover_id', () => {
+    const logWithIsbnCover = makeLog({
+      edition_id: 'ed-1',
+      edition: {
+        id: 'ed-1',
+        isbn13: '9788535914849',
+        cover_url: 'https://covers.openlibrary.org/b/isbn/9788535914849-L.jpg?default=false',
+        ol_cover_id: null,
+        publisher: null,
+        page_count: null,
+        published_year: null,
+      },
+    })
+    const url = resolveEntryOgImageUrl(logWithIsbnCover, origin)
+    expect(url).toBe('https://meus-livros.app/og-fallback.png')
+    expect(url).not.toContain('default=false')
+
+    const logWithIsbnAndOlCoverId = makeLog({
+      edition_id: 'ed-1',
+      edition: {
+        id: 'ed-1',
+        isbn13: '9788535914849',
+        cover_url: 'https://covers.openlibrary.org/b/isbn/9788535914849-L.jpg?default=false',
+        ol_cover_id: 14620787,
+        publisher: null,
+        page_count: null,
+        published_year: null,
+      },
+    })
+    const urlWithOl = resolveEntryOgImageUrl(logWithIsbnAndOlCoverId, origin)
+    expect(urlWithOl).toBe('https://covers.openlibrary.org/b/id/14620787-L.jpg')
+    expect(urlWithOl).not.toContain('default=false')
+  })
+
+  it('keeps edition cover_url with id carrying ?default=false but strips the flag', () => {
+    const logWithIdCover = makeLog({
+      edition_id: 'ed-1',
+      edition: {
+        id: 'ed-1',
+        isbn13: '9788535914849',
+        cover_url: 'https://covers.openlibrary.org/b/id/14620787-L.jpg?default=false',
+        ol_cover_id: null,
+        publisher: null,
+        page_count: null,
+        published_year: null,
+      },
+    })
+    const url = resolveEntryOgImageUrl(logWithIdCover, origin)
+    expect(url).toBe('https://covers.openlibrary.org/b/id/14620787-L.jpg')
+    expect(url).not.toContain('default=false')
+  })
 })
 
 describe('formatReadingDate - precision rendering', () => {

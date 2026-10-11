@@ -62,22 +62,24 @@ export const createUserSchema = z.object({
     .max(100, { error: 'O nome de exibição deve ter no máximo 100 caracteres.' }),
 })
 
-export const updateProfileSchema = z.object({
-  display_name: z
-    .string({ error: 'Informe seu nome de exibição.' })
-    .trim()
-    .min(1, { error: 'O nome de exibição não pode ficar em branco.' })
-    .max(100, { error: 'O nome de exibição deve ter no máximo 100 caracteres.' })
-    .optional(),
-  bio: z
-    .string()
-    .max(500, { error: 'A biografia deve ter no máximo 500 caracteres.' })
-    .nullable()
-    .optional(),
-  profile_visibility: z
-    .enum(['publico', 'privado'], { error: 'Visibilidade de perfil inválida.' })
-    .optional(),
-})
+export const updateProfileSchema = z
+  .object({
+    display_name: z
+      .string({ error: 'Informe seu nome de exibição.' })
+      .trim()
+      .min(1, { error: 'O nome de exibição não pode ficar em branco.' })
+      .max(100, { error: 'O nome de exibição deve ter no máximo 100 caracteres.' })
+      .optional(),
+    bio: z
+      .string()
+      .max(500, { error: 'A biografia deve ter no máximo 500 caracteres.' })
+      .nullable()
+      .optional(),
+    profile_visibility: z
+      .enum(['publico', 'privado'], { error: 'Visibilidade de perfil inválida.' })
+      .optional(),
+  })
+  .strict()
 
 export type CreateUserInput = z.infer<typeof createUserSchema>
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>

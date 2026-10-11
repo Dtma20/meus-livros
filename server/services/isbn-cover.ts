@@ -35,7 +35,12 @@ export async function findIsbnCover(isbn: string, signal: AbortSignal): Promise<
   })
   const timer = setTimeout(stop, 2500)
   signal.addEventListener('abort', stop, { once: true })
-  const options = { timeout: 2500, retry: 0, signal: controller.signal }
+  const options = {
+    timeout: 2500,
+    retry: 0,
+    signal: controller.signal,
+    headers: { 'User-Agent': 'meus-livros/1.0 (grupo de leitura; contato via repositório)' },
+  }
   const candidates = [
     ...['google-books', 'mercado-editorial'].map(async provider => {
       const data = await $fetch<unknown>(`https://brasilapi.com.br/api/isbn/v1/${isbn}`, { ...options, query: { providers: provider } })
