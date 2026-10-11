@@ -255,6 +255,57 @@ describe.skipIf(!hasDatabaseUrl)('TASK-067 - Rate limit hardening', () => {
     })
     expect(invalidResult.success).toBe(false)
   })
+
+  it('3 malformed import submissions followed by 1 valid submission: valid submission does not receive 429', async () => {
+    const malformedTestUser = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}-malformed@example.com`,
+        handle: `mf_${Date.now()}`.slice(0, 20),
+        display_name: 'Usuário Malformado',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+
+    const mfUserId = malformedTestUser[0]!.id
+    const userLimitKey = hashRateLimitKey(`import:user:${mfUserId}`)
+    testRateLimitKeys.push(userLimitKey)
+
+    // 3 malformed submissions (invalid schema, missing title/author)
+    for (let i = 1; i <= 3; i++) {
+      const badRes = await fetch(`${serverUrl}/api/library/import`, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-test-user-id': mfUserId,
+        },
+        body: JSON.stringify([{ invalid_field: true }]),
+      })
+      expect(badRes.status).toBe(400)
+    }
+
+    // 1 valid submission right after
+    const validTitle = `${MARKER} Livro Apos 3 Malformados`
+    const validRes = await fetch(`${serverUrl}/api/library/import`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-test-user-id': mfUserId,
+      },
+      body: JSON.stringify([
+        {
+          title: validTitle,
+          author: 'Autor Valido',
+          genre: ['Ficção'],
+        },
+      ]),
+    })
+
+    expect(validRes.status).not.toBe(429)
+    expect(validRes.status).toBe(200)
+    const validData = (await validRes.json()) as { imported: number }
+    expect(validData.imported).toBe(1)
+  })
 })
 
 describe.skipIf(!hasDatabaseUrl)('Escrita autenticada: 200 por usuário por hora (security.md §8)', () => {

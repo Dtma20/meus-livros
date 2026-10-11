@@ -294,6 +294,7 @@ import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
 import { useBookFilters } from '~/composables/useBookFilters'
 import { vReveal } from '~/composables/useScrollReveal'
+import { ogCoverUrl } from '~/utils/entry'
 import { aggregateReadingMapData } from '~/utils/reading-map'
 import type { ProfileResponse } from '~~/shared/schemas/profile'
 import type { AuthSessionUser } from '~/middleware/auth'
@@ -381,17 +382,6 @@ if (event && error.value) {
   const err = error.value as { statusCode?: number; status?: number } | null | undefined
   const status = err?.statusCode || err?.status || 500
   setResponseStatus(event, status)
-}
-
-const OG_ISBN_COVER = /^https?:\/\/covers\.openlibrary\.org\/b\/isbn\//
-const OG_ID_COVER = /^https?:\/\/covers\.openlibrary\.org\/b\/id\//
-const OG_ID_COVER_FLAG = /\?default=false$/
-
-function ogCoverUrl(url: string | null | undefined): string | null {
-  if (!url) return null
-  if (!url.includes('default=false')) return url
-  if (OG_ISBN_COVER.test(url)) return null
-  return OG_ID_COVER.test(url) ? url.replace(OG_ID_COVER_FLAG, '') : url
 }
 
 const firstCover = computed(() => {

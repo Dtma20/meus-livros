@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { coverUrlSchema } from './work'
-import { datePrecisionSchema, ratingSchema, reviewSchema } from './log'
+import { datePrecisionSchema } from './log'
 
 export const livroJsonSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório.').max(300),
@@ -16,8 +16,8 @@ export const livroJsonSchema = z.object({
   // Optional, so exports from before these fields existed still import. Checked per item in library-transfer.ts.
   started_on: z.string().max(10).optional().nullable(),
   finished_precision: datePrecisionSchema.optional().nullable(),
-  rate: ratingSchema.optional().nullable(),
-  review: reviewSchema.optional().nullable(),
+  rate: z.unknown().optional(),
+  review: z.unknown().optional(),
   source: z.string().max(50).optional().nullable(),
   format: z.string().max(50).optional().nullable(),
   series_name: z.string().max(255).optional().nullable(),

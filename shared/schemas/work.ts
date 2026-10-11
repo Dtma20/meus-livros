@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { COUNTRIES } from '../constants/countries'
 import type { DatePrecision } from './log'
 
 export function isHttpsCoverUrl(url: string | null | undefined): boolean {
@@ -15,6 +16,7 @@ export function isHttpsCoverUrl(url: string | null | undefined): boolean {
 
 export const coverUrlSchema = z
   .string()
+  .trim()
   .max(2000)
   .refine(isHttpsCoverUrl, { message: 'A URL da capa precisa começar com https://' })
 
@@ -40,9 +42,19 @@ export const genreIdSchema = z
   .min(1, { message: 'Gênero inválido.' })
   .max(32767, { message: 'Gênero inválido.' })
 
+const VALID_COUNTRY_CODES = new Set(COUNTRIES.map((c) => c.code))
+
+export const countryCodeSchema = z
+  .string()
+  .trim()
+  .transform((val) => val.toUpperCase())
+  .refine((val) => VALID_COUNTRY_CODES.has(val), {
+    message: 'País inválido.',
+  })
+
 export const authorInputSchema = z.object({
   name: z.string().trim().min(1).max(200),
-  country_code: z.string().length(2).nullish(),
+  country_code: countryCodeSchema.nullish(),
   country_label: z.string().max(100).nullish(),
 })
 

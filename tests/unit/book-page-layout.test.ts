@@ -188,6 +188,12 @@ describe('BookPage og:image', () => {
 
     expect(await ogImageFor(cover)).toBe(cover)
   })
+
+  it('trims surrounding whitespace from a confirmed cover', async () => {
+    const cover = '  https://covers.openlibrary.org/b/id/1234567-L.jpg  '
+
+    expect(await ogImageFor(cover)).toBe('https://covers.openlibrary.org/b/id/1234567-L.jpg')
+  })
 })
 
 describe('BookPage loading errors', () => {

@@ -187,6 +187,24 @@ Muse Spark and Step 5 on both passes; fixes by `agy` (Gemini 3.8 Flash high). St
 
 Gates after round 6: lint and typecheck clean, 885 unit, build, 237 integration and 24 SSR tests green; secret values 0 times in the client bundle.
 
+## Round 7 - review of `778dff8`
+
+Muse Spark and Step 5 on both passes; fixes by `agy`. **No blocker was found by either engine.** Muse checked all eight round-6 fixes and found them complete. The rest was tech debt, fixed:
+
+| Finding | Found by | Fix |
+|---|---|---|
+| Block PATCH/DELETE ignored the `logId` in the URL | Muse A-01 | Checked in the query; mismatch answers 404 |
+| A malformed import spent the 3/hour budget before validation | Muse A-02 | Counted after the parse |
+| One bad `rate`/`review` failed a whole import file | Muse A-03 | Validated per item, refused with a reason like dates |
+| `cover_url` with surrounding spaces was stored untrimmed | Muse A-04 | Trimmed by the schema |
+| Any two-letter `country_code` was accepted | Muse A-05 | Upper-cased and checked against the ISO list |
+| Three copies of the OG cover rule | Muse A-06 | One helper in `app/utils/entry.ts` |
+| `api.md` called the home feed endpoint optional; it needs a session | Muse A-07 | Doc corrected |
+
+Step raised only questions: the ESLint sink rule firing (already proved by probes in rounds 2-4), `/_nuxt/*` headers and the Vercel route order (both the round-6 deploy check).
+
+Gates after round 7: lint and typecheck clean, 902 unit, build, 241 integration and 24 SSR tests green; secret values 0 times in the client bundle.
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

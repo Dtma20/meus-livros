@@ -61,11 +61,11 @@ describe('library-transfer unit tests', () => {
       expect(livroJsonSchema.safeParse({ title: '', author: 'Autor' }).success).toBe(false)
     })
 
-    it('accepts only half-star ratings from 0.5 to 5', () => {
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 3.7 }).success).toBe(false)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 0 }).success).toBe(false)
+    // The batch schema no longer refuses a bad rating: one bad item must not sink a 1,000-book file.
+    // importUserLibrary refuses that item alone (see library-import-export.test.ts).
+    it('leaves rating validation to the per-item import step', () => {
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 3.7 }).success).toBe(true)
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 4.5 }).success).toBe(true)
-      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 6 }).success).toBe(false)
     })
 
     it('accepts only https cover URLs', () => {

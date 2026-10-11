@@ -245,7 +245,7 @@ import ReviewText from '~/components/log/ReviewText.vue'
 import EmptyState from '~/components/ui/EmptyState.vue'
 import ErrorState from '~/components/ui/ErrorState.vue'
 import LoadingSkeleton from '~/components/ui/LoadingSkeleton.vue'
-import { buildOgImageUrl, formatReadingDate } from '~/utils/entry'
+import { buildOgImageUrl, formatReadingDate, ogCoverUrl } from '~/utils/entry'
 import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
 import { useDelayedDelete, type DelayedDeleteContext, type PageHideDeleteResult } from '~/composables/useDelayedDelete'
 import type { WorkAuthorView, WorkEditionView, WorkWithDetails } from '~~/shared/schemas/work'
@@ -358,17 +358,6 @@ const ogDescription = computed(() => {
 // cover and breaks the WhatsApp preview, so it falls back to the static image. An Open Library
 // id cover only carries default=false because isbn-cover.ts asks for it; the cover exists, so
 // the flag is dropped and the confirmed image is kept.
-const OG_ISBN_COVER = /^https?:\/\/covers\.openlibrary\.org\/b\/isbn\//
-const OG_ID_COVER = /^https?:\/\/covers\.openlibrary\.org\/b\/id\//
-const OG_ID_COVER_FLAG = /\?default=false$/
-
-function ogCoverUrl(url: string | null | undefined): string | null {
-  if (!url) return null
-  if (!url.includes('default=false')) return url
-  if (OG_ISBN_COVER.test(url)) return null
-  return OG_ID_COVER.test(url) ? url.replace(OG_ID_COVER_FLAG, '') : url
-}
-
 const ogImageUrl = computed(() => {
   const confirmed = ogCoverUrl(work.value?.cover_url)
   return buildOgImageUrl({ workCoverUrl: confirmed, origin: requestUrl.origin })

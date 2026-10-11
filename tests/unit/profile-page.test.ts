@@ -355,6 +355,24 @@ describe('ProfilePage og:image', () => {
     wrapper.unmount()
   })
 
+  it('trims whitespace and removes ?default=false from an OpenLibrary id cover with surrounding spaces', async () => {
+    setProfileLogs([
+      {
+        ...sampleProfile.logs[0]!,
+        work: {
+          ...sampleProfile.logs[0]!.work,
+          cover_url: '  https://covers.openlibrary.org/b/id/1234567-L.jpg?default=false  ',
+        },
+      },
+    ])
+    const wrapper = mount(ProfilePage)
+    await wrapper.router.push('/@diogo')
+    await flushAsync()
+
+    expect(getOgImage()).toBe('https://covers.openlibrary.org/b/id/1234567-L.jpg')
+    wrapper.unmount()
+  })
+
   it('uses edition cover when work cover is an ISBN cover with default=false', async () => {
     setProfileLogs([
       {

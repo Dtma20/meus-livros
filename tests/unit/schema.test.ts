@@ -27,6 +27,7 @@ import type {
 } from '../../server/db/types'
 import { logDateSchema, logInputSchema } from '../../shared/schemas/log'
 import { readingBlockInputSchema, updateReadingBlockInputSchema } from '../../shared/schemas/reading-block'
+import { authorInputSchema, countryCodeSchema, coverUrlSchema } from '../../shared/schemas/work'
 
 describe('Schema types compilation and usability', () => {
   it('constructs an object of every inferred select and insert type', () => {
@@ -272,5 +273,38 @@ describe('Log and reading block dates and page numbers', () => {
     expect(readingBlockInputSchema.safeParse({ start_page: 100001, end_page: 100001 }).success).toBe(false)
     expect(updateReadingBlockInputSchema.safeParse({ end_page: 100001 }).success).toBe(false)
     expect(updateReadingBlockInputSchema.safeParse({ start_page: 100001 }).success).toBe(false)
+  })
+})
+
+describe('Work schema validation', () => {
+  it('trims whitespace from coverUrlSchema and preserves valid https URL', () => {
+    expect(coverUrlSchema.parse(' https://x.com/a.jpg ')).toBe('https://x.com/a.jpg')
+  })
+
+  it('rejects coverUrlSchema without https after trimming', () => {
+    expect(coverUrlSchema.safeParse(' http://x.com/a.jpg ').success).toBe(false)
+    expect(coverUrlSchema.safeParse('   ').success).toBe(false)
+  })
+
+  it('rejects unknown country_code in authorInputSchema with "País inválido."', () => {
+    const result = authorInputSchema.safeParse({ name: 'Clarice Lispector', country_code: 'xx' })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe('País inválido.')
+  })
+
+  it('normalizes country_code to uppercase in authorInputSchema', () => {
+    const result = authorInputSchema.parse({ name: 'Clarice Lispector', country_code: 'br' })
+    expect(result.country_code).toBe('BR')
+  })
+
+  it('accepts valid uppercase country_code in countryCodeSchema', () => {
+    const result = countryCodeSchema.parse('US')
+    expect(result).toBe('US')
+  })
+
+  it('rejects unknown country_code in countryCodeSchema with "País inválido."', () => {
+    const result = countryCodeSchema.safeParse('xx')
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe('País inválido.')
   })
 })

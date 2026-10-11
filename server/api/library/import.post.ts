@@ -18,6 +18,13 @@ const booksObjectSchema = z.object({
 export default defineApiHandler(async (event) => {
   const user = await requireSessionUser(event)
 
+  const rawBody = await readBody(event)
+  const booksList = Array.isArray(rawBody)
+    ? parseOrThrow(booksArraySchema, rawBody)
+    : typeof rawBody === 'object' && rawBody !== null && 'books' in rawBody
+      ? parseOrThrow(booksObjectSchema, rawBody).books
+      : parseOrThrow(booksArraySchema, rawBody)
+
   const allowed = await checkRateLimit(`import:user:${user.id}`, 3)
   if (!allowed) {
     throw createError({
@@ -29,12 +36,6 @@ export default defineApiHandler(async (event) => {
     })
   }
 
-  const rawBody = await readBody(event)
-  const booksList = Array.isArray(rawBody)
-    ? parseOrThrow(booksArraySchema, rawBody)
-    : typeof rawBody === 'object' && rawBody !== null && 'books' in rawBody
-      ? parseOrThrow(booksObjectSchema, rawBody).books
-      : parseOrThrow(booksArraySchema, rawBody)
   const result = await importUserLibrary(user.id, booksList)
 
   return {

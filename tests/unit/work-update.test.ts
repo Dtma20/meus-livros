@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  authorInputSchema,
   editionUpdateSchema,
   hasField,
   workUpdateSchema,
@@ -98,6 +99,11 @@ describe('editionUpdateSchema', () => {
     expect(editionUpdateSchema.safeParse({ cover_url: null }).success).toBe(true)
   })
 
+  it('trims whitespace from cover_url', () => {
+    const parsed = editionUpdateSchema.parse({ cover_url: ' https://x.com/a.jpg ' })
+    expect(parsed.cover_url).toBe('https://x.com/a.jpg')
+  })
+
   it('rejects a non-positive page_count', () => {
     expect(editionUpdateSchema.safeParse({ page_count: 0 }).success).toBe(false)
     expect(editionUpdateSchema.safeParse({ page_count: -10 }).success).toBe(false)
@@ -105,6 +111,24 @@ describe('editionUpdateSchema', () => {
 
   it('rejects an empty body', () => {
     expect(editionUpdateSchema.safeParse({}).success).toBe(false)
+  })
+})
+
+describe('authorInputSchema and country_code', () => {
+  it('rejects an unknown country code with "País inválido."', () => {
+    const result = authorInputSchema.safeParse({ name: 'Autor Teste', country_code: 'xx' })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe('País inválido.')
+  })
+
+  it('normalizes country code to uppercase', () => {
+    const parsed = authorInputSchema.parse({ name: 'Autor Teste', country_code: 'br' })
+    expect(parsed.country_code).toBe('BR')
+  })
+
+  it('accepts null and undefined country_code', () => {
+    expect(authorInputSchema.parse({ name: 'Autor Teste', country_code: null }).country_code).toBeNull()
+    expect(authorInputSchema.parse({ name: 'Autor Teste' }).country_code).toBeUndefined()
   })
 })
 

@@ -730,6 +730,88 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     const destBook = destExported.find((b) => b.title === workTitle)
     expect(destBook?.author).toBe(joinedAuthors)
   })
+
+  it('imports valid book in a batch with rate: 3.7 and skips invalid book with reason', async () => {
+    const validTitle = `${MARKER} Livro Com Rate Valido`
+    const invalidTitle = `${MARKER} Livro Com Rate Invalido`
+    const batch: LivroJson[] = [
+      {
+        title: invalidTitle,
+        author: 'Autor Teste Invalido',
+        genre: [],
+        rate: 3.7,
+      },
+      {
+        title: validTitle,
+        author: 'Autor Teste Valido',
+        genre: [],
+        rate: 4.5,
+      },
+    ]
+
+    const result = await transferService.importUserLibrary(testUserId, batch)
+    expect(result.importedCount).toBe(1)
+    expect(result.skippedCount).toBe(1)
+    expect(result.errors.length).toBe(1)
+    expect(result.errors[0]).toContain(invalidTitle)
+    expect(result.errors[0]).toContain('Motivo: A nota deve ser em intervalos de 0,5 estrela.')
+
+    const [importedLog] = await db
+      .select({ id: schema.reading_logs.id, rating: schema.reading_logs.rating })
+      .from(schema.reading_logs)
+      .innerJoin(schema.works, sqlOp.eq(schema.works.id, schema.reading_logs.work_id))
+      .where(sqlOp.and(
+        sqlOp.eq(schema.reading_logs.user_id, testUserId),
+        sqlOp.eq(schema.works.title, validTitle),
+      ))
+
+    expect(importedLog).toBeDefined()
+    expect(importedLog?.rating).toBe('4.5')
+
+    const [unimportedLog] = await db
+      .select({ id: schema.reading_logs.id })
+      .from(schema.reading_logs)
+      .innerJoin(schema.works, sqlOp.eq(schema.works.id, schema.reading_logs.work_id))
+      .where(sqlOp.and(
+        sqlOp.eq(schema.reading_logs.user_id, testUserId),
+        sqlOp.eq(schema.works.title, invalidTitle),
+      ))
+
+    expect(unimportedLog).toBeUndefined()
+  })
+
+  it('accepts batch with invalid rate: 3.7 via POST /api/library/import without 400 rejection', async () => {
+    const { default: importHandler } = await import('../../server/api/library/import.post')
+    const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        event.context.user = { id: testUserId, email: `${MARKER}@example.com` }
+      }),
+    )
+    app.use(importHandler)
+    const handler = toWebHandler(app)
+
+    const httpValidTitle = `${MARKER} HTTP Rate Valido`
+    const httpInvalidTitle = `${MARKER} HTTP Rate Invalido`
+    const response = await handler(
+      new Request('http://localhost:3000/api/library/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify([
+          { title: httpInvalidTitle, author: 'Autor Invalido', rate: 3.7 },
+          { title: httpValidTitle, author: 'Autor Valido', rate: 4 },
+        ]),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    const payload = (await response.json()) as { success: boolean; imported: number; skipped: number; errors: string[] }
+    expect(payload.success).toBe(true)
+    expect(payload.imported).toBe(1)
+    expect(payload.skipped).toBe(1)
+    expect(payload.errors[0]).toContain(httpInvalidTitle)
+    expect(payload.errors[0]).toContain('Motivo: A nota deve ser em intervalos de 0,5 estrela.')
+  })
 })
 
 describe('read_in, started_on and precision rules', () => {

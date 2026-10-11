@@ -8,6 +8,7 @@ import {
   formatReadingDate,
   isValidCoverUrl,
   makeAbsoluteUrl,
+  ogCoverUrl,
   resolveEntryOgImageUrl,
 } from '../../app/utils/entry'
 import type { LogWithDetails } from '../../shared/schemas/log'
@@ -338,5 +339,43 @@ describe('formatBookFormat', () => {
     expect(formatBookFormat(null)).toBe('')
     expect(formatBookFormat(undefined)).toBe('')
     expect(formatBookFormat('unknown')).toBe('')
+  })
+})
+
+describe('ogCoverUrl', () => {
+  it('returns null for null, undefined, empty string or whitespace-only string', () => {
+    expect(ogCoverUrl(null)).toBeNull()
+    expect(ogCoverUrl(undefined)).toBeNull()
+    expect(ogCoverUrl('')).toBeNull()
+    expect(ogCoverUrl('   ')).toBeNull()
+  })
+
+  it('trims whitespace and preserves normal cover URL', () => {
+    expect(ogCoverUrl('  https://example.com/cover.jpg  ')).toBe('https://example.com/cover.jpg')
+  })
+
+  it('returns null for openlibrary isbn cover with default=false, trimming spaces', () => {
+    expect(
+      ogCoverUrl('  https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg?default=false  '),
+    ).toBeNull()
+    expect(ogCoverUrl('/b/isbn/9788535902778-L.jpg?default=false')).toBeNull()
+  })
+
+  it('strips ?default=false from openlibrary id cover, trimming spaces', () => {
+    expect(
+      ogCoverUrl('  https://covers.openlibrary.org/b/id/1234567-L.jpg?default=false  '),
+    ).toBe('https://covers.openlibrary.org/b/id/1234567-L.jpg')
+    expect(
+      ogCoverUrl('  /b/id/1234567-L.jpg?default=false  '),
+    ).toBe('/b/id/1234567-L.jpg')
+  })
+
+  it('keeps openlibrary cover without default=false', () => {
+    expect(
+      ogCoverUrl('  https://covers.openlibrary.org/b/id/1234567-L.jpg  '),
+    ).toBe('https://covers.openlibrary.org/b/id/1234567-L.jpg')
+    expect(
+      ogCoverUrl('  https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg  '),
+    ).toBe('https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg')
   })
 })

@@ -241,7 +241,7 @@ Validation that must live on the server, not just the form:
 
 | Method | Route | Auth | Purpose |
 |---|---|---|---|
-| `GET` | `/api/feed/recentes?limit=10` | optional | The 10 most recent visible entries |
+| `GET` | `/api/feed/recentes?limit=10` | **session** | The 10 most recent visible entries (the signed-in home; `/atividade` uses `GET /api/feed` with a cursor) |
 
 `ORDER BY created_at DESC LIMIT 10`. No cursor, no pagination, no tab, no infinite scroll. WhatsApp is already the feed with better notifications; this strip exists so the signed-in home is not empty.
 

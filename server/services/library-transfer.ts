@@ -19,6 +19,8 @@ import {
   getTodaySaoPaulo,
   isFutureDateSaoPaulo,
   logVisibilitySchema,
+  ratingSchema,
+  reviewSchema,
   type DatePrecision,
   type LogVisibility,
 } from '../../shared/schemas/log'
@@ -417,6 +419,26 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
         continue
       }
 
+      if (book.rate !== null && book.rate !== undefined) {
+        const parsedRate = ratingSchema.safeParse(book.rate)
+        if (!parsedRate.success) {
+          const reason = parsedRate.error.issues[0]?.message ?? 'nota inválida.'
+          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
+          skippedCount++
+          continue
+        }
+      }
+
+      if (book.review !== null && book.review !== undefined) {
+        const parsedReview = reviewSchema.safeParse(book.review)
+        if (!parsedReview.success) {
+          const reason = parsedReview.error.issues[0]?.message ?? 'resenha inválida.'
+          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
+          skippedCount++
+          continue
+        }
+      }
+
       // Warnings for an item are reported only once that item commits.
       const itemWarnings: string[] = []
 
@@ -615,7 +637,7 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
           work_id: workId,
           edition_id: editionId,
           rating: validRate,
-          review: book.review ?? null,
+          review: typeof book.review === 'string' ? book.review : null,
           started_on: dates.startedOn,
           finished_on: dates.finishedOn,
           finished_precision: dates.finishedPrecision,

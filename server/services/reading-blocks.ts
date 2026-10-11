@@ -132,11 +132,17 @@ export async function updateBlock(
   blockId: string,
   userId: string,
   input: UpdateReadingBlockInput,
+  logId?: string,
 ): Promise<ReadingBlockView> {
+  const conditions = [eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)]
+  if (logId) {
+    conditions.push(eq(reading_blocks.log_id, logId))
+  }
+
   const [existing] = await db
     .select()
     .from(reading_blocks)
-    .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
+    .where(and(...conditions))
     .limit(1)
 
   if (!existing) {
@@ -165,7 +171,7 @@ export async function updateBlock(
       read_at: input.read_at ?? existing.read_at,
       updated_at: new Date(),
     })
-    .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
+    .where(and(...conditions))
     .returning()
 
   await db
@@ -186,11 +192,17 @@ export async function updateBlock(
 export async function deleteBlock(
   blockId: string,
   userId: string,
+  logId?: string,
 ): Promise<void> {
+  const conditions = [eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)]
+  if (logId) {
+    conditions.push(eq(reading_blocks.log_id, logId))
+  }
+
   const [existing] = await db
     .select({ id: reading_blocks.id, user_id: reading_blocks.user_id, log_id: reading_blocks.log_id })
     .from(reading_blocks)
-    .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
+    .where(and(...conditions))
     .limit(1)
 
   if (!existing) {
@@ -202,7 +214,7 @@ export async function deleteBlock(
 
   await db
     .delete(reading_blocks)
-    .where(and(eq(reading_blocks.id, blockId), eq(reading_blocks.user_id, userId)))
+    .where(and(...conditions))
 
   await db
     .update(reading_logs)

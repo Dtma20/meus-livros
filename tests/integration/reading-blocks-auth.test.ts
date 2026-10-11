@@ -107,4 +107,59 @@ describe.skipIf(!hasDatabaseUrl)('Reading blocks authorization integration tests
 
     expect(foreignBody).toEqual(missingBody)
   })
+
+  it('returns 404 when a user block is accessed via a URL with another log of the same user', async () => {
+    const work2 = await catalogService.createWork({
+      title: `${MARKER} Obra 2`,
+      authors: [{ name: `${MARKER} Autor 2` }],
+      genre_ids: [],
+    }, userAId, { skipRateLimit: true })
+    const otherLog = await logsService.createLog({
+      work_id: work2.id,
+      finished_on: '2026-09-21',
+      finished_precision: 'dia',
+      visibility: 'publico',
+    }, userAId, { skipRateLimit: true })
+
+    // Service calls passing another logId fail with 404
+    await captureBody(() => readingBlocksService.updateBlock(blockId, userAId, { comment: 'Tentativa' }, otherLog.id))
+    await captureBody(() => readingBlocksService.deleteBlock(blockId, userAId, otherLog.id))
+
+    // Route handler calls using URL with other logId respond with 404
+    const { createApp, createRouter, defineEventHandler, toWebHandler } = await import('h3')
+    const { default: patchHandler } = await import('../../server/api/logs/[id]/blocks/[blockId].patch')
+    const { default: deleteHandler } = await import('../../server/api/logs/[id]/blocks/[blockId].delete')
+
+    const app = createApp()
+    app.use(defineEventHandler((event) => {
+      event.context.user = { id: userAId, email: `${MARKER}-a@example.com` }
+    }))
+    const router = createRouter()
+    router.patch('/api/logs/:id/blocks/:blockId', patchHandler)
+    router.delete('/api/logs/:id/blocks/:blockId', deleteHandler)
+    app.use(router)
+    const handler = toWebHandler(app)
+
+    const patchRes = await handler(new Request(`http://localhost/api/logs/${otherLog.id}/blocks/${blockId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ comment: 'Não deve atualizar' }),
+    }))
+    expect(patchRes.status).toBe(404)
+    const patchBody = (await patchRes.json()) as { error?: string }
+    expect(patchBody.error).toBe('nao_encontrado')
+
+    const deleteRes = await handler(new Request(`http://localhost/api/logs/${otherLog.id}/blocks/${blockId}`, {
+      method: 'DELETE',
+    }))
+    expect(deleteRes.status).toBe(404)
+    const deleteBody = (await deleteRes.json()) as { error?: string }
+    expect(deleteBody.error).toBe('nao_encontrado')
+
+    // Verify block was not modified or deleted
+    const { blocks } = await readingBlocksService.getBlocksForLog(logId, { id: userAId })
+    const block = blocks.find((b) => b.id === blockId)
+    expect(block).toBeDefined()
+    expect(block?.comment).toBeNull()
+  })
 })

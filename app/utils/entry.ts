@@ -55,6 +55,7 @@ const OG_ID_COVER_FLAG = /\?default=false$/
 export function ogCoverUrl(url: string | null | undefined): string | null {
   if (!url) return null
   const trimmed = url.trim()
+  if (!trimmed) return null
   if (!trimmed.includes('default=false')) return trimmed
   if (OG_ISBN_COVER.test(trimmed)) return null
   return OG_ID_COVER.test(trimmed) ? trimmed.replace(OG_ID_COVER_FLAG, '') : trimmed

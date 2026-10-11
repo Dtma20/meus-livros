@@ -9,6 +9,15 @@ const uuidSchema = z.string().uuid()
 
 export default defineApiHandler(async (event) => {
   const user = await requireSessionUser(event)
+  const logId = getRouterParam(event, 'id')
+  const parsedLogId = uuidSchema.safeParse(logId)
+  if (!parsedLogId.success) {
+    throw createError({
+      statusCode: 404,
+      data: { error: 'nao_encontrado', message: 'Registro de leitura não encontrado.' },
+    })
+  }
+
   const blockId = getRouterParam(event, 'blockId')
   const parsedBlockId = uuidSchema.safeParse(blockId)
   if (!parsedBlockId.success) {
@@ -21,5 +30,5 @@ export default defineApiHandler(async (event) => {
   const body = await readBody(event)
   const input = parseOrThrow(updateReadingBlockInputSchema, body)
 
-  return await updateBlock(parsedBlockId.data, user.id, input)
+  return await updateBlock(parsedBlockId.data, user.id, input, parsedLogId.data)
 })
