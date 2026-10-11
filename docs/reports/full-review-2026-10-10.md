@@ -215,6 +215,17 @@ Muse Spark and Step 5 on both passes (Muse A failed once with `database is locke
 | `updateBlock`/`deleteBlock` take `logId` as optional | Muse A-02 | Accepted nit: both production callers pass it |
 | Backup key and restore | Muse B-01 | **Open - owner action** (since round 1) |
 
+## Round 9 - review of `c551eba`
+
+Muse Spark on both passes; Step's code-review pass failed on the `opencode` SQLite lock and its security pass produced no finding. Muse caught one regression from round 8:
+
+| Finding | Found by | Fix |
+|---|---|---|
+| The round-8 year bound sat in the batch schema, so one bad `year` refused the whole file | Muse A-01 | Checked per item, like rating and dates |
+| Import ignored the 50,000-page cap of manual entry | Muse A-02 | Checked per item |
+| `finished_precision` can be patched inconsistently with `finished_on`; a malformed identifier may answer faster than a wrong password | Muse A-03, B-02 | Questions, left open |
+| Backup key and restore | Muse B-01 | **Open - owner action** |
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

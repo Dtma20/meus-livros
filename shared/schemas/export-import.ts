@@ -1,6 +1,12 @@
 import { z } from 'zod'
-import { coverUrlSchema, publicationYearSchema } from './work'
+import { coverUrlSchema } from './work'
 import { datePrecisionSchema } from './log'
+
+export const importPagesSchema = z
+  .number()
+  .int()
+  .positive({ message: 'O número de páginas deve ser positivo.' })
+  .max(50000, { message: 'Número de páginas superior a 50.000.' })
 
 export const livroJsonSchema = z.object({
   title: z.string().min(1, 'O título é obrigatório.').max(300),
@@ -8,8 +14,8 @@ export const livroJsonSchema = z.object({
   country: z.string().max(100).optional().nullable(),
   country_code: z.string().max(10).optional().nullable(),
   original_language: z.string().max(50).optional().nullable(),
-  // Same bounds as manual entry (security.md §7): signed, the corpus holds -500.
-  year: publicationYearSchema.optional().nullable(),
+  // Checked per item in library-transfer.ts with publicationYearSchema, so one bad year skips only that book.
+  year: z.number().int().optional().nullable(),
   publisher: z.string().max(255).optional().nullable(),
   pages: z.number().int().positive().optional().nullable(),
   // Format is checked per item by parseReadIn in library-transfer.ts, so one bad date skips only that book.

@@ -812,6 +812,89 @@ describe.skipIf(!hasDatabaseUrl)('Library import and export integration tests', 
     expect(payload.errors[0]).toContain(httpInvalidTitle)
     expect(payload.errors[0]).toContain('Motivo: A nota deve ser em intervalos de 0,5 estrela.')
   })
+
+  it('imports valid book in a batch with year 99999 and pages above ceiling, skipping the invalid items with reasons', async () => {
+    const userId = await createImportUser('ano-paginas')
+    const badYearTitle = `${MARKER} Ano 99999`
+    const badPagesTitle = `${MARKER} Paginas Acima Do Teto`
+    const validTitle = `${MARKER} Livro Valido Lote`
+
+    const batch: LivroJson[] = [
+      {
+        title: badYearTitle,
+        author: 'Autor Ano Invalido',
+        year: 99999,
+        genre: [],
+      },
+      {
+        title: badPagesTitle,
+        author: 'Autor Paginas Invalido',
+        pages: 60000,
+        genre: [],
+      },
+      {
+        title: validTitle,
+        author: 'Autor Valido',
+        year: 2021,
+        pages: 350,
+        genre: [],
+      },
+    ]
+
+    const result = await transferService.importUserLibrary(userId, batch)
+    expect(result.importedCount).toBe(1)
+    expect(result.skippedCount).toBe(2)
+    expect(result.errors.length).toBe(2)
+    expect(result.errors[0]).toContain(badYearTitle)
+    expect(result.errors[0]).toContain('Motivo: Ano posterior a 2100.')
+    expect(result.errors[1]).toContain(badPagesTitle)
+    expect(result.errors[1]).toContain('Motivo: Número de páginas superior a 50.000.')
+
+    const stored = await db
+      .select({ title: schema.works.title })
+      .from(schema.works)
+      .where(sqlOp.inArray(schema.works.title, [badYearTitle, badPagesTitle, validTitle]))
+
+    expect(stored).toHaveLength(1)
+    expect(stored[0]?.title).toBe(validTitle)
+  })
+
+  it('accepts batch with year: 99999 and pages > 50000 via POST /api/library/import without rejecting the file', async () => {
+    const { default: importHandler } = await import('../../server/api/library/import.post')
+    const app = createApp()
+    app.use(
+      defineEventHandler((event) => {
+        event.context.user = { id: testUserId, email: `${MARKER}@example.com` }
+      }),
+    )
+    app.use(importHandler)
+    const handler = toWebHandler(app)
+
+    const httpBadYearTitle = `${MARKER} HTTP Ano 99999`
+    const httpBadPagesTitle = `${MARKER} HTTP Paginas Acima Do Teto`
+    const httpValidTitle = `${MARKER} HTTP Livro Valido Lote`
+    const response = await handler(
+      new Request('http://localhost:3000/api/library/import', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify([
+          { title: httpBadYearTitle, author: 'Autor Invalido', year: 99999 },
+          { title: httpBadPagesTitle, author: 'Autor Invalido', pages: 60000 },
+          { title: httpValidTitle, author: 'Autor Valido', year: 2021, pages: 300 },
+        ]),
+      }),
+    )
+
+    expect(response.status).toBe(200)
+    const payload = (await response.json()) as { success: boolean; imported: number; skipped: number; errors: string[] }
+    expect(payload.success).toBe(true)
+    expect(payload.imported).toBe(1)
+    expect(payload.skipped).toBe(2)
+    expect(payload.errors[0]).toContain(httpBadYearTitle)
+    expect(payload.errors[0]).toContain('Motivo: Ano posterior a 2100.')
+    expect(payload.errors[1]).toContain(httpBadPagesTitle)
+    expect(payload.errors[1]).toContain('Motivo: Número de páginas superior a 50.000.')
+  })
 })
 
 describe('read_in, started_on and precision rules', () => {

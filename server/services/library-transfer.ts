@@ -13,7 +13,8 @@ import { normalizeIsbn } from '../utils/isbn'
 import { slugify } from '../utils/slug'
 import { logger } from '../utils/logger'
 import { COUNTRIES, countryCodeFor, countryLabelFor } from '../../shared/constants/countries'
-import type { LivroJson, ImportResult } from '../../shared/schemas/export-import'
+import { importPagesSchema, type LivroJson, type ImportResult } from '../../shared/schemas/export-import'
+import { publicationYearSchema } from '../../shared/schemas/work'
 
 import {
   getTodaySaoPaulo,
@@ -433,6 +434,26 @@ export async function importUserLibrary(userId: string, books: LivroJson[]): Pro
         const parsedReview = reviewSchema.safeParse(book.review)
         if (!parsedReview.success) {
           const reason = parsedReview.error.issues[0]?.message ?? 'resenha inválida.'
+          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
+          skippedCount++
+          continue
+        }
+      }
+
+      if (book.year !== null && book.year !== undefined) {
+        const parsedYear = publicationYearSchema.safeParse(book.year)
+        if (!parsedYear.success) {
+          const reason = parsedYear.error.issues[0]?.message ?? 'ano inválido.'
+          errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
+          skippedCount++
+          continue
+        }
+      }
+
+      if (book.pages !== null && book.pages !== undefined) {
+        const parsedPages = importPagesSchema.safeParse(book.pages)
+        if (!parsedPages.success) {
+          const reason = parsedPages.error.issues[0]?.message ?? 'número de páginas inválido.'
           errors.push(`${formatImportError(bookIndex, book.title)} Motivo: ${reason}`)
           skippedCount++
           continue

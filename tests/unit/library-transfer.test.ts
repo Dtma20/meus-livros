@@ -10,7 +10,7 @@ import {
   parseImportVisibility,
   parseReadingDates,
 } from '../../server/services/library-transfer'
-import { livroJsonSchema } from '../../shared/schemas/export-import'
+import { importPagesSchema, livroJsonSchema } from '../../shared/schemas/export-import'
 
 // These parsing tests never query PostgreSQL; fail on accidental database use.
 vi.mock('../../server/db', () => ({ db: {} }))
@@ -66,6 +66,18 @@ describe('library-transfer unit tests', () => {
     it('leaves rating validation to the per-item import step', () => {
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 3.7 }).success).toBe(true)
       expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', rate: 4.5 }).success).toBe(true)
+    })
+
+    // The batch schema no longer refuses an out-of-bounds publication year: one bad item must not sink a 1,000-book file.
+    // importUserLibrary refuses that item alone (see library-import-export.test.ts).
+    it('leaves publication year validation to the per-item import step', () => {
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: 99999 }).success).toBe(true)
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', year: -5000 }).success).toBe(true)
+    })
+
+    // The batch schema no longer enforces the 50000-page ceiling: importUserLibrary refuses that item alone.
+    it('leaves page count ceiling validation to the per-item import step', () => {
+      expect(livroJsonSchema.safeParse({ title: 'T', author: 'A', pages: 99999 }).success).toBe(true)
     })
 
     it('accepts only https cover URLs', () => {
@@ -233,6 +245,24 @@ describe('library-transfer unit tests', () => {
     it('uses "dia", the default of a manual reading, when the file gives no precision', () => {
       expect(parseReadingDates(base, NOW))
         .toEqual({ ok: true, startedOn: null, finishedOn: null, finishedPrecision: 'dia' })
+    })
+  })
+
+  describe('importPagesSchema', () => {
+    it('accepts positive page counts up to the ceiling of 50000', () => {
+      expect(importPagesSchema.safeParse(1).success).toBe(true)
+      expect(importPagesSchema.safeParse(50000).success).toBe(true)
+    })
+
+    it('rejects page count above 50000', () => {
+      const result = importPagesSchema.safeParse(50001)
+      expect(result.success).toBe(false)
+      expect(result.error?.issues[0]?.message).toBe('Número de páginas superior a 50.000.')
+    })
+
+    it('rejects non-positive page count', () => {
+      expect(importPagesSchema.safeParse(0).success).toBe(false)
+      expect(importPagesSchema.safeParse(-5).success).toBe(false)
     })
   })
 })
