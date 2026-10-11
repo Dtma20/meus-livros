@@ -205,6 +205,16 @@ Step raised only questions: the ESLint sink rule firing (already proved by probe
 
 Gates after round 7: lint and typecheck clean, 902 unit, build, 241 integration and 24 SSR tests green; secret values 0 times in the client bundle.
 
+## Round 8 - review of `107798d`
+
+Muse Spark and Step 5 on both passes (Muse A failed once with `database is locked` - four parallel `opencode` runs share one local SQLite - and was rerun alone). **No code blocker.** Step's two candidates were wrong on reading (`backfillAuthorCountry` only fills a blank; `insertEdition` maps the ISBN unique violation to 409) and were dropped.
+
+| Finding | Found by | Fix |
+|---|---|---|
+| Import accepted any `year`, while manual entry is bounded −3000…2100 | Muse A-01, Step B | `publicationYearSchema` in the import schema |
+| `updateBlock`/`deleteBlock` take `logId` as optional | Muse A-02 | Accepted nit: both production callers pass it |
+| Backup key and restore | Muse B-01 | **Open - owner action** (since round 1) |
+
 ## Not verifiable here
 
 - Everything TASK-024 asks to check against production: the four visibility tests, the forged `X-Forwarded-For`, the served headers and cookie attributes, the 500 under `NODE_ENV=production`. There is no deployment yet.

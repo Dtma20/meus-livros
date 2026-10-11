@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { coverUrlSchema } from './work'
+import { coverUrlSchema, publicationYearSchema } from './work'
 import { datePrecisionSchema } from './log'
 
 export const livroJsonSchema = z.object({
@@ -8,7 +8,8 @@ export const livroJsonSchema = z.object({
   country: z.string().max(100).optional().nullable(),
   country_code: z.string().max(10).optional().nullable(),
   original_language: z.string().max(50).optional().nullable(),
-  year: z.number().int().optional().nullable(),
+  // Same bounds as manual entry (security.md §7): signed, the corpus holds -500.
+  year: publicationYearSchema.optional().nullable(),
   publisher: z.string().max(255).optional().nullable(),
   pages: z.number().int().positive().optional().nullable(),
   // Format is checked per item by parseReadIn in library-transfer.ts, so one bad date skips only that book.
