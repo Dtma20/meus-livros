@@ -116,7 +116,7 @@ describe('Layout: default.vue', () => {
     const titleLink = wrapper.find('header a.site-title')
     expect(titleLink).not.toBeNull()
     expect(titleLink?.getAttribute('href')).toBe('/')
-    expect(titleLink?.textContent?.trim()).toBe('Meus Livros')
+    expect(titleLink?.textContent?.trim()).toBe('Livrolas')
     wrapper.unmount()
   })
 

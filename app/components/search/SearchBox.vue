@@ -431,7 +431,7 @@ function retrySearch(): void {
   width: 100%;
   background: var(--input-bg);
   color: var(--text-color);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-3);
   min-height: var(--target-min-size);
@@ -478,7 +478,7 @@ function retrySearch(): void {
   left: 0;
   right: 0;
   background: var(--card-bg);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   list-style: none;
   margin: 0;
@@ -486,7 +486,7 @@ function retrySearch(): void {
   z-index: 200;
   max-height: 360px;
   overflow-y: auto;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 .search-panel {
@@ -496,9 +496,9 @@ function retrySearch(): void {
   right: 0;
   z-index: 200;
   background: var(--card-bg);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 .search-result {
@@ -524,7 +524,7 @@ function retrySearch(): void {
   border-radius: var(--radius-sm);
   overflow: hidden;
   background-color: var(--input-bg);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-card);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -547,7 +547,7 @@ function retrySearch(): void {
 }
 
 .result-title {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-sm);
   font-weight: 500;
   line-height: var(--line-height-tight);
@@ -567,7 +567,7 @@ function retrySearch(): void {
 .search-add-option {
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-2);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
   margin-top: var(--space-1);
   font-size: var(--font-size-sm);
 }

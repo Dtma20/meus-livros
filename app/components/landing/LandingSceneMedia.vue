@@ -4,7 +4,7 @@
       class="scene-poster"
       :class="{ 'is-covered': ready }"
       :src="`/landing/scene-${scene}.webp`"
-      :srcset="`/landing/scene-${scene}-640.webp 640w, /landing/scene-${scene}.webp 960w`"
+      :srcset="`/landing/scene-${scene}-640.webp 640w, /landing/scene-${scene}-1440.webp 2560w`"
       sizes="(min-width: 900px) 42rem, 100vw"
       width="960"
       height="540"
@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 
 const props = defineProps<{
   scene: number
@@ -42,8 +42,8 @@ const PLAY_RATIO = 0.25
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
 const COMPACT_SOURCE_QUERY = '(max-width: 860px), (pointer: coarse)'
 
-const root = ref<HTMLElement | null>(null)
-const video = ref<HTMLVideoElement | null>(null)
+const root = shallowRef<HTMLElement | null>(null)
+const video = shallowRef<HTMLVideoElement | null>(null)
 // Stays null until the media nears the viewport, so the server HTML has no <video>.
 const src = ref<string | null>(null)
 const ready = ref(false)
@@ -54,7 +54,7 @@ let reducedMotion: MediaQueryList | null = null
 
 function chooseSource(): string {
   const compact = window.matchMedia(COMPACT_SOURCE_QUERY).matches
-  return `/landing/scene-${props.scene}-loop-${compact ? 640 : 960}.mp4`
+  return `/landing/scene-${props.scene}-loop-${compact ? 640 : 1440}.mp4`
 }
 
 function onNear(entries: IntersectionObserverEntry[]) {

@@ -597,11 +597,11 @@ function reset() {
 }
 
 .drop-zone {
-  border: 2px dashed var(--input-bg, #2c3440);
+  border: 2px dashed var(--border-color);
   border-radius: var(--radius-md, 8px);
   padding: var(--space-8, 32px) var(--space-4, 16px);
   text-align: center;
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(var(--paper-rgb), 0.02);
   transition: border-color 0.2s, background-color 0.2s;
   cursor: pointer;
 }
@@ -622,7 +622,7 @@ function reset() {
 }
 
 .drop-instruction {
-  color: var(--text-strong, #fff);
+  color: var(--text-strong);
   font-size: var(--font-size-base, 1rem);
   margin: 0 0 var(--space-3, 12px) 0;
 }
@@ -640,7 +640,7 @@ function reset() {
 .file-hint {
   display: block;
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   margin-top: var(--space-3, 12px);
 }
 
@@ -656,8 +656,8 @@ function reset() {
 
 .preview-section {
   margin-top: var(--space-6, 24px);
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--input-bg, #2c3440);
+  background-color: rgba(var(--paper-rgb), 0.02);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md, 8px);
   padding: var(--space-6, 24px);
 }
@@ -668,12 +668,12 @@ function reset() {
   align-items: center;
   margin-bottom: var(--space-4, 16px);
   padding-bottom: var(--space-2, 8px);
-  border-bottom: 1px solid var(--input-bg, #2c3440);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .preview-title {
   font-size: var(--font-size-base, 1rem);
-  color: var(--text-strong, #fff);
+  color: var(--text-strong);
   margin: 0;
 }
 
@@ -707,12 +707,12 @@ function reset() {
 }
 
 .preview-item-title {
-  color: var(--text-strong, #fff);
+  color: var(--text-strong);
   font-weight: 500;
 }
 
 .preview-item-author {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
 }
 
 .preview-item-meta {
@@ -731,7 +731,7 @@ function reset() {
   padding-left: 20px;
   margin: 8px 0 0 0;
   font-size: var(--font-size-sm, 0.875rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   text-align: left;
 }
 
@@ -745,14 +745,14 @@ function reset() {
 }
 
 .import-issues-title {
-  color: var(--text-strong, #fff);
+  color: var(--text-strong);
   font-size: var(--font-size-base, 1rem);
   margin: 0 0 4px 0;
 }
 
 .more-hint {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   margin-top: 10px;
   margin-bottom: 0;
   font-style: italic;
@@ -790,13 +790,13 @@ function reset() {
 }
 
 .success-title {
-  color: var(--text-strong, #fff);
+  color: var(--text-strong);
   font-size: var(--font-size-xl, 1.25rem);
   margin: 0 0 8px 0;
 }
 
 .success-text {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-base, 1rem);
   margin-bottom: 24px;
 }
@@ -809,8 +809,8 @@ function reset() {
 
 .json-format-guide {
   margin-top: var(--space-6, 24px);
-  background-color: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--input-bg, #2c3440);
+  background-color: rgba(var(--paper-rgb), 0.02);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md, 8px);
   overflow: hidden;
   transition: border-color 0.2s;
@@ -841,7 +841,7 @@ function reset() {
   gap: 8px;
   font-size: var(--font-size-sm, 0.875rem);
   font-weight: 600;
-  color: var(--text-strong, #fff);
+  color: var(--text-strong);
 }
 
 .guide-icon {
@@ -850,7 +850,7 @@ function reset() {
 
 .guide-chevron {
   font-size: 0.875rem;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   transition: transform 0.2s ease;
 }
 
@@ -860,12 +860,12 @@ details[open] .guide-chevron {
 
 .guide-body {
   padding: 16px;
-  border-top: 1px solid var(--input-bg, #2c3440);
+  border-top: 1px solid var(--border-color);
 }
 
 .guide-text {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   line-height: var(--line-height-normal, 1.5);
   margin: 0 0 14px 0;
 }
@@ -882,7 +882,7 @@ details[open] .guide-chevron {
 
 .guide-box {
   background-color: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--input-bg, #2c3440);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm, 6px);
   padding: 12px;
   margin-bottom: 16px;
@@ -902,14 +902,14 @@ details[open] .guide-chevron {
 .guide-box-title {
   font-size: var(--font-size-xs, 0.75rem);
   font-weight: 600;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 
 .btn-copy-template {
   color: var(--highlight);
-  border-color: var(--input-bg);
+  border-color: var(--border-color);
 }
 
 .btn-copy-template:hover {
@@ -933,7 +933,7 @@ details[open] .guide-chevron {
 .guide-fields-title {
   font-size: var(--font-size-xs, 0.75rem);
   font-weight: 600;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   margin: 0 0 10px 0;
@@ -950,7 +950,7 @@ details[open] .guide-chevron {
 
 .field-item {
   background-color: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(var(--paper-rgb), 0.04);
   border-radius: var(--radius-sm, 6px);
   padding: 8px 10px;
 }
@@ -964,7 +964,7 @@ details[open] .guide-chevron {
 
 .field-name {
   font-weight: 600;
-  color: var(--text-strong, #fff) !important;
+  color: var(--text-strong) !important;
 }
 
 .badge-req {
@@ -983,24 +983,24 @@ details[open] .guide-chevron {
   padding: 1px 6px;
   border-radius: 3px;
   background-color: rgba(154, 171, 187, 0.1);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   border: 1px solid rgba(154, 171, 187, 0.2);
 }
 
 .field-type {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-muted, var(--text-color, #9ab));
+  color: var(--text-muted, var(--text-color));
   margin-left: auto;
 }
 
 .field-desc {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   line-height: 1.35;
 }
 
 .field-desc em {
-  color: var(--text-strong, #fff);
+  color: var(--text-strong);
   font-style: normal;
 }
 </style>

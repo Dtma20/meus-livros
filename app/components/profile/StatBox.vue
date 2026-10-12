@@ -24,18 +24,22 @@ const formattedValue = computed(() => {
 <style scoped>
 .stat-box {
   text-align: center;
+  padding-block: var(--space-3);
+  border-bottom: 1px solid var(--crease-color);
 }
 
 .stat-value {
   font-size: var(--font-size-2xl, 1.5rem);
   font-weight: 700;
   display: block;
-  color: #fff;
+  color: var(--text-strong);
   line-height: var(--line-height-tight, 1.2);
+  font-family: var(--font-serif);
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-label {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-sm, 0.875rem);
   display: block;
   margin-top: var(--space-1, 4px);

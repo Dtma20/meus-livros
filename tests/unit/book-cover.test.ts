@@ -35,7 +35,7 @@ function mount(initial: CoverProps) {
 }
 
 const PLACEHOLDER_PREFIX = 'data:image/svg+xml;utf8,'
-const TOKEN_COLOURS = ['#232a31', '#2c3440', '#f59e0b', '#fff', '#99aabb']
+const TOKEN_COLOURS = ['#202322', '#282b28', '#d2c7b3', '#e9ad4f', '#eee7d8', '#b5afa3']
 
 function decodePlaceholder(src: string): string {
   expect(src.startsWith(PLACEHOLDER_PREFIX)).toBe(true)
@@ -297,7 +297,7 @@ describe('BookCover.vue missing-cover placeholder', () => {
     const svg = placeholderFor({ alt: 'Capa de O retorno do rei', title: 'O retorno do rei' })
 
     expect(titleLines(svg)).toEqual(['O retorno do', 'rei'])
-    expect(svg).toContain('#f59e0b')
+    expect(svg).toContain('#e9ad4f')
     expect(svg).toContain('font-family="Lora, Georgia, serif"')
     expect(svg).toContain('fill-opacity="0.85"')
     expect(svg).toContain('viewBox="0 0 200 300"')
@@ -350,7 +350,7 @@ describe('BookCover.vue missing-cover placeholder', () => {
       title: 'O retorno do rei'
     })
 
-    expect(svg).toMatch(/<text[^>]*fill="#99aabb"[^>]*>J\. R\. R\. Tolkien<\/text>/)
+    expect(svg).toMatch(/<text[^>]*fill="#b5afa3"[^>]*>J\. R\. R\. Tolkien<\/text>/)
     expect(svg.indexOf('J. R. R. Tolkien')).toBeGreaterThan(svg.indexOf('>rei<'))
   })
 
@@ -365,7 +365,7 @@ describe('BookCover.vue missing-cover placeholder', () => {
 
     expect(svg).not.toContain('<tspan')
     expect(svg).toContain('>?</text>')
-    expect(svg).toContain('#f59e0b')
+    expect(svg).toContain('#e9ad4f')
   })
 
   it('uses only token colours', () => {

@@ -1,0 +1,117 @@
+/* A fold is a small surface detail, never an overlay on text or controls. */
+.paper-panel {
+  position: relative;
+  border: 1px solid var(--border-color);
+  box-sizing: border-box;
+  box-shadow: var(--shadow-fold), var(--shadow-card);
+}
+
+.paper-panel::before {
+  content: "";
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  width: 20px;
+  height: 20px;
+  background: linear-gradient(45deg, transparent 48%, var(--crease-color) 49%, var(--crease-color) 51%, var(--surface-raised) 52%);
+  border-start-end-radius: inherit;
+  pointer-events: none;
+}
+
+.paper-section-title {
+  padding-inline-start: var(--space-3);
+  border-inline-start: 2px solid var(--crease-color);
+}
+
+.paper-panel:focus-within::before {
+  --crease-color: var(--highlight);
+}
+
+/* Origami folded-paper text texture for brand titles and effect texts across the system. */
+.paper-text,
+.origami-text,
+.paper-section-title,
+.site-title-text,
+.logo-text,
+.login-title,
+.welcome-title,
+.empty-title,
+.error-title,
+.work-title,
+.profile-title,
+.display-name,
+.stats-heading,
+.stats-section-title,
+.carousel-title,
+.map-title {
+  background-color: currentColor;
+  background-image: url('/landing/paper-512.webp');
+  background-size: 256px 256px;
+  background-position: center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Ensure counters, badges, and plain sub-elements keep their natural text color */
+:is(.paper-section-title, .carousel-title, .site-title, .shelf-section) > :is(.carousel-count, .section-count, .shelf-count, small, kbd, .badge) {
+  -webkit-text-fill-color: currentColor;
+  background: none;
+}
+
+@media (forced-colors: active) {
+  .paper-panel {
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+
+  .paper-panel::before {
+    display: none;
+  }
+
+  .paper-section-title {
+    border-color: CanvasText;
+  }
+
+  .paper-text,
+  .origami-text,
+  .paper-section-title,
+  .site-title-text,
+  .logo-text,
+  .login-title,
+  .welcome-title,
+  .empty-title,
+  .error-title,
+  .work-title,
+  .profile-title,
+  .display-name,
+  .stats-heading,
+  .stats-section-title,
+  .carousel-title,
+  .map-title {
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .paper-text,
+  .origami-text,
+  .paper-section-title,
+  .site-title-text,
+  .logo-text,
+  .login-title,
+  .welcome-title,
+  .empty-title,
+  .error-title,
+  .work-title,
+  .profile-title,
+  .display-name,
+  .stats-heading,
+  .stats-section-title,
+  .carousel-title,
+  .map-title {
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
+}

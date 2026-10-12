@@ -138,26 +138,29 @@ function authorFromAlt(alt: string, title?: string | null): string {
 }
 
 function generatePlaceholderSvg(title?: string | null, author?: string): string {
-  const background = `<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#232a31"/><stop offset="1" stop-color="#2c3440"/></linearGradient></defs>
-  <rect width="200" height="300" fill="url(#bg)"/>
-  <rect width="4" height="300" fill="#f59e0b"/>`
+  // Standalone SVG images cannot inherit the page's CSS variables.
+  // Keep these paper colors in sync with tokens.css (covered by the palette test).
+  const background = `<rect width="200" height="300" fill="#202322"/>
+  <path d="M164 0h36v36Z" fill="#282b28"/>
+  <path d="m164 0 36 36" stroke="#d2c7b3" stroke-opacity="0.22"/>
+  <rect width="4" height="300" fill="#e9ad4f"/>`
 
   const lines = wrapTitle(title)
   let content: string
   if (lines.length === 0) {
     const initials = escapeXml(getInitials(title))
-    content = `<text x="102" y="150" dominant-baseline="central" text-anchor="middle" fill="#99aabb" font-family="${SANS_STACK}" font-size="54" font-weight="bold">${initials}</text>`
+    content = `<text x="102" y="150" dominant-baseline="central" text-anchor="middle" fill="#b5afa3" font-family="${SANS_STACK}" font-size="54" font-weight="bold">${initials}</text>`
   } else {
     const titleY = 56
     const lineHeight = 26
     const tspans = lines
       .map((line, i) => `<tspan x="20" y="${titleY + i * lineHeight}">${escapeXml(line)}</tspan>`)
       .join('')
-    content = `<text fill="#fff" fill-opacity="0.85" font-family="${SERIF_STACK}" font-size="20" font-weight="600">${tspans}</text>`
+    content = `<text fill="#eee7d8" fill-opacity="0.85" font-family="${SERIF_STACK}" font-size="20" font-weight="600">${tspans}</text>`
     const cleanAuthor = author?.trim()
     if (cleanAuthor) {
       const authorY = titleY + (lines.length - 1) * lineHeight + 28
-      content += `<text x="20" y="${authorY}" fill="#99aabb" font-family="${SANS_STACK}" font-size="13">${escapeXml(truncate(cleanAuthor, AUTHOR_MAX_CHARS))}</text>`
+      content += `<text x="20" y="${authorY}" fill="#b5afa3" font-family="${SANS_STACK}" font-size="13">${escapeXml(truncate(cleanAuthor, AUTHOR_MAX_CHARS))}</text>`
     }
   }
 
@@ -294,7 +297,7 @@ function onError() {
     to right,
     rgba(0, 0, 0, 0.22) 0%,
     rgba(0, 0, 0, 0.05) 3%,
-    rgba(255, 255, 255, 0.04) 5%,
+    rgba(var(--paper-rgb), 0.04) 5%,
     transparent 10%
   );
 }

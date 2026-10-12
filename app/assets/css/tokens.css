@@ -2,25 +2,37 @@
   color-scheme: dark;
 
   --bg-color: #14181c;
-  --card-bg: #232a31;
-  --text-color: #9ab;
-  --text-bright: #c9d1d9;
-  --text-strong: #fff;
+  /* Matte paper, lit folds and graphite: shared with the origami scenes. */
+  --paper-white: #eee7d8;
+  --paper-fold: #d2c7b3;
+  --paper-rgb: 238, 231, 216;
+  --card-bg: #202322;
+  --surface-raised: #282b28;
+  --surface-hover: #30332e;
+  --text-color: #b5afa3;
+  --text-bright: #d8d1c3;
+  --text-strong: var(--paper-white);
   --text-muted: var(--text-color);
-  --poster-border: #fff;
-  --star-color: #f59e0b;
-  --highlight: #f59e0b;
-  --highlight-hover: #d97706;
-  --input-bg: #2c3440;
+  --poster-border: var(--paper-white);
+  --star-color: var(--highlight);
+  --highlight: #e9ad4f;
+  --highlight-hover: #f2c174;
+  --input-bg: #1b1e1d;
+  --border-soft: rgba(var(--paper-rgb), 0.08);
+  --border-color: rgba(var(--paper-rgb), 0.16);
+  --border-emphasis: rgba(var(--paper-rgb), 0.3);
+  --control-border: #73766c;
+  --crease-color: rgba(var(--paper-rgb), 0.22);
 
   --on-highlight: #14181c;
 
-  --danger: #ef4444;
-  --danger-text: #f87171;
-  --danger-solid: #dc2626;
-  --success: #34d399;
-  --highlight-soft: rgba(245, 158, 11, 0.12);
-  --highlight-glow: rgba(245, 158, 11, 0.25);
+  --danger: #e58e7f;
+  --danger-text: #f0a799;
+  --danger-solid: #993e34;
+  --on-danger: var(--paper-white);
+  --success: #b4c99b;
+  --highlight-soft: rgba(233, 173, 79, 0.1);
+  --highlight-glow: rgba(233, 173, 79, 0.2);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -48,12 +60,14 @@
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.6;
 
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
   --radius-full: 9999px;
 
-  --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 2px 4px rgba(0, 0, 0, 0.22), 0 6px 14px rgba(0, 0, 0, 0.12);
+  --shadow-lift: 0 3px 6px rgba(0, 0, 0, 0.25), 0 8px 18px rgba(0, 0, 0, 0.16);
+  --shadow-fold: inset 0 1px 0 rgba(var(--paper-rgb), 0.05);
 
   --focus-ring-color: var(--highlight);
   --focus-ring-width: 2px;

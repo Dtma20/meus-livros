@@ -61,7 +61,7 @@ withDefaults(
   width: 100%;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm, 6px);
-  background-color: var(--input-bg, #2c3440);
-  border: 1px solid var(--input-bg, #2c3440);
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-color);
 }
 </style>

@@ -9,3 +9,9 @@
 node_modules
 legacy
 graphify-out
+.opencode
+.interface-design
+tests
+docs
+scripts/upscale-worker.py
+scripts/upscale-video-worker.py

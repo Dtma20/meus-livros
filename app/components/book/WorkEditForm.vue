@@ -454,7 +454,7 @@ defineExpose({
 }
 
 .authors-fieldset {
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: var(--space-4);
   display: flex;

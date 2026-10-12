@@ -98,7 +98,7 @@ defineExpose({ open })
 .shortcuts-dialog {
   background-color: var(--bg-color);
   color: var(--text-color);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: 0;
   width: min(420px, calc(100vw - 2 * var(--space-4)));
@@ -192,7 +192,7 @@ kbd {
   text-align: center;
   padding: 2px var(--space-2);
   background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-bright);
 }

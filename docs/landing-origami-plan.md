@@ -2,12 +2,12 @@
 
 Status: implementado em 2026-10-10, com mudanças em relação a esta proposta. O vídeo único da `feat/landing-origami` foi descartado.
 
-**O que foi entregue (difere do §3):** depois de comparar as duas versões, o owner escolheu **loop de fundo**, e não scroll-scrub. Cada capítulo tem altura natural, com copy e cena lado a lado no desktop, e no celular a cena vem acima do texto (no hero, abaixo).
+**O que foi entregue (difere do §3):** depois de comparar as duas versões, o owner escolheu **loop de fundo**, e não scroll-scrub. Cada capítulo tem altura natural, com copy e cena lado a lado no desktop. Na atualização de 2026-10-11, no celular o texto vem antes da cena em todos os capítulos, evitando ilustrações adjacentes entre seções.
 - Cada cena é um vídeo mudo em vai-e-volta a 48 fps, em velocidade 2× (cerca de 5,6 s). Toca quando 25% dela está visível e pausa fora da tela.
 - Não há botão de pausa, por decisão do owner. Com `prefers-reduced-motion`, ficam só os posters. Isso é uma exceção consciente à WCAG 2.2.2, que pede pausa para movimento automático com mais de 5 s. Se a página um dia tiver público além do grupo, reavaliar.
 - O fundo de cada vídeo foi ajustado para `#14181c` e travado nessa cor antes de codificar.
 - As cenas 4, 5 e 8 foram salvas por edição, sem regerar. A 4 usa o vídeo original. A 5 virou dissolves entre estados assentados, com o fundo trocado. A 8 virou um dissolve do livro entrando no vão, a partir da imagem, com o preenchimento feito no Codex.
-- Os títulos da landing usam `.paper-text`, uma textura de papel via `background-clip: text`, com contraste de 7:1 ou mais e fallback para forced-colors.
+- Os títulos da landing usam `.paper-text`, uma textura de papel via `background-clip: text`, com fallback para forced-colors. A medição estática da textura sobre `#14181c` na revisão de 2026-10-11 encontrou mínimo de aproximadamente 6,48:1; os títulos grandes passam o critério de contraste, mas a afirmação anterior de mínimo de 7:1 não se aplica à textura atual.
 
 ## 1. Por que o vídeo único não funcionou
 

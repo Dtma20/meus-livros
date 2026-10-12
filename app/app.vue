@@ -6,14 +6,14 @@
 
 <script setup lang="ts">
 useHead({
-  titleTemplate: (chunk?: string) => chunk || 'Meus Livros',
+  titleTemplate: (chunk?: string) => chunk || 'Livrolas',
 })
 </script>
 
 <style>
 body {
   background-color: var(--bg-color);
-  color: #fff;
+  color: var(--text-strong);
   font-family: var(--font-sans);
   margin: 0;
   overflow-y: scroll;

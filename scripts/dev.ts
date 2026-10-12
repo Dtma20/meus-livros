@@ -125,7 +125,7 @@ function startNuxtDev(): void {
 
 async function main() {
   console.log('=============================================')
-  console.log('Meus Livros - Ambiente de Desenvolvimento')
+  console.log('Livrolas - Ambiente de Desenvolvimento')
   console.log('=============================================\n')
 
   if (isLocalDb(dbUrl)) {

@@ -286,13 +286,13 @@ function onKeydown(e: KeyboardEvent): void {
 }
 
 .star-empty {
-  fill: var(--input-bg, #2c3440);
-  stroke: rgba(255, 255, 255, 0.2);
+  fill: var(--input-bg);
+  stroke: rgba(var(--paper-rgb), 0.2);
   stroke-width: 1px;
 }
 
 .star-filled {
-  fill: var(--star-color, #f59e0b);
+  fill: var(--star-color);
 }
 
 .rating-meta {
@@ -310,7 +310,7 @@ function onKeydown(e: KeyboardEvent): void {
 
 .clear-rating-btn {
   background: transparent;
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-color);
   font-size: var(--font-size-xs);
@@ -322,7 +322,7 @@ function onKeydown(e: KeyboardEvent): void {
 
 .clear-rating-btn:hover {
   background: var(--input-bg);
-  color: #fff;
+  color: var(--text-strong);
   border-color: var(--text-color);
 }
 

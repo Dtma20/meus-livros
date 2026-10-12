@@ -34,7 +34,7 @@
           </div>
 
           <div class="work-details">
-            <h1 class="work-title">{{ work.title }}</h1>
+            <h1 class="work-title paper-text origami-text">{{ work.title }}</h1>
 
             <div v-if="work.authors && work.authors.length > 0" class="work-authors">
               <span class="authors-by">por</span>
@@ -595,7 +595,7 @@ function setDeleteWorkError(error: unknown): void {
   min-width: 160px;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -606,7 +606,7 @@ function setDeleteWorkError(error: unknown): void {
 }
 
 .work-title {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-2xl);
   line-height: var(--line-height-tight);
   margin: 0 0 var(--space-2) 0;
@@ -624,7 +624,7 @@ function setDeleteWorkError(error: unknown): void {
 }
 
 .author-name {
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .author-country {
@@ -697,7 +697,7 @@ function setDeleteWorkError(error: unknown): void {
 
 .meta-dd,
 .series-name {
-  color: #fff;
+  color: var(--text-strong);
   margin: 0;
 }
 
@@ -726,10 +726,10 @@ function setDeleteWorkError(error: unknown): void {
 }
 
 .section-title {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-xl);
   margin: 0 0 var(--space-4) 0;
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: var(--space-2);
 }
 
@@ -769,7 +769,7 @@ function setDeleteWorkError(error: unknown): void {
 }
 
 .user-log-item + .user-log-item {
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .user-log-meta {
@@ -829,7 +829,7 @@ function setDeleteWorkError(error: unknown): void {
 }
 
 .edition-publisher {
-  color: #fff;
+  color: var(--text-strong);
   font-weight: 500;
 }
 
@@ -858,7 +858,7 @@ function setDeleteWorkError(error: unknown): void {
 }
 
 .log-item + .log-item {
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .log-header {
@@ -869,7 +869,7 @@ function setDeleteWorkError(error: unknown): void {
 }
 
 .user-link {
-  color: #fff;
+  color: var(--text-strong);
   text-decoration: none;
   font-weight: 600;
   font-size: var(--font-size-sm);
@@ -930,7 +930,7 @@ function setDeleteWorkError(error: unknown): void {
 .work-creator-actions {
   margin-top: var(--space-4);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
   display: flex;
   flex-wrap: wrap;
   align-items: center;

@@ -1,14 +1,16 @@
 <template>
-  <div class="empty-state" role="status">
+  <div class="empty-state paper-panel" role="status">
     <div v-if="icon" class="empty-icon" aria-hidden="true">
       {{ icon }}
     </div>
-    <slot name="icon" />
+    <slot v-else name="icon">
+      <OrigamiMark class="empty-origami" />
+    </slot>
 
     <component
       :is="headingTag || 'h2'"
       v-if="title || $slots.title"
-      class="empty-title"
+      class="empty-title paper-text origami-text"
     >
       <slot name="title">
         {{ title }}
@@ -44,6 +46,8 @@
 </template>
 
 <script setup lang="ts">
+import OrigamiMark from './OrigamiMark.vue'
+
 withDefaults(
   defineProps<{
     title?: string
@@ -78,8 +82,8 @@ defineEmits<{
   padding: var(--space-8, 32px) var(--space-4, 16px);
   margin: var(--space-6, 24px) 0;
   border-radius: var(--radius-md, 8px);
-  background-color: var(--card-bg, #232a31);
-  color: var(--text-color, #9ab);
+  background-color: var(--card-bg);
+  color: var(--text-color);
   width: 100%;
   box-sizing: border-box;
 }
@@ -90,8 +94,12 @@ defineEmits<{
   line-height: 1;
 }
 
+.empty-origami {
+  margin-bottom: var(--space-4);
+}
+
 .empty-title {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-xl, 1.25rem);
   font-weight: 600;
   margin: 0 0 var(--space-2, 8px) 0;
@@ -99,7 +107,7 @@ defineEmits<{
 }
 
 .empty-message {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-sm, 0.875rem);
   max-width: 480px;
   line-height: var(--line-height-normal, 1.5);

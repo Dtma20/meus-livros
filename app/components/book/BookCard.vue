@@ -111,7 +111,7 @@ const cardAriaLabel = computed(() => {
 .card:nth-child(12) { animation-delay: 0.36s; }
 
 .card:focus-visible {
-  outline: 2px solid var(--highlight, #f59e0b);
+  outline: 2px solid var(--highlight);
   outline-offset: 4px;
   border-radius: var(--radius-sm, 6px);
 }
@@ -125,12 +125,12 @@ const cardAriaLabel = computed(() => {
   width: 100%;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm, 6px);
-  border: var(--poster-border-width) solid var(--input-bg, #2c3440);
-  background-color: #1e2328;
+  border: var(--poster-border-width) solid var(--border-color);
+  background-color: var(--card-bg);
   overflow: hidden;
   position: relative;
   box-sizing: border-box;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-card);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -142,8 +142,8 @@ const cardAriaLabel = computed(() => {
 .card:hover .poster,
 .poster:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5), 0 3px 8px rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: var(--shadow-lift);
+  border-color: rgba(var(--paper-rgb), 0.35);
 }
 
 .caption {

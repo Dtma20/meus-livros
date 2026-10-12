@@ -17,7 +17,7 @@
         <NuxtLink :to="`/@${stats.user.handle}`" class="back-link">
           ← Voltar para @{{ stats.user.handle }}
         </NuxtLink>
-        <h1 class="stats-heading">
+        <h1 class="stats-heading paper-section-title paper-text origami-text">
           Estatísticas de {{ stats.user.display_name }}
         </h1>
       </header>
@@ -72,7 +72,7 @@
         </div>
 
         <section v-if="flatRatings.length > 0" class="stats-section rating-section">
-          <h2 class="stats-section-title">Avaliações</h2>
+          <h2 class="stats-section-title paper-section-title paper-text origami-text">Avaliações</h2>
           <RatingHistogram :ratings="flatRatings" size="large" />
         </section>
 
@@ -312,8 +312,8 @@ useSeoMeta({
   gap: var(--space-6);
   padding: var(--space-4) 0;
   margin-bottom: var(--space-8);
-  border-top: 1px solid var(--input-bg);
-  border-bottom: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .stat-tiles > * {

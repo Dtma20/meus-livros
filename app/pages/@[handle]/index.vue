@@ -25,7 +25,7 @@
     <div v-else class="profile-content">
       <header class="profile-header">
         <div class="name-row">
-          <h1 class="display-name">{{ profile.user.display_name }}</h1>
+          <h1 class="display-name paper-text origami-text">{{ profile.user.display_name }}</h1>
           <button
             type="button"
             class="handle"
@@ -641,7 +641,7 @@ onBeforeUnmount(() => {
 
 .display-name {
   margin: 0;
-  color: var(--text-strong, #fff);
+  color: var(--text-strong);
   font-size: var(--font-size-2xl, 1.5rem);
   line-height: var(--line-height-tight, 1.2);
 }
@@ -655,7 +655,7 @@ onBeforeUnmount(() => {
 
 .name-row > .copy-feedback {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
 }
 
 .handle {
@@ -665,7 +665,7 @@ onBeforeUnmount(() => {
   min-height: 24px;
   font: inherit;
   font-size: var(--font-size-base, 1rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   cursor: pointer;
   border-radius: var(--radius-sm, 6px);
 }
@@ -690,7 +690,7 @@ onBeforeUnmount(() => {
 }
 
 .handle:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
@@ -708,7 +708,7 @@ onBeforeUnmount(() => {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-sm, 0.875rem);
   font-family: inherit;
   font-weight: 500;
@@ -727,17 +727,17 @@ onBeforeUnmount(() => {
 
 .visibility-tab.active {
   color: var(--text-bright);
-  border-bottom-color: var(--highlight, #f59e0b);
+  border-bottom-color: var(--highlight);
 }
 
 .visibility-tab:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
 .tab-count {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-variant-numeric: tabular-nums;
 }
 
@@ -748,12 +748,12 @@ onBeforeUnmount(() => {
 .visibility-summary {
   margin: 0 0 var(--space-3, 12px);
   font-size: var(--font-size-sm, 0.875rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-variant-numeric: tabular-nums;
 }
 
 .bio {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-base, 1rem);
   max-width: 600px;
   margin: var(--space-2, 8px) 0 0;
@@ -774,7 +774,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: baseline;
   margin: 0;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-base, 1rem);
 }
 
@@ -799,7 +799,7 @@ onBeforeUnmount(() => {
   font-size: var(--font-size-sm, 0.875rem);
   color: var(--text-bright);
   text-decoration: underline;
-  text-decoration-color: var(--highlight, #f59e0b);
+  text-decoration-color: var(--highlight);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.3em;
   min-height: 36px;
@@ -808,11 +808,11 @@ onBeforeUnmount(() => {
 }
 
 .stats-link:hover {
-  color: var(--highlight, #f59e0b);
+  color: var(--highlight);
 }
 
 .stats-link:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
@@ -841,14 +841,14 @@ onBeforeUnmount(() => {
 }
 
 .view-label {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-xs, 0.75rem);
   line-height: var(--line-height-tight, 1.2);
 }
 
 .view-nav {
   display: inline-flex;
-  border: 1px solid var(--input-bg, #2c3440);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm, 6px);
   overflow: hidden;
 }
@@ -856,7 +856,7 @@ onBeforeUnmount(() => {
 .view-tab {
   background: none;
   border: none;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-sm, 0.875rem);
   font-family: inherit;
   font-weight: 500;
@@ -869,7 +869,7 @@ onBeforeUnmount(() => {
 }
 
 .view-tab + .view-tab {
-  border-left: 1px solid var(--input-bg, #2c3440);
+  border-left: 1px solid var(--border-color);
 }
 
 .view-tab:hover:not(.active) {
@@ -878,17 +878,17 @@ onBeforeUnmount(() => {
 
 .view-tab.active {
   color: var(--text-bright);
-  background-color: var(--input-bg, #2c3440);
+  background-color: var(--input-bg);
 }
 
 .view-tab:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
   outline-offset: -2px;
 }
 
 .view-help {
   margin: 0 0 var(--space-4, 16px);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-sm, 0.875rem);
 }
 
@@ -916,7 +916,7 @@ onBeforeUnmount(() => {
   padding-bottom: var(--space-4, 16px);
   margin-right: calc(-1 * var(--space-2, 8px));
   scrollbar-width: thin;
-  scrollbar-color: var(--input-bg, #2c3440) transparent;
+  scrollbar-color: var(--input-bg) transparent;
 }
 
 .profile-scroll-panel::-webkit-scrollbar {
@@ -926,11 +926,11 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 .profile-scroll-panel::-webkit-scrollbar-thumb {
-  background: var(--input-bg, #2c3440);
+  background: var(--input-bg);
   border-radius: var(--radius-full, 9999px);
 }
 .profile-scroll-panel::-webkit-scrollbar-thumb:hover {
-  background: var(--text-color, #9ab);
+  background: var(--text-color);
 }
 
 .book-card-item {
@@ -977,8 +977,8 @@ onBeforeUnmount(() => {
 .private-badge,
 .reading-badge {
   background-color: rgba(0, 0, 0, 0.85);
-  color: var(--highlight, #f59e0b);
-  border: 1px solid var(--highlight, #f59e0b);
+  color: var(--highlight);
+  border: 1px solid var(--highlight);
   font-size: var(--font-size-xs, 0.75rem);
   padding: 2px 6px;
   border-radius: var(--radius-sm, 6px);
@@ -989,7 +989,7 @@ onBeforeUnmount(() => {
 
 .filter-indicator {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-weight: 400;
 }
 

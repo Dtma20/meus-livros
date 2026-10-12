@@ -1,7 +1,7 @@
 <template>
   <div class="profile-container">
-    <div class="profile-card">
-      <h1 class="profile-title">
+    <div class="profile-card paper-panel">
+      <h1 class="profile-title paper-text origami-text">
         Editar perfil
       </h1>
 
@@ -125,7 +125,7 @@
       </form>
     </div>
 
-    <div class="profile-card password-card">
+    <div class="profile-card paper-panel password-card">
       <h2 class="profile-title section-title">
         Alterar senha
       </h2>
@@ -214,7 +214,7 @@
       </form>
     </div>
 
-    <div v-if="isAdmin" class="profile-card admin-card">
+    <div v-if="isAdmin" class="profile-card paper-panel admin-card">
       <h2 class="profile-title section-title">
         Administração
       </h2>
@@ -562,7 +562,7 @@ async function handleChangePassword() {
   opacity: 0.7;
   cursor: not-allowed;
   background-color: rgba(0, 0, 0, 0.25);
-  border: 1px dashed var(--input-bg);
+  border: 1px dashed var(--border-color);
 }
 
 .visibility-fieldset {

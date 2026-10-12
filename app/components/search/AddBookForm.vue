@@ -1368,13 +1368,13 @@ async function handleCancel(): Promise<void> {
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1px solid var(--input-bg);
-  background-color: #1e2328;
+  border: 1px solid var(--border-color);
+  background-color: var(--card-bg);
   flex-shrink: 0;
 }
 
 .disclosure-section {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(var(--paper-rgb), 0.1);
   padding-top: var(--space-4);
   margin-bottom: var(--space-4);
 }
@@ -1417,7 +1417,7 @@ async function handleCancel(): Promise<void> {
   gap: var(--space-4);
   margin-top: var(--space-4);
   padding-left: var(--space-2);
-  border-left: 2px solid rgba(255, 255, 255, 0.08);
+  border-left: 2px solid rgba(var(--paper-rgb), 0.08);
 }
 
 .draft-notice {
@@ -1478,7 +1478,7 @@ async function handleCancel(): Promise<void> {
   gap: var(--space-3);
   margin-top: var(--space-6);
   padding-top: var(--space-4);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid rgba(var(--paper-rgb), 0.1);
 }
 
 .btn-submit {
@@ -1488,7 +1488,7 @@ async function handleCancel(): Promise<void> {
 .spinner {
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(var(--paper-rgb), 0.3);
   border-top-color: var(--text-strong);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;

@@ -8,7 +8,7 @@
       <div class="header-inner">
         <NuxtLink to="/" class="site-title">
           <AppLogo :size="28" />
-          <span>Meus Livros</span>
+          <span class="site-title-text paper-text origami-text">Livrolas</span>
         </NuxtLink>
         <HeaderSearch />
         <nav class="site-nav" aria-label="Navegação principal">
@@ -39,12 +39,12 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   display: flex;
   flex-direction: column;
   background-color: var(--bg-color);
-  color: #fff;
+  color: var(--text-strong);
   font-family: var(--font-sans);
 }
 
 .site-header {
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
   background-color: var(--bg-color);
   position: relative;
   z-index: 100;
@@ -58,6 +58,8 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
+  max-width: 80rem;
+  margin-inline: auto;
 }
 
 .skip-link {
@@ -90,7 +92,7 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   font-size: var(--font-size-xl);
   font-weight: 600;
   letter-spacing: -0.015em;
-  color: #fff;
+  color: var(--text-strong);
   text-decoration: none;
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-md);
@@ -102,6 +104,10 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
 .site-title:hover {
   background-color: var(--card-bg);
   color: var(--highlight);
+}
+
+.site-title:hover .site-title-text {
+  filter: brightness(1.08);
 }
 
 .site-title:focus-visible,
@@ -154,6 +160,7 @@ import HeaderSearch from '~/components/search/HeaderSearch.vue'
   flex: 1;
   width: 100%;
   box-sizing: border-box;
+  max-width: 80rem;
 }
 
 .container:focus {

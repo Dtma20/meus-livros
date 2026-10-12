@@ -114,7 +114,7 @@ const authorsText = computed(() => {
   gap: var(--space-4);
   padding: var(--space-5) var(--space-3);
   margin: 0 calc(-1 * var(--space-3));
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   opacity: 1;
   transform: none;
@@ -149,7 +149,7 @@ const authorsText = computed(() => {
 .feed-row:nth-child(10) { animation-delay: 0.59s; }
 
 .feed-row:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(var(--paper-rgb), 0.02);
 }
 
 .feed-cover-col {
@@ -162,14 +162,14 @@ const authorsText = computed(() => {
   background-color: var(--card-bg);
   flex-shrink: 0;
   position: relative;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(var(--paper-rgb), 0.06);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
 }
 
 .feed-row:hover .feed-cover-col {
   transform: translateY(-2px);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-lift);
 }
 
 .feed-row:active .feed-cover-col {
@@ -247,7 +247,7 @@ const authorsText = computed(() => {
 }
 
 .feed-row:hover .feed-work-title {
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .feed-work-title:focus-visible,

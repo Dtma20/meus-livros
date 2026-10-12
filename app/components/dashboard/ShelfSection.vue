@@ -11,7 +11,7 @@
   </section>
 
   <section v-else class="dashboard-section shelf-section">
-    <h2 class="section-title">
+    <h2 class="section-title paper-section-title paper-text origami-text">
       Na estante
       <span class="section-count">{{ books.length }}</span>
     </h2>
@@ -151,7 +151,7 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   column-gap: var(--space-8);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .shelf-card {
@@ -161,13 +161,13 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   gap: var(--space-4);
   padding: var(--space-4) var(--space-2);
   margin: 0 calc(-1 * var(--space-2));
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   transition: background-color 0.2s ease;
 }
 
 .shelf-card:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: rgba(var(--paper-rgb), 0.02);
 }
 
 .shelf-cover-col {
@@ -178,14 +178,14 @@ function formatAuthors(authors?: DashboardAuthorView[]): string {
   overflow: hidden;
   background-color: var(--card-bg);
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(var(--paper-rgb), 0.06);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
 }
 
 .shelf-card:hover .shelf-cover-col {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-card);
 }
 
 .shelf-card:active .shelf-cover-col {

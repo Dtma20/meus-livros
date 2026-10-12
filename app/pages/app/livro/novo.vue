@@ -1,6 +1,6 @@
 <template>
   <div class="add-book-page-container">
-    <div class="add-book-page-card">
+    <div class="add-book-page-card paper-panel">
       <AddBookForm
         :initial-title="initialTitle"
         :return-to="returnTo"
@@ -53,7 +53,7 @@ const returnTo = computed(() => {
   padding: var(--space-8);
   width: 100%;
   max-width: 620px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 @media (max-width: 640px) {

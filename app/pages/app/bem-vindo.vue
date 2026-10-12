@@ -1,7 +1,7 @@
 <template>
   <div class="welcome-container">
-    <div class="welcome-card">
-      <h1 class="welcome-title">
+    <div class="welcome-card paper-panel">
+      <h1 class="welcome-title paper-text origami-text">
         Bem-vindo
       </h1>
 
@@ -318,7 +318,7 @@ async function handleSubmit() {
 
 .preview-box {
   background-color: rgba(0, 0, 0, 0.25);
-  border: 1px dashed var(--input-bg);
+  border: 1px dashed var(--border-color);
   border-radius: var(--radius-sm);
   padding: var(--space-3);
   display: flex;

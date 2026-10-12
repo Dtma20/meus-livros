@@ -1,7 +1,7 @@
 <template>
   <div class="carousel-section">
     <div class="carousel-header">
-      <h2 class="carousel-title">
+      <h2 class="carousel-title paper-section-title paper-text origami-text">
         Lidos
         <span class="carousel-count">{{ books.length }}</span>
       </h2>
@@ -186,8 +186,8 @@ onMounted(() => {
 }
 
 .carousel-nav-btn:hover:not([aria-disabled="true"]) {
-  border-color: var(--input-bg);
-  background-color: rgba(255, 255, 255, 0.04);
+  border-color: var(--border-color);
+  background-color: rgba(var(--paper-rgb), 0.04);
   transform: scale(1.05);
 }
 
@@ -238,16 +238,16 @@ onMounted(() => {
   overflow: hidden;
   border-radius: var(--radius-sm);
   background-color: var(--card-bg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(var(--paper-rgb), 0.06);
   margin-bottom: var(--space-3);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .carousel-card:hover .card-cover-wrap {
   transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55), 0 3px 8px rgba(0, 0, 0, 0.3);
-  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: var(--shadow-lift);
+  border-color: rgba(var(--paper-rgb), 0.3);
 }
 
 .carousel-card:active .card-cover-wrap {

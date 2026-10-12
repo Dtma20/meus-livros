@@ -196,7 +196,7 @@ onBeforeUnmount(() => { generation++ })
 .discussion-toggle:hover, .discussion-toggle[aria-expanded='true'] { color: var(--highlight); }
 .discussion-panel { padding-top: var(--space-3); }
 .discussion-list { list-style: none; padding: 0; margin: 0; }
-.discussion-comment { padding: var(--space-3) 0; border-bottom: 1px solid var(--input-bg); }
+.discussion-comment { padding: var(--space-3) 0; border-bottom: 1px solid var(--border-color); }
 .discussion-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); color: var(--text-color); }
 .discussion-meta a, .discussion-author { color: var(--text-bright); }
 .discussion-meta time { font-size: var(--font-size-xs); }

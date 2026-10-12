@@ -239,9 +239,8 @@ async function handleSignOut() {
 .nav-link[aria-current="page"],
 .nav-link.router-link-exact-active {
   color: var(--highlight);
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 6px;
+  background-color: var(--highlight-soft);
+  box-shadow: inset 0 -2px 0 var(--highlight);
 }
 
 .nav-btn {
@@ -403,7 +402,7 @@ async function handleSignOut() {
   font-size: var(--font-size-xs);
   color: var(--text-color);
   background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
 }
 
@@ -424,7 +423,7 @@ async function handleSignOut() {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-sm);
   background-color: var(--highlight);
   color: var(--bg-color);
   transition: background-color 0.2s ease;
@@ -460,7 +459,7 @@ async function handleSignOut() {
     right: 0;
     z-index: 100;
     background-color: var(--bg-color);
-    border-top: 1px solid var(--input-bg);
+    border-top: 1px solid var(--border-color);
     padding-bottom: env(safe-area-inset-bottom, 0px);
     box-sizing: border-box;
   }

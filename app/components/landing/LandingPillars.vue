@@ -1,12 +1,12 @@
 <template>
   <div class="landing-more">
-    <h2 v-if="withHeading" id="more-heading" class="more-heading paper-text">
+    <h2 v-if="withHeading" id="more-heading" class="more-heading paper-text origami-text">
       Depois do registro, a estante.
     </h2>
 
     <dl class="more-list">
       <div v-if="row === 1" class="more-row">
-        <dt class="more-term paper-text">
+        <dt class="more-term paper-text origami-text">
           Leitura em andamento
         </dt>
         <dd class="more-desc">
@@ -15,7 +15,7 @@
       </div>
 
       <div v-else-if="row === 2" class="more-row">
-        <dt class="more-term paper-text">
+        <dt class="more-term paper-text origami-text">
           Estante e diário
         </dt>
         <dd class="more-desc">
@@ -24,7 +24,7 @@
       </div>
 
       <div v-else-if="row === 3" class="more-row">
-        <dt class="more-term paper-text">
+        <dt class="more-term paper-text origami-text">
           Mapa e estatísticas
         </dt>
         <dd class="more-desc">
@@ -33,7 +33,7 @@
       </div>
 
       <div v-else-if="row === 4" class="more-row">
-        <dt class="more-term paper-text">
+        <dt class="more-term paper-text origami-text">
           Atividade do grupo
         </dt>
         <dd class="more-desc">
@@ -42,7 +42,7 @@
       </div>
 
       <div v-else-if="row === 5" class="more-row">
-        <dt class="more-term paper-text">
+        <dt class="more-term paper-text origami-text">
           Seus dados
         </dt>
         <dd class="more-desc">
@@ -79,7 +79,7 @@ defineProps<{
 
 .more-list {
   margin: 0;
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .more-row {
@@ -87,7 +87,7 @@ defineProps<{
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
   padding: var(--space-4) 0;
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .more-term {

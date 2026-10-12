@@ -1,5 +1,5 @@
 <template>
-  <div class="error-state" role="alert">
+  <div class="error-state paper-panel" role="alert">
     <div v-if="icon" class="error-icon" aria-hidden="true">
       {{ icon }}
     </div>
@@ -7,7 +7,7 @@
 
     <component
       :is="headingTag || 'h2'"
-      class="error-title"
+      class="error-title paper-text origami-text"
     >
       <slot name="title">
         {{ title }}
@@ -67,9 +67,10 @@ defineEmits<{
   padding: var(--space-8, 32px) var(--space-4, 16px);
   margin: var(--space-6, 24px) 0;
   border-radius: var(--radius-md, 8px);
-  background-color: var(--card-bg, #232a31);
-  color: var(--text-color, #9ab);
-  border: 1px solid var(--danger, #ef4444);
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-inline-start: 2px solid var(--danger);
   width: 100%;
   box-sizing: border-box;
 }
@@ -81,7 +82,7 @@ defineEmits<{
 }
 
 .error-title {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-xl, 1.25rem);
   font-weight: 600;
   margin: 0 0 var(--space-2, 8px) 0;
@@ -89,7 +90,7 @@ defineEmits<{
 }
 
 .error-message {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-sm, 0.875rem);
   max-width: 480px;
   line-height: var(--line-height-normal, 1.5);

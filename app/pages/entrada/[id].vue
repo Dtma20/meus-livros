@@ -60,7 +60,7 @@
 
         <div class="book-details">
           <h1 class="work-title">
-            <NuxtLink :to="`/livro/${logData.work.slug}`" class="title-link">
+            <NuxtLink :to="`/livro/${logData.work.slug}`" class="title-link paper-text origami-text">
               {{ logData.work.title }}
             </NuxtLink>
             <span v-if="publishedYear" class="published-year">({{ publishedYear }})</span>
@@ -398,12 +398,12 @@ const pageTitle = computed(() => {
 })
 
 const ogTitle = computed(() => {
-  if (!logData.value) return 'Entrada - Meus Livros'
+  if (!logData.value) return 'Entrada - Livrolas'
   return buildOgTitle(logData.value.work.title, logData.value.user.handle, logData.value.rating)
 })
 
 const ogDescription = computed(() => {
-  if (!logData.value) return 'Registro de leitura no Meus Livros'
+  if (!logData.value) return 'Registro de leitura no Livrolas'
   return buildOgDescription(logData.value.review, logData.value.user.display_name, logData.value.work.title)
 })
 
@@ -637,7 +637,7 @@ function handleRemoveRequest(): boolean {
   gap: var(--space-2);
   margin-bottom: var(--space-6);
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .reader-link {
@@ -676,7 +676,7 @@ function handleRemoveRequest(): boolean {
 }
 
 .reader-name {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-base);
   font-weight: 600;
 }
@@ -717,9 +717,9 @@ function handleRemoveRequest(): boolean {
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  border: 1px solid var(--input-bg);
-  background-color: #1e2328;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border-color);
+  background-color: var(--card-bg);
+  box-shadow: var(--shadow-card);
 }
 
 .book-details {
@@ -732,11 +732,11 @@ function handleRemoveRequest(): boolean {
   margin: 0 0 var(--space-2) 0;
   font-size: var(--font-size-2xl);
   line-height: var(--line-height-tight);
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .title-link {
-  color: #fff;
+  color: var(--text-strong);
   text-decoration: none;
   transition: color 0.2s;
 }
@@ -859,13 +859,13 @@ function handleRemoveRequest(): boolean {
 
 .review-section {
   padding-top: var(--space-6);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
   margin-bottom: var(--space-8);
 }
 
 .review-heading {
   font-size: var(--font-size-xl);
-  color: #fff;
+  color: var(--text-strong);
   margin: 0 0 var(--space-4) 0;
 }
 
@@ -873,6 +873,7 @@ function handleRemoveRequest(): boolean {
   font-size: var(--font-size-base);
   color: var(--text-bright);
   max-width: 640px;
+  text-align: left;
 }
 
 .review-empty {
@@ -893,7 +894,7 @@ function handleRemoveRequest(): boolean {
   flex-wrap: wrap;
   gap: var(--space-3);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .footer-link {
@@ -919,6 +920,14 @@ function handleRemoveRequest(): boolean {
 }
 
 @media (min-width: 1024px) {
+  .review-body :deep(.review-text) {
+    text-align: justify;
+    text-align-last: left;
+    hyphens: auto;
+    word-break: normal;
+    overflow-wrap: anywhere;
+  }
+
   .entry-article {
     max-width: none;
   }

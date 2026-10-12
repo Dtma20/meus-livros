@@ -67,6 +67,25 @@ The one-off `livros.json` import is not a script entry: `npx tsx scripts/migrate
 
 ## 3. Production
 
+### Configuração atual do Livrolas (2026-10-11)
+
+O nome do produto/projeto Vercel é `livrolas`; o repositório GitHub continua `Dtma20/meus-livros`. `vercel.json` fixa o framework Nuxt, instalação reproduzível com pnpm 11.10.0 e build via `npm run build`; `package.json` fixa Node 24.x. O preset Nitro continua `vercel`, com a função em `gru1`. A escolha da versão do gerenciador segue a [documentação da Vercel](https://vercel.com/docs/package-managers), e Node 24.x é uma [versão disponível na plataforma](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions).
+
+`scripts/deploy-vercel.ps1` requer PowerShell 7.4+, dependências locais instaladas e autenticação prévia da CLI (`npx vercel@63.1.2 login`). Os arquivos locais `.env.production` e `.env.preview` seguem os modelos `.env.production.example` e `.env.preview.example`. Não copie o `.env` de desenvolvimento: ele aponta para o banco local.
+
+```powershell
+# Valida os arquivos sem acessar a Vercel nem modificar bancos:
+./scripts/deploy-vercel.ps1 -CheckOnly
+# Migra ambas as branches Neon, semeia gêneros, configura env e publica:
+./scripts/deploy-vercel.ps1
+```
+
+O preflight exige endpoints Neon distintos para Production/Preview, pares pooled/direto consistentes e segredos de autenticação distintos. Apenas a conexão pooled e as variáveis de auth/SMTP são enviadas à Vercel, via stdin. A URL direta permanece local. O script interrompe a publicação se encontrar `DATABASE_URL_DIRECT`, `DATABASE_URL_UNPOOLED` ou `NODE_ENV` na configuração remota, se a conexão Git falhar ou se a branch de produção não for `main`. Não rotaciona segredos a cada execução.
+
+Em Preview, auth e o middleware de Origin usam as URLs exatas de `VERCEL_URL` e `VERCEL_BRANCH_URL`. A URL canônica de produção continua sendo `BETTER_AUTH_URL`; não há wildcard de `*.vercel.app`. Aliases adicionais de preview não estão habilitados.
+
+O script verifica HTTPS, conteúdo e CSP na URL canônica após publicar. Isso não substitui verificar a região na função implantada, uma escrita isolada em preview, os dados migrados e os fluxos em Android/iOS/WhatsApp da TASK-023. Ele prepara schema e gêneros; a transferência da biblioteca existente precisa ser executada e conferida antes de convidar leitores. Na sessão de 2026-10-11, a autenticação Vercel e as conexões Neon remotas não estavam disponíveis; nenhum deploy remoto foi confirmado.
+
 ### Vercel
 
 - Framework preset: Nuxt (auto-detected; Nitro emits the `vercel` build output with no configuration).

@@ -709,7 +709,7 @@ function formatBlockDate(dateStr: string): string {
 .reading-blocks-container {
   margin-top: var(--space-6);
   padding-top: var(--space-6);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .section-header {
@@ -755,7 +755,7 @@ function formatBlockDate(dateStr: string): string {
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-3);
   padding: var(--space-2) var(--space-3);
-  border: 1px dashed var(--input-bg);
+  border: 1px dashed var(--border-color);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   color: var(--text-bright);
@@ -851,7 +851,7 @@ function formatBlockDate(dateStr: string): string {
 
 .block-form-card {
   background-color: var(--bg-color);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: var(--space-4);
   margin-bottom: var(--space-6);
@@ -954,16 +954,16 @@ function formatBlockDate(dateStr: string): string {
   box-sizing: border-box;
   padding: var(--space-8) var(--space-4);
   margin: var(--space-4) 0;
-  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border: 1px dashed rgba(var(--paper-rgb), 0.12);
   border-radius: var(--radius-md);
-  background-color: rgba(255, 255, 255, 0.015);
+  background-color: rgba(var(--paper-rgb), 0.015);
   gap: var(--space-3);
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .empty-blocks-note:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background-color: rgba(255, 255, 255, 0.025);
+  border-color: rgba(var(--paper-rgb), 0.2);
+  background-color: rgba(var(--paper-rgb), 0.025);
 }
 
 .empty-blocks-note .empty-blocks-help {
@@ -986,7 +986,7 @@ function formatBlockDate(dateStr: string): string {
   min-height: 36px;
   padding: var(--space-2) var(--space-4);
   background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(var(--paper-rgb), 0.15);
   border-radius: var(--radius-sm);
   color: var(--text-color);
   font-family: inherit;
@@ -1001,7 +1001,7 @@ function formatBlockDate(dateStr: string): string {
 .empty-blocks-action:hover {
   background-color: var(--card-bg);
   color: var(--highlight);
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: rgba(var(--paper-rgb), 0.3);
   transform: translateY(-1px);
 }
 
@@ -1021,7 +1021,7 @@ function formatBlockDate(dateStr: string): string {
 }
 
 .block-card {
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
 }

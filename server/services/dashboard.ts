@@ -1,5 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm'
-import { buildReviewExcerpt } from '../../shared/schemas/feed'
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 import type {
   DashboardAuthorView,
   DashboardCompletedBook,
@@ -33,28 +32,6 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     .orderBy(desc(reading_logs.updated_at), desc(reading_logs.id))
     .limit(50)
 
-  const completedQuery = db
-    .select({
-      id: reading_logs.id,
-      rating: reading_logs.rating,
-      review: reading_logs.review,
-      finished_on: reading_logs.finished_on,
-      finished_precision: reading_logs.finished_precision,
-      created_at: reading_logs.created_at,
-      work: {
-        id: works.id,
-        title: works.title,
-        slug: works.slug,
-        first_published_year: works.first_published_year,
-      },
-    })
-    .from(reading_logs)
-    .innerJoin(works, eq(works.id, reading_logs.work_id))
-    .leftJoin(editions, eq(editions.id, reading_logs.edition_id))
-    .where(and(eq(reading_logs.user_id, userId), isNotNull(reading_logs.finished_on)))
-    .orderBy(desc(reading_logs.finished_on), desc(reading_logs.created_at), desc(reading_logs.id))
-    .limit(50)
-
   const shelfQuery = db
     .select({
       id: works.id,
@@ -86,16 +63,14 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     .orderBy(desc(works.created_at), desc(works.id))
     .limit(50)
 
-  const [inProgressRows, completedRows, shelfRows] = await Promise.all([
+  const [inProgressRows, shelfRows] = await Promise.all([
     inProgressQuery,
-    completedQuery,
     shelfQuery,
   ])
 
   const allWorkIds = [
     ...new Set([
       ...inProgressRows.map((r) => r.work.id),
-      ...completedRows.map((r) => r.work.id),
       ...shelfRows.map((r) => r.id),
     ]),
   ]
@@ -211,27 +186,7 @@ export async function getDashboardData(userId: string): Promise<DashboardRespons
     }
   })
 
-  const completed: DashboardCompletedBook[] = completedRows.map((row) => {
-    const firstCover = firstCoverByWorkId.get(row.work.id)
-    const firstIsbn = firstIsbnByWorkId.get(row.work.id)
-    const firstOl = firstOlByWorkId.get(row.work.id)
-
-    return {
-      id: row.id,
-      work: {
-        ...row.work,
-        cover_url: firstCover?.cover_url ?? null,
-        isbn13: firstIsbn?.isbn13 ?? null,
-        ol_cover_id: firstOl?.ol_cover_id ?? null,
-        authors: authorsByWorkId.get(row.work.id) ?? [],
-      },
-      rating: row.rating !== null ? Number(row.rating) : null,
-      review_excerpt: buildReviewExcerpt(row.review),
-      finished_on: row.finished_on as string,
-      finished_precision: row.finished_precision,
-      created_at: row.created_at,
-    }
-  })
+  const completed: DashboardCompletedBook[] = []
 
   const shelf: DashboardShelfBook[] = shelfRows.map((row) => {
     const firstCover = firstCoverByWorkId.get(row.id)

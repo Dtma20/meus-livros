@@ -14,8 +14,8 @@
       decoding="async"
     >
 
-    <span v-if="showText" class="logo-text">
-      Meus Livros
+    <span v-if="showText" class="logo-text paper-text origami-text">
+      Livrolas
     </span>
   </div>
 </template>
@@ -74,5 +74,26 @@ const logoImage = computed(() => {
   color: var(--text-bright);
   letter-spacing: -0.01em;
   font-size: var(--font-size-xl);
+  background-color: currentColor;
+  background-image: url('/landing/paper-512.webp');
+  background-size: 256px 256px;
+  background-position: center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+@media (forced-colors: active) {
+  .logo-text {
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
+}
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .logo-text {
+    -webkit-text-fill-color: currentColor;
+    background: none;
+  }
 }
 </style>

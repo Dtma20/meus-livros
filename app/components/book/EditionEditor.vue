@@ -330,7 +330,7 @@ async function handleDelete(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: var(--space-4);
   min-width: 0;
@@ -356,7 +356,7 @@ async function handleDelete(): Promise<void> {
 .edition-title {
   font-family: var(--font-serif);
   font-size: var(--font-size-lg);
-  color: #fff;
+  color: var(--text-strong);
   margin: 0;
   min-width: 0;
   overflow-wrap: anywhere;

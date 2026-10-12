@@ -1,7 +1,7 @@
 <template>
   <div class="members-page">
     <header class="members-header">
-      <h1 class="page-title">Membros</h1>
+      <h1 class="page-title paper-section-title paper-text origami-text">Membros</h1>
     </header>
 
     <div v-if="pending" class="members-loading">
@@ -148,13 +148,13 @@ function isViewer(handle: string): boolean {
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-5) 0;
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
   text-decoration: none;
   color: inherit;
 }
 
 .member-card:first-child {
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .member-card:hover .member-name {

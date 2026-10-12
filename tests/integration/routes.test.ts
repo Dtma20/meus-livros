@@ -94,7 +94,7 @@ describe('Route integration HTTP tests', () => {
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('Terminou o livro? Conte pro grupo.')
-    expect(html).toContain('Meus Livros')
+    expect(html).toContain('Livrolas')
   })
 
   it('GET /api/works/:id/editions returns 200 and JSON editions array (not shadowed by the work GET route)', async () => {
@@ -183,25 +183,33 @@ describe('Route integration HTTP tests', () => {
   it('GET /app/novo unauthenticated returns a redirect to /entrar?next=/app/novo with status 302', async () => {
     const res = await fetch(`${baseUrl}/app/novo`, { redirect: 'manual' })
     expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('/entrar?next=/app/novo')
+    const redirect = new URL(res.headers.get('location')!, baseUrl)
+    expect(redirect.pathname).toBe('/entrar')
+    expect(redirect.searchParams.get('next')).toBe('/app/novo')
   })
 
   it('GET /app/bem-vindo unauthenticated returns a redirect to /entrar?next=/app/bem-vindo', async () => {
     const res = await fetch(`${baseUrl}/app/bem-vindo`, { redirect: 'manual' })
     expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('/entrar?next=/app/bem-vindo')
+    const redirect = new URL(res.headers.get('location')!, baseUrl)
+    expect(redirect.pathname).toBe('/entrar')
+    expect(redirect.searchParams.get('next')).toBe('/app/bem-vindo')
   })
 
   it('GET /app/perfil unauthenticated returns a redirect to /entrar?next=/app/perfil', async () => {
     const res = await fetch(`${baseUrl}/app/perfil`, { redirect: 'manual' })
     expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('/entrar?next=/app/perfil')
+    const redirect = new URL(res.headers.get('location')!, baseUrl)
+    expect(redirect.pathname).toBe('/entrar')
+    expect(redirect.searchParams.get('next')).toBe('/app/perfil')
   })
 
   it('GET /app/entrada/x/editar unauthenticated returns a redirect to /entrar?next=/app/entrada/x/editar', async () => {
     const res = await fetch(`${baseUrl}/app/entrada/x/editar`, { redirect: 'manual' })
     expect(res.status).toBe(302)
-    expect(res.headers.get('location')).toBe('/entrar?next=/app/entrada/x/editar')
+    const redirect = new URL(res.headers.get('location')!, baseUrl)
+    expect(redirect.pathname).toBe('/entrar')
+    expect(redirect.searchParams.get('next')).toBe('/app/entrada/x/editar')
   })
 
   it('GET /rota-inexistente renders error.vue with pt-BR copy and status 404', async () => {

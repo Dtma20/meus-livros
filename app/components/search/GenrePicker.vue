@@ -169,7 +169,7 @@ const groups = computed<GenreGroup[]>(() => [
   gap: var(--space-1);
   background-color: var(--input-bg);
   color: var(--text-color);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(var(--paper-rgb), 0.1);
   border-radius: var(--radius-sm);
   padding: 6px var(--space-3);
   font-family: var(--font-sans);
@@ -182,8 +182,8 @@ const groups = computed<GenreGroup[]>(() => [
 }
 
 .genre-pill:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
+  border-color: rgba(var(--paper-rgb), 0.3);
+  color: var(--text-strong);
 }
 
 .genre-pill:focus-visible {

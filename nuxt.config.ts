@@ -6,7 +6,7 @@ export default defineNuxtConfig({
       htmlAttrs: {
         lang: 'pt-BR'
       },
-      title: 'Meus Livros',
+      title: 'Livrolas',
       meta: [
         { name: 'theme-color', content: '#14181c' },
       ],
@@ -20,7 +20,7 @@ export default defineNuxtConfig({
     }
   },
   modules: ['@nuxt/eslint'],
-  css: ['~/assets/css/fonts.css', '~/assets/css/tokens.css', '~/assets/css/forms.css'],
+  css: ['~/assets/css/fonts.css', '~/assets/css/tokens.css', '~/assets/css/forms.css', '~/assets/css/paper.css'],
   routeRules: {
     '/**': {
       headers: {

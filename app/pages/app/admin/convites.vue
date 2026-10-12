@@ -22,7 +22,7 @@
 
     <div v-else class="convites-container">
       <header class="convites-header">
-        <h1 class="convites-title">
+        <h1 class="convites-title paper-text origami-text">
           Convites
         </h1>
         <p class="helper-text">
@@ -30,8 +30,8 @@
         </p>
       </header>
 
-      <section class="invite-form-card" aria-labelledby="form-heading">
-        <h2 id="form-heading" class="section-title">
+      <section class="invite-form-card paper-panel" aria-labelledby="form-heading">
+        <h2 id="form-heading" class="section-title paper-section-title">
           Novo convite
         </h2>
 
@@ -88,7 +88,7 @@
       </section>
 
       <section class="invites-list-section" aria-labelledby="list-heading">
-        <h2 id="list-heading" class="section-title">
+        <h2 id="list-heading" class="section-title paper-section-title">
           Convites cadastrados ({{ invites.length }})
         </h2>
 
@@ -106,7 +106,7 @@
           <div
             v-for="item in invites"
             :key="item.email"
-            class="invite-item-card"
+            class="invite-item-card paper-panel"
           >
             <div class="invite-item-main">
               <div class="invite-item-top">
@@ -411,7 +411,7 @@ async function handleRemoveInvite(invite: InviteView) {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-card);
 }
 
 .invite-item-main {

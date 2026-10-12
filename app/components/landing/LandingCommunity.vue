@@ -1,6 +1,6 @@
 <template>
   <div class="landing-entry">
-    <h2 id="entry-heading" class="entry-heading paper-text">
+    <h2 id="entry-heading" class="entry-heading paper-text origami-text">
       Um livro, uma página.
     </h2>
     <p class="entry-intro">
@@ -8,7 +8,7 @@
     </p>
 
     <div class="entry-layout">
-      <article class="entry" aria-labelledby="entry-book-title">
+      <article class="entry paper-panel" aria-labelledby="entry-book-title">
         <header class="entry-header">
           <h3 id="entry-book-title" class="entry-book-title">
             Dom Casmurro
@@ -91,14 +91,14 @@
   min-width: 0;
   padding: var(--space-4);
   background-color: var(--card-bg);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
 }
 
 .entry-header {
   margin-bottom: var(--space-5);
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .entry-book-title {
@@ -153,7 +153,7 @@
 
 .entry-notes li {
   padding: var(--space-3) 0;
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .entry-notes strong {

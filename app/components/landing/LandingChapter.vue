@@ -25,17 +25,12 @@ defineProps<{
   margin-block: var(--space-10);
 }
 
+.chapter[data-scene='1'] .chapter-inner {
+  margin-top: 0;
+}
+
 .chapter-copy {
   min-width: 0;
-}
-
-.chapter-media {
-  order: -1;
-}
-
-/* The hero keeps its headline and CTA above the fold. */
-.chapter[data-scene='1'] .chapter-media {
-  order: 0;
 }
 
 @media (min-width: 900px) {
@@ -47,8 +42,8 @@ defineProps<{
     padding-block: var(--space-12);
   }
 
-  .chapter-media {
-    order: 0;
+  .chapter[data-scene='1'] .chapter-inner {
+    padding-top: var(--space-4);
   }
 }
 </style>

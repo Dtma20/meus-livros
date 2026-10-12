@@ -1,12 +1,12 @@
 <template>
   <div class="landing-hero">
     <div class="hero-text">
-      <h1 id="hero-title" class="hero-title paper-text">
+      <h1 id="hero-title" class="hero-title paper-text origami-text">
         Terminou o livro? Conte pro grupo.
       </h1>
 
       <p class="hero-lede">
-        Meus Livros é o diário de leitura do clube Nerdolas. Cada livro terminado vira um registro com data, nota de meia em meia estrela e, se você quiser, uma resenha. Os registros públicos têm link próprio, feito para colar no WhatsApp.
+        Livrolas é o diário de leitura do clube Nerdolas. Cada livro terminado vira um registro com data, nota de meia em meia estrela e, se você quiser, uma resenha. Os registros públicos têm link próprio, feito para colar no WhatsApp.
       </p>
 
       <div class="hero-actions">
@@ -26,10 +26,7 @@
 
 <style scoped>
 .landing-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-10);
-  padding: var(--space-4) 0 var(--space-6);
+  width: 100%;
 }
 
 .hero-text {
@@ -120,12 +117,6 @@
   color: var(--highlight);
 }
 
-@media (min-width: 900px) {
-  .landing-hero {
-    gap: var(--space-12);
-    padding: var(--space-8) 0 var(--space-12);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .hero-cta:active {

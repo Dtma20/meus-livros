@@ -7,7 +7,7 @@
         </NuxtLink>
       </div>
 
-      <h1 ref="shelfHeadingRef" class="page-title" tabindex="-1">Registrar leitura</h1>
+      <h1 ref="shelfHeadingRef" class="page-title paper-section-title paper-text origami-text" tabindex="-1">Registrar leitura</h1>
       <p class="visually-hidden" role="status" aria-live="polite">{{ selectionAnnouncement }}</p>
       <p class="page-desc">
         Acompanhe seu progresso ou registre a conclusão da leitura deste livro.
@@ -31,7 +31,7 @@
     </div>
 
     <div v-else class="log-page-card" :class="{ 'wide-card': activeTab === 'novo' }">
-      <h1 class="page-title">{{ pageTitle }}</h1>
+      <h1 class="page-title paper-section-title paper-text origami-text">{{ pageTitle }}</h1>
       <p class="page-desc">
         {{ pageDesc }}
       </p>

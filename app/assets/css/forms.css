@@ -20,7 +20,7 @@
 .form-select,
 .form-textarea {
   background-color: var(--input-bg);
-  border: 1px solid transparent;
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-sm);
   padding: var(--space-3);
   color: var(--text-strong);
@@ -36,7 +36,7 @@
 .form-input:hover:not(:focus),
 .form-select:hover:not(:focus),
 .form-textarea:hover:not(:focus) {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: var(--paper-fold);
 }
 
 .form-textarea {
@@ -85,8 +85,8 @@ textarea:focus-visible {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background-color: var(--surface-raised);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-size-sm);
@@ -116,47 +116,45 @@ textarea:focus-visible {
 
 .btn:hover:not(:disabled):not([aria-disabled="true"]),
 .submit-btn:hover:not(:disabled) {
-  background-color: #353f4d;
-  border-color: rgba(255, 255, 255, 0.3);
+  background-color: var(--surface-hover);
+  border-color: rgba(var(--paper-rgb), 0.3);
   color: var(--text-strong);
   transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--shadow-card);
   opacity: 0.95;
 }
 
 .btn:active:not(:disabled):not([aria-disabled="true"]),
 .submit-btn:active:not(:disabled) {
-  transform: translateY(0) scale(0.98);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transform: translateY(0);
+  box-shadow: var(--shadow-card);
   transition-duration: 0.08s;
 }
 
 .btn-primary,
 .submit-btn,
 .empty-btn,
-.empty-btn-primary,
-.error-btn,
-.btn-edit-profile {
-  background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: var(--text-bright);
+.empty-btn-primary {
+  background-color: var(--highlight);
+  border: 1px solid var(--highlight);
+  color: var(--on-highlight);
+  box-shadow: var(--shadow-card);
 }
 
 .btn-primary:hover:not(:disabled),
 .submit-btn:hover:not(:disabled),
 .empty-btn:hover:not(:disabled),
-.empty-btn-primary:hover:not(:disabled),
-.error-btn:hover:not(:disabled),
-.btn-edit-profile:hover:not(:disabled) {
-  background-color: #353f4d;
-  border-color: rgba(255, 255, 255, 0.3);
-  color: var(--text-strong);
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+.empty-btn-primary:hover:not(:disabled) {
+  background-color: var(--highlight-hover);
+  border-color: var(--highlight-hover);
+  color: var(--on-highlight);
+  box-shadow: var(--shadow-card);
+  opacity: 1;
 }
 
 .btn-secondary {
   background-color: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(var(--paper-rgb), 0.15);
   color: var(--text-color);
 }
 
@@ -178,24 +176,24 @@ textarea:focus-visible {
 .delete-work-btn:hover:not(:disabled) {
   background-color: var(--danger-solid);
   border-color: var(--danger-solid);
-  color: var(--text-strong);
+  color: var(--on-danger);
   opacity: 1;
-  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.35);
+  box-shadow: var(--shadow-card);
 }
 
 .btn-ghost,
 .btn-outline,
 .export-link {
-  background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background-color: var(--surface-raised);
+  border: 1px solid rgba(var(--paper-rgb), 0.15);
   color: var(--text-bright);
 }
 
 .btn-ghost:hover:not(:disabled),
 .btn-outline:hover:not(:disabled),
 .export-link:hover:not(:disabled) {
-  background-color: #353f4d;
-  border-color: rgba(255, 255, 255, 0.3);
+  background-color: var(--surface-hover);
+  border-color: rgba(var(--paper-rgb), 0.3);
   color: var(--text-strong);
 }
 
@@ -242,7 +240,7 @@ textarea:focus-visible {
   gap: var(--space-5);
   flex-wrap: wrap;
   margin-bottom: var(--space-6);
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
   box-sizing: border-box;
 }
 
@@ -336,9 +334,10 @@ textarea:focus-visible {
   }
 }
 
-/* Landing headings: folded-paper texture painted into the glyphs. The element keeps its
+/* Display headings: folded-paper origami texture painted into the glyphs. The element keeps its
    own color (read by assistive tech and fallbacks); only the fill is made transparent. */
-.paper-text {
+.paper-text,
+.origami-text {
   background-color: currentColor;
   background-image: url('/landing/paper-512.webp');
   background-size: 256px 256px;
@@ -349,14 +348,16 @@ textarea:focus-visible {
 }
 
 @media (forced-colors: active) {
-  .paper-text {
+  .paper-text,
+  .origami-text {
     -webkit-text-fill-color: currentColor;
     background: none;
   }
 }
 
 @supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-  .paper-text {
+  .paper-text,
+  .origami-text {
     -webkit-text-fill-color: currentColor;
     background: none;
   }

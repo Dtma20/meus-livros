@@ -1333,7 +1333,8 @@ function handleDelete(): void {
 .selected-book-banner {
   display: flex;
   gap: var(--space-4);
-  background-color: var(--input-bg);
+  background-color: var(--surface-raised);
+  border-inline-start: 2px solid var(--highlight);
   padding: var(--space-4);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-6);
@@ -1345,7 +1346,7 @@ function handleDelete(): void {
   flex-shrink: 0;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 .selected-book-meta {
@@ -1357,7 +1358,7 @@ function handleDelete(): void {
 .book-title {
   font-size: var(--font-size-lg);
   font-weight: 600;
-  color: #fff;
+  color: var(--text-strong);
   margin: 0;
   line-height: var(--line-height-tight);
 }
@@ -1548,13 +1549,13 @@ function handleDelete(): void {
 }
 
 .format-btn:hover {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(var(--paper-rgb), 0.2);
 }
 
 .format-btn.is-selected {
   background-color: var(--highlight-soft);
   border-color: var(--highlight);
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .format-btn:focus-visible {
@@ -1564,7 +1565,7 @@ function handleDelete(): void {
 
 .edition-picker-panel {
   background-color: rgba(0, 0, 0, 0.2);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: var(--space-3);
   margin-top: var(--space-2);
@@ -1599,7 +1600,7 @@ function handleDelete(): void {
   gap: var(--space-3);
   margin-top: var(--space-3);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .field-error {
@@ -1678,7 +1679,7 @@ function handleDelete(): void {
 .radio-title {
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .radio-desc {
@@ -1741,7 +1742,7 @@ function handleDelete(): void {
 .leave-dialog {
   background-color: var(--bg-color);
   color: var(--text-color);
-  border: 1px solid var(--input-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   padding: var(--space-6);
   width: min(420px, calc(100vw - 2 * var(--space-4)));
@@ -1777,7 +1778,7 @@ function handleDelete(): void {
   justify-content: flex-start;
   margin-top: var(--space-4);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .spinner {
@@ -1809,8 +1810,8 @@ function handleDelete(): void {
 .reading-status-group {
   margin-bottom: var(--space-4);
   padding: var(--space-3);
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--input-bg);
+  background-color: rgba(var(--paper-rgb), 0.03);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
 }
 
@@ -1836,7 +1837,7 @@ function handleDelete(): void {
 }
 
 .status-checkbox-title {
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }

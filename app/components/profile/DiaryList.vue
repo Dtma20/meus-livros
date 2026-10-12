@@ -129,10 +129,10 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 .diary-group-title {
   font-size: var(--font-size-2xl, 1.5rem);
   font-weight: 700;
-  color: #fff;
+  color: var(--text-strong);
   margin: 0 0 var(--space-4, 16px) 0;
   padding-bottom: var(--space-2, 8px);
-  border-bottom: 2px solid var(--input-bg, #2c3440);
+  border-bottom: 2px solid var(--border-color);
   line-height: var(--line-height-tight, 1.2);
 }
 
@@ -143,7 +143,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 .diary-month-title {
   font-size: var(--font-size-lg, 1.125rem);
   font-weight: 600;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   margin: var(--space-4, 16px) 0 var(--space-2, 8px) 0;
   line-height: var(--line-height-tight, 1.2);
 }
@@ -163,14 +163,14 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 
 .diary-table thead th {
   padding: var(--space-2, 8px) var(--space-3, 12px);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-weight: 600;
   font-size: var(--font-size-sm, 0.875rem);
-  border-bottom: 1px solid var(--input-bg, #2c3440);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .diary-row {
-  border-bottom: 1px solid var(--input-bg, #2c3440);
+  border-bottom: 1px solid var(--border-color);
   opacity: 1;
   transform: none;
   transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
@@ -200,7 +200,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 .diary-row.is-revealed:nth-child(8) { transition-delay: 0.23s; }
 
 .diary-row:hover {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(var(--paper-rgb), 0.03);
 }
 
 .diary-row td {
@@ -212,7 +212,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
   width: 44px;
   text-align: center;
   font-weight: 600;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   white-space: nowrap;
 }
 
@@ -233,15 +233,15 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
   flex-shrink: 0;
   border-radius: var(--radius-sm, 6px);
   overflow: hidden;
-  background-color: var(--input-bg, #2c3440);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: var(--input-bg);
+  box-shadow: var(--shadow-card);
+  border: 1px solid rgba(var(--paper-rgb), 0.05);
   transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
 }
 
 .diary-row:hover .diary-cover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-card);
 }
 
 .diary-cover :deep(img),
@@ -257,7 +257,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 }
 
 .diary-title-link {
-  color: #fff;
+  color: var(--text-strong);
   text-decoration: none;
   font-weight: 600;
   line-height: var(--line-height-snug, 1.35);
@@ -266,18 +266,18 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 }
 
 .diary-title-link:hover {
-  color: var(--highlight, #f59e0b);
+  color: var(--highlight);
 }
 
 .diary-title-link:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset, 2px);
   border-radius: var(--radius-sm, 6px);
 }
 
 .col-author {
   min-width: 140px;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
 }
 
 .col-rating {
@@ -292,7 +292,7 @@ function showMonthTitle(group: DiaryGroup, bucket: DiaryMonthBucket): boolean {
 
 .diary-format-label {
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
 }
 
 .sr-only {

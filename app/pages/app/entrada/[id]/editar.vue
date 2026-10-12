@@ -1,7 +1,7 @@
 <template>
   <div class="log-page-container">
     <div class="log-page-card">
-      <h1 class="page-title">{{ concluding ? 'Concluir leitura' : 'Editar registro' }}</h1>
+      <h1 class="page-title paper-section-title paper-text origami-text">{{ concluding ? 'Concluir leitura' : 'Editar registro' }}</h1>
       <p class="page-desc">
         {{ concluding ? 'Dê a nota, escreva a resenha se quiser e salve para concluir.' : 'Atualize sua leitura ou corrija as informações do livro.' }}
       </p>
@@ -354,7 +354,7 @@ useSeoMeta({
 .section-title {
   font-family: var(--font-serif);
   font-size: var(--font-size-xl);
-  color: #fff;
+  color: var(--text-strong);
   margin: 0;
 }
 

@@ -50,11 +50,11 @@ Na 1ª versão, a página passa de folha curva a retângulo rígido entre f057 e
 ```
 Image-to-video, the attached image is the first frame; keep its exact framing, scale and position.
 Locked-off camera: the camera does not move, pan, tilt, zoom or cut.
-The origami reader lying on the stomach lowers one closed hand from the chin straight down onto the open amber book without changing the hand's shape, then turns one page over in one slow, continuous motion: the paper curls, bends and stays a single thin sheet the whole time. After a short pause it turns a second page the same way. The amber ribbon bookmark moves forward with the pages. The raised lower legs keep their exact shapes; only their tips sway a few degrees, once.
+The origami reader lying on the stomach lowers one closed hand from the chin straight down onto the open amber book without changing the hand's shape, then turns one page over in one slow, continuous motion: the paper curls, bends and stays a single thin sheet the whole time. After a short pause it turns a second page the same way. The raised lower legs keep their exact shapes; only their tips sway a few degrees, once.
 Motion is slow and gentle; everything not mentioned stays perfectly still.
-End with the book open at a later spread, the ribbon lying across it, the hand resting on the page, and hold completely still for the final second.
+End with the book open at a later spread, the hand resting gently near the page, and hold completely still for the final second.
 The background is one uniform #14181c colour across the whole frame, with no gradient, no floor and no vignette. Keep the exact paper material, creases, lighting and colours of the first frame.
-No text, no letters, no new objects, no people entering.
+No text, no letters, no ribbons, no bookmarks, no new objects, no people entering.
 16:9, no audio, no music.
 ```
 

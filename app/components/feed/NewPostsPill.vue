@@ -77,9 +77,7 @@ const ariaLabelText = computed(() => {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(245, 158, 11, 0.4);
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.35),
-    0 0 10px rgba(245, 158, 11, 0.15);
+  box-shadow: var(--shadow-lift);
   color: var(--text-bright);
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
@@ -101,18 +99,14 @@ const ariaLabelText = computed(() => {
 .new-posts-pill:hover {
   background-color: rgba(44, 52, 64, 0.95);
   border-color: var(--highlight);
-  color: #fff;
+  color: var(--text-strong);
   transform: translateY(-2px);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.45),
-    0 0 16px var(--highlight-glow);
+  box-shadow: var(--shadow-lift);
 }
 
 .new-posts-pill:active {
   transform: translateY(1px) scale(0.98);
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    0 0 8px var(--highlight-soft);
+  box-shadow: var(--shadow-lift);
   transition-duration: 0.08s;
 }
 

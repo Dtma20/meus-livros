@@ -19,9 +19,11 @@ import {
   checkSignInIpLimit,
 } from './rate-limit'
 import { assertWriteBudget } from '../utils/session'
+import { getAppOrigins } from '../utils/app-origin'
 
 const betterAuthSecret = process.env.BETTER_AUTH_SECRET
-const betterAuthUrl = process.env.BETTER_AUTH_URL || 'http://localhost:3000'
+const appOrigins = getAppOrigins()
+const betterAuthUrl = appOrigins[0] || 'http://localhost:3000'
 
 if (!betterAuthSecret) {
   throw new Error('A variável de ambiente BETTER_AUTH_SECRET não foi informada.')
@@ -151,7 +153,7 @@ export const auth = betterAuth({
       allowedAttempts: 5,
       sendVerificationOTP: async ({ email, otp, type }) => {
         const subject =
-          type === 'sign-in' ? 'Seu código de acesso - Meus Livros' : 'Seu código - Meus Livros'
+          type === 'sign-in' ? 'Seu código de acesso - Livrolas' : 'Seu código - Livrolas'
         const emailRedacted = redactEmail(email)
 
         const startTime = performance.now()
@@ -176,7 +178,7 @@ export const auth = betterAuth({
                 ``,
                 `Se você não solicitou este código, ignore este e-mail.`,
                 ``,
-                `- Meus Livros`,
+                `- Livrolas`,
               ].join('\n'),
             })
           },
@@ -213,7 +215,7 @@ export const auth = betterAuth({
     }),
   ],
 
-  trustedOrigins: [betterAuthUrl],
+  trustedOrigins: appOrigins.length ? appOrigins : [betterAuthUrl],
 })
 
 export type Auth = typeof auth

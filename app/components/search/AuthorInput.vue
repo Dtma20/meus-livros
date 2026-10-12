@@ -311,10 +311,10 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: var(--space-2);
   background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(var(--paper-rgb), 0.25);
   border-radius: var(--radius-sm);
   padding: 4px var(--space-3);
-  color: #fff;
+  color: var(--text-strong);
   font-size: var(--font-size-sm);
 }
 
@@ -336,8 +336,8 @@ onBeforeUnmount(() => {
 }
 
 .author-tag-remove:hover {
-  color: #fff;
-  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-strong);
+  background-color: rgba(var(--paper-rgb), 0.2);
 }
 
 .author-tag-remove:focus-visible {
@@ -352,9 +352,9 @@ onBeforeUnmount(() => {
 
 .form-input {
   background-color: var(--input-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(var(--paper-rgb), 0.15);
   border-radius: var(--radius-sm);
-  color: #fff;
+  color: var(--text-strong);
   padding: var(--space-3);
   font-size: var(--font-size-base);
   font-family: inherit;
@@ -407,9 +407,9 @@ onBeforeUnmount(() => {
   padding: 0;
   list-style: none;
   background-color: var(--card-bg);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(var(--paper-rgb), 0.15);
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-card);
   max-height: 200px;
   overflow-y: auto;
 }
@@ -425,7 +425,7 @@ onBeforeUnmount(() => {
 .author-suggestion-item:hover,
 .author-suggestion-item.is-active {
   background-color: var(--input-bg);
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .btn-add-author {

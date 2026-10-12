@@ -1,7 +1,7 @@
 <template>
   <details class="reading-map-card" :open="isOpen" @toggle="onToggle">
     <summary class="map-summary-row">
-      <h2 class="map-title">Mapa de leituras</h2>
+      <h2 class="map-title paper-text origami-text">Mapa de leituras</h2>
       <span class="map-count"><span aria-hidden="true">&middot;&nbsp;</span>{{ countrySummary }}</span>
       <span v-if="selectedCountry" class="map-filtering">&middot; filtrando: {{ selectedCountry }}</span>
     </summary>
@@ -251,8 +251,8 @@ function clearSelection() {
 
 <style scoped>
 .reading-map-card {
-  background-color: var(--card-bg, #232a31);
-  border: 1px solid var(--input-bg, #2c3440);
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-md, 8px);
   padding: var(--space-4, 16px);
   margin-bottom: var(--space-6, 24px);
@@ -275,7 +275,7 @@ function clearSelection() {
 }
 
 .map-summary-row:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
@@ -292,8 +292,8 @@ function clearSelection() {
   margin-left: auto;
   width: 0.5em;
   height: 0.5em;
-  border-right: 2px solid var(--text-color, #9ab);
-  border-bottom: 2px solid var(--text-color, #9ab);
+  border-right: 2px solid var(--text-color);
+  border-bottom: 2px solid var(--text-color);
   transform: rotate(45deg);
 }
 
@@ -302,13 +302,13 @@ function clearSelection() {
 }
 
 .map-count {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-sm, 0.875rem);
   white-space: nowrap;
 }
 
 .map-filtering {
-  color: var(--text-bright, #fff);
+  color: var(--text-bright);
   font-size: var(--font-size-sm, 0.875rem);
   font-weight: 600;
 }
@@ -346,7 +346,7 @@ function clearSelection() {
 .map-title {
   font-size: var(--font-size-base, 1rem);
   font-weight: 600;
-  color: var(--text-bright, #fff);
+  color: var(--text-bright);
   margin: 0;
   line-height: var(--line-height-tight, 1.2);
 }
@@ -354,7 +354,7 @@ function clearSelection() {
 .map-hint {
   margin: 0 0 var(--space-1, 4px);
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
 }
 
 .map-status {
@@ -366,18 +366,18 @@ function clearSelection() {
 }
 
 .country-name {
-  color: #fff;
+  color: var(--text-strong);
   font-weight: 600;
 }
 
 .country-count {
-  color: var(--highlight, #f59e0b);
+  color: var(--highlight);
 }
 
 .clear-filter-btn {
   background: none;
-  border: 1px solid var(--text-color, #9ab);
-  color: var(--text-color, #9ab);
+  border: 1px solid var(--text-color);
+  color: var(--text-color);
   padding: 2px var(--space-2, 8px);
   min-height: 28px;
   border-radius: var(--radius-sm, 6px);
@@ -388,12 +388,12 @@ function clearSelection() {
 }
 
 .clear-filter-btn:hover {
-  border-color: #fff;
-  color: #fff;
+  border-color: var(--text-strong);
+  color: var(--text-strong);
 }
 
 .clear-filter-btn:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
@@ -406,23 +406,23 @@ function clearSelection() {
 }
 
 .tier-0 path {
-  fill: var(--input-bg, #2c3440);
+  fill: var(--input-bg);
 }
 
 .tier-1 path {
-  fill: color-mix(in srgb, var(--star-color, #f59e0b) 40%, var(--card-bg, #232a31));
+  fill: color-mix(in srgb, var(--star-color) 40%, var(--card-bg));
 }
 
 .tier-2 path {
-  fill: color-mix(in srgb, var(--star-color, #f59e0b) 75%, var(--card-bg, #232a31));
+  fill: color-mix(in srgb, var(--star-color) 75%, var(--card-bg));
 }
 
 .tier-3 path {
-  fill: var(--star-color, #f59e0b);
+  fill: var(--star-color);
 }
 
 .tier-4 path {
-  fill: var(--highlight, #fbbf24);
+  fill: var(--highlight);
 }
 
 .has-books {
@@ -430,13 +430,13 @@ function clearSelection() {
 }
 
 .has-books:hover path {
-  stroke: var(--poster-border, #fff);
+  stroke: var(--poster-border);
   stroke-width: 1.2px;
 }
 
 .is-selected path {
-  fill: var(--highlight, #f59e0b);
-  stroke: var(--poster-border, #fff);
+  fill: var(--highlight);
+  stroke: var(--poster-border);
   stroke-width: 1.8px;
 }
 
@@ -447,7 +447,7 @@ function clearSelection() {
 .unmapped-note {
   margin: var(--space-2, 8px) 0 0 0;
   font-size: var(--font-size-xs, 0.75rem);
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   line-height: var(--line-height-normal, 1.5);
 }
 

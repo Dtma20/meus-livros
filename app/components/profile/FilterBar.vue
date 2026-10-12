@@ -161,13 +161,13 @@ function decadeLabel(decade: number): string {
 }
 
 .field-label {
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-xs, 0.75rem);
   line-height: var(--line-height-tight, 1.2);
 }
 
 .filter-select {
-  background-color: var(--input-bg, #2c3440);
+  background-color: var(--input-bg);
   color: var(--text-bright);
   border: 1px solid transparent;
   padding: 8px 12px;
@@ -179,7 +179,7 @@ function decadeLabel(decade: number): string {
 
 .filter-select:focus {
   outline: none;
-  border-color: var(--highlight, #f59e0b);
+  border-color: var(--highlight);
 }
 
 .filter-status {
@@ -192,7 +192,7 @@ function decadeLabel(decade: number): string {
 
 .filter-summary {
   margin: 0;
-  color: var(--text-color, #9ab);
+  color: var(--text-color);
   font-size: var(--font-size-sm, 0.875rem);
   font-variant-numeric: tabular-nums;
 }
@@ -206,18 +206,18 @@ function decadeLabel(decade: number): string {
   font-size: var(--font-size-sm, 0.875rem);
   font-family: inherit;
   text-decoration: underline;
-  text-decoration-color: var(--highlight, #f59e0b);
+  text-decoration-color: var(--highlight);
   text-decoration-thickness: 2px;
   text-underline-offset: 0.3em;
   transition: color 0.2s;
 }
 
 .reset-btn:hover {
-  color: var(--highlight, #f59e0b);
+  color: var(--highlight);
 }
 
 .reset-btn:focus-visible {
-  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+  outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
   outline-offset: var(--focus-ring-offset, 2px);
 }
 
@@ -236,7 +236,7 @@ function decadeLabel(decade: number): string {
     min-height: var(--target-min-size, 44px);
     padding: 0 var(--space-3, 12px);
     box-sizing: border-box;
-    background-color: var(--input-bg, #2c3440);
+    background-color: var(--input-bg);
     color: var(--text-bright);
     border: 1px solid transparent;
     border-radius: var(--radius-sm, 6px);
@@ -250,15 +250,15 @@ function decadeLabel(decade: number): string {
     margin-left: auto;
     width: 0.5em;
     height: 0.5em;
-    border-right: 2px solid var(--text-color, #9ab);
-    border-bottom: 2px solid var(--text-color, #9ab);
+    border-right: 2px solid var(--text-color);
+    border-bottom: 2px solid var(--text-color);
     transform: rotate(45deg);
   }
   .filters-toggle[aria-expanded='true']::after {
     transform: rotate(-135deg);
   }
   .filters-toggle:focus-visible {
-    outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color, #f59e0b);
+    outline: var(--focus-ring-width, 2px) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset, 2px);
   }
   .filter-row:not(.is-open) {

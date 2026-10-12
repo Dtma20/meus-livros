@@ -1,7 +1,7 @@
 <template>
   <div class="activity-page">
     <header class="page-header">
-      <h1 class="page-title">O que o grupo anda lendo</h1>
+      <h1 class="page-title paper-section-title">O que o grupo anda lendo</h1>
     </header>
 
     <div
@@ -69,7 +69,7 @@
       </div>
 
       <aside v-if="readingNow.length > 0" class="reading-now" aria-labelledby="reading-now-title">
-        <h2 id="reading-now-title" class="reading-now-title">Lendo agora no grupo</h2>
+        <h2 id="reading-now-title" class="reading-now-title paper-text origami-text">Lendo agora no grupo</h2>
         <ul class="reading-now-list">
           <li v-for="entry in readingNow" :key="entryLogId(entry)" class="reading-now-item">
             <NuxtLink :to="`/entrada/${entryLogId(entry)}`" class="reading-now-work">{{ entry.work.title }}</NuxtLink>
@@ -228,7 +228,7 @@ function loadNewPosts() {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .reading-now-item {
@@ -236,7 +236,7 @@ function loadNewPosts() {
   flex-direction: column;
   gap: 2px;
   padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .reading-now-work {
@@ -371,7 +371,7 @@ function loadNewPosts() {
 .feed-list {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .load-more-section {

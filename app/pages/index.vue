@@ -19,7 +19,7 @@
         />
 
         <section v-if="!hasDashboardError && inProgressBooks.length > 0" class="dashboard-section in-progress-section">
-          <h2 class="section-title">Lendo agora</h2>
+          <h2 class="section-title paper-section-title paper-text origami-text">Lendo agora</h2>
 
           <div class="in-progress-grid">
             <article
@@ -103,14 +103,9 @@
 
         <ShelfSection v-if="!hasDashboardError && shelfBooks.length > 0" :books="shelfBooks" />
 
-        <ReadingCarousel
-          v-if="!hasDashboardError && completedBooks.length > 0"
-          :books="completedBooks"
-        />
-
         <section class="dashboard-section feed-section">
           <div class="section-header">
-            <h2 class="section-title">O que o grupo anda lendo</h2>
+            <h2 class="section-title paper-section-title paper-text origami-text">O que o grupo anda lendo</h2>
             <NuxtLink to="/atividade" class="section-link">
               Ver tudo
             </NuxtLink>
@@ -177,7 +172,6 @@
 import { computed, ref, watch } from 'vue'
 import LandingView from '~/components/landing/LandingView.vue'
 import BookCover from '~/components/book/BookCover.vue'
-import ReadingCarousel from '~/components/dashboard/ReadingCarousel.vue'
 import ShelfSection from '~/components/dashboard/ShelfSection.vue'
 import FeedItem from '~/components/feed/FeedItem.vue'
 import NewPostsPill from '~/components/feed/NewPostsPill.vue'
@@ -279,7 +273,6 @@ if (pageData.value?.redirectTo) {
 
 const isAuthenticated = computed(() => Boolean(pageData.value?.authenticated))
 const inProgressBooks = computed(() => pageData.value?.inProgress ?? [])
-const completedBooks = computed(() => pageData.value?.completed ?? [])
 const shelfBooks = computed(() => pageData.value?.shelf ?? [])
 const entries = ref<FeedEntry[]>(pageData.value?.entries ? [...pageData.value.entries] : [])
 const feedScrollContainer = ref<HTMLElement | null>(null)
@@ -349,8 +342,8 @@ function formatAuthors(authors?: { name: string }[]): string {
 }
 
 useSeoMeta({
-  title: 'Meus Livros',
-  ogTitle: 'Meus Livros',
+  title: 'Livrolas',
+  ogTitle: 'Livrolas',
   description: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
   ogDescription: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
   ogType: 'website',
@@ -358,7 +351,7 @@ useSeoMeta({
   ogUrl: () => reqUrl?.href ?? origin.value,
   ogImage: () => `${origin.value}/og-fallback.png`,
   twitterCard: 'summary_large_image',
-  twitterTitle: 'Meus Livros',
+  twitterTitle: 'Livrolas',
   twitterDescription: 'Uma pequena biblioteca compartilhada de leituras entre amigos.',
   twitterImage: () => `${origin.value}/og-fallback.png`,
 })
@@ -459,14 +452,14 @@ useHead({
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   column-gap: var(--space-8);
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
 }
 
 .in-progress-card {
   display: flex;
   gap: var(--space-4);
   padding: var(--space-4) 0;
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .in-progress-cover-col {
@@ -647,7 +640,7 @@ useHead({
   overscroll-behavior: contain auto;
   padding-right: var(--space-2);
   margin-right: calc(-1 * var(--space-2));
-  border-top: 1px solid var(--input-bg);
+  border-top: 1px solid var(--border-color);
   scrollbar-width: thin;
   scrollbar-color: var(--input-bg) transparent;
 }

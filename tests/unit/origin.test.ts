@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineEventHandler, toNodeListener } from 'h3'
 import { createServer, type Server } from 'node:http'
 import originMiddleware from '../../server/middleware/origin'
@@ -29,6 +29,7 @@ describe('CSRF Origin Middleware (server/middleware/origin.ts)', () => {
   })
 
   afterEach(async () => {
+    vi.unstubAllEnvs()
     if (originalBetterAuthUrl !== undefined) {
       process.env.BETTER_AUTH_URL = originalBetterAuthUrl
     } else {
@@ -141,5 +142,47 @@ describe('CSRF Origin Middleware (server/middleware/origin.ts)', () => {
     expect(res.status).toBe(403)
     const body = await res.json()
     expect(body).toEqual({ error: 'origem_invalida', message: 'Origem da requisição inválida.' })
+  })
+
+  it.each(['POST', 'PATCH', 'DELETE'])('allows %s from this Vercel preview deployment', async (method) => {
+    vi.stubEnv('VERCEL_ENV', 'preview')
+    vi.stubEnv('VERCEL_URL', 'livrolas-abc123-diogo.vercel.app')
+    const res = await fetch(`${baseUrl}/test`, {
+      method,
+      headers: { origin: 'https://livrolas-abc123-diogo.vercel.app' },
+    })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ ok: true, method })
+  })
+
+  it('allows the branch alias of this Vercel preview deployment', async () => {
+    vi.stubEnv('VERCEL_ENV', 'preview')
+    vi.stubEnv('VERCEL_URL', 'livrolas-abc123-diogo.vercel.app')
+    vi.stubEnv('VERCEL_BRANCH_URL', 'livrolas-git-develop-diogo.vercel.app')
+    const res = await fetch(`${baseUrl}/test`, {
+      method: 'POST',
+      headers: { origin: 'https://livrolas-git-develop-diogo.vercel.app' },
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('rejects a different Vercel preview even when Host is forged', async () => {
+    vi.stubEnv('VERCEL_ENV', 'preview')
+    vi.stubEnv('VERCEL_URL', 'livrolas-abc123-diogo.vercel.app')
+    const res = await fetch(`${baseUrl}/test`, {
+      method: 'POST',
+      headers: { origin: 'https://attacker.vercel.app', host: 'attacker.vercel.app' },
+    })
+    expect(res.status).toBe(403)
+  })
+
+  it('does not trust Vercel preview URLs in production', async () => {
+    vi.stubEnv('VERCEL_ENV', 'production')
+    vi.stubEnv('VERCEL_URL', 'livrolas-abc123-diogo.vercel.app')
+    const res = await fetch(`${baseUrl}/test`, {
+      method: 'POST',
+      headers: { origin: 'https://livrolas-abc123-diogo.vercel.app' },
+    })
+    expect(res.status).toBe(403)
   })
 })

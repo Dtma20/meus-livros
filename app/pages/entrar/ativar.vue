@@ -1,10 +1,10 @@
 <template>
   <div class="login-container">
-    <div class="login-card">
+    <div class="login-card paper-panel">
       <div class="login-logo-header">
         <AppLogo :size="44" />
       </div>
-      <h1 class="login-title">
+      <h1 class="login-title paper-text origami-text">
         Primeiro acesso
       </h1>
 

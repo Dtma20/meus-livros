@@ -84,7 +84,7 @@ const emit = defineEmits<{
 
 .edition-title {
   font-size: var(--font-size-sm);
-  color: #fff;
+  color: var(--text-strong);
 }
 
 .edition-meta {

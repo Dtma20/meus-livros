@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import SearchBox from './SearchBox.vue'
 import { FOCUS_SEARCH_EVENT } from '~/composables/useKeyboardShortcuts'
@@ -102,9 +102,9 @@ const isHidden = computed(() => {
 
 const isMobileOpen = ref(false)
 const searchButtonRef = ref<HTMLButtonElement | null>(null)
-const mobileRowRef = ref<HTMLDivElement | null>(null)
+const mobileRowRef = shallowRef<HTMLDivElement | null>(null)
 
-const desktopRef = ref<HTMLDivElement | null>(null)
+const desktopRef = shallowRef<HTMLDivElement | null>(null)
 const desktopBoxRef = ref<InstanceType<typeof SearchBox> | null>(null)
 const mobileBoxRef = ref<InstanceType<typeof SearchBox> | null>(null)
 
@@ -221,7 +221,7 @@ onBeforeUnmount(() => {
     line-height: 1;
     padding: 2px var(--space-2);
     color: var(--text-color);
-    border: 1px solid var(--input-bg);
+    border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
   }
 
@@ -300,13 +300,13 @@ onBeforeUnmount(() => {
   width: 100%;
   box-sizing: border-box;
   background-color: var(--bg-color);
-  border-bottom: 1px solid var(--input-bg);
+  border-bottom: 1px solid var(--border-color);
   padding: var(--space-2) var(--space-4);
   display: flex;
   align-items: center;
   gap: var(--space-2);
   z-index: 150;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-card);
 }
 
 .mobile-search-input-wrap {
