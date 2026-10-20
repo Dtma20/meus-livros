@@ -1955,5 +1955,50 @@
     "isbn": "9788542602371",
     "cover_url": "https://upload.wikimedia.org/wikipedia/pt/d/d3/Turma_da_Monica_Li%C3%A7%C3%B5es_romance.jpg?utm_source=pt.wikipedia.org&utm_campaign=index&utm_content=original",
     "review_format": "text"
+  },
+  {
+    "title": "Cândido, ou o Otimismo",
+    "author": "Voltaire",
+    "country": "França",
+    "original_language": "Francês",
+    "year": 1759,
+    "publisher": "L&PM Pocket",
+    "pages": 144,
+    "read_in": 2026,
+    "rate": 2.5,
+    "review": "É uma leitura interessante. Voltaire tinha muito o que criticar ao otimismo cego da época, então ele criou esse enredo que questiona e põe o protagonista otimista nas piores situações possíveis. Mas acho que essa não era a única coisa que Voltaire tinha para criticar, porque muito me estranhou a forma que a história é narrada. Os acontecimentos pareciam não ter nexo, é uma história muito acelerada e sem sentido.\n\"Cândido, ou o Otimismo\" é um exemplo de livros que põe sua ideia/intenção acima do enredo, mas ainda assim é uma história divertida de acompanhar, alguns momentos são absurdos e engraçados, o final é muito bom e bem simbólico, pois depois de tudo que Cândido passou, ele finalmente conseguiu aquilo que queria, mas isso só parece ter trazido tédio.",
+    "source": "Físico",
+    "series_name": null,
+    "series_number": null,
+    "genre": [
+      "Ficção",
+      "Sátira"
+    ],
+    "isbn": "9788525408747",
+    "cover_url": "https://m.media-amazon.com/images/I/71dauudBQyL._UF1000,1000_QL80_.jpg",
+    "review_format": "text"
+  },
+  {
+    "title": "O médico e o monstro",
+    "author": "Robert Louis Stevenson",
+    "country": "Reino Unido",
+    "original_language": "inglês",
+    "year": 1886,
+    "publisher": "Melhoramentos",
+    "pages": 128,
+    "read_in": 2026,
+    "rate": 4,
+    "review": "",
+    "source": "Ebook",
+    "series_name": null,
+    "series_number": null,
+    "genre": [
+      "Ficção",
+      "Mistério",
+      "Terror"
+    ],
+    "isbn": "9788506070109",
+    "cover_url": "https://m.media-amazon.com/images/I/81e2RH0GaVL._UF1000,1000_QL80_.jpg",
+    "review_format": "text"
   }
 ]
