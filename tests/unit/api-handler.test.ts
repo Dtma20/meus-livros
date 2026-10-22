@@ -1,0 +1,307 @@
+import { describe, expect, it } from 'vitest'
+import { DrizzleQueryError } from 'drizzle-orm'
+import { createError, type H3Event } from 'h3'
+import { z } from 'zod'
+import { defineApiHandler, parseOrThrow } from '../../server/utils/api'
+
+function createMockEvent(overrides: Partial<H3Event> = {}): H3Event {
+  const headers = new Map<string, string>()
+  const responseHeaders = new Map<string, string>()
+
+  const context: Record<string, unknown> = {}
+
+  return {
+    method: 'GET',
+    path: '/api/test',
+    headers: {
+      get: (key: string) => headers.get(key.toLowerCase()) || null,
+    },
+    node: {
+      req: {
+        headers: {},
+      },
+      res: {
+        statusCode: 200,
+        setHeader: (name: string, value: string) => responseHeaders.set(name.toLowerCase(), value),
+        getHeader: (name: string) => responseHeaders.get(name.toLowerCase()),
+      },
+    },
+    context,
+    ...overrides,
+  } as unknown as H3Event
+}
+
+describe('API Handler (defineApiHandler)', () => {
+  it('generates a new Request ID when not provided and attaches to response', async () => {
+    const event = createMockEvent()
+    const handler = defineApiHandler(async () => ({ ok: true }))
+
+    const result = await handler(event)
+
+    expect(result).toEqual({ ok: true })
+    const requestId = event.node.res.getHeader('x-request-id')
+    expect(requestId).toBeDefined()
+    expect(typeof requestId).toBe('string')
+    expect((requestId as string).length).toBeGreaterThan(10)
+  })
+
+  it('preserves existing x-request-id from incoming request', async () => {
+    const event = createMockEvent()
+    event.context.requestId = 'custom-request-id-999'
+    const handler = defineApiHandler(async () => ({ ok: true }))
+
+    await handler(event)
+
+    expect(event.node.res.getHeader('x-request-id')).toBe('custom-request-id-999')
+  })
+
+  it('preserves a valid x-request-id header from the incoming request', async () => {
+    const event = createMockEvent()
+    event.node.req.headers['x-request-id'] = 'header-request-id-123'
+    const handler = defineApiHandler(async () => ({ ok: true }))
+
+    await handler(event)
+
+    expect(event.node.res.getHeader('x-request-id')).toBe('header-request-id-123')
+  })
+
+  it('discards a malformed x-request-id header and generates a fresh id', async () => {
+    const event = createMockEvent()
+    event.node.req.headers['x-request-id'] = '../../etc/passwd\ninjected'
+    const handler = defineApiHandler(async () => ({ ok: true }))
+
+    await handler(event)
+
+    const requestId = event.node.res.getHeader('x-request-id') as string
+    expect(requestId).not.toBe('../../etc/passwd\ninjected')
+    expect(requestId).toMatch(/^[A-Za-z0-9_-]{1,64}$/)
+  })
+
+  it('captures handled H3Error (e.g. 404) and returns documented shape with requestId', async () => {
+    const event = createMockEvent()
+    const handler = defineApiHandler(async () => {
+      throw createError({
+        statusCode: 404,
+        data: { error: 'nao_encontrado', message: 'Item não encontrado.' },
+      })
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(404)
+    expect(result.error).toBe('nao_encontrado')
+    expect(result.message).toBe('Item não encontrado.')
+    expect(result.requestId).toBeDefined()
+  })
+
+  it('answers a data-less 400 (malformed JSON from readBody) as validacao in Portuguese', async () => {
+    const event = createMockEvent({ method: 'POST' })
+    const handler = defineApiHandler(async () => {
+      throw createError({ statusCode: 400, statusMessage: 'Bad Request' })
+    })
+
+    const result = (await handler(event)) as { error: string; message: string }
+
+    expect(event.node.res.statusCode).toBe(400)
+    expect(result.error).toBe('validacao')
+    expect(result.message).toBe('Corpo da requisição inválido.')
+  })
+
+  it('maps Postgres unique violation (code 23505) to 409 conflito', async () => {
+    const event = createMockEvent()
+    const pgError = new Error('duplicate key value violates unique constraint')
+    ;(pgError as unknown as { name: string; code: string; routine: string }).name = 'PostgresError'
+    ;(pgError as unknown as { code: string }).code = '23505'
+    ;(pgError as unknown as { routine: string }).routine = '_bt_check_unique'
+
+    const handler = defineApiHandler(async () => {
+      throw pgError
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(409)
+    expect(result.error).toBe('conflito')
+    expect(result.message).toBe('O registro já existe no sistema.')
+    expect(result.requestId).toBeDefined()
+  })
+
+  it('maps Postgres foreign key violation (code 23503) to 400 referencia_invalida', async () => {
+    const event = createMockEvent()
+    const pgError = new Error('violates foreign key constraint')
+    ;(pgError as unknown as { name: string; code: string; routine: string }).name = 'PostgresError'
+    ;(pgError as unknown as { code: string }).code = '23503'
+    ;(pgError as unknown as { routine: string }).routine = 'ri_ReportViolation'
+
+    const handler = defineApiHandler(async () => {
+      throw pgError
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(400)
+    expect(result.error).toBe('referencia_invalida')
+    expect(result.message).toBe('Referência a recurso inexistente.')
+    expect(result.requestId).toBeDefined()
+  })
+
+  it('maps Postgres statement timeout (code 57014) to 504 tempo_esgotado', async () => {
+    const event = createMockEvent()
+    const pgError = new Error('canceling statement due to statement timeout')
+    ;(pgError as unknown as { name: string; code: string; routine: string }).name = 'PostgresError'
+    ;(pgError as unknown as { code: string }).code = '57014'
+    ;(pgError as unknown as { routine: string }).routine = 'ProcessInterrupts'
+
+    const handler = defineApiHandler(async () => {
+      throw pgError
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(504)
+    expect(result.error).toBe('tempo_esgotado')
+    expect(result.message).toBe('A operação no banco de dados demorou demais.')
+    expect(result.requestId).toBeDefined()
+  })
+
+  it.each([
+    ['23505', 409, 'conflito', 'O registro já existe no sistema.'],
+    ['23503', 400, 'referencia_invalida', 'Referência a recurso inexistente.'],
+    ['57014', 504, 'tempo_esgotado', 'A operação no banco de dados demorou demais.'],
+  ])('maps Postgres %s wrapped in a DrizzleQueryError cause to %i %s', async (code, status, error, message) => {
+    const event = createMockEvent()
+    const pgError = Object.assign(new Error('duplicate key value violates unique constraint "users_email_unique"'), {
+      name: 'PostgresError',
+      code,
+      routine: '_bt_check_unique',
+      detail: 'Key (email)=(pessoa@example.com) already exists.',
+      constraint_name: 'users_email_unique',
+    })
+    const wrapped = new DrizzleQueryError(
+      'insert into "users" ("email") values ($1)',
+      ['pessoa@example.com'],
+      pgError,
+    )
+
+    const handler = defineApiHandler(async () => {
+      throw wrapped
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(status)
+    expect(result.error).toBe(error)
+    expect(result.message).toBe(message)
+    expect(result.requestId).toBeDefined()
+    const body = JSON.stringify(result)
+    expect(body).not.toContain('insert into')
+    expect(body).not.toContain('pessoa@example.com')
+    expect(body).not.toContain('users_email_unique')
+    expect(body).not.toContain('_bt_check_unique')
+  })
+
+  it('never leaks internal stack traces or raw messages on unhandled 500 errors', async () => {
+    const event = createMockEvent()
+    const handler = defineApiHandler(async () => {
+      throw new Error('SELECT * FROM secret_table WHERE root_password = "leak"')
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(500)
+    expect(result.error).toBe('erro_interno')
+    expect(result.message).toBe('Não foi possível completar a operação.')
+    expect(JSON.stringify(result)).not.toContain('secret_table')
+    expect(JSON.stringify(result)).not.toContain('root_password')
+    expect(result.requestId).toBeDefined()
+  })
+
+  it.each([
+    ['22007', 'data em formato inválido'],
+    ['22008', 'data fora do intervalo'],
+    ['22003', 'número fora do intervalo'],
+    ['22P02', 'texto em formato inválido'],
+  ])('maps Postgres %s (%s) to 400 validacao with no database message', async (code) => {
+    const event = createMockEvent()
+    const pgError = Object.assign(new Error('invalid input syntax for type date: "2026-13-45" in column "started_on"'), {
+      name: 'PostgresError',
+      code,
+      routine: 'date_in',
+    })
+    const wrapped = new DrizzleQueryError(
+      'insert into "reading_logs" ("started_on") values ($1)',
+      ['2026-13-45'],
+      pgError,
+    )
+
+    const handler = defineApiHandler(async () => {
+      throw wrapped
+    })
+
+    const result = (await handler(event)) as { error: string; message: string; requestId?: string }
+
+    expect(event.node.res.statusCode).toBe(400)
+    expect(result.error).toBe('validacao')
+    expect(result.message).toBe('Dados inválidos.')
+    expect(result.requestId).toBeDefined()
+    const body = JSON.stringify(result)
+    expect(body).not.toContain('invalid input syntax')
+    expect(body).not.toContain('started_on')
+    expect(body).not.toContain('2026-13-45')
+  })
+
+  it('parseOrThrow puts every Zod issue in fields, keyed by path, first message per path', () => {
+    const schema = z.object({
+      title: z.string().min(3),
+      pages: z.number().int().positive(),
+    })
+
+    let caught: unknown
+    try {
+      parseOrThrow(schema, { title: 'ab', pages: -5 })
+    } catch (error) {
+      caught = error
+    }
+
+    const data = (caught as { data?: { error: string; message: string; fields: Record<string, string> } }).data
+    expect((caught as { statusCode?: number }).statusCode).toBe(400)
+    expect(data?.error).toBe('validacao')
+    expect(data?.message).toMatch(/^Campo inválido: title\./)
+    expect(Object.keys(data?.fields ?? {}).sort()).toEqual(['pages', 'title'])
+    expect(data?.fields.title).toEqual(expect.any(String))
+    expect(data?.fields.pages).toEqual(expect.any(String))
+  })
+
+  it('parseOrThrow keeps only the first message when one path has several issues', () => {
+    // 'abc' breaks both bounds at once: two issues on the same path.
+    const schema = z.object({ title: z.string().min(7).max(2) })
+    const input = { title: 'abc' }
+    const issues = schema.safeParse(input).error?.issues ?? []
+    expect(issues).toHaveLength(2)
+
+    let caught: unknown
+    try {
+      parseOrThrow(schema, input)
+    } catch (error) {
+      caught = error
+    }
+
+    const fields = (caught as { data?: { fields: Record<string, string> } }).data?.fields ?? {}
+    expect(Object.keys(fields)).toEqual(['title'])
+    expect(fields.title).toBe(issues[0]?.message)
+  })
+
+  it('parseOrThrow returns parsed data or throws formatted 400 error', () => {
+    const schema = z.object({
+      title: z.string().min(3),
+      pages: z.number().int().positive(),
+    })
+
+    const valid = parseOrThrow(schema, { title: 'Livro Bom', pages: 200 })
+    expect(valid).toEqual({ title: 'Livro Bom', pages: 200 })
+
+    expect(() => {
+      parseOrThrow(schema, { title: 'ab', pages: -5 })
+    }).toThrow()
+  })
+})

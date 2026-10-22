@@ -1,0 +1,31 @@
+Ficção:
+- Ficção
+- Romance
+- Aventura
+- Fantasia
+- Ficção Científica
+- Novela
+- Suspense e Mistério
+- Distopia
+- Contos
+- Terror
+- Fábula
+- Comédia
+
+Não Ficção:
+- Não Ficção
+- História
+- Biografia e Autobiografia
+- Política
+- Filosofia
+- Desenvolvimento Pessoal
+- Matemática
+- Ciência
+- Economia
+- Ensaios e Crônicas
+- Tecnologia
+
+Outros:
+- Graphic Novel
+- Dramaturgia
+- Poesia

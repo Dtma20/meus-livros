@@ -1,0 +1,17 @@
+# Never upload local secrets or tooling state with `vercel deploy`.
+.env
+.env.*
+.vercel
+.claude
+.agents
+.nuxt
+.output
+node_modules
+legacy
+graphify-out
+.opencode
+.interface-design
+tests
+docs
+scripts/upscale-worker.py
+scripts/upscale-video-worker.py

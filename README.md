@@ -1,17 +1,56 @@
-# Vue 3 + Vite
+# Livrolas
 
-## Resenhas gravadas no JSON
+Plataforma de leitura em português para registrar livros, organizar a estante, escrever resenhas e compartilhar leituras com um grupo de amigos.
 
-O botão **Adicionar livro** no cabeçalho abre o cadastro. No modal de um livro, **Editar livro** altera seus dados e **Remover livro** pede confirmação antes de excluir. Essas ações gravam em `public/livros.json` e atualizam a biblioteca e seus indicadores. Autores podem ser informados um por linha e gêneros separados por vírgulas. A edição dos dados preserva a resenha existente.
+A aplicação principal usa **Nuxt 4, Vue 3 e TypeScript**, com renderização no servidor, PostgreSQL e Drizzle. A entrada é restrita a e-mails convidados, com autenticação pelo Better Auth. Os arquivos do portfólio anterior à migração ficam em [`legacy/`](legacy/).
 
-Execute `npm run dev` e use o botão **Salvar resenha** no modal. O servidor grava o campo `review` em `public/livros.json` (ou `public/quadrinhos.json` para quadrinhos). Novas resenhas usam `review_format: "text"` para preservar texto e quebras de linha sem interpretar HTML. As resenhas antigas em HTML continuam compatíveis.
+## Recursos
 
-`npm run build` seguido de `npm run preview` também oferece a gravação e lê as coleções atualizadas de `public/`. O servidor precisa de permissão para escrever nessa pasta. Esta API é destinada ao uso local; não a exponha publicamente sem autenticação.
+- Catálogo de obras, autores, gêneros e edições, com busca e cadastro manual.
+- Diário, estante, releituras, avaliações, resenhas e acompanhamento de leitura.
+- Perfis e registros com visibilidade pública ou privada.
+- Atividade entre leitores, comentários e administração de convites.
+- Estatísticas gerais e retrospectivas anuais, incluindo páginas, autores, países, idiomas, formatos, editoras e épocas de publicação.
+- Interface responsiva com identidade visual de papel sobre grafite e detalhes de origami.
 
-Uma hospedagem apenas estática não executa esta API: publicar somente `dist/` não permite editar os arquivos no servidor. Nesse caso, é necessário hospedar um backend com armazenamento persistente.
+## Desenvolvimento local
 
-Resenhas antigas salvas no navegador continuam acessíveis; para transferi-las ao JSON, abra a resenha, clique em **Editar resenha** e depois em **Salvar resenha**.
+Requer Node.js 24, pnpm 11.10.0 e PostgreSQL. O Docker Compose incluído oferece um banco local.
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+```sh
+pnpm install
+cp .env.example .env
+docker compose up -d
+```
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+Preencha o `.env` com os valores do ambiente local. Configure `DATABASE_URL` e `DATABASE_URL_DIRECT` no ambiente do processo antes de migrar; o Drizzle usa a conexão direta. Em seguida:
+
+```sh
+pnpm db:migrate
+pnpm db:seed
+pnpm dev
+```
+
+O guia de [infraestrutura](docs/infrastructure.md) detalha configuração de banco, autenticação, SMTP, convites e publicação. Não use credenciais de produção em desenvolvimento ou testes.
+
+## Verificação
+
+```sh
+pnpm lint
+pnpm typecheck
+pnpm test:unit
+pnpm build
+```
+
+Os testes de integração e SSR precisam de um PostgreSQL exclusivo para testes, migrado e com gêneros semeados. O SSR também exige um build atualizado. Consulte [`tests/README.md`](tests/README.md) antes de executar essas suítes.
+
+## Documentação
+
+- [Visão geral técnica e decisões](docs/README.md)
+- [Arquitetura](docs/architecture.md)
+- [Configuração e deploy](docs/infrastructure.md)
+- [Segurança e privacidade](docs/security.md)
+- [Migração do portfólio](docs/migration.md)
+- [Estado das tarefas e pendências](docs/agent-workflow.md)
+
+A implantação de uma nova instância exige configurar seu próprio banco, autenticação, SMTP e e-mails permitidos. Os arquivos `.env` reais e as credenciais não fazem parte do repositório.

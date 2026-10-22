@@ -1,0 +1,76 @@
+:root {
+  color-scheme: dark;
+
+  --bg-color: #14181c;
+  /* Matte paper, lit folds and graphite: shared with the origami scenes. */
+  --paper-white: #eee7d8;
+  --paper-fold: #d2c7b3;
+  --paper-rgb: 238, 231, 216;
+  --card-bg: #202322;
+  --surface-raised: #282b28;
+  --surface-hover: #30332e;
+  --text-color: #b5afa3;
+  --text-bright: #d8d1c3;
+  --text-strong: var(--paper-white);
+  --text-muted: var(--text-color);
+  --poster-border: var(--paper-white);
+  --star-color: var(--highlight);
+  --highlight: #e9ad4f;
+  --highlight-hover: #f2c174;
+  --input-bg: #1b1e1d;
+  --border-soft: rgba(var(--paper-rgb), 0.08);
+  --border-color: rgba(var(--paper-rgb), 0.16);
+  --border-emphasis: rgba(var(--paper-rgb), 0.3);
+  --control-border: #73766c;
+  --crease-color: rgba(var(--paper-rgb), 0.22);
+
+  --on-highlight: #14181c;
+
+  --danger: #e58e7f;
+  --danger-text: #f0a799;
+  --danger-solid: #993e34;
+  --on-danger: var(--paper-white);
+  --success: #b4c99b;
+  --highlight-soft: rgba(233, 173, 79, 0.1);
+  --highlight-glow: rgba(233, 173, 79, 0.2);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Lora", "Sitka Text", "Georgia", "Cambria", "Times New Roman", serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 2rem;
+
+  --line-height-tight: 1.2;
+  --line-height-snug: 1.35;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-full: 9999px;
+
+  --shadow-card: 0 2px 4px rgba(0, 0, 0, 0.22), 0 6px 14px rgba(0, 0, 0, 0.12);
+  --shadow-lift: 0 3px 6px rgba(0, 0, 0, 0.25), 0 8px 18px rgba(0, 0, 0, 0.16);
+  --shadow-fold: inset 0 1px 0 rgba(var(--paper-rgb), 0.05);
+
+  --focus-ring-color: var(--highlight);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --target-min-size: 44px;
+}

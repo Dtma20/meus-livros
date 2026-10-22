@@ -1,0 +1,93 @@
+import type { BookFormat, DatePrecision, LogVisibility } from './log'
+
+export interface ProfileAuthorView {
+  id: string
+  name: string
+  slug: string
+  country_code: string | null
+  country_label: string | null
+}
+
+export interface ProfileGenreView {
+  id: number
+  slug: string
+  label_pt: string
+}
+
+export interface ProfileWorkView {
+  id: string
+  title: string
+  slug: string
+  first_published_year: number | null
+  cover_url: string | null
+  authors: ProfileAuthorView[]
+  genres: ProfileGenreView[]
+}
+
+export interface ProfileEditionView {
+  id: string | null
+  isbn13: string | null
+  page_count: number | null
+  published_year: number | null
+  cover_url: string | null
+  ol_cover_id: number | null
+}
+
+export interface ProfileLogItem {
+  id: string
+  rating: number | null
+  started_on: string | null
+  finished_on: string | null
+  finished_precision: DatePrecision
+  format: BookFormat | null
+  visibility: LogVisibility
+  created_at: string | Date
+  work: ProfileWorkView
+  edition: ProfileEditionView | null
+}
+
+export interface ProfileUserView {
+  id: string
+  handle: string
+  display_name: string
+  bio: string | null
+  profile_visibility: LogVisibility
+  created_at: string | Date
+}
+
+export interface ProfileStats {
+  totalBooks: number
+  uniqueAuthors: number
+  uniqueCountries: number
+  totalPages: number
+  averagePages: number
+}
+
+export interface ProfileResponse {
+  user: ProfileUserView
+  logs: ProfileLogItem[]
+  stats: ProfileStats
+}
+
+let ptBrRegionNames: Intl.DisplayNames | null = null
+
+function getRegionNames(): Intl.DisplayNames {
+  if (!ptBrRegionNames) {
+    ptBrRegionNames = new Intl.DisplayNames(['pt-BR'], { type: 'region' })
+  }
+  return ptBrRegionNames
+}
+
+export function formatCountryName(
+  countryCode: string | null | undefined,
+  countryLabel?: string | null,
+): string {
+  if (countryCode && countryCode.trim()) {
+    try {
+      const formatted = getRegionNames().of(countryCode.trim().toUpperCase())
+      if (formatted) return formatted
+    } catch {
+    }
+  }
+  return countryLabel?.trim() || ''
+}

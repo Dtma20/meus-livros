@@ -1,0 +1,258 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures, trackSetup } from './fixtures'
+
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
+const MARKER = `t016-${Date.now()}`
+
+interface H3ErrorLike {
+  statusCode?: number
+  data?: { error?: string; message?: string }
+}
+
+function asError(caught: unknown): H3ErrorLike {
+  return caught as H3ErrorLike
+}
+
+describe.skipIf(!hasDatabaseUrl)('TASK-016 - Profile page and visibility integration tests', () => {
+  let db: typeof import('../../server/db')['db']
+  let schema: typeof import('../../server/db/schema')
+  let profilesService: typeof import('../../server/services/profiles')
+  let catalogService: typeof import('../../server/services/catalog')
+
+  const setup = trackSetup()
+
+  let publicOwnerId: string
+  let publicOwnerHandle: string
+  let privateOwnerId: string
+  let privateOwnerHandle: string
+
+  beforeAll(() => setup.run(async () => {
+    const dbModule = await import('../../server/db')
+    db = dbModule.db
+    schema = await import('../../server/db/schema')
+    profilesService = await import('../../server/services/profiles')
+    catalogService = await import('../../server/services/catalog')
+
+    const email1 = `${MARKER}-pub@example.com`
+    publicOwnerHandle = `upub_${Date.now() % 10000000}`
+
+    const [pubUser] = await db
+      .insert(schema.users)
+      .values({
+        email: email1,
+        handle: publicOwnerHandle,
+        display_name: 'Usuário Perfil Público',
+        bio: 'Biografia pública de teste',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+
+    publicOwnerId = pubUser!.id
+
+    const email2 = `${MARKER}-priv@example.com`
+    privateOwnerHandle = `upriv_${Date.now() % 10000000}`
+
+    const [privUser] = await db
+      .insert(schema.users)
+      .values({
+        email: email2,
+        handle: privateOwnerHandle,
+        display_name: 'Usuário Perfil Privado',
+        bio: 'Biografia privada de teste',
+        profile_visibility: 'privado',
+      })
+      .returning({ id: schema.users.id })
+
+    privateOwnerId = privUser!.id
+
+    for (let i = 1; i <= 7; i++) {
+      const isPublicLog = i <= 5
+      const countryCode = i === 1 ? 'BR' : i === 2 ? 'GB' : i === 3 ? 'US' : null
+      const countryLabel = i === 4 ? 'Roma Antiga' : null
+
+      const createdWork = await catalogService.createWork(
+        {
+          title: `${MARKER} Obra ${i}`,
+          authors: [
+            {
+              name: `${MARKER} Autor ${i}`,
+              country_code: countryCode,
+              country_label: countryLabel,
+            },
+          ],
+          genre_ids: [],
+          edition: {
+            publisher: `Editora ${i}`,
+            page_count: 100 * i,
+          },
+        },
+        publicOwnerId,
+        { skipRateLimit: true },
+      )
+
+      const createdAt = new Date(Date.now() - (10 - i) * 60000)
+      await db.insert(schema.reading_logs).values({
+        user_id: publicOwnerId,
+        work_id: createdWork.id,
+        edition_id: createdWork.edition?.id ?? null,
+        rating: String(4.0),
+        review: `Resenha ${i}`,
+        finished_on: `2024-01-0${i}`,
+        finished_precision: 'dia',
+        format: 'fisico',
+        visibility: isPublicLog ? 'publico' : 'privado',
+        created_at: createdAt,
+        updated_at: createdAt,
+      })
+    }
+
+    const privProfileWork = await catalogService.createWork(
+      {
+        title: `${MARKER} Obra Privada`,
+        authors: [{ name: `${MARKER} Autor Privado` }],
+        genre_ids: [],
+        edition: {
+          publisher: 'Editora Privada',
+          page_count: 250,
+        },
+      },
+      privateOwnerId,
+      { skipRateLimit: true },
+    )
+    await db.insert(schema.reading_logs).values({
+      user_id: privateOwnerId,
+      work_id: privProfileWork.id,
+      edition_id: privProfileWork.edition?.id ?? null,
+      rating: '5.0',
+      review: 'Resenha privada',
+      finished_on: '2024-02-01',
+      finished_precision: 'dia',
+      format: 'fisico',
+      visibility: 'publico',
+    })
+  }))
+
+  afterAll(async () => {
+    await setup.settled()
+    await removeFixtures(MARKER)
+  })
+
+  it('a profile with 5 public and 2 private entries shows 5 to a stranger and 7 to the owner', async () => {
+
+    const strangerView = await profilesService.getProfileByHandle(publicOwnerHandle, null)
+    expect(strangerView.logs).toHaveLength(5)
+
+    for (const log of strangerView.logs) {
+      expect(log.visibility).toBe('publico')
+    }
+
+    const ownerView = await profilesService.getProfileByHandle(publicOwnerHandle, { id: publicOwnerId })
+    expect(ownerView.logs).toHaveLength(7)
+    const privateLogs = ownerView.logs.filter((l) => l.visibility === 'privado')
+    expect(privateLogs).toHaveLength(2)
+  }, 20000)
+
+  it('stat counters match the visible set for each viewer (does not leak private count)', async () => {
+
+    const strangerView = await profilesService.getProfileByHandle(publicOwnerHandle, null)
+    expect(strangerView.stats.totalBooks).toBe(5)
+
+    expect(strangerView.stats.totalPages).toBe(1500)
+
+    const ownerView = await profilesService.getProfileByHandle(publicOwnerHandle, { id: publicOwnerId })
+    expect(ownerView.stats.totalBooks).toBe(7)
+
+    expect(ownerView.stats.totalPages).toBe(2800)
+  }, 20000)
+
+  it('a privado profile returns 404 to a stranger and 200 to its owner', async () => {
+
+    let strangerError: unknown
+    try {
+      await profilesService.getProfileByHandle(privateOwnerHandle, null)
+    } catch (err) {
+      strangerError = err
+    }
+    expect(strangerError).toBeDefined()
+    const sErr = asError(strangerError)
+    expect(sErr.statusCode).toBe(404)
+    expect(sErr.data?.error).toBe('nao_encontrado')
+
+    let otherUserError: unknown
+    try {
+      await profilesService.getProfileByHandle(privateOwnerHandle, { id: publicOwnerId })
+    } catch (err) {
+      otherUserError = err
+    }
+    expect(otherUserError).toBeDefined()
+    expect(asError(otherUserError).statusCode).toBe(404)
+
+    const ownerView = await profilesService.getProfileByHandle(privateOwnerHandle, { id: privateOwnerId })
+    expect(ownerView.user.handle).toBe(privateOwnerHandle)
+    expect(ownerView.logs).toHaveLength(1)
+  }, 20000)
+
+  it('an unknown handle returns 404', async () => {
+    let unknownError: unknown
+    try {
+      await profilesService.getProfileByHandle(`nonexistent_${Date.now()}`, null)
+    } catch (err) {
+      unknownError = err
+    }
+    expect(unknownError).toBeDefined()
+    const err = asError(unknownError)
+    expect(err.statusCode).toBe(404)
+    expect(err.data?.error).toBe('nao_encontrado')
+  }, 20000)
+
+  it('returns every visible entry past 100, and the counters cover all of them', async () => {
+    const bulkHandle = `ubulk_${Date.now() % 10000000}`
+    const [bulkUser] = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}-bulk@example.com`,
+        handle: bulkHandle,
+        display_name: 'Usuário Lote',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+    const bulkUserId = bulkUser!.id
+
+    // One work read 101 times: re-reads are allowed (no unique (user_id, work_id)).
+    const work = await catalogService.createWork(
+      {
+        title: `${MARKER} Obra Lote`,
+        authors: [{ name: `${MARKER} Autor Lote` }],
+        genre_ids: [],
+        edition: {
+          publisher: 'Editora Lote',
+          page_count: 10,
+        },
+      },
+      bulkUserId,
+      { skipRateLimit: true },
+    )
+
+    const now = Date.now()
+    await db.insert(schema.reading_logs).values(
+      Array.from({ length: 101 }, (_, i) => ({
+        user_id: bulkUserId,
+        work_id: work.id,
+        edition_id: work.edition?.id ?? null,
+        rating: '3.0',
+        review: `Resenha em lote ${i}`,
+        finished_on: '2024-03-01',
+        finished_precision: 'dia' as const,
+        format: 'fisico' as const,
+        visibility: 'publico' as const,
+        created_at: new Date(now - i * 60000),
+        updated_at: new Date(now - i * 60000),
+      })),
+    )
+
+    const view = await profilesService.getProfileByHandle(bulkHandle, null)
+    expect(view.logs).toHaveLength(101)
+    expect(view.stats.totalBooks).toBe(101)
+    expect(view.stats.totalPages).toBe(1010)
+  }, 60000)
+})

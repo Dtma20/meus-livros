@@ -1,0 +1,200 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { ref } from 'vue'
+import { useBookFilters } from '../../app/composables/useBookFilters'
+import { aggregateReadingMapData } from '../../app/utils/reading-map'
+import { removeFixtures, trackSetup } from './fixtures'
+
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
+const MARKER = `t025-${Date.now()}`
+
+describe.skipIf(!hasDatabaseUrl)('TASK-025 - Reading map integration tests', () => {
+  let db: typeof import('../../server/db')['db']
+  let schema: typeof import('../../server/db/schema')
+  let profilesService: typeof import('../../server/services/profiles')
+  let catalogService: typeof import('../../server/services/catalog')
+
+  const setup = trackSetup()
+
+  let ownerId: string
+  let ownerHandle: string
+
+  let brWorkTitle: string
+  let jpWorkTitle: string
+  let ancientRomeWorkTitle: string
+
+  beforeAll(() => setup.run(async () => {
+    const dbModule = await import('../../server/db')
+    db = dbModule.db
+    schema = await import('../../server/db/schema')
+    profilesService = await import('../../server/services/profiles')
+    catalogService = await import('../../server/services/catalog')
+
+    const email = `${MARKER}@example.com`
+    ownerHandle = `mapuser_${Date.now() % 10000000}`
+
+    const [user] = await db
+      .insert(schema.users)
+      .values({
+        email,
+        handle: ownerHandle,
+        display_name: 'Usuário do Mapa',
+        bio: 'Bio para testes do mapa de leitura',
+        profile_visibility: 'publico',
+      })
+      .returning({ id: schema.users.id })
+
+    ownerId = user!.id
+
+    brWorkTitle = `${MARKER} Dom Casmurro`
+    const brWork = await catalogService.createWork(
+      {
+        title: brWorkTitle,
+        authors: [
+          {
+            name: `${MARKER} Machado de Assis`,
+            country_code: 'BR',
+            country_label: 'Brasil',
+          },
+        ],
+        genre_ids: [],
+        edition: {
+          publisher: 'Editora Nacional',
+          page_count: 256,
+        },
+      },
+      ownerId,
+      { skipRateLimit: true },
+    )
+
+    await db.insert(schema.reading_logs).values({
+      user_id: ownerId,
+      work_id: brWork.id,
+      edition_id: brWork.edition?.id ?? null,
+      rating: '4.5',
+      review: 'Excelente clássico brasileiro.',
+      finished_on: '2024-01-10',
+      finished_precision: 'dia',
+      format: 'fisico',
+      visibility: 'publico',
+    })
+
+    jpWorkTitle = `${MARKER} Norwegian Wood`
+    const jpWork = await catalogService.createWork(
+      {
+        title: jpWorkTitle,
+        authors: [
+          {
+            name: `${MARKER} Haruki Murakami`,
+            country_code: 'JP',
+            country_label: 'Japão',
+          },
+        ],
+        genre_ids: [],
+        edition: {
+          publisher: 'Editora Alfaguara',
+          page_count: 360,
+        },
+      },
+      ownerId,
+      { skipRateLimit: true },
+    )
+
+    await db.insert(schema.reading_logs).values({
+      user_id: ownerId,
+      work_id: jpWork.id,
+      edition_id: jpWork.edition?.id ?? null,
+      rating: '5.0',
+      review: 'Leitura privada japonesa.',
+      finished_on: '2024-02-15',
+      finished_precision: 'dia',
+      format: 'fisico',
+      visibility: 'privado',
+    })
+
+    ancientRomeWorkTitle = `${MARKER} Meditações`
+    const romeWork = await catalogService.createWork(
+      {
+        title: ancientRomeWorkTitle,
+        authors: [
+          {
+            name: `${MARKER} Marco Aurélio`,
+            country_code: null,
+            country_label: 'Roma Antiga',
+          },
+        ],
+        genre_ids: [],
+        edition: {
+          publisher: 'Editora Clássica',
+          page_count: 200,
+        },
+      },
+      ownerId,
+      { skipRateLimit: true },
+    )
+
+    await db.insert(schema.reading_logs).values({
+      user_id: ownerId,
+      work_id: romeWork.id,
+      edition_id: romeWork.edition?.id ?? null,
+      rating: '4.0',
+      review: 'Filosofia estoica antiga.',
+      finished_on: '2024-03-01',
+      finished_precision: 'dia',
+      format: 'fisico',
+      visibility: 'publico',
+    })
+  }))
+
+  afterAll(async () => {
+    await setup.settled()
+    await removeFixtures(MARKER)
+  })
+
+  it('map reflects only visible logs: private entry country does not appear to a stranger (Requirement 3)', async () => {
+
+    const strangerView = await profilesService.getProfileByHandle(ownerHandle, null)
+    expect(strangerView.logs).toHaveLength(2)
+
+    const strangerMapData = aggregateReadingMapData(strangerView.logs)
+
+    expect(strangerMapData.countryCounts['BR']).toBe(1)
+
+    expect(strangerMapData.countryCounts['JP']).toBeUndefined()
+    expect(strangerMapData.countryCounts).not.toHaveProperty('JP')
+
+    const ownerView = await profilesService.getProfileByHandle(ownerHandle, { id: ownerId })
+    expect(ownerView.logs).toHaveLength(3)
+
+    const ownerMapData = aggregateReadingMapData(ownerView.logs)
+    expect(ownerMapData.countryCounts['BR']).toBe(1)
+    expect(ownerMapData.countryCounts['JP']).toBe(1)
+  }, 20000)
+
+  it('author with no ISO code (Roma Antiga) is excluded from the map but counted in the stat (Requirement 5)', async () => {
+    const strangerView = await profilesService.getProfileByHandle(ownerHandle, null)
+    const mapData = aggregateReadingMapData(strangerView.logs)
+
+    expect(mapData.countryCounts).not.toHaveProperty('null')
+    expect(mapData.totalMappedCountries).toBe(1)
+
+    expect(mapData.unmappedCountries).toContain('Roma Antiga')
+
+    expect(strangerView.stats.uniqueCountries).toBe(2)
+  }, 20000)
+
+  it('clicking/filtering a country filters the grid and is clearable (Requirement 4)', async () => {
+    const strangerView = await profilesService.getProfileByHandle(ownerHandle, null)
+    const logsRef = ref(strangerView.logs)
+
+    const { filterCountry, sortedBooks } = useBookFilters(logsRef)
+
+    expect(sortedBooks.value).toHaveLength(2)
+
+    filterCountry.value = 'Brasil'
+    expect(sortedBooks.value).toHaveLength(1)
+    expect(sortedBooks.value[0]!.work.title).toBe(brWorkTitle)
+
+    filterCountry.value = ''
+    expect(sortedBooks.value).toHaveLength(2)
+  }, 20000)
+})

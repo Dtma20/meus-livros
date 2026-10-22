@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meus Livros</title>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+
+  <link rel="stylesheet" href="./styles.css" />
+
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22></text></svg>" />
+</head>
+
+<body>
+  <div id="app" class="container">
+    <div v-if="showMapModal" class="modal-overlay" @click.self="showMapModal = false">
+      <div class="modal-content" style="display: block; max-width: 900px">
+        <span class="close-btn" @click="showMapModal = false">&times;</span>
+        <h2 style="text-align: center; margin-bottom: 10px">
+          Mapa de Leitura
+        </h2>
+        <p style="
+              text-align: center;
+              color: var(--text-color);
+              margin-bottom: 20px;
+            ">
+          Clique em um país para filtrar os livros.
+        </p>
+
+        <div class="map-container" id="google_map_div">
+          <div v-if="loadingMap" style="color: #ccc">Carregando Mapa...</div>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="selectedBook" class="modal-overlay" @click.self="selectedBook = null">
+      <div class="modal-content">
+        <span class="close-btn" @click="selectedBook = null">&times;</span>
+        <div class="modal-poster">
+          <img :src="getCover(selectedBook)" @error="$event.target.src = generatePlaceholderCover(selectedBook)" />
+        </div>
+        <div class="modal-details">
+          <h2>{{ selectedBook.title }}</h2>
+          <div class="stars" style="font-size: 1.2rem; margin-bottom: 10px">
+            {{ getStars(selectedBook.rate) }}
+          </div>
+          <div class="modal-meta">
+            <span>{{ selectedBook.year }} </span>
+            <span>{{ selectedBook.author }} </span>
+            <span>{{ selectedBook.country }} </span>
+            <span>{{ selectedBook.pages }} pág.</span>
+
+            <div v-if="selectedBook.genre && selectedBook.genre.length" style="margin-top: 8px">
+              <span v-for="g in selectedBook.genre" :key="g" style="
+                    background-color: var(--highlight);
+                    color: #14181c; /* Cor escura para contraste */
+                    padding: 2px 8px;
+                    border-radius: 4px;
+                    font-size: 0.75rem;
+                    font-weight: bold;
+                    margin-right: 6px;
+                    display: inline-block;
+                    margin-top: 4px;
+                  ">
+                {{ g }}
+              </span>
+            </div>
+          </div>
+          <div class="review-box">
+            <h3>Minha Resenha</h3>
+            <p v-if="selectedBook.review" style="white-space: pre-wrap" v-html="selectedBook.review"></p>
+            <div v-else class="review-placeholder">
+              Nenhuma resenha escrita.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <header>
+      <h1>Minha Biblioteca</h1>
+      <div class="stats">
+        <div class="stat-box">
+          <span>{{ totalBooks }}</span><small>Livros</small>
+        </div>
+        <div class="stat-box">
+          <span>{{ uniqueAuthors }}</span><small>Autores</small>
+        </div>
+        <div class="stat-box interactive" @click="openMap" title="Ver Mapa Mundi">
+          <span>{{ uniqueCountries }}</span><small>Países</small>
+        </div>
+      </div>
+    </header>
+
+    <div class="filter-bar">
+      <div class="filter-container">
+        <div class="filter-row">
+          <div class="filter-group">
+            <select v-model="filterGenre">
+              <option value="">Todos os Gêneros</option>
+              <option v-for="g in availableGenres" :value="g">{{ g }}</option>
+            </select>
+
+            <select v-model="filterCountry">
+              <option value="">Todos os Países</option>
+              <option v-for="c in availableCountries" :value="c">
+                {{ c }}
+              </option>
+            </select>
+
+            <select v-model="filterDecade">
+              <option value="">Todas as Décadas</option>
+              <option v-for="d in availableDecades" :value="d">
+                Anos {{ d }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <span class="sort-label">Ordenar:</span>
+            <select v-model="sortBy">
+              <option value="read_desc">Lidos Recentemente</option>
+              <option value="read_asc">Lidos Antigamente</option>
+              <option value="rating">Melhores Notas</option>
+              <option value="year_desc">Publicação (Novo)</option>
+              <option value="year_asc">Publicação (Velho)</option>
+              <option value="alpha">A-Z</option>
+            </select>
+
+            <button v-if="hasActiveFilters" @click="resetFilters" class="reset-btn">
+              Limpar &times;
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div v-for="book in sortedBooks" :key="book.title" class="card" @click="selectedBook = book">
+        <div class="poster">
+          <img :src="getCover(book)" loading="lazy" @error="$event.target.src = generatePlaceholderCover(book)" />
+        </div>
+        <div class="info">
+          <div class="stars">{{ getStars(book.rate) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="paginometer">
+      <div class="page-stat">
+        <strong>{{ totalPages.toLocaleString('pt-BR') }}</strong> Páginas
+        Lidas
+      </div>
+      <div class="page-stat">
+        <strong>{{ averagePages }}</strong> Média p/ Livro
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
+
+    // Carregar a lib do Google Charts
+    google.charts.load("current", {
+      packages: ["geochart"],
+    });
+
+    createApp({
+      setup() {
+        const books = ref([]);
+        const selectedBook = ref(null);
+        const sortBy = ref("read_desc");
+        const showMapModal = ref(false);
+        const filterCountry = ref(null);
+        const filterGenre = ref("");
+        const filterDecade = ref("");
+        const loadingMap = ref(false);
+
+        onMounted(async () => {
+          // 1. Carregar JSON
+          const response = await fetch("livros.json");
+          const data = await response.json();
+          books.value = data.map((book, index) => ({
+            ...book,
+            original_index: index,
+            pages: book.pages || 0,
+            year: book.year || 0,
+            country: mapCountryName(book.country),
+            decade: book.year ? Math.floor(book.year / 10) * 10 : null,
+          }));
+        });
+
+        const mapCountryName = (ptName) => {
+          if (!ptName) return "";
+          const map = {
+            EUA: "United States",
+            "Reino Unido": "United Kingdom",
+            Brasil: "Brazil",
+            Colômbia: "Colombia",
+            Alemanha: "Germany",
+            Rússia: "Russia",
+            França: "France",
+            Áustria: "Austria",
+            Noruega: "Norway",
+            China: "China",
+            Israel: "Israel",
+            Portugal: "Portugal",
+            Itália: "Italy",
+            "Roma Antiga": "Italy",
+            Japão: "Japan",
+          };
+          return map[ptName] || ptName;
+        };
+
+        const availableGenres = computed(() => {
+          const allGenres = books.value.flatMap((b) => b.genre || []);
+          return [...new Set(allGenres)].sort();
+        });
+
+        const availableCountries = computed(() => {
+          const countries = new Set(
+            books.value.map((b) => b.country).filter(Boolean)
+          );
+          return [...countries].sort();
+        });
+
+        const availableDecades = computed(() => {
+          const decades = new Set(
+            books.value.map((b) => b.decade).filter((d) => d !== null)
+          );
+          // Ordena do mais recente para o mais antigo
+          return [...decades].sort((a, b) => b - a);
+        });
+        const hasActiveFilters = computed(
+          () => filterGenre.value || filterCountry.value || filterDecade.value
+        );
+
+        const resetFilters = () => {
+          filterGenre.value = "";
+          filterCountry.value = "";
+          filterDecade.value = "";
+        };
+        const totalPages = computed(() =>
+          sortedBooks.value.reduce((acc, book) => acc + book.pages, 0)
+        );
+        const averagePages = computed(() => {
+          if (sortedBooks.value.length === 0) return 0;
+          return Math.round(totalPages.value / sortedBooks.value.length);
+        });
+        const totalBooks = computed(() => books.value.length);
+        const uniqueAuthors = computed(
+          () => [...new Set(books.value.map((b) => b.author))].length
+        );
+        const uniqueCountries = computed(
+          () => [...new Set(books.value.map((b) => b.country))].length
+        );
+
+        const chartData = computed(() => {
+          const counts = {};
+          books.value.forEach((book) => {
+            const c = book.country;
+            if (c) counts[c] = (counts[c] || 0) + 1;
+          });
+          // Converter para array [País, Quantidade] que o Google Charts pede
+          const data = [["Country", "Livros"]];
+          for (const [country, count] of Object.entries(counts)) {
+            data.push([country, count]);
+          }
+          return data;
+        });
+
+        // Filtro e Ordenação
+        const sortedBooks = computed(() => {
+          let list = [...books.value];
+          if (filterGenre.value) {
+            list = list.filter(b => {
+              if (!b.genre || !b.genre.length) return false;
+              return b.genre.includes(filterGenre.value);
+            });
+          }
+          if (filterCountry.value)
+            list = list.filter((b) => b.country === filterCountry.value);
+          if (filterDecade.value)
+            list = list.filter(
+              (b) => b.decade === Number(filterDecade.value)
+            );
+          return list.sort((a, b) => {
+            if (sortBy.value === "read_desc") {
+              const diff = Number(b.read_in) - Number(a.read_in);
+              return diff === 0 ? b.original_index - a.original_index : diff;
+            }
+            if (sortBy.value === "read_asc") {
+              const diff = Number(a.read_in) - Number(b.read_in);
+              return diff === 0 ? a.original_index - b.original_index : diff;
+            }
+            if (sortBy.value === "rating") {
+              const diff = (Number(b.rate) || 0) - (Number(a.rate) || 0);
+              return diff === 0 ? b.original_index - a.original_index : diff;
+            }
+            if (sortBy.value === "year_desc") {
+              const diff = (Number(b.year) || 0) - (Number(a.year) || 0);
+              return diff === 0 ? b.original_index - a.original_index : diff;
+            }
+            if (sortBy.value === "year_asc") {
+              const diff = (Number(a.year) || 0) - (Number(b.year) || 0);
+              return diff === 0 ? a.original_index - b.original_index : diff;
+            }
+            if (sortBy.value === "alpha") {
+              const diff = a.title.localeCompare(b.title);
+              return diff === 0 ? a.original_index - b.original_index : diff;
+            }
+            return 0;
+          });
+        });
+
+        // --- Lógica do Mapa Google Charts ---
+        const openMap = () => {
+          showMapModal.value = true;
+          loadingMap.value = true;
+
+          // Espera o Google carregar a lib e o Modal abrir no DOM
+          google.charts.setOnLoadCallback(() => {
+            nextTick(() => {
+              drawRegionsMap();
+              loadingMap.value = false;
+            });
+          });
+        };
+
+        const drawRegionsMap = () => {
+          const data = google.visualization.arrayToDataTable(chartData.value);
+
+          const options = {
+            backgroundColor: "#232a31", // Fundo do modal
+            datalessRegionColor: "#2c3440", // Países sem livros (Cinza escuro)
+            colorAxis: { colors: ["#40bcf4", "#0083e0"] }, // Gradiente de Azul
+            legend: "none", // Esconder legenda
+            tooltip: {
+              textStyle: { color: "#000" },
+              showColorCode: true,
+            },
+            // Estilo da borda
+            defaultColor: "#2c3440",
+          };
+
+          const chart = new google.visualization.GeoChart(
+            document.getElementById("google_map_div")
+          );
+
+          // Adiciona evento de clique
+          google.visualization.events.addListener(chart, "select", () => {
+            const selection = chart.getSelection();
+            if (selection.length > 0) {
+              const countryName = data.getValue(selection[0].row, 0);
+              filterCountry.value = countryName;
+              showMapModal.value = false; // Fecha modal ao selecionar
+            }
+          });
+
+          chart.draw(data, options);
+        };
+
+        // Helpers
+        const generatePlaceholderCover = (book) => {
+          const text = encodeURIComponent(book.title);
+          return `https://ui-avatars.com/api/?name=${text}&size=300&background=2c3440&color=9ab&bold=true&font-size=0.4`;
+        };
+
+        const getCover = (book) => {
+          if (book.cover_url?.trim()) return book.cover_url;
+          if (book.isbn) {
+            const clean = book.isbn.replace(".0", "").trim();
+            if (clean)
+              return `https://covers.openlibrary.org/b/isbn/${clean}-L.jpg`;
+          }
+          return generatePlaceholderCover(book);
+        };
+
+        const getStars = (rate) => {
+          if (!rate) return "";
+          const r = parseFloat(rate);
+          return "★".repeat(Math.floor(r)) + (r % 1 !== 0 ? "½" : "");
+        };
+
+        return {
+          books,
+          sortedBooks,
+          sortBy,
+          selectedBook,
+          showMapModal,
+          totalBooks,
+          uniqueAuthors,
+          uniqueCountries,
+          totalPages,
+          averagePages,
+          filterCountry,
+          loadingMap,
+          getStars,
+          getCover,
+          generatePlaceholderCover,
+          openMap,
+          filterGenre,
+          filterDecade,
+          availableGenres,
+          availableCountries,
+          availableDecades,
+          hasActiveFilters,
+          resetFilters,
+        };
+      },
+    }).mount("#app");
+  </script>
+</body>
+
+</html>

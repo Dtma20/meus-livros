@@ -1,0 +1,544 @@
+<template>
+  <div class="login-container">
+    <div class="login-card paper-panel">
+      <div class="login-logo-header">
+        <AppLogo :size="44" />
+      </div>
+      <h1 class="login-title paper-text origami-text">
+        Primeiro acesso
+      </h1>
+
+      <form v-if="step === 'email'" class="login-form" @submit.prevent="handleRequestOtp">
+        <p class="login-desc">
+          Digite seu e-mail cadastrado para receber um código de ativação e criar sua senha.
+        </p>
+
+        <div class="form-group">
+          <label for="email" class="form-label">E-mail</label>
+          <input
+            id="email"
+            v-model="email"
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            required
+            placeholder="seu-email@exemplo.com"
+            class="form-input"
+            :disabled="loading"
+            :aria-invalid="errorMessage ? 'true' : undefined"
+            :aria-describedby="errorMessage ? 'email-error' : undefined"
+          >
+        </div>
+
+        <p v-if="errorMessage" id="email-error" class="error-message" role="alert">
+          {{ errorMessage }}
+        </p>
+
+        <button type="submit" class="btn btn-primary submit-btn" :disabled="loading || !email">
+          {{ loading ? 'Enviando...' : 'Enviar código' }}
+        </button>
+
+        <div class="links-container">
+          <NuxtLink to="/entrar" class="auth-link">
+            Já tem uma senha? Entrar
+          </NuxtLink>
+        </div>
+      </form>
+
+      <form v-else class="login-form" @submit.prevent="handleActivate">
+        <p class="login-desc">
+          Enviamos um código de 6 dígitos para seu e-mail. Digite o código e escolha sua nova senha.
+        </p>
+
+        <div class="email-summary">
+          <span class="email-badge">{{ email }}</span>
+          <button type="button" class="btn btn-ghost btn-sm change-email-btn" :disabled="loading" @click="changeEmail">
+            Alterar
+          </button>
+        </div>
+
+        <div class="form-group">
+          <label for="otp-code" class="form-label">Código de acesso</label>
+          <input
+            id="otp-code"
+            ref="otpInputRef"
+            v-model="otp"
+            type="text"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+            maxlength="6"
+            pattern="[0-9]*"
+            required
+            placeholder="000000"
+            class="form-input otp-input"
+            :disabled="loading"
+            :aria-invalid="errorMessage ? 'true' : undefined"
+            :aria-describedby="errorMessage ? 'activation-error' : undefined"
+          >
+        </div>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="new-password" class="form-label">Criar senha</label>
+            <button
+              type="button"
+              class="toggle-password-btn"
+              :disabled="loading"
+              @click="showPassword = !showPassword"
+            >
+              {{ showPassword ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+          <input
+            id="new-password"
+            v-model="newPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            required
+            minlength="8"
+            maxlength="128"
+            placeholder="Mínimo 8 caracteres"
+            class="form-input"
+            :disabled="loading"
+            :aria-invalid="errorMessage ? 'true' : undefined"
+            :aria-describedby="errorMessage ? 'activation-error' : undefined"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="confirm-password" class="form-label">Confirmar senha</label>
+          <input
+            id="confirm-password"
+            v-model="confirmPassword"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            required
+            minlength="8"
+            maxlength="128"
+            placeholder="Digite a senha novamente"
+            class="form-input"
+            :disabled="loading"
+            :aria-invalid="errorMessage ? 'true' : undefined"
+            :aria-describedby="errorMessage ? 'activation-error' : undefined"
+          >
+        </div>
+
+        <p v-if="errorMessage" id="activation-error" class="error-message" role="alert">
+          {{ errorMessage }}
+        </p>
+
+        <button
+          type="submit"
+          class="btn btn-primary submit-btn"
+          :disabled="loading || otp.length !== 6 || !newPassword || !confirmPassword"
+        >
+          {{ loading ? 'Ativando...' : 'Ativar conta' }}
+        </button>
+
+        <div class="resend-container">
+          <button
+            type="button"
+            class="btn btn-ghost btn-sm resend-btn"
+            :disabled="resendCountdown > 0 || loading"
+            @click="handleResendOtp"
+          >
+            {{ resendCountdown > 0 ? `Reenviar código em ${resendCountdown}s` : 'Reenviar código' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { getSafeRedirectUrl } from '~/utils/redirect'
+import { isTimeoutOrAbort, TIMEOUT_MESSAGE } from '~/utils/fetch-error'
+import { nextTick, onUnmounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import type { AuthSessionState } from '~/middleware/auth'
+import { authClient } from '~/utils/auth-client'
+import AppLogo from '~/components/ui/AppLogo.vue'
+import { emailSchema, isForbiddenPassword, otpSchema, senhaSchema } from '~~/shared/schemas/auth'
+
+const CONNECTION_ERROR_MESSAGE = 'Não foi possível concluir agora. Verifique sua conexão e tente novamente.'
+
+function getErrorStatus(error: unknown): number | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const fetchError = error as { statusCode?: number; status?: number; response?: { status?: number } }
+  return fetchError.statusCode ?? fetchError.status ?? fetchError.response?.status
+}
+
+function isConnectionError(error: unknown): boolean {
+  const status = getErrorStatus(error)
+  return isTimeoutOrAbort(error) || status == null || status >= 500
+}
+
+const route = useRoute()
+const router = useRouter()
+
+useSeoMeta({
+  title: 'Ativar acesso',
+})
+
+const session = useState<AuthSessionState>('auth:session', () => ({
+  user: null,
+  fetched: false,
+}))
+
+const step = ref<'email' | 'otp'>('email')
+const email = ref('')
+const otp = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const showPassword = ref(false)
+const errorMessage = ref('')
+const loading = ref(false)
+const resendCountdown = ref(0)
+const otpInputRef = ref<HTMLInputElement | null>(null)
+// Set once signIn.emailOtp has consumed the code. A retry after a failed
+// set-password must not send the (now spent) code again.
+const signedIn = ref(false)
+
+let timer: ReturnType<typeof setInterval> | null = null
+
+function startCountdown() {
+  resendCountdown.value = 60
+  if (timer) clearInterval(timer)
+  timer = setInterval(() => {
+    if (resendCountdown.value > 0) {
+      resendCountdown.value--
+    } else {
+      if (timer) clearInterval(timer)
+      timer = null
+    }
+  }, 1000)
+}
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
+
+async function handleRequestOtp() {
+  errorMessage.value = ''
+  const parsed = emailSchema.safeParse(email.value)
+  if (!parsed.success) {
+    errorMessage.value = parsed.error.issues[0]?.message ?? 'E-mail inválido.'
+    return
+  }
+
+  loading.value = true
+  try {
+    const { error } = await authClient.emailOtp.sendVerificationOtp({
+      email: parsed.data,
+      type: 'sign-in',
+    })
+
+    if (error) {
+      if (error.status === 429) {
+        errorMessage.value = 'Muitas tentativas. Aguarde uma hora e tente novamente.'
+        return
+      }
+    }
+
+    step.value = 'otp'
+    startCountdown()
+    await nextTick()
+    otpInputRef.value?.focus()
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
+      return
+    }
+    step.value = 'otp'
+    startCountdown()
+    await nextTick()
+    otpInputRef.value?.focus()
+  } finally {
+    loading.value = false
+  }
+}
+
+async function handleResendOtp() {
+  if (resendCountdown.value > 0 || loading.value) return
+  errorMessage.value = ''
+  loading.value = true
+
+  try {
+    const { error } = await authClient.emailOtp.sendVerificationOtp({
+      email: email.value.trim().toLowerCase(),
+      type: 'sign-in',
+    })
+
+    if (error && error.status === 429) {
+      errorMessage.value = 'Muitas tentativas. Aguarde uma hora e tente novamente.'
+    } else {
+      startCountdown()
+    }
+  } catch (err: unknown) {
+    if (isTimeoutOrAbort(err)) {
+      errorMessage.value = TIMEOUT_MESSAGE
+      return
+    }
+    startCountdown()
+  } finally {
+    loading.value = false
+  }
+}
+
+// Preserve server messages for 400 validation and 429 rate limiting; connection failures get a generic message.
+function motivoDoErro(error: {
+  statusCode?: number
+  status?: number
+  response?: { status?: number }
+  message?: string
+}): string {
+  const status = getErrorStatus(error)
+  if ((status === 400 || status === 429) && error.message) {
+    return error.message
+  }
+  if (isConnectionError(error)) {
+    return CONNECTION_ERROR_MESSAGE
+  }
+  return 'Código inválido ou expirado.'
+}
+
+async function handleActivate() {
+  errorMessage.value = ''
+
+  const parsedOtp = otpSchema.safeParse(otp.value)
+  if (!parsedOtp.success) {
+    errorMessage.value = parsedOtp.error.issues[0]?.message ?? 'Código inválido.'
+    await nextTick()
+    otpInputRef.value?.focus()
+    return
+  }
+
+  if (newPassword.value !== confirmPassword.value) {
+    errorMessage.value = 'As senhas não coincidem.'
+    return
+  }
+
+  const parsedPassword = senhaSchema.safeParse(newPassword.value)
+  if (!parsedPassword.success) {
+    errorMessage.value = parsedPassword.error.issues[0]?.message ?? 'Senha inválida.'
+    return
+  }
+
+  if (isForbiddenPassword(newPassword.value, { email: email.value })) {
+    errorMessage.value = 'Senha muito fraca ou comum.'
+    return
+  }
+
+  loading.value = true
+  try {
+    if (!signedIn.value) {
+      const { error: signInError } = await authClient.signIn.emailOtp({
+        email: email.value.trim().toLowerCase(),
+        otp: parsedOtp.data,
+      })
+
+      if (signInError) {
+        errorMessage.value = motivoDoErro(signInError)
+        await nextTick()
+        otpInputRef.value?.focus()
+        return
+      }
+
+      signedIn.value = true
+    }
+
+    try {
+      await $fetch('/api/auth/set-password', {
+        method: 'POST',
+        timeout: 15_000,
+        body: { newPassword: parsedPassword.data },
+      })
+    } catch (err: unknown) {
+      errorMessage.value = isConnectionError(err)
+        ? CONNECTION_ERROR_MESSAGE
+        : 'Não foi possível definir a senha. Tente novamente.'
+      return
+    }
+
+    session.value = { user: null, fetched: false }
+
+    const redirectPath = getSafeRedirectUrl(route.query.next)
+    await router.push(redirectPath)
+  } catch (err: unknown) {
+    const status = getErrorStatus(err)
+    errorMessage.value = isConnectionError(err)
+      ? CONNECTION_ERROR_MESSAGE
+      : status === 400 || status === 401 || status === 403
+        ? 'Código inválido ou expirado.'
+        : 'Não foi possível ativar sua conta. Tente novamente.'
+  } finally {
+    loading.value = false
+  }
+}
+
+function changeEmail() {
+  step.value = 'email'
+  signedIn.value = false
+  otp.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+  errorMessage.value = ''
+}
+</script>
+
+<style scoped>
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(80vh - 120px);
+  padding: var(--space-4);
+}
+
+.login-card {
+  background-color: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: var(--space-8);
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--shadow-card);
+}
+
+.login-logo-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-4);
+}
+
+.login-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+  margin: 0 0 var(--space-2) 0;
+  color: var(--text-strong);
+}
+
+.login-desc {
+  color: var(--text-color);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-relaxed);
+  margin: 0 0 var(--space-6) 0;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.toggle-password-btn {
+  background: none;
+  border: none;
+  color: var(--highlight);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  text-decoration: underline;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.toggle-password-btn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.toggle-password-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+.login-form .form-input {
+  padding-inline: var(--space-4);
+}
+
+.form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.otp-input {
+  font-size: var(--font-size-2xl);
+  letter-spacing: 0.3em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.email-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--input-bg);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+}
+
+.email-badge {
+  font-size: var(--font-size-sm);
+  color: var(--text-strong);
+  word-break: break-all;
+}
+
+
+.error-message {
+  color: var(--danger-text);
+  font-size: var(--font-size-sm);
+  margin: 0;
+  line-height: var(--line-height-normal);
+}
+
+.submit-btn {
+  margin-top: var(--space-2);
+}
+
+.resend-container {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-2);
+}
+
+.links-container {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+.auth-link {
+  color: var(--highlight);
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.auth-link:hover {
+  opacity: 0.8;
+}
+
+.auth-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .form-input,
+  .submit-btn,
+  .resend-btn {
+    transition: none;
+  }
+}
+</style>

@@ -1,0 +1,42 @@
+import { describe, expect, it } from 'vitest'
+import { getSafeRedirectUrl } from '../../app/utils/redirect'
+
+describe('getSafeRedirectUrl', () => {
+  it('keeps an ordinary internal path', () => {
+    expect(getSafeRedirectUrl('/entrada/abc')).toBe('/entrada/abc')
+    expect(getSafeRedirectUrl('/@dtma23')).toBe('/@dtma23')
+    expect(getSafeRedirectUrl('/app/novo?work_id=1')).toBe('/app/novo?work_id=1')
+  })
+
+  it('rejects the backslash form the old guard let through', () => {
+    expect(getSafeRedirectUrl('/\\evil.com')).toBe('/')
+    expect(getSafeRedirectUrl('/\\\\evil.com')).toBe('/')
+  })
+
+  it('rejects percent-encoded backslash once decoded by the router', () => {
+    expect(getSafeRedirectUrl(decodeURIComponent('/%5Cevil.com'))).toBe('/')
+  })
+
+  it('rejects scheme-relative and absolute URLs', () => {
+    expect(getSafeRedirectUrl('//evil.com')).toBe('/')
+    expect(getSafeRedirectUrl('https://evil.com')).toBe('/')
+    expect(getSafeRedirectUrl('http://evil.com')).toBe('/')
+    expect(getSafeRedirectUrl('javascript:alert(1)')).toBe('/')
+  })
+
+  it('rejects a value carrying a control character', () => {
+    expect(getSafeRedirectUrl('/app\nSet-Cookie: x=1')).toBe('/')
+    expect(getSafeRedirectUrl('/app\x00')).toBe('/')
+    expect(getSafeRedirectUrl('/app\x7f')).toBe('/')
+  })
+
+  it('rejects anything that is not a path, and a bare slash stays home', () => {
+    expect(getSafeRedirectUrl('entrada/abc')).toBe('/')
+    expect(getSafeRedirectUrl('')).toBe('/')
+    expect(getSafeRedirectUrl('   ')).toBe('/')
+    expect(getSafeRedirectUrl(null)).toBe('/')
+    expect(getSafeRedirectUrl(undefined)).toBe('/')
+    expect(getSafeRedirectUrl(['/a', '/b'])).toBe('/')
+    expect(getSafeRedirectUrl('/')).toBe('/')
+  })
+})

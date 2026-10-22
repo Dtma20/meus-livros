@@ -1,19 +1,54 @@
 {
-  "name": "meus-livros",
+  "name": "livrolas",
+  "version": "0.1.0",
   "private": true,
-  "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "24.x"
+  },
+  "packageManager": "pnpm@11.10.0",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "typecheck": "nuxt typecheck",
+    "lint": "eslint .",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "vitest run --project unit-dom --project unit-node",
+    "test:integration": "vitest run --project integration-dom --project integration-node",
+    "test:ssr": "vitest run --project ssr-dom --project ssr-node",
+    "test:full": "npm run test && npm run test:ssr",
+    "test:all": "npm run build && npm run test:full",
+    "test:perf": "tsx scripts/benchmark-search.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/seed-genres.ts"
   },
   "dependencies": {
-    "vue": "^3.5.38",
-    "vue-router": "^4.6.4"
+    "better-auth": "^1.7.5",
+    "drizzle-orm": "^0.45.2",
+    "nodemailer": "^10.0.10",
+    "nuxt": "^4.5.2",
+    "postgres": "^3.4.9",
+    "vue": "^3.5.13",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.7",
-    "vite": "^8.1.0"
+    "@nuxt/eslint": "^1.17.0",
+    "@types/node": "^26.6.2",
+    "@types/nodemailer": "^8.0.2",
+    "@vitejs/plugin-vue": "^6.0.9",
+    "axe-core": "^4.10.2",
+    "dotenv": "^18.0.1",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9.21.0",
+    "happy-dom": "^20.14.5",
+    "tsx": "^4.23.13",
+    "typescript": "^5.7.3",
+    "vitest": "^5.0.1",
+    "vue-tsc": "^2.2.8"
   }
 }

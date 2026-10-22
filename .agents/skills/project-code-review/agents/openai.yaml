@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code review de projeto"
+  short_description: "Review de diffs e tarefas com regras do Meus Livros"
+  default_prompt: "Use $project-code-review para revisar este diff pelas convenções e critérios de aceite do Meus Livros."

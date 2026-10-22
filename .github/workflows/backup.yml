@@ -1,0 +1,88 @@
+name: Backup do banco
+
+on:
+  schedule:
+    - cron: '0 6 * * 1,4'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verificar se a chave pública de backup existe
+        run: |
+          if [ ! -f .github/backup-key.pub.asc ]; then
+            echo "::error::.github/backup-key.pub.asc não existe. Sem ela o dump seria enviado em texto claro para um repositório público. Veja docs/runbook-restore.md, seção 'Configuração inicial'."
+            exit 1
+          fi
+
+      - name: Importar a chave pública
+        run: |
+          set -euo pipefail
+          gpg --batch --import .github/backup-key.pub.asc
+
+          FPR="$(gpg --batch --with-colons --list-keys | awk -F: '/^fpr:/ {print $10; exit}')"
+          if [ -z "$FPR" ]; then
+            echo "::error::Nenhuma chave encontrada após importar .github/backup-key.pub.asc."
+            exit 1
+          fi
+          echo "Destinatário: $FPR"
+          echo "BACKUP_RECIPIENT=$FPR" >> "$GITHUB_ENV"
+
+      - name: Gerar o dump
+        env:
+          DATABASE_URL_DIRECT: ${{ secrets.DATABASE_URL_DIRECT }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DATABASE_URL_DIRECT:-}" ]; then
+            echo "::error::O segredo DATABASE_URL_DIRECT não está configurado."
+            exit 1
+          fi
+
+          docker run --rm \
+            -e PGCONNSTR="$DATABASE_URL_DIRECT" \
+            -v "$PWD:/out" \
+            postgres:17-alpine \
+            sh -c 'set -o pipefail; pg_dump --format=plain --no-owner --no-privileges "$PGCONNSTR" | gzip -9 > /out/dump.sql.gz'
+
+      - name: Conferir que o dump não está vazio
+        run: |
+          set -euo pipefail
+          SIZE=$(stat -c%s dump.sql.gz)
+          echo "Tamanho do dump: ${SIZE} bytes"
+          if [ "$SIZE" -lt 10240 ]; then
+            echo "::error::O dump tem ${SIZE} bytes (mínimo 10240). Falhando em vez de enviar um artefato inútil."
+            exit 1
+          fi
+          gzip -t dump.sql.gz
+
+      - name: Criptografar
+        run: |
+          set -euo pipefail
+          gpg --batch --yes --trust-model always \
+              --recipient "$BACKUP_RECIPIENT" \
+              --output "dump-$(date -u +%F).sql.gz.gpg" \
+              --encrypt dump.sql.gz
+          shred -u dump.sql.gz 2>/dev/null || rm -f dump.sql.gz
+          ls -l dump-*.sql.gz.gpg
+
+      - name: Enviar o artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-${{ github.run_id }}
+          path: dump-*.sql.gz.gpg
+          retention-days: 90
+          if-no-files-found: error

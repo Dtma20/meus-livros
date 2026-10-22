@@ -1,0 +1,278 @@
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { removeFixtures } from './fixtures'
+
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL)
+
+const MARKER = `zz-search-${Date.now()}`
+
+describe.skipIf(!hasDatabaseUrl)('Search service', () => {
+  let db: typeof import('../../server/db')['db']
+  let client: typeof import('../../server/db')['client']
+  let schema: typeof import('../../server/db/schema')
+  let sqlOp: typeof import('drizzle-orm')
+  let search: typeof import('../../server/services/search')
+  let userId: string
+  let workDostoievskiId: string
+  let workFiccaoId: string
+  let workRetornoId: string
+  let workPopularId: string
+  let workUnpopularId: string
+
+  beforeAll(async () => {
+    const dbModule = await import('../../server/db')
+    db = dbModule.db
+    client = dbModule.client
+    schema = await import('../../server/db/schema')
+    sqlOp = await import('drizzle-orm')
+    search = await import('../../server/services/search')
+
+    const [user] = await db
+      .insert(schema.users)
+      .values({
+        email: `${MARKER}@example.com`,
+        handle: `s${Date.now()}`.slice(0, 20),
+        display_name: 'Usuário busca',
+      })
+      .returning({ id: schema.users.id })
+
+    if (!user) throw new Error('Não foi possível criar o usuário de teste.')
+    userId = user.id
+
+    const [authorDosto] = await db
+      .insert(schema.authors)
+      .values({ name: 'Fiodor Dostoiévski', slug: `${MARKER}-fiodor-dostoievski`, created_by: userId })
+      .returning({ id: schema.authors.id })
+
+    if (!authorDosto) throw new Error('Falha ao criar autor.')
+
+    const [workDosto] = await db
+      .insert(schema.works)
+      .values({
+        slug: `${MARKER}-crime-e-castigo`,
+        title: `${MARKER} Crime e Castigo`,
+        created_by: userId,
+      })
+      .returning({ id: schema.works.id })
+
+    if (!workDosto) throw new Error('Falha ao criar obra Dostoiévski.')
+    workDostoievskiId = workDosto.id
+
+    await db.insert(schema.work_authors).values({
+      work_id: workDostoievskiId,
+      author_id: authorDosto.id,
+      position: 0,
+    })
+
+    const [workFiccao] = await db
+      .insert(schema.works)
+      .values({
+        slug: `${MARKER}-ficcao-cientifica`,
+        title: `${MARKER} Ficção Científica`,
+        created_by: userId,
+      })
+      .returning({ id: schema.works.id })
+
+    if (!workFiccao) throw new Error('Falha ao criar obra Ficção.')
+    workFiccaoId = workFiccao.id
+
+    const [workRetorno] = await db
+      .insert(schema.works)
+      .values({
+        slug: `${MARKER}-retorno-do-rei`,
+        title: `${MARKER} O Retorno do Rei`,
+        created_by: userId,
+      })
+      .returning({ id: schema.works.id })
+
+    if (!workRetorno) throw new Error('Falha ao criar obra Retorno.')
+    workRetornoId = workRetorno.id
+
+    const [workPopular] = await db
+      .insert(schema.works)
+      .values({
+        slug: `${MARKER}-popular`,
+        title: `${MARKER} Popular`,
+        created_by: userId,
+      })
+      .returning({ id: schema.works.id })
+
+    if (!workPopular) throw new Error('Falha ao criar obra popular.')
+    workPopularId = workPopular.id
+
+    const [workUnpopular] = await db
+      .insert(schema.works)
+      .values({
+        slug: `${MARKER}-unpopular`,
+        title: `${MARKER} Unpopular`,
+        created_by: userId,
+      })
+      .returning({ id: schema.works.id })
+
+    if (!workUnpopular) throw new Error('Falha ao criar obra unpopular.')
+    workUnpopularId = workUnpopular.id
+
+    await db.insert(schema.reading_logs).values(
+      Array.from({ length: 5 }, () => ({
+        user_id: userId,
+        work_id: workPopularId,
+        visibility: 'publico' as const,
+      })),
+    )
+  })
+
+  afterAll(async () => {
+    try {
+      await removeFixtures(MARKER)
+    } finally {
+      await client?.end()
+    }
+  })
+
+  it('dostoievski (unaccented) returns the Dostoiévski work', async () => {
+    const works = await search.searchWorks('dostoievski', null)
+    const ids = works.map((w) => w.id)
+    expect(ids).toContain(workDostoievskiId)
+  })
+
+  it('ficcao (unaccented) returns work with Ficção in the title', async () => {
+    const works = await search.searchWorks('ficcao', null)
+    const ids = works.map((w) => w.id)
+    expect(ids).toContain(workFiccaoId)
+  })
+
+  it('partial title retorno returns O Retorno do Rei', async () => {
+    const works = await search.searchWorks('retorno', null)
+    const ids = works.map((w) => w.id)
+    expect(ids).toContain(workRetornoId)
+  })
+
+  it('author-only query (dostoievski) returns that author\'s works', async () => {
+    const works = await search.searchWorks('dostoievski', null)
+    expect(works.some((w) => w.id === workDostoievskiId)).toBe(true)
+  })
+
+  it('q of 1 char returns empty array, not an error', async () => {
+    const works = await search.searchWorks('j', null)
+    expect(works).toEqual([])
+  })
+
+  it('q of % returns 200 and does not return every row', async () => {
+
+    const works = await search.searchWorks('%', null)
+
+    expect(works.length).toBe(0)
+  })
+
+  it('returns at most 20 results', async () => {
+
+    const works = await search.searchWorks(MARKER.slice(0, 20), null)
+    expect(works.length).toBeLessThanOrEqual(20)
+  })
+
+  it('a work with 5 logs ranks above an equally-matching work with 0', async () => {
+
+    const works = await search.searchWorks(MARKER.slice(0, 20), null)
+    const idxPopular = works.findIndex((w) => w.id === workPopularId)
+    const idxUnpopular = works.findIndex((w) => w.id === workUnpopularId)
+    expect(idxPopular).toBeGreaterThanOrEqual(0)
+    expect(idxUnpopular).toBeGreaterThanOrEqual(0)
+    expect(idxPopular).toBeLessThan(idxUnpopular)
+  })
+
+  it('each result carries the required shape', async () => {
+    const works = await search.searchWorks(MARKER.slice(0, 20), null)
+    expect(works.length).toBeGreaterThan(0)
+    const w = works[0]!
+    expect(typeof w.id).toBe('string')
+    expect(typeof w.slug).toBe('string')
+    expect(typeof w.title).toBe('string')
+    expect(Array.isArray(w.authors)).toBe(true)
+
+    expect('first_published_year' in w).toBe(true)
+    expect('cover_url' in w).toBe(true)
+    expect(typeof w.log_count).toBe('number')
+  })
+
+
+  it('a zero-result search inserts exactly one row with the exact query text', async () => {
+    const missQuery = `${MARKER} Livro Inexistente 123`
+    await search.recordSearchMiss(missQuery, userId)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.eq(schema.search_misses.query, missQuery))
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.query).toBe(missQuery)
+    expect(rows[0]!.user_id).toBe(userId)
+    expect(rows[0]!.created_at).toBeInstanceOf(Date)
+  }, 20_000)
+
+  it('query text is stored trimmed but not normalised', async () => {
+    const untrimmedQuery = `  ${MARKER} Livro Com Espaços e Acentos (São Paulo)  `
+    const expectedQuery = `${MARKER} Livro Com Espaços e Acentos (São Paulo)`
+
+    await search.recordSearchMiss(untrimmedQuery, userId)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.eq(schema.search_misses.query, expectedQuery))
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.query).toBe(expectedQuery)
+  }, 20_000)
+
+  it('a search returning results creates no row', async () => {
+    const results = await search.searchWorks('dostoievski', null)
+    expect(results.length).toBeGreaterThan(0)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.eq(schema.search_misses.query, 'dostoievski'))
+
+    expect(rows).toHaveLength(0)
+  }, 20_000)
+
+  it('a 1-character query creates no row', async () => {
+    const singleChar = 'x'
+    await search.recordSearchMiss(singleChar, userId)
+    await search.recordSearchMiss('  y  ', userId)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.inArray(schema.search_misses.query, ['x', 'y']))
+
+    expect(rows).toHaveLength(0)
+  }, 20_000)
+
+  it('an anonymous search creates a row with user_id IS NULL', async () => {
+    const anonQuery = `${MARKER} anonymous book query`
+    await search.recordSearchMiss(anonQuery, null)
+
+    const rows = await db
+      .select()
+      .from(schema.search_misses)
+      .where(sqlOp.eq(schema.search_misses.query, anonQuery))
+
+    expect(rows).toHaveLength(1)
+    expect(rows[0]!.query).toBe(anonQuery)
+    expect(rows[0]!.user_id).toBeNull()
+  }, 20_000)
+
+  it('a query containing _ still finds a similar title via fuzzy matching', async () => {
+    const results = await search.searchWorks(`${MARKER} O_Retorno do Rei`, null)
+    expect(results.map((r) => r.title)).toContain(`${MARKER} O Retorno do Rei`)
+  }, 20_000)
+
+  it('a simulated insert failure does not affect or throw in recordSearchMiss', async () => {
+
+    const nonExistentUserId = '00000000-0000-0000-0000-000000000000'
+    await expect(
+      search.recordSearchMiss(`${MARKER} simulated failure`, nonExistentUserId),
+    ).resolves.not.toThrow()
+  }, 20_000)
+})

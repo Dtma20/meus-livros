@@ -1,0 +1,381 @@
+import { describe, expect, it } from 'vitest'
+import {
+  buildOgDescription,
+  buildOgImageUrl,
+  buildOgTitle,
+  formatBookFormat,
+  formatRatingStars,
+  formatReadingDate,
+  isValidCoverUrl,
+  makeAbsoluteUrl,
+  ogCoverUrl,
+  resolveEntryOgImageUrl,
+} from '../../app/utils/entry'
+import type { LogWithDetails } from '../../shared/schemas/log'
+
+describe('formatRatingStars', () => {
+  it('returns empty string for null, undefined or 0', () => {
+    expect(formatRatingStars(null)).toBe('')
+    expect(formatRatingStars(undefined)).toBe('')
+    expect(formatRatingStars(0)).toBe('')
+  })
+
+  it('formats whole-star rating', () => {
+    expect(formatRatingStars(3)).toBe('★★★')
+    expect(formatRatingStars(5)).toBe('★★★★★')
+  })
+
+  it('formats half-star rating', () => {
+    expect(formatRatingStars(4.5)).toBe('★★★★½')
+    expect(formatRatingStars(0.5)).toBe('½')
+  })
+})
+
+describe('buildOgTitle', () => {
+  it('includes stars when rating is present', () => {
+    expect(buildOgTitle('Dom Casmurro', 'diogo', 5)).toBe(
+      'Dom Casmurro - ★★★★★ por @diogo',
+    )
+  })
+
+  it('omits stars when rating is null', () => {
+    expect(buildOgTitle('Dom Casmurro', 'diogo', null)).toBe(
+      'Dom Casmurro por @diogo',
+    )
+  })
+
+  it('omits stars when rating is 0', () => {
+    expect(buildOgTitle('Dom Casmurro', 'diogo', 0)).toBe(
+      'Dom Casmurro por @diogo',
+    )
+  })
+})
+
+describe('buildOgDescription', () => {
+  it('returns first 160 chars of review', () => {
+    const long = 'A'.repeat(200)
+    expect(buildOgDescription(long, 'Diogo', 'Livro X')).toBe('A'.repeat(160))
+  })
+
+  it('returns trimmed review when under 160 chars', () => {
+    expect(buildOgDescription('Ótimo livro!', 'Diogo', 'Livro X')).toBe(
+      'Ótimo livro!',
+    )
+  })
+
+  it('falls back to "{display_name} leu {title}" when review is null', () => {
+    expect(buildOgDescription(null, 'Diogo', 'Dom Casmurro')).toBe(
+      'Diogo leu Dom Casmurro',
+    )
+  })
+
+  it('falls back when review is only whitespace', () => {
+    expect(buildOgDescription('   ', 'Diogo', 'Livro Y')).toBe(
+      'Diogo leu Livro Y',
+    )
+  })
+
+  it('preserves double-quote and angle-bracket characters in the raw string', () => {
+    const review = 'She said "Wow!" and <3 the book'
+    const result = buildOgDescription(review, 'X', 'Y')
+    expect(result).toBe(review)
+  })
+})
+
+describe('isValidCoverUrl', () => {
+  it('accepts https URLs', () => {
+    expect(isValidCoverUrl('https://covers.example.com/img.jpg')).toBe(true)
+  })
+
+  it('rejects http URLs', () => {
+    expect(isValidCoverUrl('http://covers.example.com/img.jpg')).toBe(false)
+  })
+
+  it('rejects empty, null, or non-string', () => {
+    expect(isValidCoverUrl(null)).toBe(false)
+    expect(isValidCoverUrl('')).toBe(false)
+    expect(isValidCoverUrl(undefined)).toBe(false)
+  })
+
+  it('rejects data: URLs', () => {
+    expect(isValidCoverUrl('data:image/png;base64,ABC')).toBe(false)
+  })
+})
+
+describe('makeAbsoluteUrl', () => {
+  it('returns path + origin when path is relative', () => {
+    expect(makeAbsoluteUrl('/og-fallback.png', 'https://meus-livros.app')).toBe(
+      'https://meus-livros.app/og-fallback.png',
+    )
+  })
+
+  it('returns absolute URL unchanged', () => {
+    const url = 'https://covers.openlibrary.org/b/id/123-L.jpg'
+    expect(makeAbsoluteUrl(url, 'https://meus-livros.app')).toBe(url)
+  })
+
+  it('strips trailing slash from origin', () => {
+    expect(makeAbsoluteUrl('/img.png', 'https://meus-livros.app/')).toBe(
+      'https://meus-livros.app/img.png',
+    )
+  })
+})
+
+describe('buildOgImageUrl - NEVER produce ?default=false', () => {
+  const origin = 'https://meus-livros.app'
+
+  it('uses edition cover_url when present and valid', () => {
+    const url = buildOgImageUrl({
+      editionCoverUrl: 'https://covers.example.com/edition.jpg',
+      workCoverUrl: null,
+      olCoverId: null,
+      origin,
+    })
+    expect(url).toBe('https://covers.example.com/edition.jpg')
+    expect(url).not.toContain('default=false')
+  })
+
+  it('falls back to work cover_url when edition cover is absent', () => {
+    const url = buildOgImageUrl({
+      editionCoverUrl: null,
+      workCoverUrl: 'https://covers.example.com/work.jpg',
+      olCoverId: null,
+      origin,
+    })
+    expect(url).toBe('https://covers.example.com/work.jpg')
+    expect(url).not.toContain('default=false')
+  })
+
+  it('uses Open Library cover ID when no cover URL is available', () => {
+    const url = buildOgImageUrl({
+      editionCoverUrl: null,
+      workCoverUrl: null,
+      olCoverId: 14620787,
+      origin,
+    })
+    expect(url).toBe('https://covers.openlibrary.org/b/id/14620787-L.jpg')
+    expect(url).not.toContain('default=false')
+  })
+
+  it('serves /og-fallback.png (absolute) when no cover info is present - NEVER ?default=false', () => {
+    const url = buildOgImageUrl({
+      editionCoverUrl: null,
+      workCoverUrl: null,
+      olCoverId: null,
+      origin,
+    })
+    expect(url).toBe('https://meus-livros.app/og-fallback.png')
+    expect(url).not.toContain('default=false')
+  })
+
+  it('serves /og-fallback.png for an isbn13-only edition (no cover_url, no ol_cover_id)', () => {
+
+    const url = buildOgImageUrl({
+      editionCoverUrl: null,
+      workCoverUrl: null,
+      olCoverId: null,
+      origin,
+    })
+    expect(url).not.toMatch(/default=false/)
+    expect(url).toBe('https://meus-livros.app/og-fallback.png')
+  })
+})
+
+describe('resolveEntryOgImageUrl', () => {
+  const origin = 'https://meus-livros.app'
+
+  function makeLog(overrides: Partial<LogWithDetails> = {}): LogWithDetails {
+    return {
+      id: 'log-1',
+      user_id: 'user-1',
+      work_id: 'work-1',
+      edition_id: null,
+      rating: null,
+      review: null,
+      started_on: null,
+      finished_on: '2016-01-01',
+      finished_precision: 'ano',
+      format: null,
+      visibility: 'publico',
+      created_at: new Date(),
+      updated_at: new Date(),
+      user: {
+        id: 'user-1',
+        handle: 'diogo',
+        display_name: 'Diogo',
+        profile_visibility: 'publico',
+      },
+      work: {
+        id: 'work-1',
+        title: 'Dom Casmurro',
+        slug: 'dom-casmurro',
+        first_published_year: 1899,
+        cover_url: null,
+        authors: [],
+      },
+      edition: null,
+      ...overrides,
+    }
+  }
+
+  it('returns og-fallback.png when log has no cover info', () => {
+    const url = resolveEntryOgImageUrl(makeLog(), origin)
+    expect(url).toBe('https://meus-livros.app/og-fallback.png')
+    expect(url).not.toContain('default=false')
+  })
+
+  it('uses edition cover_url when present', () => {
+    const log = makeLog({
+      edition_id: 'ed-1',
+      edition: {
+        id: 'ed-1',
+        isbn13: '9788535914849',
+        cover_url: 'https://covers.example.com/casmurro.jpg',
+        ol_cover_id: null,
+        publisher: null,
+        page_count: null,
+        published_year: null,
+      },
+    })
+    const url = resolveEntryOgImageUrl(log, origin)
+    expect(url).toBe('https://covers.example.com/casmurro.jpg')
+  })
+
+  it('discards edition cover_url with ISBN carrying ?default=false and falls back to fallback image or ol_cover_id', () => {
+    const logWithIsbnCover = makeLog({
+      edition_id: 'ed-1',
+      edition: {
+        id: 'ed-1',
+        isbn13: '9788535914849',
+        cover_url: 'https://covers.openlibrary.org/b/isbn/9788535914849-L.jpg?default=false',
+        ol_cover_id: null,
+        publisher: null,
+        page_count: null,
+        published_year: null,
+      },
+    })
+    const url = resolveEntryOgImageUrl(logWithIsbnCover, origin)
+    expect(url).toBe('https://meus-livros.app/og-fallback.png')
+    expect(url).not.toContain('default=false')
+
+    const logWithIsbnAndOlCoverId = makeLog({
+      edition_id: 'ed-1',
+      edition: {
+        id: 'ed-1',
+        isbn13: '9788535914849',
+        cover_url: 'https://covers.openlibrary.org/b/isbn/9788535914849-L.jpg?default=false',
+        ol_cover_id: 14620787,
+        publisher: null,
+        page_count: null,
+        published_year: null,
+      },
+    })
+    const urlWithOl = resolveEntryOgImageUrl(logWithIsbnAndOlCoverId, origin)
+    expect(urlWithOl).toBe('https://covers.openlibrary.org/b/id/14620787-L.jpg')
+    expect(urlWithOl).not.toContain('default=false')
+  })
+
+  it('keeps edition cover_url with id carrying ?default=false but strips the flag', () => {
+    const logWithIdCover = makeLog({
+      edition_id: 'ed-1',
+      edition: {
+        id: 'ed-1',
+        isbn13: '9788535914849',
+        cover_url: 'https://covers.openlibrary.org/b/id/14620787-L.jpg?default=false',
+        ol_cover_id: null,
+        publisher: null,
+        page_count: null,
+        published_year: null,
+      },
+    })
+    const url = resolveEntryOgImageUrl(logWithIdCover, origin)
+    expect(url).toBe('https://covers.openlibrary.org/b/id/14620787-L.jpg')
+    expect(url).not.toContain('default=false')
+  })
+})
+
+describe('formatReadingDate - precision rendering', () => {
+
+  it('renders only the year when precision is "ano"', () => {
+    expect(formatReadingDate('2016-01-01', 'ano')).toBe('2016')
+    expect(formatReadingDate('2021-06-15', 'ano')).toBe('2021')
+    expect(formatReadingDate('1999-12-31', 'ano')).toBe('1999')
+  })
+
+  it('renders month and year in pt-BR when precision is "mes"', () => {
+    const result = formatReadingDate('2021-06-15', 'mes')
+    expect(result).toContain('junho')
+    expect(result).toContain('2021')
+    expect(result).not.toContain('15')
+  })
+
+  it('renders full date in pt-BR when precision is "dia"', () => {
+    const result = formatReadingDate('2021-06-15', 'dia')
+    expect(result).toContain('junho')
+    expect(result).toContain('2021')
+    expect(result).toContain('15')
+  })
+
+  it('returns empty string for null or undefined', () => {
+    expect(formatReadingDate(null, 'dia')).toBe('')
+    expect(formatReadingDate(undefined, 'ano')).toBe('')
+  })
+})
+
+describe('formatBookFormat', () => {
+  it('returns "Livro físico" for "fisico"', () => {
+    expect(formatBookFormat('fisico')).toBe('Livro físico')
+  })
+
+  it('returns "E-book" for "ebook"', () => {
+    expect(formatBookFormat('ebook')).toBe('E-book')
+  })
+
+  it('returns "Audiolivro" for "audio"', () => {
+    expect(formatBookFormat('audio')).toBe('Audiolivro')
+  })
+
+  it('returns empty string for unknown format', () => {
+    expect(formatBookFormat(null)).toBe('')
+    expect(formatBookFormat(undefined)).toBe('')
+    expect(formatBookFormat('unknown')).toBe('')
+  })
+})
+
+describe('ogCoverUrl', () => {
+  it('returns null for null, undefined, empty string or whitespace-only string', () => {
+    expect(ogCoverUrl(null)).toBeNull()
+    expect(ogCoverUrl(undefined)).toBeNull()
+    expect(ogCoverUrl('')).toBeNull()
+    expect(ogCoverUrl('   ')).toBeNull()
+  })
+
+  it('trims whitespace and preserves normal cover URL', () => {
+    expect(ogCoverUrl('  https://example.com/cover.jpg  ')).toBe('https://example.com/cover.jpg')
+  })
+
+  it('returns null for openlibrary isbn cover with default=false, trimming spaces', () => {
+    expect(
+      ogCoverUrl('  https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg?default=false  '),
+    ).toBeNull()
+    expect(ogCoverUrl('/b/isbn/9788535902778-L.jpg?default=false')).toBeNull()
+  })
+
+  it('strips ?default=false from openlibrary id cover, trimming spaces', () => {
+    expect(
+      ogCoverUrl('  https://covers.openlibrary.org/b/id/1234567-L.jpg?default=false  '),
+    ).toBe('https://covers.openlibrary.org/b/id/1234567-L.jpg')
+    expect(
+      ogCoverUrl('  /b/id/1234567-L.jpg?default=false  '),
+    ).toBe('/b/id/1234567-L.jpg')
+  })
+
+  it('keeps openlibrary cover without default=false', () => {
+    expect(
+      ogCoverUrl('  https://covers.openlibrary.org/b/id/1234567-L.jpg  '),
+    ).toBe('https://covers.openlibrary.org/b/id/1234567-L.jpg')
+    expect(
+      ogCoverUrl('  https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg  '),
+    ).toBe('https://covers.openlibrary.org/b/isbn/9788535902778-L.jpg')
+  })
+})
